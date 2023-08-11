@@ -44,6 +44,7 @@ class StructSchemaDataValidator implements SchemaDataValidator {
 
     private static final ObjectReader JSON_SCHEMA_READER =
             ObjectMapperFactory.getMapper().reader().forType(JsonSchema.class);
+
     @Override
     public void validate(SchemaData schemaData) throws InvalidSchemaDataException {
         byte[] data = schemaData.getData();
@@ -70,9 +71,9 @@ class StructSchemaDataValidator implements SchemaDataValidator {
         }
     }
 
-    private static void throwInvalidSchemaDataException(SchemaData schemaData,
-                                                        Throwable cause) throws InvalidSchemaDataException {
-        throw new InvalidSchemaDataException("Invalid schema definition data for "
-            + schemaData.getType() + " schema", cause);
+    private static void throwInvalidSchemaDataException(SchemaData schemaData, Throwable cause)
+            throws InvalidSchemaDataException {
+        throw new InvalidSchemaDataException(
+                "Invalid schema definition data for " + schemaData.getType() + " schema", cause);
     }
 }

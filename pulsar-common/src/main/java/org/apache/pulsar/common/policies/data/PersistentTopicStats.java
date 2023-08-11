@@ -21,6 +21,4 @@ package org.apache.pulsar.common.policies.data;
 /**
  * Maintain compatibility with previous class name.
  */
-public interface PersistentTopicStats extends TopicStats {
-
-}
+public interface PersistentTopicStats extends TopicStats {}

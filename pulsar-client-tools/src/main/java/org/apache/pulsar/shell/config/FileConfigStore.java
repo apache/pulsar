@@ -67,7 +67,7 @@ public class FileConfigStore implements ConfigStore {
     }
 
     private void read() throws IOException {
-        try (final BufferedInputStream buffered = new BufferedInputStream(new FileInputStream(file));) {
+        try (final BufferedInputStream buffered = new BufferedInputStream(new FileInputStream(file)); ) {
             try {
                 fileConfig = mapper.readValue(buffered, FileConfig.class);
             } catch (MismatchedInputException mismatchedInputException) {
@@ -77,7 +77,7 @@ public class FileConfigStore implements ConfigStore {
     }
 
     private void write() throws IOException {
-        try (final BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new FileOutputStream(file));) {
+        try (final BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new FileOutputStream(file)); ) {
             mapper.writeValue(bufferedOutputStream, fileConfig);
         }
     }
@@ -101,7 +101,7 @@ public class FileConfigStore implements ConfigStore {
     }
 
     @Override
-    public void deleteConfig(String name) throws IOException{
+    public void deleteConfig(String name) throws IOException {
         if (DEFAULT_CONFIG.equals(name)) {
             throw new IllegalArgumentException("'" + DEFAULT_CONFIG + "' can't be deleted.");
         }

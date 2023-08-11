@@ -72,13 +72,11 @@ public class AutoClusterFailoverTest {
         String secondaryTlsTrustCertsFilePath = "primary/path";
         Authentication primaryAuthentication = AuthenticationFactory.create(
                 "org.apache.pulsar.client.impl.auth.AuthenticationTls",
-                "tlsCertFile:/path/to/primary-my-role.cert.pem,"
-                        + "tlsKeyFile:/path/to/primary-my-role.key-pk8.pem");
+                "tlsCertFile:/path/to/primary-my-role.cert.pem," + "tlsKeyFile:/path/to/primary-my-role.key-pk8.pem");
 
         Authentication secondaryAuthentication = AuthenticationFactory.create(
                 "org.apache.pulsar.client.impl.auth.AuthenticationTls",
-                "tlsCertFile:/path/to/secondary-my-role.cert.pem,"
-                        + "tlsKeyFile:/path/to/secondary-role.key-pk8.pem");
+                "tlsCertFile:/path/to/secondary-my-role.cert.pem," + "tlsKeyFile:/path/to/secondary-role.key-pk8.pem");
         Map<String, String> secondaryTlsTrustCertsFilePaths = new HashMap<>();
         secondaryTlsTrustCertsFilePaths.put(secondary, secondaryTlsTrustCertsFilePath);
 
@@ -96,7 +94,8 @@ public class AutoClusterFailoverTest {
                 .build();
 
         AutoClusterFailover autoClusterFailover1 = (AutoClusterFailover) provider1;
-        assertEquals(autoClusterFailover1.getSecondaryTlsTrustCertsFilePaths().get(secondary),
+        assertEquals(
+                autoClusterFailover1.getSecondaryTlsTrustCertsFilePaths().get(secondary),
                 secondaryTlsTrustCertsFilePath);
         assertEquals(autoClusterFailover1.getSecondaryAuthentications().get(secondary), secondaryAuthentication);
     }
@@ -128,14 +127,12 @@ public class AutoClusterFailoverTest {
         autoClusterFailover.initialize(pulsarClient);
 
         for (int i = 0; i < 2; i++) {
-            Awaitility.await().untilAsserted(() ->
-                    assertEquals(autoClusterFailover.getServiceUrl(), secondary));
+            Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), secondary));
             assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
 
             // primary cluster came back
             Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
-            Awaitility.await().untilAsserted(() ->
-                    assertEquals(autoClusterFailover.getServiceUrl(), primary));
+            Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), primary));
             assertEquals(autoClusterFailover.getRecoverTimestamp(), -1);
             assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
 
@@ -187,13 +184,11 @@ public class AutoClusterFailoverTest {
         String secondaryTlsTrustCertsFilePath = "primary/path";
         Authentication primaryAuthentication = AuthenticationFactory.create(
                 "org.apache.pulsar.client.impl.auth.AuthenticationTls",
-                "tlsCertFile:/path/to/primary-my-role.cert.pem,"
-                        + "tlsKeyFile:/path/to/primary-my-role.key-pk8.pem");
+                "tlsCertFile:/path/to/primary-my-role.cert.pem," + "tlsKeyFile:/path/to/primary-my-role.key-pk8.pem");
 
         Authentication secondaryAuthentication = AuthenticationFactory.create(
                 "org.apache.pulsar.client.impl.auth.AuthenticationTls",
-                "tlsCertFile:/path/to/secondary-my-role.cert.pem,"
-                        + "tlsKeyFile:/path/to/secondary-role.key-pk8.pem");
+                "tlsCertFile:/path/to/secondary-my-role.cert.pem," + "tlsKeyFile:/path/to/secondary-role.key-pk8.pem");
 
         Map<String, String> secondaryTlsTrustCertsFilePaths = new HashMap<>();
         secondaryTlsTrustCertsFilePaths.put(secondary, secondaryTlsTrustCertsFilePath);
@@ -234,7 +229,6 @@ public class AutoClusterFailoverTest {
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath);
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(primaryAuthentication);
-
     }
 
     @Test
@@ -285,6 +279,5 @@ public class AutoClusterFailoverTest {
         Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), primary));
         Mockito.verify(pulsarClient, Mockito.atLeastOnce())
                 .updateTlsTrustStorePathAndPassword(primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
-
     }
 }

@@ -46,10 +46,12 @@ public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSo
     }
 
     @Override
-    protected void channelRead0(final ChannelHandlerContext clientChannelContext, DefaultSocks5CommandRequest msg) throws Exception {
+    protected void channelRead0(final ChannelHandlerContext clientChannelContext, DefaultSocks5CommandRequest msg)
+            throws Exception {
         if (Socks5CommandType.CONNECT.equals(msg.type())) {
             Bootstrap bootstrap = new Bootstrap();
-            bootstrap.group(socks5Server.getBoss())
+            bootstrap
+                    .group(socks5Server.getBoss())
                     .channel(NioSocketChannel.class)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .handler(new ChannelInitializer<SocketChannel>() {
@@ -67,9 +69,11 @@ public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSo
                             log.debug("connected : {} {}", msg.dstAddr(), msg.dstPort());
                         }
                         clientChannelContext.pipeline().addLast(new TargetHandler(future));
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
+                        clientChannelContext.writeAndFlush(
+                                new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
                     } else {
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
+                        clientChannelContext.writeAndFlush(
+                                new DefaultSocks5CommandResponse(Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
                     }
                 }
             });
@@ -115,5 +119,4 @@ public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSo
             targetChannel.channel().close();
         }
     }
-
 }

@@ -56,14 +56,14 @@ public class WaterMarkEventGeneratorTest {
         Mockito.doReturn("test-namespace").when(context).getNamespace();
         Mockito.doReturn("test-tenant").when(context).getTenant();
         // set watermark interval to a high value and trigger manually to fix timing issues
-        waterMarkEventGenerator = new WaterMarkEventGenerator<>(windowManager, 5L, 5, Collections
-                .singleton("s1"), context);
-//        waterMarkEventGenerator.start();
+        waterMarkEventGenerator =
+                new WaterMarkEventGenerator<>(windowManager, 5L, 5, Collections.singleton("s1"), context);
+        //        waterMarkEventGenerator.start();
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-//        waterMarkEventGenerator.shutdown();
+        //        waterMarkEventGenerator.shutdown();
         eventList.clear();
     }
 
@@ -91,8 +91,7 @@ public class WaterMarkEventGeneratorTest {
         Set<String> streams = new HashSet<>();
         streams.add("s1");
         streams.add("s2");
-        waterMarkEventGenerator = new WaterMarkEventGenerator<>(windowManager, 5L,
-                5, streams, context);
+        waterMarkEventGenerator = new WaterMarkEventGenerator<>(windowManager, 5L, 5, streams, context);
         waterMarkEventGenerator.start();
 
         waterMarkEventGenerator.track("s1", 100);

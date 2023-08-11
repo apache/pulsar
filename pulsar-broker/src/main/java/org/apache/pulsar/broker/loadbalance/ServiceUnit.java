@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.loadbalance;
 
 /*
-    ServiceUnit is a smallest indivisible set that any broker can pick up and service. This unit will be moved around
-    and also turned on and off as and when needed. Load Manager will decide the placement of these Units to minimize
-    the load on ResourceUnit and maximize the performance for each ServiceUnit.
- */
+   ServiceUnit is a smallest indivisible set that any broker can pick up and service. This unit will be moved around
+   and also turned on and off as and when needed. Load Manager will decide the placement of these Units to minimize
+   the load on ResourceUnit and maximize the performance for each ServiceUnit.
+*/
 public abstract class ServiceUnit implements Comparable<ServiceUnit> {
     public abstract String getServiceUnitId();
 

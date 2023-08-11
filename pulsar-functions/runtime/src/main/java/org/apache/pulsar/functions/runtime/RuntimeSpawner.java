@@ -42,32 +42,40 @@ public class RuntimeSpawner implements AutoCloseable {
 
     @Getter
     private final InstanceConfig instanceConfig;
+
     @Getter
     private final RuntimeFactory runtimeFactory;
+
     private final String originalCodeFileName;
 
     @Getter
     private Runtime runtime;
+
     private ScheduledFuture processLivenessCheckTimer;
     private int numRestarts;
     private long instanceLivenessCheckFreqMs;
     private Throwable runtimeDeathException;
 
-
-    public RuntimeSpawner(InstanceConfig instanceConfig,
-                          String codeFile,
-                          String originalCodeFileName,
-                          String transformFunctionFile,
-                          String originalTransformFunctionFileName,
-                          RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
+    public RuntimeSpawner(
+            InstanceConfig instanceConfig,
+            String codeFile,
+            String originalCodeFileName,
+            String transformFunctionFile,
+            String originalTransformFunctionFileName,
+            RuntimeFactory containerFactory,
+            long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
         this.originalCodeFileName = originalCodeFileName;
         this.numRestarts = 0;
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
         try {
-            this.runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
-                    transformFunctionFile, originalTransformFunctionFileName,
+            this.runtime = runtimeFactory.createContainer(
+                    this.instanceConfig,
+                    codeFile,
+                    originalCodeFileName,
+                    transformFunctionFile,
+                    originalTransformFunctionFileName,
                     instanceLivenessCheckFreqMs / 1000);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -76,32 +84,49 @@ public class RuntimeSpawner implements AutoCloseable {
 
     public void start() throws Exception {
         FunctionDetails details = this.instanceConfig.getFunctionDetails();
-        log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
-                details.getName(), this.instanceConfig.getInstanceId());
+        log.info(
+                "{}/{}/{}-{} RuntimeSpawner starting function",
+                details.getTenant(),
+                details.getNamespace(),
+                details.getName(),
+                this.instanceConfig.getInstanceId());
 
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
         if (!runtimeFactory.externallyManaged() && instanceLivenessCheckFreqMs > 0) {
-            processLivenessCheckTimer = InstanceCache.getInstanceCache().getScheduledExecutorService()
-                    .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
-                        Runtime runtime = RuntimeSpawner.this.runtime;
-                        if (runtime != null && !runtime.isAlive()) {
-                            log.error("{}/{}/{} Function Container is dead with following exception. Restarting.",
-                                    details.getTenant(),
-                                    details.getNamespace(), details.getName(), runtime.getDeathException());
-                            // Just for the sake of sanity, just destroy the runtime
-                            try {
-                                runtime.stop();
-                                runtimeDeathException = runtime.getDeathException();
-                                runtime.start();
-                            } catch (Exception e) {
-                                log.error("{}/{}/{}-{} Function Restart failed", details.getTenant(),
-                                        details.getNamespace(), details.getName(), e, e);
-                            }
-                            numRestarts++;
-                        }
-                    }), instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs, TimeUnit.MILLISECONDS);
+            processLivenessCheckTimer = InstanceCache.getInstanceCache()
+                    .getScheduledExecutorService()
+                    .scheduleAtFixedRate(
+                            catchingAndLoggingThrowables(() -> {
+                                Runtime runtime = RuntimeSpawner.this.runtime;
+                                if (runtime != null && !runtime.isAlive()) {
+                                    log.error(
+                                            "{}/{}/{} Function Container is dead with following exception. Restarting.",
+                                            details.getTenant(),
+                                            details.getNamespace(),
+                                            details.getName(),
+                                            runtime.getDeathException());
+                                    // Just for the sake of sanity, just destroy the runtime
+                                    try {
+                                        runtime.stop();
+                                        runtimeDeathException = runtime.getDeathException();
+                                        runtime.start();
+                                    } catch (Exception e) {
+                                        log.error(
+                                                "{}/{}/{}-{} Function Restart failed",
+                                                details.getTenant(),
+                                                details.getNamespace(),
+                                                details.getName(),
+                                                e,
+                                                e);
+                                    }
+                                    numRestarts++;
+                                }
+                            }),
+                            instanceLivenessCheckFreqMs,
+                            instanceLivenessCheckFreqMs,
+                            TimeUnit.MILLISECONDS);
         }
     }
 
@@ -117,12 +142,12 @@ public class RuntimeSpawner implements AutoCloseable {
             return FutureUtil.failedFuture(new IllegalStateException("Function runtime is not started yet"));
         }
         return runtime.getFunctionStatus(instanceId).thenApply(f -> {
-           FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
+            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
+            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
             if (!f.getRunning() && runtimeDeathException != null) {
                 builder.setFailureException(runtimeDeathException.getMessage());
             }
-           return builder.build();
+            return builder.build();
         });
     }
 

@@ -70,8 +70,8 @@ public abstract class MockedBookKeeperTestCase {
     @BeforeMethod(alwaysRun = true)
     public void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
-        metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create("memory:local",
-                MetadataStoreConfig.builder().build()));
+        metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create(
+                "memory:local", MetadataStoreConfig.builder().build()));
         try {
             // start bookkeeper service
             startBookKeeper();
@@ -101,7 +101,10 @@ public abstract class MockedBookKeeperTestCase {
 
     @BeforeClass(alwaysRun = true)
     public void setUpClass() {
-        executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
+        executor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(2)
+                .name("test")
+                .build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
@@ -133,5 +136,4 @@ public abstract class MockedBookKeeperTestCase {
     protected void stopMetadataStore() {
         metadataStore.setAlwaysFail(new MetadataStoreException("error"));
     }
-
 }

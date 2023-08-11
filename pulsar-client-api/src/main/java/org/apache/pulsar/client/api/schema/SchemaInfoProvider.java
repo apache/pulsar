@@ -51,5 +51,4 @@ public interface SchemaInfoProvider {
      * @return the topic name
      */
     String getTopicName();
-
 }

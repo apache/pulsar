@@ -36,7 +36,6 @@ public abstract class AbstractSink<T> implements Sink<T> {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractSink.class);
 
-
     public abstract T extractValue(Record<T> record);
 
     protected static BlockingQueue<Object> records;

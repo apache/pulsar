@@ -41,24 +41,25 @@ public class MultiVersionGenericAvroReader extends AbstractMultiVersionGenericRe
     protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            LOG.info("Load schema reader for version({}), schema is : {}",
+            LOG.info(
+                    "Load schema reader for version({}), schema is : {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                     schemaInfo);
             Schema writerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
             Schema readerSchema = useProvidedSchemaAsReaderSchema ? this.readerSchema : writerSchema;
-            readerSchema.addProp(GenericAvroSchema.OFFSET_PROP,
+            readerSchema.addProp(
+                    GenericAvroSchema.OFFSET_PROP,
                     schemaInfo.getProperties().getOrDefault(GenericAvroSchema.OFFSET_PROP, "0"));
 
-            return new GenericAvroReader(
-                    writerSchema,
-                    readerSchema,
-                    schemaVersion.get());
+            return new GenericAvroReader(writerSchema, readerSchema, schemaVersion.get());
         } else {
-            LOG.warn("No schema found for version({}), use latest schema : {}",
+            LOG.warn(
+                    "No schema found for version({}), use latest schema : {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                     this.readerSchema);
             return providerSchemaReader;
         }
     }
+
     protected static final Logger LOG = LoggerFactory.getLogger(MultiVersionGenericAvroReader.class);
 }

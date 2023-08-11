@@ -53,10 +53,10 @@ public class TopicResources {
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
 
-        return store.getChildren(path).thenApply(children ->
-                children.stream().map(c -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(c)).toString())
-                        .collect(Collectors.toList())
-        );
+        return store.getChildren(path).thenApply(children -> children.stream()
+                .map(c -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(c))
+                        .toString())
+                .collect(Collectors.toList()));
     }
 
     public CompletableFuture<List<String>> getExistingPartitions(TopicName topic) {
@@ -65,11 +65,9 @@ public class TopicResources {
 
     public CompletableFuture<List<String>> getExistingPartitions(NamespaceName ns, TopicDomain domain) {
         String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + ns + "/" + domain;
-        return store.getChildren(topicPartitionPath).thenApply(topics ->
-                topics.stream()
-                        .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
-                        .collect(Collectors.toList())
-        );
+        return store.getChildren(topicPartitionPath).thenApply(topics -> topics.stream()
+                .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
+                .collect(Collectors.toList()));
     }
 
     public CompletableFuture<Void> deletePersistentTopicAsync(TopicName topic) {
@@ -79,8 +77,7 @@ public class TopicResources {
 
     public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
         String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
-        return store.put(path, new byte[0], Optional.of(-1L))
-                .thenApply(__ -> null);
+        return store.put(path, new byte[0], Optional.of(-1L)).thenApply(__ -> null);
     }
 
     public CompletableFuture<Boolean> persistentTopicExists(TopicName topic) {
@@ -90,38 +87,35 @@ public class TopicResources {
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        return store.exists(path).thenCompose(exists -> {
+            if (exists) {
+                return store.delete(path, Optional.empty());
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        return store.exists(path).thenCompose(exists -> {
+            if (exists) {
+                return store.delete(path, Optional.empty());
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
     }
 
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        return store.exists(path).thenCompose(exists -> {
+            if (exists) {
+                return store.delete(path, Optional.empty());
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
     }
 
     void handleNotification(Notification notification) {
@@ -130,13 +124,12 @@ public class TopicResources {
         }
         if (notification.getPath().startsWith(MANAGED_LEDGER_PATH)
                 && (notification.getType() == NotificationType.Created
-                || notification.getType() == NotificationType.Deleted)) {
-            for (Map.Entry<BiConsumer<String, NotificationType>, Pattern> entry :
-                    topicListeners.entrySet()) {
+                        || notification.getType() == NotificationType.Deleted)) {
+            for (Map.Entry<BiConsumer<String, NotificationType>, Pattern> entry : topicListeners.entrySet()) {
                 Matcher matcher = entry.getValue().matcher(notification.getPath());
                 if (matcher.matches()) {
-                    TopicName topicName = TopicName.get(
-                            matcher.group(2), NamespaceName.get(matcher.group(1)), matcher.group(3));
+                    TopicName topicName =
+                            TopicName.get(matcher.group(2), NamespaceName.get(matcher.group(1)), matcher.group(3));
                     entry.getKey().accept(topicName.toString(), notification.getType());
                 }
             }
@@ -156,5 +149,4 @@ public class TopicResources {
     public void deregisterPersistentTopicListener(BiConsumer<String, NotificationType> listener) {
         topicListeners.remove(listener);
     }
-
 }

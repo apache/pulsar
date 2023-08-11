@@ -48,10 +48,10 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
 
     private String ledgersRootPath;
 
-
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.ledgersRootPath = "/ledgers-" + UUID.randomUUID();
-        this.store = MetadataStoreExtended.create(urlSupplier.get(),
+        this.store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         this.registrationManager = new PulsarRegistrationManager(store, ledgersRootPath, new ServerConfiguration());
     }
@@ -164,7 +164,6 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertTrue(registrationManager.nukeExistingCluster());
         assertClusterNotExists();
     }
-
 
     @Test(dataProvider = "impl")
     public void testNukeExistingClusterWithAllBookies(String provider, Supplier<String> urlSupplier) throws Exception {

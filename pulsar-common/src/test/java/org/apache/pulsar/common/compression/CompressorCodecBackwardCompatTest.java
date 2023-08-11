@@ -19,11 +19,8 @@
 package org.apache.pulsar.common.compression;
 
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -33,17 +30,18 @@ import org.testng.annotations.Test;
  */
 public class CompressorCodecBackwardCompatTest {
 
-    private static String text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras id massa odio. Duis commodo ligula sed efficitur cursus. Aliquam sollicitudin, tellus quis suscipit tincidunt, erat sem efficitur nulla, in feugiat diam ex a dolor. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Vestibulum ac volutpat nisl, vel aliquam elit. Maecenas auctor aliquet turpis, id ullamcorper metus. Ut tincidunt et magna non ultrices. Quisque lacinia metus sed egestas tincidunt. Sed congue lacinia maximus.";
+    private static String text =
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras id massa odio. Duis commodo ligula sed efficitur cursus. Aliquam sollicitudin, tellus quis suscipit tincidunt, erat sem efficitur nulla, in feugiat diam ex a dolor. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Vestibulum ac volutpat nisl, vel aliquam elit. Maecenas auctor aliquet turpis, id ullamcorper metus. Ut tincidunt et magna non ultrices. Quisque lacinia metus sed egestas tincidunt. Sed congue lacinia maximus.";
 
     @DataProvider(name = "codecs")
     public Object[][] codecProvider() {
         return new Object[][] {
-                { new CompressionCodecLZ4(), new CompressionCodecLZ4JNI() },
-                { new CompressionCodecLZ4JNI(), new CompressionCodecLZ4() },
-                { new CompressionCodecZstd(), new CompressionCodecZstdJNI() },
-                { new CompressionCodecZstdJNI(), new CompressionCodecZstd() },
-                { new CompressionCodecSnappy(), new CompressionCodecSnappyJNI() },
-                { new CompressionCodecSnappyJNI(), new CompressionCodecSnappy() },
+            {new CompressionCodecLZ4(), new CompressionCodecLZ4JNI()},
+            {new CompressionCodecLZ4JNI(), new CompressionCodecLZ4()},
+            {new CompressionCodecZstd(), new CompressionCodecZstdJNI()},
+            {new CompressionCodecZstdJNI(), new CompressionCodecZstd()},
+            {new CompressionCodecSnappy(), new CompressionCodecSnappyJNI()},
+            {new CompressionCodecSnappyJNI(), new CompressionCodecSnappy()},
         };
     }
 

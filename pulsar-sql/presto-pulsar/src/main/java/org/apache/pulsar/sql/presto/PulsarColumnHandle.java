@@ -54,7 +54,6 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
      */
     private final boolean internal;
 
-
     private HandleKeyValueType handleKeyValueType;
 
     /**
@@ -171,9 +170,15 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
     }
 
     ColumnMetadata getColumnMetadata() {
-        return new PulsarColumnMetadata(name, type, null, null, hidden,
-                internal, handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(
-                        mapping, dataFormat, formatHint));
+        return new PulsarColumnMetadata(
+                name,
+                type,
+                null,
+                null,
+                hidden,
+                internal,
+                handleKeyValueType,
+                new PulsarColumnMetadata.DecoderExtraInfo(mapping, dataFormat, formatHint));
     }
 
     @Override
@@ -223,7 +228,7 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
         result = 31 * result + (type != null ? type.hashCode() : 0);
         result = 31 * result + (hidden ? 1 : 0);
         result = 31 * result + (internal ? 1 : 0);
-        result =  31 * result + (mapping != null ? mapping.hashCode() : 0);
+        result = 31 * result + (mapping != null ? mapping.hashCode() : 0);
         result = 31 * result + (dataFormat != null ? dataFormat.hashCode() : 0);
         result = 31 * result + (formatHint != null ? formatHint.hashCode() : 0);
         result = 31 * result + (handleKeyValueType != null ? handleKeyValueType.hashCode() : 0);
@@ -233,15 +238,15 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
     @Override
     public String toString() {
         return "PulsarColumnHandle{"
-            + "connectorId='" + connectorId + '\''
-            + ", name='" + name + '\''
-            + ", type=" + type
-            + ", hidden=" + hidden
-            + ", internal=" + internal
-            + ", mapping=" + mapping
-            + ", dataFormat=" + dataFormat
-            + ", formatHint=" + formatHint
-            + ", handleKeyValueType=" + handleKeyValueType
-            + '}';
+                + "connectorId='" + connectorId + '\''
+                + ", name='" + name + '\''
+                + ", type=" + type
+                + ", hidden=" + hidden
+                + ", internal=" + internal
+                + ", mapping=" + mapping
+                + ", dataFormat=" + dataFormat
+                + ", formatHint=" + formatHint
+                + ", handleKeyValueType=" + handleKeyValueType
+                + '}';
     }
 }

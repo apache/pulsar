@@ -38,33 +38,20 @@ public class InfluxDBSinkConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "The url of the InfluxDB instance to connect to"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "The url of the InfluxDB instance to connect to")
     private String influxdbUrl;
 
     @FieldDoc(
             required = true,
             defaultValue = "",
             sensitive = true,
-            help = "The authentication token used to authenticate to InfluxDB"
-    )
+            help = "The authentication token used to authenticate to InfluxDB")
     private String token;
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "The InfluxDB organization to write to"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "The InfluxDB organization to write to")
     private String organization;
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "The InfluxDB bucket to write to"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "The InfluxDB bucket to write to")
     private String bucket;
 
     @FieldDoc(
@@ -79,23 +66,13 @@ public class InfluxDBSinkConfig implements Serializable {
             help = "The log level for InfluxDB request and response. Possible values [NONE, BASIC, HEADERS, FULL]")
     private String logLevel = "NONE";
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "false",
-            help = "Flag to determine if gzip should be enabled")
+    @FieldDoc(required = false, defaultValue = "false", help = "Flag to determine if gzip should be enabled")
     private boolean gzipEnable = false;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "1000L",
-            help = "The InfluxDB operation time in milliseconds")
+    @FieldDoc(required = false, defaultValue = "1000L", help = "The InfluxDB operation time in milliseconds")
     private long batchTimeMs = 1000;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "200",
-            help = "The batch size of write to InfluxDB database"
-    )
+    @FieldDoc(required = false, defaultValue = "200", help = "The batch size of write to InfluxDB database")
     private int batchSize = 200;
 
     public static InfluxDBSinkConfig load(String yamlFile) throws IOException {
@@ -118,4 +95,3 @@ public class InfluxDBSinkConfig implements Serializable {
         Preconditions.checkArgument(batchTimeMs > 0, "batchTimeMs must be a positive long.");
     }
 }
-

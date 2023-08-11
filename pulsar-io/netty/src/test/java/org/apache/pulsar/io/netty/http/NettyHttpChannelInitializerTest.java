@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.io.netty.http;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.pulsar.io.netty.NettySource;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 
 /**
  * Tests for Netty Channel Initializer
@@ -34,12 +33,11 @@ public class NettyHttpChannelInitializerTest {
     public void testChannelInitializer() throws Exception {
         NioSocketChannel channel = new NioSocketChannel();
 
-        NettyHttpChannelInitializer nettyChannelInitializer = new NettyHttpChannelInitializer(
-                new NettyHttpServerHandler(new NettySource()), null);
+        NettyHttpChannelInitializer nettyChannelInitializer =
+                new NettyHttpChannelInitializer(new NettyHttpServerHandler(new NettySource()), null);
         nettyChannelInitializer.initChannel(channel);
 
         assertNotNull(channel.pipeline().toMap());
         assertEquals(2, channel.pipeline().toMap().size());
     }
-
 }

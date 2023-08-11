@@ -48,8 +48,9 @@ public class PulsarConfigurationLoader {
      * @throws IOException
      * @throws IllegalArgumentException
      */
-    public static <T extends PulsarConfiguration> T create(String configFile,
-            Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
+    public static <T extends PulsarConfiguration> T create(
+            String configFile, Class<? extends PulsarConfiguration> clazz)
+            throws IOException, IllegalArgumentException {
         requireNonNull(configFile);
         try (InputStream inputStream = new FileInputStream(configFile)) {
             return create(inputStream, clazz);
@@ -66,8 +67,9 @@ public class PulsarConfigurationLoader {
      * @throws IllegalArgumentException
      *             if the input stream contains incorrect value type
      */
-    public static <T extends PulsarConfiguration> T create(InputStream inStream,
-            Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
+    public static <T extends PulsarConfiguration> T create(
+            InputStream inStream, Class<? extends PulsarConfiguration> clazz)
+            throws IOException, IllegalArgumentException {
         try {
             requireNonNull(inStream);
             Properties properties = new Properties();
@@ -87,17 +89,20 @@ public class PulsarConfigurationLoader {
      * @throws IOException
      * @throws IllegalArgumentException
      */
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public static <T extends PulsarConfiguration> T create(Properties properties,
-            Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static <T extends PulsarConfiguration> T create(
+            Properties properties, Class<? extends PulsarConfiguration> clazz)
+            throws IOException, IllegalArgumentException {
         requireNonNull(properties);
         T configuration;
         try {
             configuration = (T) clazz.getDeclaredConstructor().newInstance();
             configuration.setProperties(properties);
             update((Map) properties, configuration);
-        } catch (InstantiationException | IllegalAccessException
-                | NoSuchMethodException | InvocationTargetException e) {
+        } catch (InstantiationException
+                | IllegalAccessException
+                | NoSuchMethodException
+                | InvocationTargetException e) {
             throw new IllegalArgumentException("Failed to instantiate " + clazz.getName(), e);
         }
         return configuration;
@@ -143,8 +148,9 @@ public class PulsarConfigurationLoader {
                     long fieldVal = ((Number) value).longValue();
                     boolean valid = fieldVal >= minValue && fieldVal <= maxValue;
                     if (!valid) {
-                        error.append(String.format("%s value %d doesn't fit in given range (%d, %d),", field.getName(),
-                                fieldVal, minValue, maxValue));
+                        error.append(String.format(
+                                "%s value %d doesn't fit in given range (%d, %d),",
+                                field.getName(), fieldVal, minValue, maxValue));
                     }
                 }
             }
@@ -179,8 +185,8 @@ public class PulsarConfigurationLoader {
     public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember)
             throws RuntimeException {
         try {
-            final ServiceConfiguration convertedConf = ServiceConfiguration.class
-                    .getDeclaredConstructor().newInstance();
+            final ServiceConfiguration convertedConf =
+                    ServiceConfiguration.class.getDeclaredConstructor().newInstance();
             Field[] confFields = conf.getClass().getDeclaredFields();
             Properties sourceProperties = conf.getProperties();
             Properties targetProperties = convertedConf.getProperties();
@@ -214,8 +220,10 @@ public class PulsarConfigurationLoader {
             // Put the rest of properties to new config
             targetProperties.putAll(sourceProperties);
             return convertedConf;
-        } catch (InstantiationException | IllegalAccessException
-                | InvocationTargetException | NoSuchMethodException e) {
+        } catch (InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException
+                | NoSuchMethodException e) {
             throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
         }
     }

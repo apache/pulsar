@@ -61,9 +61,7 @@ public class BrokerInterceptorUtils {
     private BrokerInterceptorDefinition getBrokerInterceptorDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(BROKER_INTERCEPTOR_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(
-                configStr, BrokerInterceptorDefinition.class
-        );
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, BrokerInterceptorDefinition.class);
     }
 
     /**
@@ -73,8 +71,8 @@ public class BrokerInterceptorUtils {
      * @return a collection of broker interceptors
      * @throws IOException when fail to load the available broker interceptors from the provided directory.
      */
-    public BrokerInterceptorDefinitions searchForInterceptors(String interceptorsDirectory,
-                                                              String narExtractionDirectory) throws IOException {
+    public BrokerInterceptorDefinitions searchForInterceptors(
+            String interceptorsDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(interceptorsDirectory).toAbsolutePath();
         log.info("Searching for broker interceptors in {}", path);
 
@@ -87,9 +85,8 @@ public class BrokerInterceptorUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    BrokerInterceptorDefinition def =
-                            BrokerInterceptorUtils.getBrokerInterceptorDefinition(archive.toString(),
-                                    narExtractionDirectory);
+                    BrokerInterceptorDefinition def = BrokerInterceptorUtils.getBrokerInterceptorDefinition(
+                            archive.toString(), narExtractionDirectory);
                     log.info("Found broker interceptors from {} : {}", archive, def);
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
@@ -101,10 +98,13 @@ public class BrokerInterceptorUtils {
 
                     interceptors.interceptors().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load broker interceptor from {}."
-                            + " It is OK however if you want to use this broker interceptor,"
-                            + " please make sure you put the correct broker interceptor NAR"
-                            + " package in the broker interceptors directory.", archive, t);
+                    log.warn(
+                            "Failed to load broker interceptor from {}."
+                                    + " It is OK however if you want to use this broker interceptor,"
+                                    + " please make sure you put the correct broker interceptor NAR"
+                                    + " package in the broker interceptors directory.",
+                            archive,
+                            t);
                 }
             }
         }
@@ -136,8 +136,8 @@ public class BrokerInterceptorUtils {
             Class interceptorClass = ncl.loadClass(def.getInterceptorClass());
             Object interceptor = interceptorClass.getDeclaredConstructor().newInstance();
             if (!(interceptor instanceof BrokerInterceptor)) {
-                throw new IOException("Class " + def.getInterceptorClass()
-                        + " does not implement broker interceptor interface");
+                throw new IOException(
+                        "Class " + def.getInterceptorClass() + " does not implement broker interceptor interface");
             }
             BrokerInterceptor pi = (BrokerInterceptor) interceptor;
             return new BrokerInterceptorWithClassLoader(pi, ncl);
@@ -147,8 +147,7 @@ public class BrokerInterceptorUtils {
         }
     }
 
-    private void rethrowIOException(Throwable cause)
-            throws IOException {
+    private void rethrowIOException(Throwable cause) throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;
         } else if (cause instanceof RuntimeException) {

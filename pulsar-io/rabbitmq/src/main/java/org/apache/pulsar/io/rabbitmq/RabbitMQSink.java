@@ -37,11 +37,10 @@ import org.apache.pulsar.io.core.annotations.IOType;
  * This class expects records from Pulsar to have values that are stored as bytes or string.
  */
 @Connector(
-    name = "rabbitmq",
-    type = IOType.SINK,
-    help = "A sink connector is used for moving messages from Pulsar to RabbitMQ.",
-    configClass = RabbitMQSinkConfig.class
-)
+        name = "rabbitmq",
+        type = IOType.SINK,
+        help = "A sink connector is used for moving messages from Pulsar to RabbitMQ.",
+        configClass = RabbitMQSinkConfig.class)
 @Slf4j
 public class RabbitMQSink implements Sink<byte[]> {
 
@@ -58,10 +57,10 @@ public class RabbitMQSink implements Sink<byte[]> {
 
         ConnectionFactory connectionFactory = rabbitMQSinkConfig.createConnectionFactory();
         rabbitMQConnection = connectionFactory.newConnection(rabbitMQSinkConfig.getConnectionName());
-        log.info("A new connection to {}:{} has been opened successfully.",
-            rabbitMQConnection.getAddress().getCanonicalHostName(),
-            rabbitMQConnection.getPort()
-        );
+        log.info(
+                "A new connection to {}:{} has been opened successfully.",
+                rabbitMQConnection.getAddress().getCanonicalHostName(),
+                rabbitMQConnection.getPort());
 
         exchangeName = rabbitMQSinkConfig.getExchangeName();
         defaultRoutingKey = rabbitMQSinkConfig.getRoutingKey();
@@ -83,8 +82,8 @@ public class RabbitMQSink implements Sink<byte[]> {
         byte[] value = record.getValue();
         try {
             String routingKey = record.getProperties().get("routingKey");
-            rabbitMQChannel.basicPublish(exchangeName,
-                    StringUtils.isEmpty(routingKey) ? defaultRoutingKey : routingKey, null, value);
+            rabbitMQChannel.basicPublish(
+                    exchangeName, StringUtils.isEmpty(routingKey) ? defaultRoutingKey : routingKey, null, value);
             record.ack();
         } catch (IOException e) {
             record.fail();

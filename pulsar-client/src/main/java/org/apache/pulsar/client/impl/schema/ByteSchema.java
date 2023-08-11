@@ -33,9 +33,10 @@ public class ByteSchema extends AbstractSchema<Byte> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("INT8")
-            .type(SchemaType.INT8)
-            .schema(new byte[0]).build();
+                .name("INT8")
+                .type(SchemaType.INT8)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new ByteSchema();
     }
 
@@ -62,7 +63,7 @@ public class ByteSchema extends AbstractSchema<Byte> {
         if (null == message) {
             return null;
         } else {
-            return new byte[]{message};
+            return new byte[] {message};
         }
     }
 

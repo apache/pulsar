@@ -55,16 +55,14 @@ public class CanalStringSource extends CanalAbstractSource<CanalMessage> {
         String messages = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
         CanalMessage canalMessage = new CanalMessage();
         Date date = new Date();
-        SimpleDateFormat dateFormat = new SimpleDateFormat(
-            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat(FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
         canalMessage.setTimestamp(dateFormat.format(date));
         canalMessage.setId(this.messageId);
         canalMessage.setMessage(messages);
         return canalMessage;
     }
-
 }
-
 
 @Data
 @AllArgsConstructor

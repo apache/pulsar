@@ -23,7 +23,6 @@ import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retrySt
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.Data;
@@ -62,9 +61,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         int numMessages = 10;
         try {
             submitSourceConnector(
-                    sourceName,
-                    outputTopicName,
-                    "org.apache.pulsar.tests.integration.io.GenericRecordSource", JAVAJAR);
+                    sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.GenericRecordSource", JAVAJAR);
 
             // get source info
             getSourceInfoSuccess(container, sourceName);
@@ -72,17 +69,22 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
             // get source status
             getSourceStatus(container, sourceName);
 
-            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+            try (PulsarAdmin admin = PulsarAdmin.builder()
+                    .serviceHttpUrl(container.getHttpServiceUrl())
+                    .build()) {
 
-                retryStrategically((test) -> {
-                    try {
-                        SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
-                        return status.getInstances().size() > 0
-                                && status.getInstances().get(0).getStatus().numWritten >= 10;
-                    } catch (PulsarAdminException e) {
-                        return false;
-                    }
-                }, 10, 200);
+                retryStrategically(
+                        (test) -> {
+                            try {
+                                SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
+                                return status.getInstances().size() > 0
+                                        && status.getInstances().get(0).getStatus().numWritten >= 10;
+                            } catch (PulsarAdminException e) {
+                                return false;
+                            }
+                        },
+                        10,
+                        200);
 
                 SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
                 assertEquals(status.getInstances().size(), 1);
@@ -98,50 +100,56 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         } finally {
             dumpFunctionLogs(sourceName);
         }
-
     }
 
-    private void submitSourceConnector(String sourceName,
-                                       String outputTopicName,
-                                       String className,
-                                       String archive) throws Exception {
+    private void submitSourceConnector(String sourceName, String outputTopicName, String className, String archive)
+            throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "sources", "create",
-            "--name", sourceName,
-            "--destinationTopicName", outputTopicName,
-            "--archive", archive,
-            "--classname", className
+            "sources",
+            "create",
+            "--name",
+            sourceName,
+            "--destinationTopicName",
+            outputTopicName,
+            "--archive",
+            archive,
+            "--classname",
+            className
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
-        assertTrue(
-            result.getStdout().contains("Created successfully"),
-            result.getStdout());
+        assertTrue(result.getStdout().contains("Created successfully"), result.getStdout());
     }
 
     private static void getSourceInfoSuccess(StandaloneContainer container, String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
-            PulsarCluster.ADMIN_SCRIPT,
-            "sources",
-            "get",
-            "--tenant", "public",
-            "--namespace", "default",
-            "--name", sourceName
-        );
+                PulsarCluster.ADMIN_SCRIPT,
+                "sources",
+                "get",
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sourceName);
         assertTrue(result.getStdout().contains("\"name\": \"" + sourceName + "\""));
     }
 
-    private static void getSourceStatus(StandaloneContainer container,String sourceName) throws Exception {
-        retryStrategically((test) -> {
+    private static void getSourceStatus(StandaloneContainer container, String sourceName) throws Exception {
+        retryStrategically(
+                (test) -> {
                     try {
                         ContainerExecResult result = container.execCmd(
                                 PulsarCluster.ADMIN_SCRIPT,
                                 "sources",
                                 "status",
-                                "--tenant", "public",
-                                "--namespace", "default",
-                                "--name", sourceName);
+                                "--tenant",
+                                "public",
+                                "--namespace",
+                                "default",
+                                "--name",
+                                sourceName);
 
                         if (result.getStdout().contains("\"running\" : true")) {
                             return true;
@@ -151,44 +159,49 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
                         log.error("Encountered error when getting source status", e);
                         return false;
                     }
-                }, 10, 200);
+                },
+                10,
+                200);
 
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
                 "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sourceName);
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sourceName);
 
         Assert.assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
-    private static void consumeMessages(StandaloneContainer container, String outputTopic,
-                                        int numMessages) throws Exception {
+    private static void consumeMessages(StandaloneContainer container, String outputTopic, int numMessages)
+            throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(container.getPlainTextServiceUrl())
-            .build();
+                .serviceUrl(container.getPlainTextServiceUrl())
+                .build();
 
         // read using Pulsar GenericRecord abstraction
         @Cleanup
         Consumer<GenericRecord> consumer = client.newConsumer(Schema.AUTO_CONSUME())
-            .topic(outputTopic)
-            .subscriptionType(SubscriptionType.Exclusive)
-            .subscriptionName("test-sub")
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .startMessageIdInclusive()
-            .subscribe();
+                .topic(outputTopic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .startMessageIdInclusive()
+                .subscribe();
 
         for (int i = 0; i < numMessages; i++) {
             Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
-                fail("message "+i+" not received in time");
+                fail("message " + i + " not received in time");
                 return;
             }
             log.info("received {}", msg.getValue());
-            msg.getValue().getFields().forEach( f -> {
+            msg.getValue().getFields().forEach(f -> {
                 log.info("field {} {}", f, msg.getValue().getField(f));
             });
             String text = (String) msg.getValue().getField("text");
@@ -199,17 +212,17 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
 
         @Cleanup
         Consumer<MyBean> typedConsumer = client.newConsumer(Schema.AVRO(MyBean.class))
-            .topic(outputTopic)
-            .subscriptionType(SubscriptionType.Exclusive)
-            .subscriptionName("test-sub-typed")
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .startMessageIdInclusive()
-            .subscribe();
+                .topic(outputTopic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-sub-typed")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .startMessageIdInclusive()
+                .subscribe();
 
         for (int i = 0; i < numMessages; i++) {
             Message<MyBean> msg = typedConsumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
-                fail("message "+i+" not received in time");
+                fail("message " + i + " not received in time");
                 return;
             }
             log.info("received {}", msg.getValue());
@@ -217,7 +230,6 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
             int number = msg.getValue().getNumber();
             assertEquals(text, "value-" + number);
         }
-
     }
 
     @Data
@@ -229,13 +241,15 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
 
     private static void deleteSource(StandaloneContainer container, String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
-            PulsarCluster.ADMIN_SCRIPT,
-            "sources",
-            "delete",
-            "--tenant", "public",
-            "--namespace", "default",
-            "--name", sourceName
-        );
+                PulsarCluster.ADMIN_SCRIPT,
+                "sources",
+                "delete",
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sourceName);
         assertTrue(result.getStdout().contains("Delete source successfully"));
         assertTrue(result.getStderr().isEmpty());
     }
@@ -243,16 +257,18 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
     private static void getSourceInfoNotFound(StandaloneContainer container, String sourceName) throws Exception {
         try {
             container.execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "sources",
-                "get",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sourceName);
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sources",
+                    "get",
+                    "--tenant",
+                    "public",
+                    "--namespace",
+                    "default",
+                    "--name",
+                    sourceName);
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
             assertTrue(e.getResult().getStderr().contains("Reason: Source " + sourceName + " doesn't exist"));
         }
     }
-
 }

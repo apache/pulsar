@@ -61,7 +61,12 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "use",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
@@ -95,8 +100,11 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(partitionedTopicName, 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("sub-1")
-                    .subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(partitionedTopicName)
+                .subscriptionName("sub-1")
+                .subscribe();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
@@ -107,16 +115,20 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
-        assertEquals(admin.topics().getSubscriptions(
-                TopicName.get(partitionedTopicName).getPartition(15).toString()), List.of("sub-1"));
+        assertEquals(
+                admin.topics()
+                        .getSubscriptions(TopicName.get(partitionedTopicName)
+                                .getPartition(15)
+                                .toString()),
+                List.of("sub-1"));
 
         consumer.close();
     }
 
     @Test
     public void testIncrementPartitionsOfTopicWithSubscriptionProperties() throws Exception {
-        final String partitionedTopicName = UUID.randomUUID()
-                + "-testIncrementPartitionsOfTopicWithSubscriptionProperties";
+        final String partitionedTopicName =
+                UUID.randomUUID() + "-testIncrementPartitionsOfTopicWithSubscriptionProperties";
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
@@ -125,7 +137,8 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         properties.put("method", "testIncrementPartitionsOfTopic");
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(partitionedTopicName)
                 .subscriptionName("sub-1")
                 .subscriptionProperties(properties)
@@ -134,68 +147,83 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
-        assertEquals(admin.topics().getSubscriptions(
-                TopicName.get(partitionedTopicName).getPartition(15).toString()), List.of("sub-1"));
+        assertEquals(
+                admin.topics()
+                        .getSubscriptions(TopicName.get(partitionedTopicName)
+                                .getPartition(15)
+                                .toString()),
+                List.of("sub-1"));
         TopicStats stats = admin.topics()
                 .getStats(TopicName.get(partitionedTopicName).getPartition(15).toString());
-        Map<String, String> subscriptionProperties = stats.getSubscriptions()
-                .get("sub-1").getSubscriptionProperties();
+        Map<String, String> subscriptionProperties =
+                stats.getSubscriptions().get("sub-1").getSubscriptionProperties();
         Assert.assertEquals(properties, subscriptionProperties);
     }
 
     @Test
     public void testIncrementPartitionsWithNoSubscriptions() throws Exception {
-        final String partitionedTopicName =
-                BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic");
+        final String partitionedTopicName = BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic");
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
 
         @Cleanup
-        Producer<String> consumer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> consumer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(partitionedTopicName)
                 .create();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
-        //zk update takes some time
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2));
+        // zk update takes some time
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2));
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 10);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10));
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20));
     }
 
     @Test
     public void testIncrementPartitionsWithReaders() throws Exception {
-        TopicName partitionedTopicName = TopicName.get(
-                BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic"));
+        TopicName partitionedTopicName =
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic"));
 
         admin.topics().createPartitionedTopic(partitionedTopicName.toString(), 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 1);
 
         @Cleanup
-        Producer<String> consumer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> consumer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(partitionedTopicName.toString())
                 .create();
 
         @Cleanup
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(partitionedTopicName.getPartition(0).toString())
                 .startMessageId(MessageId.earliest)
-            .create();
+                .create();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName.toString(), 2);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 2);
 
-        assertEquals(admin.topics().getSubscriptions(partitionedTopicName.getPartition(0).toString()).size(), 1);
+        assertEquals(
+                admin.topics()
+                        .getSubscriptions(partitionedTopicName.getPartition(0).toString())
+                        .size(),
+                1);
 
         // Partition-1 should not have subscriptions
-        assertEquals(admin.topics().getSubscriptions(partitionedTopicName.getPartition(1).toString()),
+        assertEquals(
+                admin.topics()
+                        .getSubscriptions(partitionedTopicName.getPartition(1).toString()),
                 Collections.emptyList());
     }
 }

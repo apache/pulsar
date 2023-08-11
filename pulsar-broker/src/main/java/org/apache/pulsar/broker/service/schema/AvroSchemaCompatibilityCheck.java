@@ -29,5 +29,4 @@ public class AvroSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     public SchemaType getSchemaType() {
         return SchemaType.AVRO;
     }
-
 }

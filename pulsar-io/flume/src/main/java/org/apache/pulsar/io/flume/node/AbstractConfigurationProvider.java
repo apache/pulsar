@@ -107,17 +107,14 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                 for (String channelName : channelNames) {
                     ChannelComponent channelComponent = channelComponentMap.get(channelName);
                     if (channelComponent.components.isEmpty()) {
-                        LOGGER.warn("Channel {} has no components connected"
-                                + " and has been removed.", channelName);
+                        LOGGER.warn("Channel {} has no components connected" + " and has been removed.", channelName);
                         channelComponentMap.remove(channelName);
-                        Map<String, Channel> nameChannelMap =
-                                channelCache.get(channelComponent.channel.getClass());
+                        Map<String, Channel> nameChannelMap = channelCache.get(channelComponent.channel.getClass());
                         if (nameChannelMap != null) {
                             nameChannelMap.remove(channelName);
                         }
                     } else {
-                        LOGGER.info("Channel {} connected to {}",
-                                channelName, channelComponent.components.toString());
+                        LOGGER.info("Channel {} connected to {}", channelName, channelComponent.components.toString());
                         conf.addChannel(channelName, channelComponent.channel);
                     }
                 }
@@ -144,24 +141,21 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
         return agentName;
     }
 
-    private void loadChannels(AgentConfiguration agentConf,
-                              Map<String, ChannelComponent> channelComponentMap)
+    private void loadChannels(AgentConfiguration agentConf, Map<String, ChannelComponent> channelComponentMap)
             throws InstantiationException {
         LOGGER.info("Creating channels");
 
-    /*
-     * Some channels will be reused across re-configurations. To handle this,
-     * we store all the names of current channels, perform the reconfiguration,
-     * and then if a channel was not used, we delete our reference to it.
-     * This supports the scenario where you enable channel "ch0" then remove it
-     * and add it back. Without this, channels like memory channel would cause
-     * the first instances data to show up in the seconds.
-     */
-        ListMultimap<Class<? extends Channel>, String> channelsNotReused =
-                ArrayListMultimap.create();
+        /*
+         * Some channels will be reused across re-configurations. To handle this,
+         * we store all the names of current channels, perform the reconfiguration,
+         * and then if a channel was not used, we delete our reference to it.
+         * This supports the scenario where you enable channel "ch0" then remove it
+         * and add it back. Without this, channels like memory channel would cause
+         * the first instances data to show up in the seconds.
+         */
+        ListMultimap<Class<? extends Channel>, String> channelsNotReused = ArrayListMultimap.create();
         // assume all channels will not be re-used
-        for (Map.Entry<Class<? extends Channel>, Map<String, Channel>> entry :
-                channelCache.entrySet()) {
+        for (Map.Entry<Class<? extends Channel>, Map<String, Channel>> entry : channelCache.entrySet()) {
             Class<? extends Channel> channelKlass = entry.getKey();
             Set<String> channelNames = entry.getValue().keySet();
             channelsNotReused.get(channelKlass).addAll(channelNames);
@@ -169,49 +163,47 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
 
         Set<String> channelNames = agentConf.getChannelSet();
         Map<String, ComponentConfiguration> compMap = agentConf.getChannelConfigMap();
-    /*
-     * Components which have a ComponentConfiguration object
-     */
+        /*
+         * Components which have a ComponentConfiguration object
+         */
         for (String chName : channelNames) {
             ComponentConfiguration comp = compMap.get(chName);
             if (comp != null) {
-                Channel channel = getOrCreateChannel(channelsNotReused,
-                        comp.getComponentName(), comp.getType());
+                Channel channel = getOrCreateChannel(channelsNotReused, comp.getComponentName(), comp.getType());
                 try {
                     Configurables.configure(channel, comp);
-                    channelComponentMap.put(comp.getComponentName(),
-                            new ChannelComponent(channel));
+                    channelComponentMap.put(comp.getComponentName(), new ChannelComponent(channel));
                     LOGGER.info("Created channel " + chName);
                 } catch (Exception e) {
-                    String msg = String.format("Channel %s has been removed due to an "
-                            + "error during configuration", chName);
+                    String msg = String.format(
+                            "Channel %s has been removed due to an " + "error during configuration", chName);
                     LOGGER.error(msg, e);
                 }
             }
         }
-    /*
-     * Components which DO NOT have a ComponentConfiguration object
-     * and use only Context
-     */
+        /*
+         * Components which DO NOT have a ComponentConfiguration object
+         * and use only Context
+         */
         for (String chName : channelNames) {
             Context context = agentConf.getChannelContext().get(chName);
             if (context != null) {
-                Channel channel = getOrCreateChannel(channelsNotReused, chName,
-                        context.getString(BasicConfigurationConstants.CONFIG_TYPE));
+                Channel channel = getOrCreateChannel(
+                        channelsNotReused, chName, context.getString(BasicConfigurationConstants.CONFIG_TYPE));
                 try {
                     Configurables.configure(channel, context);
                     channelComponentMap.put(chName, new ChannelComponent(channel));
                     LOGGER.info("Created channel " + chName);
                 } catch (Exception e) {
-                    String msg = String.format("Channel %s has been removed due to an "
-                            + "error during configuration", chName);
+                    String msg = String.format(
+                            "Channel %s has been removed due to an " + "error during configuration", chName);
                     LOGGER.error(msg, e);
                 }
             }
         }
-    /*
-     * Any channel which was not re-used, will have it's reference removed
-     */
+        /*
+         * Any channel which was not re-used, will have it's reference removed
+         */
         for (Class<? extends Channel> channelKlass : channelsNotReused.keySet()) {
             Map<String, Channel> channelMap = channelCache.get(channelKlass);
             if (channelMap != null) {
@@ -228,14 +220,13 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
     }
 
     private Channel getOrCreateChannel(
-            ListMultimap<Class<? extends Channel>, String> channelsNotReused,
-            String name, String type)
+            ListMultimap<Class<? extends Channel>, String> channelsNotReused, String name, String type)
             throws FlumeException {
 
         Class<? extends Channel> channelClass = channelFactory.getClass(type);
-    /*
-     * Channel has requested a new instance on each re-configuration
-     */
+        /*
+         * Channel has requested a new instance on each re-configuration
+         */
         if (channelClass.isAnnotationPresent(Disposable.class)) {
             Channel channel = channelFactory.create(name, type);
             channel.setName(name);
@@ -256,101 +247,91 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
         return channel;
     }
 
-    private void loadSources(AgentConfiguration agentConf,
-                             Map<String, ChannelComponent> channelComponentMap,
-                             Map<String, SourceRunner> sourceRunnerMap)
+    private void loadSources(
+            AgentConfiguration agentConf,
+            Map<String, ChannelComponent> channelComponentMap,
+            Map<String, SourceRunner> sourceRunnerMap)
             throws InstantiationException {
 
         Set<String> sourceNames = agentConf.getSourceSet();
-        Map<String, ComponentConfiguration> compMap =
-                agentConf.getSourceConfigMap();
-    /*
-     * Components which have a ComponentConfiguration object
-     */
+        Map<String, ComponentConfiguration> compMap = agentConf.getSourceConfigMap();
+        /*
+         * Components which have a ComponentConfiguration object
+         */
         for (String sourceName : sourceNames) {
             ComponentConfiguration comp = compMap.get(sourceName);
             if (comp != null) {
                 SourceConfiguration config = (SourceConfiguration) comp;
 
-                Source source = sourceFactory.create(comp.getComponentName(),
-                        comp.getType());
+                Source source = sourceFactory.create(comp.getComponentName(), comp.getType());
                 try {
                     Configurables.configure(source, config);
                     Set<String> channelNames = config.getChannels();
-                    List<Channel> sourceChannels =
-                            getSourceChannels(channelComponentMap, source, channelNames);
+                    List<Channel> sourceChannels = getSourceChannels(channelComponentMap, source, channelNames);
                     if (sourceChannels.isEmpty()) {
-                        String msg = String.format("Source %s is not connected to a "
-                                + "channel", sourceName);
+                        String msg = String.format("Source %s is not connected to a " + "channel", sourceName);
                         throw new IllegalStateException(msg);
                     }
-                    ChannelSelectorConfiguration selectorConfig =
-                            config.getSelectorConfiguration();
+                    ChannelSelectorConfiguration selectorConfig = config.getSelectorConfiguration();
 
-                    ChannelSelector selector = ChannelSelectorFactory.create(
-                            sourceChannels, selectorConfig);
+                    ChannelSelector selector = ChannelSelectorFactory.create(sourceChannels, selectorConfig);
 
                     ChannelProcessor channelProcessor = new ChannelProcessor(selector);
                     Configurables.configure(channelProcessor, config);
 
                     source.setChannelProcessor(channelProcessor);
-                    sourceRunnerMap.put(comp.getComponentName(),
-                            SourceRunner.forSource(source));
+                    sourceRunnerMap.put(comp.getComponentName(), SourceRunner.forSource(source));
                     for (Channel channel : sourceChannels) {
-                        ChannelComponent channelComponent =
-                                Preconditions.checkNotNull(channelComponentMap.get(channel.getName()),
-                                        String.format("Channel %s", channel.getName()));
+                        ChannelComponent channelComponent = Preconditions.checkNotNull(
+                                channelComponentMap.get(channel.getName()),
+                                String.format("Channel %s", channel.getName()));
                         channelComponent.components.add(sourceName);
                     }
                 } catch (Exception e) {
-                    String msg = String.format("Source %s has been removed due to an "
-                            + "error during configuration", sourceName);
+                    String msg = String.format(
+                            "Source %s has been removed due to an " + "error during configuration", sourceName);
                     LOGGER.error(msg, e);
                 }
             }
         }
-    /*
-     * Components which DO NOT have a ComponentConfiguration object
-     * and use only Context
-     */
+        /*
+         * Components which DO NOT have a ComponentConfiguration object
+         * and use only Context
+         */
         Map<String, Context> sourceContexts = agentConf.getSourceContext();
         for (String sourceName : sourceNames) {
             Context context = sourceContexts.get(sourceName);
             if (context != null) {
                 Source source =
-                        sourceFactory.create(sourceName,
-                                context.getString(BasicConfigurationConstants.CONFIG_TYPE));
+                        sourceFactory.create(sourceName, context.getString(BasicConfigurationConstants.CONFIG_TYPE));
                 try {
                     Configurables.configure(source, context);
-                    String[] channelNames = context.getString(
-                            BasicConfigurationConstants.CONFIG_CHANNELS).split("\\s+");
+                    String[] channelNames = context.getString(BasicConfigurationConstants.CONFIG_CHANNELS)
+                            .split("\\s+");
                     List<Channel> sourceChannels =
                             getSourceChannels(channelComponentMap, source, Arrays.asList(channelNames));
                     if (sourceChannels.isEmpty()) {
-                        String msg = String.format("Source %s is not connected to a "
-                                + "channel", sourceName);
+                        String msg = String.format("Source %s is not connected to a " + "channel", sourceName);
                         throw new IllegalStateException(msg);
                     }
-                    Map<String, String> selectorConfig = context.getSubProperties(
-                            BasicConfigurationConstants.CONFIG_SOURCE_CHANNELSELECTOR_PREFIX);
+                    Map<String, String> selectorConfig =
+                            context.getSubProperties(BasicConfigurationConstants.CONFIG_SOURCE_CHANNELSELECTOR_PREFIX);
 
-                    ChannelSelector selector = ChannelSelectorFactory.create(
-                            sourceChannels, selectorConfig);
+                    ChannelSelector selector = ChannelSelectorFactory.create(sourceChannels, selectorConfig);
 
                     ChannelProcessor channelProcessor = new ChannelProcessor(selector);
                     Configurables.configure(channelProcessor, context);
                     source.setChannelProcessor(channelProcessor);
-                    sourceRunnerMap.put(sourceName,
-                            SourceRunner.forSource(source));
+                    sourceRunnerMap.put(sourceName, SourceRunner.forSource(source));
                     for (Channel channel : sourceChannels) {
-                        ChannelComponent channelComponent =
-                                Preconditions.checkNotNull(channelComponentMap.get(channel.getName()),
-                                        String.format("Channel %s", channel.getName()));
+                        ChannelComponent channelComponent = Preconditions.checkNotNull(
+                                channelComponentMap.get(channel.getName()),
+                                String.format("Channel %s", channel.getName()));
                         channelComponent.components.add(sourceName);
                     }
                 } catch (Exception e) {
-                    String msg = String.format("Source %s has been removed due to an "
-                            + "error during configuration", sourceName);
+                    String msg = String.format(
+                            "Source %s has been removed due to an " + "error during configuration", sourceName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -358,8 +339,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
     }
 
     private List<Channel> getSourceChannels(
-            Map<String, ChannelComponent> channelComponentMap,
-            Source source, Collection<String> channelNames) throws InstantiationException {
+            Map<String, ChannelComponent> channelComponentMap, Source source, Collection<String> channelNames)
+            throws InstantiationException {
         List<Channel> sourceChannels = new ArrayList<>();
         for (String chName : channelNames) {
             ChannelComponent channelComponent = channelComponentMap.get(chName);
@@ -371,8 +352,7 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
         return sourceChannels;
     }
 
-    private void checkSourceChannelCompatibility(Source source, Channel channel)
-            throws InstantiationException {
+    private void checkSourceChannelCompatibility(Source source, Channel channel) throws InstantiationException {
         if (source instanceof BatchSizeSupported && channel instanceof TransactionCapacitySupported) {
             long transCap = ((TransactionCapacitySupported) channel).getTransactionCapacity();
             long batchSize = ((BatchSizeSupported) source).getBatchSize();
@@ -381,15 +361,13 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                         "Incompatible source and channel settings defined. "
                                 + "source's batch size is greater than the channels transaction capacity. "
                                 + "Source: %s, batch size = %d, channel %s, transaction capacity = %d",
-                        source.getName(), batchSize,
-                        channel.getName(), transCap);
+                        source.getName(), batchSize, channel.getName(), transCap);
                 throw new InstantiationException(msg);
             }
         }
     }
 
-    private void checkSinkChannelCompatibility(Sink sink, Channel channel)
-            throws InstantiationException {
+    private void checkSinkChannelCompatibility(Sink sink, Channel channel) throws InstantiationException {
         if (sink instanceof BatchSizeSupported && channel instanceof TransactionCapacitySupported) {
             long transCap = ((TransactionCapacitySupported) channel).getTransactionCapacity();
             long batchSize = ((BatchSizeSupported) sink).getBatchSize();
@@ -398,23 +376,23 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                         "Incompatible sink and channel settings defined. "
                                 + "sink's batch size is greater than the channels transaction capacity. "
                                 + "Sink: %s, batch size = %d, channel %s, transaction capacity = %d",
-                        sink.getName(), batchSize,
-                        channel.getName(), transCap);
+                        sink.getName(), batchSize, channel.getName(), transCap);
                 throw new InstantiationException(msg);
             }
         }
     }
 
-    private void loadSinks(AgentConfiguration agentConf,
-                           Map<String, ChannelComponent> channelComponentMap, Map<String, SinkRunner> sinkRunnerMap)
+    private void loadSinks(
+            AgentConfiguration agentConf,
+            Map<String, ChannelComponent> channelComponentMap,
+            Map<String, SinkRunner> sinkRunnerMap)
             throws InstantiationException {
         Set<String> sinkNames = agentConf.getSinkSet();
-        Map<String, ComponentConfiguration> compMap =
-                agentConf.getSinkConfigMap();
+        Map<String, ComponentConfiguration> compMap = agentConf.getSinkConfigMap();
         Map<String, Sink> sinks = new HashMap<String, Sink>();
-    /*
-     * Components which have a ComponentConfiguration object
-     */
+        /*
+         * Components which have a ComponentConfiguration object
+         */
         for (String sinkName : sinkNames) {
             ComponentConfiguration comp = compMap.get(sinkName);
             if (comp != null) {
@@ -424,8 +402,7 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     Configurables.configure(sink, config);
                     ChannelComponent channelComponent = channelComponentMap.get(config.getChannel());
                     if (channelComponent == null) {
-                        String msg = String.format("Sink %s is not connected to a "
-                                + "channel", sinkName);
+                        String msg = String.format("Sink %s is not connected to a " + "channel", sinkName);
                         throw new IllegalStateException(msg);
                     }
                     checkSinkChannelCompatibility(sink, channelComponent.channel);
@@ -433,30 +410,27 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     sinks.put(comp.getComponentName(), sink);
                     channelComponent.components.add(sinkName);
                 } catch (Exception e) {
-                    String msg = String.format("Sink %s has been removed due to an "
-                            + "error during configuration", sinkName);
+                    String msg = String.format(
+                            "Sink %s has been removed due to an " + "error during configuration", sinkName);
                     LOGGER.error(msg, e);
                 }
             }
         }
-    /*
-     * Components which DO NOT have a ComponentConfiguration object
-     * and use only Context
-     */
+        /*
+         * Components which DO NOT have a ComponentConfiguration object
+         * and use only Context
+         */
         Map<String, Context> sinkContexts = agentConf.getSinkContext();
         for (String sinkName : sinkNames) {
             Context context = sinkContexts.get(sinkName);
             if (context != null) {
-                Sink sink = sinkFactory.create(sinkName, context.getString(
-                        BasicConfigurationConstants.CONFIG_TYPE));
+                Sink sink = sinkFactory.create(sinkName, context.getString(BasicConfigurationConstants.CONFIG_TYPE));
                 try {
                     Configurables.configure(sink, context);
                     ChannelComponent channelComponent =
-                            channelComponentMap.get(
-                                    context.getString(BasicConfigurationConstants.CONFIG_CHANNEL));
+                            channelComponentMap.get(context.getString(BasicConfigurationConstants.CONFIG_CHANNEL));
                     if (channelComponent == null) {
-                        String msg = String.format("Sink %s is not connected to a "
-                                + "channel", sinkName);
+                        String msg = String.format("Sink %s is not connected to a " + "channel", sinkName);
                         throw new IllegalStateException(msg);
                     }
                     checkSinkChannelCompatibility(sink, channelComponent.channel);
@@ -464,8 +438,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     sinks.put(sinkName, sink);
                     channelComponent.components.add(sinkName);
                 } catch (Exception e) {
-                    String msg = String.format("Sink %s has been removed due to an "
-                            + "error during configuration", sinkName);
+                    String msg = String.format(
+                            "Sink %s has been removed due to an " + "error during configuration", sinkName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -474,12 +448,11 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
         loadSinkGroups(agentConf, sinks, sinkRunnerMap);
     }
 
-    private void loadSinkGroups(AgentConfiguration agentConf,
-                                Map<String, Sink> sinks, Map<String, SinkRunner> sinkRunnerMap)
+    private void loadSinkGroups(
+            AgentConfiguration agentConf, Map<String, Sink> sinks, Map<String, SinkRunner> sinkRunnerMap)
             throws InstantiationException {
         Set<String> sinkGroupNames = agentConf.getSinkgroupSet();
-        Map<String, ComponentConfiguration> compMap =
-                agentConf.getSinkGroupConfigMap();
+        Map<String, ComponentConfiguration> compMap = agentConf.getSinkGroupConfigMap();
         Map<String, String> usedSinks = new HashMap<String, String>();
         for (String groupName : sinkGroupNames) {
             ComponentConfiguration comp = compMap.get(groupName);
@@ -492,13 +465,11 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                         String sinkUser = usedSinks.get(sink);
                         if (sinkUser != null) {
                             throw new InstantiationException(String.format(
-                                    "Sink %s of group %s already "
-                                            + "in use by group %s", sink, groupName, sinkUser));
+                                    "Sink %s of group %s already " + "in use by group %s", sink, groupName, sinkUser));
                         } else {
                             throw new InstantiationException(String.format(
-                                    "Sink %s of group %s does "
-                                            + "not exist or is not properly configured", sink,
-                                    groupName));
+                                    "Sink %s of group %s does " + "not exist or is not properly configured",
+                                    sink, groupName));
                         }
                     }
                     groupSinks.add(s);
@@ -507,11 +478,10 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                 try {
                     SinkGroup group = new SinkGroup(groupSinks);
                     Configurables.configure(group, groupConf);
-                    sinkRunnerMap.put(comp.getComponentName(),
-                            new SinkRunner(group.getProcessor()));
+                    sinkRunnerMap.put(comp.getComponentName(), new SinkRunner(group.getProcessor()));
                 } catch (Exception e) {
-                    String msg = String.format("SinkGroup %s has been removed due to "
-                            + "an error during configuration", groupName);
+                    String msg = String.format(
+                            "SinkGroup %s has been removed due to " + "an error during configuration", groupName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -527,8 +497,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     Configurables.configure(pr, new Context());
                     sinkRunnerMap.put(entry.getKey(), new SinkRunner(pr));
                 } catch (Exception e) {
-                    String msg = String.format("SinkGroup %s has been removed due to "
-                            + "an error during configuration", entry.getKey());
+                    String msg = String.format(
+                            "SinkGroup %s has been removed due to " + "an error during configuration", entry.getKey());
                     LOGGER.error(msg, e);
                 }
             }

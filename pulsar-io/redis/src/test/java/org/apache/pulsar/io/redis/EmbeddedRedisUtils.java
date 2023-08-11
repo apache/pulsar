@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.io.redis;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 import redis.embedded.RedisExecProvider;
 import redis.embedded.RedisServer;
 import redis.embedded.util.Architecture;
 import redis.embedded.util.OS;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 @Slf4j
 public final class EmbeddedRedisUtils {
@@ -38,16 +37,15 @@ public final class EmbeddedRedisUtils {
     public EmbeddedRedisUtils(String testId) {
         dbPath = Paths.get(testId + "/redis");
         String execFile = "redis-server-2.8.19";
-        RedisExecProvider customProvider = RedisExecProvider
-            .defaultProvider()
-            .override(OS.UNIX, Architecture.x86_64, execFile);
+        RedisExecProvider customProvider =
+                RedisExecProvider.defaultProvider().override(OS.UNIX, Architecture.x86_64, execFile);
         redisServer = RedisServer.builder()
-            .redisExecProvider(customProvider)
-            .port(6379)
-            .slaveOf("localhost", 6378)
-            .setting("daemonize no")
-            .setting("appendonly no")
-            .build();
+                .redisExecProvider(customProvider)
+                .port(6379)
+                .slaveOf("localhost", 6378)
+                .setting("daemonize no")
+                .setting("appendonly no")
+                .build();
     }
 
     public void setUp() throws IOException {
@@ -59,5 +57,4 @@ public final class EmbeddedRedisUtils {
         redisServer.stop();
         Files.deleteIfExists(dbPath);
     }
-
 }

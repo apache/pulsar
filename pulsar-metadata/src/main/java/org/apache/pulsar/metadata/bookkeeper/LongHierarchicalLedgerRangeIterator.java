@@ -39,7 +39,6 @@ class LongHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIt
     private final String ledgerRootPath;
     LedgerManager.LedgerRangeIterator rootIterator;
 
-
     LongHierarchicalLedgerRangeIterator(MetadataStore store, String ledgerRootPath) {
         this.store = store;
         this.ledgerRootPath = ledgerRootPath;
@@ -95,15 +94,13 @@ class LongHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIt
         @Override
         public LedgerManager.LedgerRange next() throws IOException {
             if (range == null) {
-                throw new NoSuchElementException(
-                        "next() must only be called if hasNext() is true");
+                throw new NoSuchElementException("next() must only be called if hasNext() is true");
             }
             LedgerManager.LedgerRange ret = range;
             range = null;
             return ret;
         }
     }
-
 
     /**
      * The main constraint is that between calls one of two things must be true.

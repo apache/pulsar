@@ -45,86 +45,73 @@ public class TwitterFireHoseConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        sensitive = true,
-        help = "Your twitter app consumer key. See "
-                + "https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
-    )
+            required = true,
+            defaultValue = "",
+            sensitive = true,
+            help = "Your twitter app consumer key. See "
+                    + "https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details")
     private String consumerKey;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        sensitive = true,
-        help = "Your twitter app consumer secret. "
-                + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
-    )
+            required = true,
+            defaultValue = "",
+            sensitive = true,
+            help =
+                    "Your twitter app consumer secret. "
+                            + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details")
     private String consumerSecret;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        sensitive = true,
-        help = "Your twitter app token. "
-                + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
-    )
+            required = true,
+            defaultValue = "",
+            sensitive = true,
+            help =
+                    "Your twitter app token. "
+                            + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details")
     private String token;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        sensitive = true,
-        help = "Your twitter app token secret. "
-                + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
-    )
+            required = true,
+            defaultValue = "",
+            sensitive = true,
+            help =
+                    "Your twitter app token secret. "
+                            + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details")
     private String tokenSecret;
 
     // Most firehose events have null createdAt time. If this parameter is set to true
     // then we estimate the createdTime of each firehose event to be current time.
     @FieldDoc(
-        required = false,
-        defaultValue = "false",
-        help = "Most firehose events have null createdAt time.If this parameter is set to true, "
-                + "the connector estimates the createdTime of each firehose event to be current time."
-    )
+            required = false,
+            defaultValue = "false",
+            help = "Most firehose events have null createdAt time.If this parameter is set to true, "
+                    + "the connector estimates the createdTime of each firehose event to be current time.")
     private Boolean guestimateTweetTime = false;
 
     // ------ Optional property keys
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "pulsario-twitter-source",
-        help = "The Twitter Firehose Client name"
-    )
+    @FieldDoc(required = false, defaultValue = "pulsario-twitter-source", help = "The Twitter Firehose Client name")
     private String clientName = "pulsario-twitter-source";
 
     @FieldDoc(
-        required = false,
-        defaultValue = Constants.STREAM_HOST,
-        help = "The Twitter Firehose stream hosts that the connector connects to"
-    )
+            required = false,
+            defaultValue = Constants.STREAM_HOST,
+            help = "The Twitter Firehose stream hosts that the connector connects to")
     private String clientHosts = Constants.STREAM_HOST;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "50000",
-        help = "The Twitter Firehose client buffer size"
-    )
+    @FieldDoc(required = false, defaultValue = "50000", help = "The Twitter Firehose client buffer size")
     private int clientBufferSize = 50000;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "A comma separated list of user IDs, indicating the users to return statuses for in the stream."
-    )
+            required = false,
+            defaultValue = "",
+            help = "A comma separated list of user IDs, indicating the users to return statuses for in the stream.")
     private String followings;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "Keywords to track. Phrases of keywords are specified by a comma-separated list."
-    )
+            required = false,
+            defaultValue = "",
+            help = "Keywords to track. Phrases of keywords are specified by a comma-separated list.")
     private String terms;
 
     public static TwitterFireHoseConfig load(String yamlFile) throws IOException {
@@ -138,8 +125,7 @@ public class TwitterFireHoseConfig implements Serializable {
     }
 
     public void validate() throws IllegalArgumentException {
-        if (getConsumerKey() == null || getConsumerSecret() == null
-             || getToken() == null || getTokenSecret() == null) {
+        if (getConsumerKey() == null || getConsumerSecret() == null || getToken() == null || getTokenSecret() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }
     }
@@ -149,9 +135,9 @@ public class TwitterFireHoseConfig implements Serializable {
             return Collections.emptyList();
         }
 
-        List<Long> result = new ArrayList<Long> ();
+        List<Long> result = new ArrayList<Long>();
 
-        for (String s: StringUtils.split(followings, ",")) {
+        for (String s : StringUtils.split(followings, ",")) {
             try {
                 result.add(Long.parseLong(StringUtils.trim(s)));
             } catch (NumberFormatException nfEx) {

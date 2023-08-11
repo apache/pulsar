@@ -41,12 +41,10 @@ public class EndToEndTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testBasic(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        BKCluster bktc = BKCluster.builder()
-                .metadataServiceUri(urlSupplier.get())
-                .build();
+        BKCluster bktc =
+                BKCluster.builder().metadataServiceUri(urlSupplier.get()).build();
 
-        @Cleanup
-        BookKeeper bkc = bktc.newClient();
+        @Cleanup BookKeeper bkc = bktc.newClient();
 
         long ledgerId;
         {
@@ -75,14 +73,12 @@ public class EndToEndTest extends BaseMetadataStoreTest {
                 .execute()
                 .join();
 
-        @Cleanup
-        LedgerEntries les = rh.read(0, 9);
+        @Cleanup LedgerEntries les = rh.read(0, 9);
         int i = 0;
         for (LedgerEntry le : les) {
             Assert.assertEquals(new String(le.getEntryBytes()), "entry-" + i++);
         }
     }
-
 
     @Test(dataProvider = "impl")
     public void testWithLedgerRecovery(String provider, Supplier<String> urlSupplier) throws Exception {
@@ -92,8 +88,7 @@ public class EndToEndTest extends BaseMetadataStoreTest {
                 .numBookies(3)
                 .build();
 
-        @Cleanup
-        BookKeeper bkc = bktc.newClient();
+        @Cleanup BookKeeper bkc = bktc.newClient();
 
         @Cleanup
         WriteHandle wh = bkc.newCreateLedgerOp()
@@ -121,8 +116,7 @@ public class EndToEndTest extends BaseMetadataStoreTest {
 
         Assert.assertEquals(rh.getLastAddConfirmed(), 9L);
 
-        @Cleanup
-        LedgerEntries les = rh.read(0, 9);
+        @Cleanup LedgerEntries les = rh.read(0, 9);
         int i = 0;
         for (LedgerEntry le : les) {
             Assert.assertEquals(new String(le.getEntryBytes()), "entry-" + i++);

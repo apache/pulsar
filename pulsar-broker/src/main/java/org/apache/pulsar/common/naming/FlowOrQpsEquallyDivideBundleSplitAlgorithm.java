@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 
-
 /**
  * Split algorithm based on flow or qps.
  */
@@ -55,9 +54,8 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithm implements NamespaceBund
         Map<String, TopicStatsImpl> topicStatsMap = bundleSplitOption.getTopicStatsMap();
         int loadBalancerNamespaceBundleMaxMsgRate = bundleSplitOption.getLoadBalancerNamespaceBundleMaxMsgRate();
         double diffThreshold = bundleSplitOption.getFlowOrQpsDifferenceThresholdPercentage() / 100.0;
-        long loadBalancerNamespaceBundleMaxBandwidthBytes = bundleSplitOption
-                .getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * MBytes;
-
+        long loadBalancerNamespaceBundleMaxBandwidthBytes =
+                bundleSplitOption.getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * MBytes;
 
         return service.getOwnedTopicListForNamespaceBundle(bundle).thenCompose(topics -> {
             if (topics == null || topics.size() <= 1) {
@@ -93,11 +91,11 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithm implements NamespaceBund
 
             if (topicInfoMap.size() < 2
                     || (bundleMsgRate < (loadBalancerNamespaceBundleMaxMsgRate * (1 + diffThreshold))
-                    && bundleThroughput < (loadBalancerNamespaceBundleMaxBandwidthBytes * (1 + diffThreshold)))) {
+                            && bundleThroughput
+                                    < (loadBalancerNamespaceBundleMaxBandwidthBytes * (1 + diffThreshold)))) {
                 return CompletableFuture.completedFuture(null);
             }
             Collections.sort(topicHashList);
-
 
             List<Long> splitResults = new ArrayList<>();
             double bundleMsgRateTmp = topicInfoMap.get(topicHashList.get(0)).msgRate;

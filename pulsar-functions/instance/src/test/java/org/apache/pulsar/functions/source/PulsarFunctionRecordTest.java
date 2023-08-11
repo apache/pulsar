@@ -32,29 +32,37 @@ public class PulsarFunctionRecordTest {
     @Test
     public void testAck() {
         Record record = mock(Record.class);
-        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setAutoAck(true)
-                .setProcessingGuarantees(Function.ProcessingGuarantees.ATMOST_ONCE).build();
+        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setProcessingGuarantees(Function.ProcessingGuarantees.ATMOST_ONCE)
+                .build();
         PulsarFunctionRecord pulsarFunctionRecord = new PulsarFunctionRecord<>(record, functionDetails);
         pulsarFunctionRecord.ack();
         verify(record, times(0)).ack();
 
         clearInvocations(record);
-        functionDetails = Function.FunctionDetails.newBuilder().setAutoAck(true)
-                .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE).build();
+        functionDetails = Function.FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE)
+                .build();
         pulsarFunctionRecord = new PulsarFunctionRecord<>(record, functionDetails);
         pulsarFunctionRecord.ack();
         verify(record, times(0)).ack();
 
         clearInvocations(record);
-        functionDetails = Function.FunctionDetails.newBuilder().setAutoAck(true)
-                .setProcessingGuarantees(Function.ProcessingGuarantees.EFFECTIVELY_ONCE).build();
+        functionDetails = Function.FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setProcessingGuarantees(Function.ProcessingGuarantees.EFFECTIVELY_ONCE)
+                .build();
         pulsarFunctionRecord = new PulsarFunctionRecord<>(record, functionDetails);
         pulsarFunctionRecord.ack();
         verify(record, times(0)).ack();
 
         clearInvocations(record);
-        functionDetails = Function.FunctionDetails.newBuilder().setAutoAck(true)
-                .setProcessingGuarantees(Function.ProcessingGuarantees.MANUAL).build();
+        functionDetails = Function.FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setProcessingGuarantees(Function.ProcessingGuarantees.MANUAL)
+                .build();
         pulsarFunctionRecord = new PulsarFunctionRecord<>(record, functionDetails);
         pulsarFunctionRecord.ack();
         verify(record, times(1)).ack();

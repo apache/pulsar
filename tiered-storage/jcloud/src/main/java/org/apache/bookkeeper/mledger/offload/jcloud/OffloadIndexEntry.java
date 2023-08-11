@@ -50,4 +50,3 @@ public interface OffloadIndexEntry {
      */
     long getDataOffset();
 }
-

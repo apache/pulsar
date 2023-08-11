@@ -64,23 +64,25 @@ public class OffloadIndexTest {
         assertEquals(entry2.getDataOffset(), 1254L);
     }
 
-
     // use mock to setLastEntryId
-//    public static class LedgerMetadataMock extends org.apache.bookkeeper.client.LedgerMetadata {
-//        long lastId = 0;
-//        public LedgerMetadataMock(int ensembleSize, int writeQuorumSize, int ackQuorumSize, org.apache.bookkeeper.client.BookKeeper.DigestType digestType, byte[] password, Map<String, byte[]> customMetadata, boolean storeSystemtimeAsLedgerCreationTime) {
-//            super(ensembleSize, writeQuorumSize, ackQuorumSize, digestType, password, customMetadata, storeSystemtimeAsLedgerCreationTime);
-//        }
-//
-//        @Override
-//        public long getLastEntryId(){
-//            return  lastId;
-//        }
-//
-//        public void setLastEntryId(long lastId) {
-//            this.lastId = lastId;
-//        }
-//    }
+    //    public static class LedgerMetadataMock extends org.apache.bookkeeper.client.LedgerMetadata {
+    //        long lastId = 0;
+    //        public LedgerMetadataMock(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
+    // org.apache.bookkeeper.client.BookKeeper.DigestType digestType, byte[] password, Map<String, byte[]>
+    // customMetadata, boolean storeSystemtimeAsLedgerCreationTime) {
+    //            super(ensembleSize, writeQuorumSize, ackQuorumSize, digestType, password, customMetadata,
+    // storeSystemtimeAsLedgerCreationTime);
+    //        }
+    //
+    //        @Override
+    //        public long getLastEntryId(){
+    //            return  lastId;
+    //        }
+    //
+    //        public void setLastEntryId(long lastId) {
+    //            this.lastId = lastId;
+    //        }
+    //    }
 
     public static LedgerMetadata createLedgerMetadata(long id) throws Exception {
 
@@ -93,11 +95,19 @@ public class OffloadIndexTest {
         bookies.add(1, new BookieSocketAddress("127.0.0.2:3181").toBookieId());
         bookies.add(2, new BookieSocketAddress("127.0.0.3:3181").toBookieId());
 
-        return LedgerMetadataBuilder.create().withEnsembleSize(3).withWriteQuorumSize(3).withAckQuorumSize(2)
-                .withDigestType(DigestType.CRC32C).withPassword("password".getBytes(UTF_8))
-                .withCustomMetadata(metadataCustom).withClosedState().withLastEntryId(5000).withLength(100)
-                .newEnsembleEntry(0L, bookies).withId(id).build();
-
+        return LedgerMetadataBuilder.create()
+                .withEnsembleSize(3)
+                .withWriteQuorumSize(3)
+                .withAckQuorumSize(2)
+                .withDigestType(DigestType.CRC32C)
+                .withPassword("password".getBytes(UTF_8))
+                .withCustomMetadata(metadataCustom)
+                .withClosedState()
+                .withLastEntryId(5000)
+                .withLength(100)
+                .newEnsembleEntry(0L, bookies)
+                .withId(id)
+                .build();
     }
 
     public static LedgerInfo createLedgerInfo(long id) throws Exception {
@@ -106,7 +116,11 @@ public class OffloadIndexTest {
         metadataCustom.put("key1", "value1".getBytes(UTF_8));
         metadataCustom.put("key7", "value7".getBytes(UTF_8));
 
-        return LedgerInfo.newBuilder().setLedgerId(id).setEntries(5001).setSize(10000).build();
+        return LedgerInfo.newBuilder()
+                .setLedgerId(id)
+                .setEntries(5001)
+                .setSize(10000)
+                .build();
     }
 
     // prepare metadata, then use builder to build a OffloadIndexBlockImpl
@@ -183,16 +197,20 @@ public class OffloadIndexTest {
         assertEquals(dataHeaderLength, 23455);
 
         wrapper.readBytes(segmentMetadataLength);
-        log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
-            magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
+        log.debug(
+                "magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
+                magic,
+                indexBlockLength,
+                segmentMetadataLength,
+                indexEntryCount);
 
         // verify entry
-        OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                                                        wrapper.readLong(), dataHeaderLength);
-        OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                                                        wrapper.readLong(), dataHeaderLength);
-        OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                                                        wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e1 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e2 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e3 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
 
         assertEquals(e1.getEntryId(), entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());
@@ -219,17 +237,18 @@ public class OffloadIndexTest {
         assertEquals(metadata2.getAckQuorumSize(), metadata.getAckQuorumSize());
         assertEquals(metadata2.getEnsembleSize(), metadata.getEnsembleSize());
         assertEquals(metadata2.getDigestType(), metadata.getDigestType());
-        assertEquals(metadata2.getAllEnsembles().entrySet(), metadata.getAllEnsembles().entrySet());
+        assertEquals(
+                metadata2.getAllEnsembles().entrySet(),
+                metadata.getAllEnsembles().entrySet());
         // 2. verify set all the entries
         assertEquals(indexBlock2.getEntryCount(), indexBlock.getEntryCount());
         // 3. verify reach end
         assertEquals(out2.read(), -1);
 
-
         out2.reset();
         byte streamContent[] = new byte[streamLength];
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
-        try(InputStream stream3 = new ByteArrayInputStream(streamContent, 0, streamLength)) {
+        try (InputStream stream3 = new ByteArrayInputStream(streamContent, 0, streamLength)) {
             OffloadIndexBlock indexBlock3 = (OffloadIndexBlock) blockBuilder.fromStream(stream3);
             fail("Should throw IOException");
         } catch (Exception e) {
@@ -239,8 +258,7 @@ public class OffloadIndexTest {
 
         // simulate read header too small, throw EOFException.
         out2.read(streamContent);
-        try(InputStream stream4 =
-                new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
+        try (InputStream stream4 = new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
             OffloadIndexBlock indexBlock4 = (OffloadIndexBlock) blockBuilder.fromStream(stream4);
             fail("Should throw EOFException");
         } catch (Exception e) {
@@ -250,5 +268,4 @@ public class OffloadIndexTest {
         out2.close();
         indexBlock.close();
     }
-
 }

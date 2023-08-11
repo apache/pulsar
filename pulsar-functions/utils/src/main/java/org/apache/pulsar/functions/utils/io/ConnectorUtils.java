@@ -75,8 +75,9 @@ public class ConnectorUtils {
             // Try to load source class and check it implements Source interface
             Class sourceClass = narClassLoader.loadClass(conf.getSourceClass());
             if (!(Source.class.isAssignableFrom(sourceClass) || BatchSource.class.isAssignableFrom(sourceClass))) {
-                throw new IOException(String.format("Class %s does not implement interface %s or %s",
-                  conf.getSourceClass(), Source.class.getName(), BatchSource.class.getName()));
+                throw new IOException(String.format(
+                        "Class %s does not implement interface %s or %s",
+                        conf.getSourceClass(), Source.class.getName(), BatchSource.class.getName()));
             }
         } catch (Throwable t) {
             Exceptions.rethrowIOException(t);
@@ -115,8 +116,8 @@ public class ConnectorUtils {
         return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, ConnectorDefinition.class);
     }
 
-    public static List<ConfigFieldDefinition> getConnectorConfigDefinition(ClassLoader classLoader,
-                                                                           String configClassName) throws Exception {
+    public static List<ConfigFieldDefinition> getConnectorConfigDefinition(
+            ClassLoader classLoader, String configClassName) throws Exception {
         List<ConfigFieldDefinition> retval = new LinkedList<>();
         Class configClass = classLoader.loadClass(configClassName);
         for (Field field : Reflections.getAllFields(configClass)) {
@@ -145,8 +146,8 @@ public class ConnectorUtils {
         return retval;
     }
 
-    public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory,
-                                                                 String narExtractionDirectory) throws IOException {
+    public static TreeMap<String, Connector> searchForConnectors(
+            String connectorsDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for connectors in {}", path);
 
@@ -169,12 +170,15 @@ public class ConnectorUtils {
         try {
             int nThreads = Math.min(Runtime.getRuntime().availableProcessors(), archives.size());
             log.info("Loading {} connector definitions with a thread pool of size {}", archives.size(), nThreads);
-            oneTimeExecutor = Executors.newFixedThreadPool(nThreads,
-                    new ThreadFactoryBuilder().setNameFormat("connector-extraction-executor-%d").build());
+            oneTimeExecutor = Executors.newFixedThreadPool(
+                    nThreads,
+                    new ThreadFactoryBuilder()
+                            .setNameFormat("connector-extraction-executor-%d")
+                            .build());
             List<CompletableFuture<Map.Entry<String, Connector>>> futures = new ArrayList<>();
             for (Path archive : archives) {
-                CompletableFuture<Map.Entry<String, Connector>> future = CompletableFuture.supplyAsync(() ->
-                        getConnectorDefinitionEntry(archive, narExtractionDirectory), oneTimeExecutor);
+                CompletableFuture<Map.Entry<String, Connector>> future = CompletableFuture.supplyAsync(
+                        () -> getConnectorDefinitionEntry(archive, narExtractionDirectory), oneTimeExecutor);
                 futures.add(future);
             }
 
@@ -190,8 +194,8 @@ public class ConnectorUtils {
         }
     }
 
-    private static Map.Entry<String, Connector> getConnectorDefinitionEntry(Path archive,
-                                                                            String narExtractionDirectory) {
+    private static Map.Entry<String, Connector> getConnectorDefinitionEntry(
+            Path archive, String narExtractionDirectory) {
         try {
 
             NarClassLoader ncl = NarClassLoaderBuilder.builder()
@@ -207,8 +211,7 @@ public class ConnectorUtils {
             if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
                 if (!StringUtils.isEmpty(cntDef.getSourceConfigClass())) {
                     connectorBuilder.sourceConfigFieldDefinitions(
-                            ConnectorUtils.getConnectorConfigDefinition(ncl,
-                                    cntDef.getSourceConfigClass()));
+                            ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSourceConfigClass()));
                 }
             }
 

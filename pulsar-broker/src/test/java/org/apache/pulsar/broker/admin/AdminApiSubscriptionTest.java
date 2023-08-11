@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -61,11 +60,15 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
 
-        assertEquals(expectThrows(PulsarAdminException.class,
-                        () -> admin.topics().expireMessages(topic, subscriptionName, 1)).getStatusCode(),
+        assertEquals(
+                expectThrows(PulsarAdminException.class, () -> admin.topics()
+                                .expireMessages(topic, subscriptionName, 1))
+                        .getStatusCode(),
                 Response.Status.CONFLICT.getStatusCode());
-        assertEquals(expectThrows(PulsarAdminException.class,
-                        () -> admin.topics().expireMessagesForAllSubscriptions(topic, 1)).getStatusCode(),
+        assertEquals(
+                expectThrows(PulsarAdminException.class, () -> admin.topics()
+                                .expireMessagesForAllSubscriptions(topic, 1))
+                        .getStatusCode(),
                 Response.Status.CONFLICT.getStatusCode());
     }
 
@@ -75,13 +78,13 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://public/default/test-expire-messages-non-exist-topic-" + uuid;
         String subscriptionName = "test-expire-messages-non-exist-sub-" + uuid;
 
-        PulsarAdminException exception = expectThrows(PulsarAdminException.class,
-                () -> admin.topics().expireMessages(topic, subscriptionName, 1));
+        PulsarAdminException exception = expectThrows(
+                PulsarAdminException.class, () -> admin.topics().expireMessages(topic, subscriptionName, 1));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
         assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
 
-        exception = expectThrows(PulsarAdminException.class,
-                () -> admin.topics().expireMessagesForAllSubscriptions(topic, 1));
+        exception = expectThrows(
+                PulsarAdminException.class, () -> admin.topics().expireMessagesForAllSubscriptions(topic, 1));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
         assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
     }
@@ -103,23 +106,20 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://public/default/test-skip-messages-non-exist-topic-" + uuid;
         String subscriptionName = "test-skip-messages-non-exist-sub-" + uuid;
 
-        PulsarAdminException exception = expectThrows(PulsarAdminException.class,
-                () -> admin.topics().skipMessages(topic, subscriptionName, 1));
+        PulsarAdminException exception =
+                expectThrows(PulsarAdminException.class, () -> admin.topics().skipMessages(topic, subscriptionName, 1));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
         assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
 
-        exception = expectThrows(PulsarAdminException.class,
-                () -> admin.topics().skipAllMessages(topic, subscriptionName));
+        exception =
+                expectThrows(PulsarAdminException.class, () -> admin.topics().skipAllMessages(topic, subscriptionName));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
         assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
     }
 
     @DataProvider(name = "partitioned")
     public static Object[][] partitioned() {
-        return new Object[][] {
-                {true},
-                {false}
-        };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(dataProvider = "partitioned")
@@ -138,51 +138,60 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         // test characters that often have problems in query strings
         String value = "bar{}€/&:#[] ?'\"";
         properties.put("foo", value);
-        admin.topics().createSubscription(topic, subscriptionName,
-                MessageId.latest, false, properties);
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.latest, false, properties);
 
         // null properties (old clients)
         String subscriptionName2 = "sub2";
-        admin.topics().createSubscription(topic, subscriptionName2,
-                MessageId.latest, false, null);
+        admin.topics().createSubscription(topic, subscriptionName2, MessageId.latest, false, null);
 
         if (partitioned) {
             PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
             for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
-                SubscriptionStats subscriptionStats = admin.topics().getStats(topic + "-partition-" + i)
-                        .getSubscriptions().get(subscriptionName);
-                assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
+                SubscriptionStats subscriptionStats = admin.topics()
+                        .getStats(topic + "-partition-" + i)
+                        .getSubscriptions()
+                        .get(subscriptionName);
+                assertEquals(
+                        value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
+                Map<String, String> props =
+                        admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
                 assertEquals(value, props.get("foo"));
             }
 
             // properties are never null, but an empty map
             for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
-                SubscriptionStats subscriptionStats = admin.topics().getStats(topic + "-partition-" + i)
-                        .getSubscriptions().get(subscriptionName2);
+                SubscriptionStats subscriptionStats = admin.topics()
+                        .getStats(topic + "-partition-" + i)
+                        .getSubscriptions()
+                        .get(subscriptionName2);
                 assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName2);
+                Map<String, String> props =
+                        admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName2);
                 assertTrue(props.isEmpty());
             }
 
             // aggregated properties
-            SubscriptionStats subscriptionStats = admin.topics().getPartitionedStats(topic, false)
-                    .getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats = admin.topics()
+                    .getPartitionedStats(topic, false)
+                    .getSubscriptions()
+                    .get(subscriptionName);
             assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
             assertEquals(value, props.get("foo"));
 
         } else {
-            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats =
+                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
             assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
             assertEquals(value, props.get("foo"));
 
-            SubscriptionStats subscriptionStats2 = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName2);
+            SubscriptionStats subscriptionStats2 =
+                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName2);
             assertTrue(subscriptionStats2.getSubscriptionProperties().isEmpty());
 
             Map<String, String> props2 = admin.topics().getSubscriptionProperties(topic, subscriptionName2);
@@ -195,24 +204,30 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         if (partitioned) {
             PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
             for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
-                SubscriptionStats subscriptionStats = admin.topics().getStats(topic + "-partition-" + i)
-                        .getSubscriptions().get(subscriptionName);
+                SubscriptionStats subscriptionStats = admin.topics()
+                        .getStats(topic + "-partition-" + i)
+                        .getSubscriptions()
+                        .get(subscriptionName);
                 assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
+                Map<String, String> props =
+                        admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
                 assertTrue(props.isEmpty());
             }
 
             // aggregated properties
-            SubscriptionStats subscriptionStats = admin.topics().getPartitionedStats(topic, false)
-                    .getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats = admin.topics()
+                    .getPartitionedStats(topic, false)
+                    .getSubscriptions()
+                    .get(subscriptionName);
             assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
             assertTrue(props.isEmpty());
 
         } else {
-            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats =
+                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
             assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
@@ -225,35 +240,42 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         if (partitioned) {
             PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
             for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
-                SubscriptionStats subscriptionStats = admin.topics().getStats(topic + "-partition-" + i)
-                        .getSubscriptions().get(subscriptionName);
-                assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
+                SubscriptionStats subscriptionStats = admin.topics()
+                        .getStats(topic + "-partition-" + i)
+                        .getSubscriptions()
+                        .get(subscriptionName);
+                assertEquals(
+                        value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
+                Map<String, String> props =
+                        admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
                 assertEquals(value, props.get("foo"));
             }
 
             // aggregated properties
-            SubscriptionStats subscriptionStats = admin.topics().getPartitionedStats(topic, false)
-                    .getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats = admin.topics()
+                    .getPartitionedStats(topic, false)
+                    .getSubscriptions()
+                    .get(subscriptionName);
             assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
             assertEquals(value, props.get("foo"));
 
         } else {
-            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats =
+                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
             assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
             assertEquals(value, props.get("foo"));
 
-            SubscriptionStats subscriptionStats2 = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName2);
+            SubscriptionStats subscriptionStats2 =
+                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName2);
             assertTrue(subscriptionStats2.getSubscriptionProperties().isEmpty());
 
             Map<String, String> props2 = admin.topics().getSubscriptionProperties(topic, subscriptionName2);
             assertTrue(props2.isEmpty());
         }
-
     }
 }

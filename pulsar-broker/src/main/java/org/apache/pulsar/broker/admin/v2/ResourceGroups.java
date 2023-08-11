@@ -17,6 +17,7 @@
  * under the License.
  */
 package org.apache.pulsar.broker.admin.v2;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -41,8 +42,7 @@ import org.apache.pulsar.common.policies.data.ResourceGroup;
 public class ResourceGroups extends ResourceGroupsBase {
 
     @GET
-    @ApiOperation(value = "Get the list of all the resourcegroups.",
-            response = String.class, responseContainer = "Set")
+    @ApiOperation(value = "Get the list of all the resourcegroups.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public List<String> getResourceGroups() {
         return internalGetResourceGroups();
@@ -51,8 +51,11 @@ public class ResourceGroups extends ResourceGroupsBase {
     @GET
     @Path("/{resourcegroup}")
     @ApiOperation(value = "Get the rate limiters specified for a resourcegroup.", response = ResourceGroup.class)
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "ResourceGroup doesn't exist")})
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "ResourceGroup doesn't exist")
+            })
     public ResourceGroup getResourceGroup(@PathParam("resourcegroup") String resourcegroup) {
         return internalGetResourceGroup(resourcegroup);
     }
@@ -60,23 +63,27 @@ public class ResourceGroups extends ResourceGroupsBase {
     @PUT
     @Path("/{resourcegroup}")
     @ApiOperation(value = "Creates a new resourcegroup with the specified rate limiters")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "cluster doesn't exist")})
-    public void createOrUpdateResourceGroup(@PathParam("resourcegroup") String name,
-                                    @ApiParam(value = "Rate limiters for the resourcegroup")
-                                            ResourceGroup resourcegroup) {
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "cluster doesn't exist")
+            })
+    public void createOrUpdateResourceGroup(
+            @PathParam("resourcegroup") String name,
+            @ApiParam(value = "Rate limiters for the resourcegroup") ResourceGroup resourcegroup) {
         internalCreateOrUpdateResourceGroup(name, resourcegroup);
     }
 
     @DELETE
     @Path("/{resourcegroup}")
     @ApiOperation(value = "Delete a resourcegroup.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "ResourceGroup doesn't exist"),
-            @ApiResponse(code = 409, message = "ResourceGroup is in use")})
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "ResourceGroup doesn't exist"),
+                @ApiResponse(code = 409, message = "ResourceGroup is in use")
+            })
     public void deleteResourceGroup(@PathParam("resourcegroup") String resourcegroup) {
         internalDeleteResourceGroup(resourcegroup);
     }
 }
-

@@ -64,14 +64,12 @@ public class PulsarConnectorModule implements Module {
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
 
         binder.install(new DecoderModule());
-
     }
 
     /**
      * A wrapper to deserialize the Presto types.
      */
-    public static final class TypeDeserializer
-            extends FromStringDeserializer<Type> {
+    public static final class TypeDeserializer extends FromStringDeserializer<Type> {
         private static final long serialVersionUID = 1L;
 
         private final TypeManager typeManager;

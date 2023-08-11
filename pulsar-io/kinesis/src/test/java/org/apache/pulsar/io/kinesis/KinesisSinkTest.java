@@ -18,6 +18,16 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.Message;
@@ -42,29 +52,22 @@ import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
-
 public class KinesisSinkTest {
 
     public static final String STREAM_NAME = "my-stream-1";
-    public static LocalStackContainer LOCALSTACK_CONTAINER = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.0.4"))
+    public static LocalStackContainer LOCALSTACK_CONTAINER = new LocalStackContainer(
+                    DockerImageName.parse("localstack/localstack:1.0.4"))
             .withServices(LocalStackContainer.Service.KINESIS);
 
     @BeforeClass(alwaysRun = true)
     public void beforeClass() throws Exception {
         LOCALSTACK_CONTAINER.start();
-        createClient().createStream(CreateStreamRequest.builder().streamName(STREAM_NAME).shardCount(1).build()).get();
+        createClient()
+                .createStream(CreateStreamRequest.builder()
+                        .streamName(STREAM_NAME)
+                        .shardCount(1)
+                        .build())
+                .get();
     }
 
     @AfterClass(alwaysRun = true)
@@ -82,7 +85,7 @@ public class KinesisSinkTest {
 
             @Override
             public Optional<String> getKey() {
-                return Optional.of( "key-" + sequenceCounter.incrementAndGet());
+                return Optional.of("key-" + sequenceCounter.incrementAndGet());
             }
 
             @Override
@@ -139,9 +142,7 @@ public class KinesisSinkTest {
                 .credentialsProvider(new AwsCredentialsProvider() {
                     @Override
                     public AwsCredentials resolveCredentials() {
-                        return AwsBasicCredentials.create(
-                                "access",
-                                "secret");
+                        return AwsBasicCredentials.create("access", "secret");
                     }
                 })
                 .region(Region.US_EAST_1)
@@ -154,10 +155,8 @@ public class KinesisSinkTest {
     private GetRecordsResponse getStreamRecords() {
         final KinesisAsyncClient client = createClient();
         final String shardId = client.listShards(
-                        ListShardsRequest.builder()
-                                .streamName(STREAM_NAME)
-                                .build()
-                ).get()
+                        ListShardsRequest.builder().streamName(STREAM_NAME).build())
+                .get()
                 .shards()
                 .get(0)
                 .shardId();
@@ -170,12 +169,8 @@ public class KinesisSinkTest {
                 .get()
                 .shardIterator();
         final GetRecordsResponse response = client.getRecords(
-                        GetRecordsRequest
-                                .builder()
-                                .shardIterator(iterator)
-                                .build())
+                        GetRecordsRequest.builder().shardIterator(iterator).build())
                 .get();
         return response;
     }
-
 }

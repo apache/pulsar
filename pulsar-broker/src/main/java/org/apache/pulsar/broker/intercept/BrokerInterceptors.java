@@ -59,14 +59,12 @@ public class BrokerInterceptors implements BrokerInterceptor {
      * @return the collection of broker event interceptor
      */
     public static BrokerInterceptor load(ServiceConfiguration conf) throws IOException {
-        BrokerInterceptorDefinitions definitions =
-                BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(),
-                        conf.getNarExtractionDirectory());
+        BrokerInterceptorDefinitions definitions = BrokerInterceptorUtils.searchForInterceptors(
+                conf.getBrokerInterceptorsDirectory(), conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, BrokerInterceptorWithClassLoader> builder = ImmutableMap.builder();
 
         conf.getBrokerInterceptors().forEach(interceptorName -> {
-
             BrokerInterceptorMetadata definition = definitions.interceptors().get(interceptorName);
             if (null == definition) {
                 throw new RuntimeException("No broker interceptor is found for name `" + interceptorName
@@ -95,9 +93,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void onMessagePublish(Producer producer,
-                                 ByteBuf headersAndPayload,
-                                 Topic.PublishContext publishContext) {
+    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.onMessagePublish(producer, headersAndPayload, publishContext);
@@ -106,10 +102,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void beforeSendMessage(Subscription subscription,
-                                  Entry entry,
-                                  long[] ackSet,
-                                  MessageMetadata msgMetadata) {
+    public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.beforeSendMessage(subscription, entry, ackSet, msgMetadata);
@@ -118,11 +111,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void beforeSendMessage(Subscription subscription,
-                                  Entry entry,
-                                  long[] ackSet,
-                                  MessageMetadata msgMetadata,
-                                  Consumer consumer) {
+    public void beforeSendMessage(
+            Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.beforeSendMessage(subscription, entry, ackSet, msgMetadata, consumer);
@@ -131,23 +121,16 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void consumerCreated(ServerCnx cnx,
-                                 Consumer consumer,
-                                 Map<String, String> metadata) {
+    public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-                value.consumerCreated(
-                        cnx,
-                        consumer,
-                        metadata);
+                value.consumerCreated(cnx, consumer, metadata);
             }
         }
     }
 
     @Override
-    public void consumerClosed(ServerCnx cnx,
-                               Consumer consumer,
-                               Map<String, String> metadata) {
+    public void consumerClosed(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.consumerClosed(cnx, consumer, metadata);
@@ -156,8 +139,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void producerCreated(ServerCnx cnx, Producer producer,
-                                 Map<String, String> metadata){
+    public void producerCreated(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.producerCreated(cnx, producer, metadata);
@@ -166,9 +148,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void producerClosed(ServerCnx cnx,
-                               Producer producer,
-                               Map<String, String> metadata) {
+    public void producerClosed(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.producerClosed(cnx, producer, metadata);
@@ -177,8 +157,13 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
-                                 long entryId, Topic.PublishContext publishContext) {
+    public void messageProduced(
+            ServerCnx cnx,
+            Producer producer,
+            long startTimeNs,
+            long ledgerId,
+            long entryId,
+            Topic.PublishContext publishContext) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
@@ -187,8 +172,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public  void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
-                                   long entryId, ByteBuf headersAndPayload) {
+    public void messageDispatched(
+            ServerCnx cnx, Consumer consumer, long ledgerId, long entryId, ByteBuf headersAndPayload) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
@@ -197,8 +182,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void messageAcked(ServerCnx cnx, Consumer consumer,
-                              CommandAck ackCmd) {
+    public void messageAcked(ServerCnx cnx, Consumer consumer, CommandAck ackCmd) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
                 value.messageAcked(cnx, consumer, ackCmd);
@@ -223,7 +207,6 @@ public class BrokerInterceptors implements BrokerInterceptor {
             }
         }
     }
-
 
     @Override
     public void onConnectionCreated(ServerCnx cnx) {

@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import com.google.gson.Gson;
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -33,16 +41,6 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Consumer;
-
-import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
 
 /**
  * Unit test of {@link SourceConfigUtilsTest}.
@@ -60,47 +58,37 @@ public class SourceConfigUtilsTest {
     class TestTriggerer implements BatchSourceTriggerer {
 
         @Override
-        public void init(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-
-        }
+        public void init(Map<String, Object> config, SourceContext sourceContext) throws Exception {}
 
         @Override
-        public void start(Consumer<String> trigger) {
-
-        }
+        public void start(Consumer<String> trigger) {}
 
         @Override
-        public void stop() {
-
-        }
+        public void stop() {}
     }
 
     @Test
     public void testConvertBackFidelity() {
         SourceConfig sourceConfig = createSourceConfig();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        Function.FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
         sourceConfig.setResources(Resources.getDefaultResources());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(convertedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(convertedConfig));
     }
 
     @Test
     public void testConvertBackFidelityWithBatch() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        Function.FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
         sourceConfig.setResources(Resources.getDefaultResources());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(convertedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(convertedConfig));
     }
 
     @Test
@@ -108,10 +96,7 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createSourceConfig();
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
     @Test
@@ -119,13 +104,12 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         SourceConfig newSourceConfig = createSourceConfigWithBatch();
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Function Names differ")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Function Names differ")
     public void testMergeDifferentName() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("name", "Different");
@@ -151,18 +135,14 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("className", "Different");
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
-                mergedConfig.getClassName(),
-                "Different"
-        );
+        assertEquals(mergedConfig.getClassName(), "Different");
         mergedConfig.setClassName(sourceConfig.getClassName());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("processingGuarantees", EFFECTIVELY_ONCE);
@@ -176,15 +156,9 @@ public class SourceConfigUtilsTest {
         myConfig.put("MyKey", "MyValue");
         SourceConfig newSourceConfig = createUpdatedSourceConfig("configs", myConfig);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
-                mergedConfig.getConfigs(),
-                myConfig
-        );
+        assertEquals(mergedConfig.getConfigs(), myConfig);
         mergedConfig.setConfigs(sourceConfig.getConfigs());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
     @Test
@@ -194,15 +168,9 @@ public class SourceConfigUtilsTest {
         mySecrets.put("MyKey", "MyValue");
         SourceConfig newSourceConfig = createUpdatedSourceConfig("secrets", mySecrets);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
-                mergedConfig.getSecrets(),
-                mySecrets
-        );
+        assertEquals(mergedConfig.getSecrets(), mySecrets);
         mergedConfig.setSecrets(sourceConfig.getSecrets());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
     @Test
@@ -210,15 +178,9 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("parallelism", 101);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
-                mergedConfig.getParallelism(),
-                Integer.valueOf(101)
-        );
+        assertEquals(mergedConfig.getParallelism(), Integer.valueOf(101));
         mergedConfig.setParallelism(sourceConfig.getParallelism());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
     @Test
@@ -230,15 +192,9 @@ public class SourceConfigUtilsTest {
         resources.setDisk(123456L);
         SourceConfig newSourceConfig = createUpdatedSourceConfig("resources", resources);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
-                mergedConfig.getResources(),
-                resources
-        );
+        assertEquals(mergedConfig.getResources(), resources);
         mergedConfig.setResources(sourceConfig.getResources());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
     @Test
@@ -246,17 +202,14 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newFunctionConfig = createUpdatedSourceConfig("runtimeFlags", "-Dfoo=bar2");
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newFunctionConfig);
-        assertEquals(
-                mergedConfig.getRuntimeFlags(), "-Dfoo=bar2"
-        );
+        assertEquals(mergedConfig.getRuntimeFlags(), "-Dfoo=bar2");
         mergedConfig.setRuntimeFlags(sourceConfig.getRuntimeFlags());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "DiscoverTriggerer class cannot be updated for batchsources")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "DiscoverTriggerer class cannot be updated for batchsources")
     public void testMergeDifferentBatchTriggerer() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         BatchSourceConfig batchSourceConfig = createBatchSourceConfig();
@@ -275,14 +228,15 @@ public class SourceConfigUtilsTest {
         SourceConfig newSourceConfig = createUpdatedSourceConfig("batchSourceConfig", batchSourceConfig);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
-                mergedConfig.getBatchSourceConfig().getDiscoveryTriggererConfig().get("something"),
-                "different"
-        );
-        mergedConfig.getBatchSourceConfig().setDiscoveryTriggererConfig(sourceConfig.getBatchSourceConfig().getDiscoveryTriggererConfig());
-        assertEquals(
-                new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
-        );
+                mergedConfig
+                        .getBatchSourceConfig()
+                        .getDiscoveryTriggererConfig()
+                        .get("something"),
+                "different");
+        mergedConfig
+                .getBatchSourceConfig()
+                .setDiscoveryTriggererConfig(sourceConfig.getBatchSourceConfig().getDiscoveryTriggererConfig());
+        assertEquals(new Gson().toJson(sourceConfig), new Gson().toJson(mergedConfig));
     }
 
     @Test
@@ -295,9 +249,12 @@ public class SourceConfigUtilsTest {
 
         // Bad config
         sourceConfig.getConfigs().put("configParameter", null);
-        Exception e = expectThrows(IllegalArgumentException.class,
-                () -> SourceConfigUtils.validateSourceConfig(sourceConfig, SourceConfigUtilsTest.TestSourceConfig.class));
-        assertTrue(e.getMessage().contains("Could not validate source config: Field 'configParameter' cannot be null!"));
+        Exception e = expectThrows(
+                IllegalArgumentException.class,
+                () -> SourceConfigUtils.validateSourceConfig(
+                        sourceConfig, SourceConfigUtilsTest.TestSourceConfig.class));
+        assertTrue(
+                e.getMessage().contains("Could not validate source config: Field 'configParameter' cannot be null!"));
     }
 
     @Test

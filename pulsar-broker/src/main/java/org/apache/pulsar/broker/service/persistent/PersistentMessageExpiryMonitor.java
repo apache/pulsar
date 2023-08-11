@@ -39,6 +39,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 /**
  */
 public class PersistentMessageExpiryMonitor implements FindEntryCallback, MessageExpirer {
@@ -53,14 +54,18 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
+
     @SuppressWarnings("unused")
     private volatile int expirationCheckInProgress = FALSE;
-    private static final AtomicIntegerFieldUpdater<PersistentMessageExpiryMonitor>
-            expirationCheckInProgressUpdater = AtomicIntegerFieldUpdater
-            .newUpdater(PersistentMessageExpiryMonitor.class, "expirationCheckInProgress");
 
-    public PersistentMessageExpiryMonitor(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                          @Nullable PersistentSubscription subscription) {
+    private static final AtomicIntegerFieldUpdater<PersistentMessageExpiryMonitor> expirationCheckInProgressUpdater =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentMessageExpiryMonitor.class, "expirationCheckInProgress");
+
+    public PersistentMessageExpiryMonitor(
+            PersistentTopic topic,
+            String subscriptionName,
+            ManagedCursor cursor,
+            @Nullable PersistentSubscription subscription) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.cursor = cursor;
@@ -76,24 +81,30 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
-            log.info("[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName,
-                    messageTTLInSeconds);
+            log.info(
+                    "[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName, messageTTLInSeconds);
 
-            cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
-                try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                    return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
-                } catch (Exception e) {
-                    log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
-                } finally {
-                    entry.release();
-                }
-                return false;
-            }, this, null);
+            cursor.asyncFindNewestMatching(
+                    ManagedCursor.FindPositionConstraint.SearchActiveEntries,
+                    entry -> {
+                        try {
+                            long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                            return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
+                        } catch (Exception e) {
+                            log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
+                        } finally {
+                            entry.release();
+                        }
+                        return false;
+                    },
+                    this,
+                    null);
             return true;
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore expire-message scheduled task, last check is still running", topicName,
+                log.debug(
+                        "[{}][{}] Ignore expire-message scheduled task, last check is still running",
+                        topicName,
                         subName);
             }
             return false;
@@ -106,34 +117,46 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         PositionImpl topicLastPosition = (PositionImpl) this.topic.getLastPosition();
         if (topicLastPosition.compareTo((PositionImpl) messagePosition) < 0) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "
-                                + "current topic's last position {}", topicName, subName, messagePosition,
+                log.debug(
+                        "[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "
+                                + "current topic's last position {}",
+                        topicName,
+                        subName,
+                        messagePosition,
                         topicLastPosition);
             }
             return false;
         }
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
-            log.info("[{}][{}] Starting message expiry check, position= {} seconds", topicName, subName,
+            log.info(
+                    "[{}][{}] Starting message expiry check, position= {} seconds",
+                    topicName,
+                    subName,
                     messagePosition);
 
-            cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
-                try {
-                    // If given position larger than entry position.
-                    return ((PositionImpl) entry.getPosition()).compareTo((PositionImpl) messagePosition) <= 0;
-                } finally {
-                    entry.release();
-                }
-            }, this, null);
+            cursor.asyncFindNewestMatching(
+                    ManagedCursor.FindPositionConstraint.SearchActiveEntries,
+                    entry -> {
+                        try {
+                            // If given position larger than entry position.
+                            return ((PositionImpl) entry.getPosition()).compareTo((PositionImpl) messagePosition) <= 0;
+                        } finally {
+                            entry.release();
+                        }
+                    },
+                    this,
+                    null);
             return true;
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore expire-message scheduled task, last check is still running", topicName,
+                log.debug(
+                        "[{}][{}] Ignore expire-message scheduled task, last check is still running",
+                        topicName,
                         subName);
             }
             return false;
         }
     }
-
 
     public void updateRates() {
         msgExpired.calculateRate();
@@ -195,9 +218,14 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Finding expired entry operation failed", topicName, subName, exception);
         }
-        if (autoSkipNonRecoverableData && failedReadPosition.isPresent()
+        if (autoSkipNonRecoverableData
+                && failedReadPosition.isPresent()
                 && (exception instanceof NonRecoverableLedgerException)) {
-            log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
+            log.warn(
+                    "[{}][{}] read failed from ledger at position:{} : {}",
+                    topicName,
+                    subName,
+                    failedReadPosition,
                     exception.getMessage());
             if (exception instanceof LedgerNotExistException) {
                 long failedLedgerId = failedReadPosition.get().getLedgerId();
@@ -205,18 +233,26 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 Position lastPositionInLedger = ledger.getOptionalLedgerInfo(failedLedgerId)
                         .map(ledgerInfo -> PositionImpl.get(failedLedgerId, ledgerInfo.getEntries() - 1))
                         .orElseGet(() -> {
-                            Long nextExistingLedger = ledger.getNextValidLedger(failedReadPosition.get().getLedgerId());
+                            Long nextExistingLedger = ledger.getNextValidLedger(
+                                    failedReadPosition.get().getLedgerId());
                             if (nextExistingLedger == null) {
-                                log.info("[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
-                                                + "entry failed {}", ledger.getName(), ledger.getName(),
+                                log.info(
+                                        "[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
+                                                + "entry failed {}",
+                                        ledger.getName(),
+                                        ledger.getName(),
                                         failedReadPosition);
                                 return (PositionImpl) failedReadPosition.get();
                             } else {
                                 return PositionImpl.get(nextExistingLedger, -1);
                             }
                         });
-                log.info("[{}][{}] ledger not existed, will complete the last position of the non-existed"
-                        + " ledger:{}", topicName, subName, lastPositionInLedger);
+                log.info(
+                        "[{}][{}] ledger not existed, will complete the last position of the non-existed"
+                                + " ledger:{}",
+                        topicName,
+                        subName,
+                        lastPositionInLedger);
                 findEntryComplete(lastPositionInLedger, ctx);
             } else {
                 findEntryComplete(failedReadPosition.get(), ctx);

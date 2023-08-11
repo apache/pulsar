@@ -38,71 +38,48 @@ public class InfluxDBSinkConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The url of the InfluxDB instance to connect to"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "The url of the InfluxDB instance to connect to")
     private String influxdbUrl;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        sensitive = true,
-        help = "The username used to authenticate to InfluxDB"
-    )
+            required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The username used to authenticate to InfluxDB")
     private String username;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        sensitive = true,
-        help = "The password used to authenticate to InfluxDB"
-    )
+            required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The password used to authenticate to InfluxDB")
     private String password;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The InfluxDB database to write to"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "The InfluxDB database to write to")
     private String database;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "ONE",
-        help = "The consistency level for writing data to InfluxDB. Possible values [ALL, ANY, ONE, QUORUM]")
+            required = false,
+            defaultValue = "ONE",
+            help = "The consistency level for writing data to InfluxDB. Possible values [ALL, ANY, ONE, QUORUM]")
     private String consistencyLevel = "ONE";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "NONE",
-        help = "The log level for InfluxDB request and response. Possible values [NONE, BASIC, HEADERS, FULL]")
+            required = false,
+            defaultValue = "NONE",
+            help = "The log level for InfluxDB request and response. Possible values [NONE, BASIC, HEADERS, FULL]")
     private String logLevel = "NONE";
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "autogen",
-        help = "The retention policy for the InfluxDB database")
+    @FieldDoc(required = false, defaultValue = "autogen", help = "The retention policy for the InfluxDB database")
     private String retentionPolicy = "autogen";
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "false",
-        help = "Flag to determine if gzip should be enabled")
+    @FieldDoc(required = false, defaultValue = "false", help = "Flag to determine if gzip should be enabled")
     private boolean gzipEnable = false;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "1000L",
-        help = "The InfluxDB operation time in milliseconds")
+    @FieldDoc(required = false, defaultValue = "1000L", help = "The InfluxDB operation time in milliseconds")
     private long batchTimeMs = 1000L;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "200",
-        help = "The batch size of write to InfluxDB database"
-    )
+    @FieldDoc(required = false, defaultValue = "200", help = "The batch size of write to InfluxDB database")
     private int batchSize = 200;
 
     public static InfluxDBSinkConfig load(String yamlFile) throws IOException {

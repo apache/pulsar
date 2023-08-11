@@ -34,36 +34,38 @@ import org.apache.pulsar.functions.worker.WorkerService;
 @Path("/")
 public class WorkerReadinessResource implements Supplier<WorkerService> {
 
-  public static final String ATTRIBUTE_WORKER_SERVICE = "worker";
+    public static final String ATTRIBUTE_WORKER_SERVICE = "worker";
 
-  private WorkerService workerService;
-  @Context
-  protected ServletContext servletContext;
-  @Context
-  protected HttpServletRequest httpRequest;
+    private WorkerService workerService;
 
-  @Override
-  public synchronized WorkerService get() {
-    if (this.workerService == null) {
-      this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_WORKER_SERVICE);
+    @Context
+    protected ServletContext servletContext;
+
+    @Context
+    protected HttpServletRequest httpRequest;
+
+    @Override
+    public synchronized WorkerService get() {
+        if (this.workerService == null) {
+            this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_WORKER_SERVICE);
+        }
+        return this.workerService;
     }
-    return this.workerService;
-  }
 
-  @GET
-  @ApiOperation(
-    value = "Determines whether the worker service is initialized and ready for use",
-    response = Boolean.class
-  )
-  @ApiResponses(value = {
-    @ApiResponse(code = 400, message = "Invalid request"),
-    @ApiResponse(code = 408, message = "Request timeout")
-  })
-  @Path("/initialized")
-  public boolean isInitialized() {
-    if (!get().isInitialized()) {
-      throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
+    @GET
+    @ApiOperation(
+            value = "Determines whether the worker service is initialized and ready for use",
+            response = Boolean.class)
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 400, message = "Invalid request"),
+                @ApiResponse(code = 408, message = "Request timeout")
+            })
+    @Path("/initialized")
+    public boolean isInitialized() {
+        if (!get().isInitialized()) {
+            throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
+        }
+        return true;
     }
-    return true;
-  }
 }

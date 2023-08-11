@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.api.v1;
 
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
 import java.util.Set;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -38,20 +36,27 @@ public abstract class V1_ProducerConsumerBase extends MockedPulsarServiceBaseTes
     }
 
     public void producerBaseSetup() throws Exception {
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.clusters()
+                .createCluster(
+                        "use",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
-    protected void testMessageOrderAndDuplicates(Set<String> messagesReceived, String receivedMessage,
-            String expectedMessage) {
+    protected void testMessageOrderAndDuplicates(
+            Set<String> messagesReceived, String receivedMessage, String expectedMessage) {
         // Make sure that messages are received in order
-        Assert.assertEquals(receivedMessage, expectedMessage,
+        Assert.assertEquals(
+                receivedMessage,
+                expectedMessage,
                 "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
 
         // Make sure that there are no duplicates
         Assert.assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
-
 }

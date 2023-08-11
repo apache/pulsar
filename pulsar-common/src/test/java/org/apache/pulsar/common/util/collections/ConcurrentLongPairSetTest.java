@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,21 +33,16 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class ConcurrentLongPairSetTest {
 
     @Test
     public void testConstructor() {
         try {
-            ConcurrentLongPairSet.newBuilder()
-                    .expectedItems(0)
-                    .build();
+            ConcurrentLongPairSet.newBuilder().expectedItems(0).build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
@@ -95,9 +90,8 @@ public class ConcurrentLongPairSetTest {
 
     @Test
     public void simpleInsertions() {
-        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
-                .expectedItems(16)
-                .build();
+        ConcurrentLongPairSet set =
+                ConcurrentLongPairSet.newBuilder().expectedItems(16).build();
 
         assertTrue(set.isEmpty());
         assertTrue(set.add(1, 1));
@@ -171,7 +165,7 @@ public class ConcurrentLongPairSetTest {
         assertTrue(map.add(5, 5));
         assertTrue(map.capacity() == 8);
 
-        //verify that the map does not keep shrinking at every remove() operation
+        // verify that the map does not keep shrinking at every remove() operation
         assertTrue(map.add(6, 6));
         assertTrue(map.remove(6, 6));
         assertTrue(map.capacity() == 8);
@@ -210,7 +204,6 @@ public class ConcurrentLongPairSetTest {
         // after clear, because current capacity is equal than the initial capacity, so not shrinkToInitCapacity
         assertTrue(map.capacity() == initCapacity);
     }
-
 
     @Test
     public void testRemove() {
@@ -406,8 +399,14 @@ public class ConcurrentLongPairSetTest {
 
         List<LongPair> values = new ArrayList<>(set.items());
         values.sort(null);
-        assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
-                new LongPair(6, 6), new LongPair(7, 7)));
+        assertEquals(
+                values,
+                Lists.newArrayList(
+                        new LongPair(0, 0),
+                        new LongPair(1, 1),
+                        new LongPair(3, 3),
+                        new LongPair(6, 6),
+                        new LongPair(7, 7)));
 
         set.forEach((first, second) -> {
             if (first < 5) {
@@ -432,8 +431,14 @@ public class ConcurrentLongPairSetTest {
 
         List<LongPair> values = new ArrayList<>(set.items());
         values.sort(null);
-        assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
-                new LongPair(6, 6), new LongPair(7, 7)));
+        assertEquals(
+                values,
+                Lists.newArrayList(
+                        new LongPair(0, 0),
+                        new LongPair(1, 1),
+                        new LongPair(3, 3),
+                        new LongPair(6, 6),
+                        new LongPair(7, 7)));
 
         int removeItems = set.removeIf((first, second) -> first < 5);
 
@@ -535,5 +540,4 @@ public class ConcurrentLongPairSetTest {
         final String toString = "{[3:3], [0:0], [1:1]}";
         assertEquals(set.toString(), toString);
     }
-
 }

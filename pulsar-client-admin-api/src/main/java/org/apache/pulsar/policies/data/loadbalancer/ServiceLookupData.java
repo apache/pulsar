@@ -51,5 +51,4 @@ public interface ServiceLookupData {
     String getLoadManagerClassName();
 
     long getStartTimestamp();
-
 }

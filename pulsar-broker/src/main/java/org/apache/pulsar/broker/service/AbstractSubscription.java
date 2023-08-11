@@ -36,7 +36,8 @@ public abstract class AbstractSubscription implements Subscription {
 
     private long sumConsumers(ToLongFunction<Consumer> toCounter) {
         return Optional.ofNullable(getDispatcher())
-                .map(dispatcher -> dispatcher.getConsumers().stream().mapToLong(toCounter).sum())
+                .map(dispatcher ->
+                        dispatcher.getConsumers().stream().mapToLong(toCounter).sum())
                 .orElse(0L);
     }
 }

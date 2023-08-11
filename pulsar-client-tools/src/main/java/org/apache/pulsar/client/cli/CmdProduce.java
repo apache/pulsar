@@ -94,70 +94,95 @@ public class CmdProduce {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions;
 
-    @Parameter(names = { "-m", "--messages" },
-               description = "Messages to send, either -m or -f must be specified. Specify -m for each message.",
-               splitter = NoSplitter.class)
+    @Parameter(
+            names = {"-m", "--messages"},
+            description = "Messages to send, either -m or -f must be specified. Specify -m for each message.",
+            splitter = NoSplitter.class)
     private List<String> messages = new ArrayList<>();
 
-    @Parameter(names = { "-f", "--files" },
-               description = "Comma separated file paths to send, either -m or -f must be specified.")
+    @Parameter(
+            names = {"-f", "--files"},
+            description = "Comma separated file paths to send, either -m or -f must be specified.")
     private List<String> messageFileNames = new ArrayList<>();
 
-    @Parameter(names = { "-n", "--num-produce" },
-               description = "Number of times to send message(s), the count of messages/files * num-produce "
-                       + "should below than " + MAX_MESSAGES + ".")
+    @Parameter(
+            names = {"-n", "--num-produce"},
+            description = "Number of times to send message(s), the count of messages/files * num-produce "
+                    + "should below than " + MAX_MESSAGES + ".")
     private int numTimesProduce = 1;
 
-    @Parameter(names = { "-r", "--rate" },
-               description = "Rate (in msg/sec) at which to produce,"
-                       + " value 0 means to produce messages as fast as possible.")
+    @Parameter(
+            names = {"-r", "--rate"},
+            description = "Rate (in msg/sec) at which to produce,"
+                    + " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
 
-    @Parameter(names = { "-db", "--disable-batching" }, description = "Disable batch sending of messages")
+    @Parameter(
+            names = {"-db", "--disable-batching"},
+            description = "Disable batch sending of messages")
     private boolean disableBatching = false;
 
-    @Parameter(names = { "-c",
-            "--chunking" }, description = "Should split the message and publish in chunks if message size is "
-            + "larger than allowed max size")
+    @Parameter(
+            names = {"-c", "--chunking"},
+            description = "Should split the message and publish in chunks if message size is "
+                    + "larger than allowed max size")
     private boolean chunkingAllowed = false;
 
-    @Parameter(names = { "-s", "--separator" },
-               description = "Character to split messages string on default is comma")
+    @Parameter(
+            names = {"-s", "--separator"},
+            description = "Character to split messages string on default is comma")
     private String separator = ",";
 
-    @Parameter(names = { "-p", "--properties"}, description = "Properties to add, Comma separated "
-            + "key=value string, like k1=v1,k2=v2.")
+    @Parameter(
+            names = {"-p", "--properties"},
+            description = "Properties to add, Comma separated " + "key=value string, like k1=v1,k2=v2.")
     private List<String> properties = new ArrayList<>();
 
-    @Parameter(names = { "-k", "--key"}, description = "Partitioning key to add to each message")
+    @Parameter(
+            names = {"-k", "--key"},
+            description = "Partitioning key to add to each message")
     private String key;
-    @Parameter(names = { "-kvk", "--key-value-key"}, description = "Value to add as message key in KeyValue schema")
+
+    @Parameter(
+            names = {"-kvk", "--key-value-key"},
+            description = "Value to add as message key in KeyValue schema")
     private String keyValueKey;
-    @Parameter(names = { "-kvkf", "--key-value-key-file"},
+
+    @Parameter(
+            names = {"-kvkf", "--key-value-key-file"},
             description = "Path to file containing the value to add as message key in KeyValue schema. "
-            + "JSON and AVRO files are supported.")
+                    + "JSON and AVRO files are supported.")
     private String keyValueKeyFile;
 
-    @Parameter(names = { "-vs", "--value-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
+    @Parameter(
+            names = {"-vs", "--value-schema"},
+            description = "Schema type (can be bytes,avro,json,string...)")
     private String valueSchema = "bytes";
 
-    @Parameter(names = { "-ks", "--key-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
+    @Parameter(
+            names = {"-ks", "--key-schema"},
+            description = "Schema type (can be bytes,avro,json,string...)")
     private String keySchema = "string";
 
-    @Parameter(names = { "-kvet", "--key-value-encoding-type"},
+    @Parameter(
+            names = {"-kvet", "--key-value-encoding-type"},
             description = "Key Value Encoding Type (it can be separated or inline)")
     private String keyValueEncodingType = null;
 
-    @Parameter(names = { "-ekn", "--encryption-key-name" }, description = "The public key name to encrypt payload")
+    @Parameter(
+            names = {"-ekn", "--encryption-key-name"},
+            description = "The public key name to encrypt payload")
     private String encKeyName = null;
 
-    @Parameter(names = { "-ekv",
-            "--encryption-key-value" }, description = "The URI of public key to encrypt payload, for example "
+    @Parameter(
+            names = {"-ekv", "--encryption-key-value"},
+            description = "The URI of public key to encrypt payload, for example "
                     + "file:///path/to/public.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue = null;
 
-    @Parameter(names = { "-dr",
-            "--disable-replication" }, description = "Disable geo-replication for messages.")
+    @Parameter(
+            names = {"-dr", "--disable-replication"},
+            description = "Disable geo-replication for messages.")
     private boolean disableReplication = false;
 
     private ClientBuilder clientBuilder;
@@ -187,8 +212,8 @@ public class CmdProduce {
      *
      * @return list of message bodies
      */
-    static List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames,
-                                              Schema schema) {
+    static List<byte[]> generateMessageBodies(
+            List<String> stringMessages, List<String> messageFileNames, Schema schema) {
         List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
@@ -214,7 +239,7 @@ public class CmdProduce {
         return messageBodies;
     }
 
-    private static byte[] jsonToAvro(String m, org.apache.avro.Schema avroSchema){
+    private static byte[] jsonToAvro(String m, org.apache.avro.Schema avroSchema) {
         try {
             GenericDatumReader<Object> reader = new GenericDatumReader<>(avroSchema);
             JsonDecoder jsonDecoder = DecoderFactory.get().jsonDecoder(avroSchema, m);
@@ -251,8 +276,11 @@ public class CmdProduce {
             throw (new ParameterException("Number of times need to be positive number."));
         }
 
-        if (messages.size() > 0){
-            messages = messages.stream().map(str -> str.split(separator)).flatMap(Stream::of).toList();
+        if (messages.size() > 0) {
+            messages = messages.stream()
+                    .map(str -> str.split(separator))
+                    .flatMap(Stream::of)
+                    .toList();
         }
 
         if (messages.size() == 0 && messageFileNames.size() == 0) {
@@ -267,8 +295,8 @@ public class CmdProduce {
                 case KEY_VALUE_ENCODING_TYPE_INLINE:
                     break;
                 default:
-                    throw (new ParameterException("--key-value-encoding-type "
-                            + keyValueEncodingType + " is not valid, only 'separated' or 'inline'"));
+                    throw (new ParameterException("--key-value-encoding-type " + keyValueEncodingType
+                            + " is not valid, only 'separated' or 'inline'"));
             }
         }
 
@@ -292,7 +320,7 @@ public class CmdProduce {
         int numMessagesSent = 0;
         int returnCode = 0;
 
-        try (PulsarClient client = clientBuilder.build()){
+        try (PulsarClient client = clientBuilder.build()) {
             Schema<?> schema = buildSchema(this.keySchema, this.valueSchema, this.keyValueEncodingType);
             ProducerBuilder<?> producerBuilder = client.newProducer(schema).topic(topic);
             if (this.chunkingAllowed) {
@@ -305,11 +333,12 @@ public class CmdProduce {
                 producerBuilder.addEncryptionKey(this.encKeyName);
                 producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
             }
-            try (Producer<?> producer = producerBuilder.create();) {
+            try (Producer<?> producer = producerBuilder.create(); ) {
                 Schema<?> schemaForPayload = schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE
-                        ? ((KeyValueSchema) schema).getValueSchema() : schema;
-                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames,
-                        schemaForPayload);
+                        ? ((KeyValueSchema) schema).getValueSchema()
+                        : schema;
+                List<byte[]> messageBodies =
+                        generateMessageBodies(this.messages, this.messageFileNames, schemaForPayload);
                 RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
 
                 Map<String, String> kvMap = new HashMap<>();
@@ -321,14 +350,13 @@ public class CmdProduce {
                 final byte[] keyValueKeyBytes;
                 if (this.keyValueKey != null) {
                     if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
-                        throw new ParameterException(
-                            "Key value encoding type must be set when using --key-value-key");
+                        throw new ParameterException("Key value encoding type must be set when using --key-value-key");
                     }
                     keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
                 } else if (this.keyValueKeyFile != null) {
                     if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
                         throw new ParameterException(
-                            "Key value encoding type must be set when using --key-value-key-file");
+                                "Key value encoding type must be set when using --key-value-key-file");
                     }
                     keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
                 } else if (this.key != null) {
@@ -358,9 +386,7 @@ public class CmdProduce {
                                 break;
                             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
                             case KEY_VALUE_ENCODING_TYPE_INLINE:
-                                KeyValue kv = new KeyValue<>(
-                                        keyValueKeyBytes,
-                                        content);
+                                KeyValue kv = new KeyValue<>(keyValueKeyBytes, content);
                                 message.value(kv);
                                 break;
                             default:
@@ -372,7 +398,6 @@ public class CmdProduce {
                         }
 
                         message.send();
-
 
                         numMessagesSent++;
                     }
@@ -394,14 +419,14 @@ public class CmdProduce {
             case KEY_VALUE_ENCODING_TYPE_NOT_SET:
                 return buildComponentSchema(schema);
             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
-                        KeyValueEncodingType.SEPARATED);
+                return Schema.KeyValue(
+                        buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.SEPARATED);
             case KEY_VALUE_ENCODING_TYPE_INLINE:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
-                        KeyValueEncodingType.INLINE);
+                return Schema.KeyValue(
+                        buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.INLINE);
             default:
-                throw new IllegalArgumentException("Invalid KeyValueEncodingType "
-                        + keyValueEncodingType + ", only: 'none','separated' and 'inline");
+                throw new IllegalArgumentException("Invalid KeyValueEncodingType " + keyValueEncodingType
+                        + ", only: 'none','separated' and 'inline");
         }
     }
 
@@ -409,7 +434,7 @@ public class CmdProduce {
         Schema<?> base;
         switch (schema) {
             case "string":
-                base =  Schema.STRING;
+                base = Schema.STRING;
                 break;
             case "bytes":
                 // no need for wrappers
@@ -427,30 +452,37 @@ public class CmdProduce {
     }
 
     private static Schema<?> buildGenericSchema(SchemaType type, String definition) {
-        return Schema.generic(SchemaInfoImpl
-                .builder()
+        return Schema.generic(SchemaInfoImpl.builder()
                 .schema(definition.getBytes(StandardCharsets.UTF_8))
                 .name("client")
                 .properties(new HashMap<>())
                 .type(type)
                 .build());
-
     }
 
     @SuppressWarnings("deprecation")
     @VisibleForTesting
     public String getWebSocketProduceUri(String topic) {
-        String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
-                serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
+        String serviceURLWithoutTrailingSlash =
+                serviceURL.substring(0, serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
 
         TopicName topicName = TopicName.get(topic);
         String wsTopic;
         if (topicName.isV2()) {
-            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getNamespacePortion(), topicName.getLocalName());
+            wsTopic = String.format(
+                    "%s/%s/%s/%s",
+                    topicName.getDomain(),
+                    topicName.getTenant(),
+                    topicName.getNamespacePortion(),
+                    topicName.getLocalName());
         } else {
-            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
+            wsTopic = String.format(
+                    "%s/%s/%s/%s/%s",
+                    topicName.getDomain(),
+                    topicName.getTenant(),
+                    topicName.getCluster(),
+                    topicName.getNamespacePortion(),
+                    topicName.getLocalName());
         }
 
         String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/") + "producer/%s";
@@ -587,6 +619,5 @@ public class CmdProduce {
         public void close() {
             this.session.close();
         }
-
     }
 }

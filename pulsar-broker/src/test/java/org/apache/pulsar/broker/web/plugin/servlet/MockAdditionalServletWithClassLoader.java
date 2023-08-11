@@ -22,7 +22,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.eclipse.jetty.servlet.ServletHolder;
 
-public class MockAdditionalServletWithClassLoader implements AdditionalServletWithPulsarService{
+public class MockAdditionalServletWithClassLoader implements AdditionalServletWithPulsarService {
     @Override
     public void loadConfig(PulsarConfiguration pulsarConfiguration) {
         // No-op

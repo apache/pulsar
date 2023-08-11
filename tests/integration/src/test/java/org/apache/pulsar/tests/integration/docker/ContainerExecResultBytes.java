@@ -29,5 +29,4 @@ public class ContainerExecResultBytes {
     private final long exitCode;
     private final byte[] stdout;
     private final byte[] stderr;
-
 }

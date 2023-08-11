@@ -59,8 +59,8 @@ public class AuthenticationService implements Closeable {
                     if (className.isEmpty()) {
                         continue;
                     }
-                    AuthenticationProvider provider = (AuthenticationProvider) Class.forName(className)
-                            .getDeclaredConstructor().newInstance();
+                    AuthenticationProvider provider = (AuthenticationProvider)
+                            Class.forName(className).getDeclaredConstructor().newInstance();
 
                     List<AuthenticationProvider> providerList = providerMap.get(provider.getAuthMethodName());
                     if (null == providerList) {
@@ -79,9 +79,11 @@ public class AuthenticationService implements Closeable {
                     }
                     provider.initialize(conf);
                     providers.put(provider.getAuthMethodName(), provider);
-                    LOG.info("[{}] has been loaded.",
-                        entry.getValue().stream().map(
-                            p -> p.getClass().getName()).collect(Collectors.joining(",")));
+                    LOG.info(
+                            "[{}] has been loaded.",
+                            entry.getValue().stream()
+                                    .map(p -> p.getClass().getName())
+                                    .collect(Collectors.joining(",")));
                 }
 
                 if (providers.isEmpty()) {
@@ -108,8 +110,7 @@ public class AuthenticationService implements Closeable {
         return providerToUse;
     }
 
-    public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
-            throws Exception {
+    public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         String authMethodName = getAuthMethodName(request);
         if (authMethodName == null
                 && SaslConstants.SASL_TYPE_VALUE.equalsIgnoreCase(request.getHeader(SaslConstants.SASL_HEADER_TYPE))) {
@@ -123,8 +124,10 @@ public class AuthenticationService implements Closeable {
                 return providerToUse.authenticateHttpRequest(request, response);
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
-                            + e.getMessage(), e);
+                    LOG.debug(
+                            "Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
+                                    + e.getMessage(),
+                            e);
                 }
                 throw e;
             }
@@ -134,8 +137,10 @@ public class AuthenticationService implements Closeable {
                     return provider.authenticateHttpRequest(request, response);
                 } catch (AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
-                                + e.getMessage(), e);
+                        LOG.debug(
+                                "Authentication failed for provider " + provider.getAuthMethodName() + ": "
+                                        + e.getMessage(),
+                                e);
                     }
                     // Ignore the exception because we don't know which authentication method is expected here.
                 }
@@ -175,14 +180,18 @@ public class AuthenticationService implements Closeable {
                 return providerToUse.authenticateAsync(authData).get();
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
-                            + e.getMessage(), e);
+                    LOG.debug(
+                            "Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
+                                    + e.getMessage(),
+                            e);
                 }
                 throw e;
             } catch (ExecutionException | InterruptedException e) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
-                            + e.getMessage(), e);
+                    LOG.debug(
+                            "Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
+                                    + e.getMessage(),
+                            e);
                 }
                 throw new RuntimeException(e);
             }
@@ -190,11 +199,14 @@ public class AuthenticationService implements Closeable {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     AuthenticationState authenticationState = provider.newHttpAuthState(request);
-                    return provider.authenticateAsync(authenticationState.getAuthDataSource()).get();
+                    return provider.authenticateAsync(authenticationState.getAuthDataSource())
+                            .get();
                 } catch (ExecutionException | InterruptedException | AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
-                                + e.getMessage(), e);
+                        LOG.debug(
+                                "Authentication failed for provider " + provider.getAuthMethodName() + ": "
+                                        + e.getMessage(),
+                                e);
                     }
                     // Ignore the exception because we don't know which authentication method is expected here.
                 }

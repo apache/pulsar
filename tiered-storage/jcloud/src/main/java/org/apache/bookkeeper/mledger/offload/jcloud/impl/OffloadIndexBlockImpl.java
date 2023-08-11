@@ -66,9 +66,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         this.recyclerHandle = recyclerHandle;
     }
 
-    public static OffloadIndexBlockImpl get(LedgerMetadata metadata, long dataObjectLength,
-                                            long dataHeaderLength,
-                                            List<OffloadIndexEntryImpl> entries) {
+    public static OffloadIndexBlockImpl get(
+            LedgerMetadata metadata,
+            long dataObjectLength,
+            long dataHeaderLength,
+            List<OffloadIndexEntryImpl> entries) {
         OffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
         entries.forEach(entry -> block.indexEntries.putIfAbsent(entry.getEntryId(), entry));
@@ -81,8 +83,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
     public static OffloadIndexBlockImpl get(int magic, DataInputStream stream) throws IOException {
         if (magic != INDEX_MAGIC_WORD) {
-            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
-                    magic, INDEX_MAGIC_WORD));
+            throw new IOException(
+                    String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x", magic, INDEX_MAGIC_WORD));
         }
         OffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
@@ -104,10 +106,12 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     @Override
     public OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) throws IOException {
         if (messageEntryId > segmentMetadata.getLastEntryId()) {
-            log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
-                messageEntryId, segmentMetadata.getLastEntryId());
-            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId
-                + " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
+            log.warn(
+                    "Try to get entry: {}, which beyond lastEntryId {}, return null",
+                    messageEntryId,
+                    segmentMetadata.getLastEntryId());
+            throw new IndexOutOfBoundsException(
+                    "Entry index: " + messageEntryId + " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
         return this.indexEntries.floorEntry(messageEntryId).getValue();
@@ -146,28 +150,28 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         int segmentMetadataLength = ledgerMetadataByte.length;
 
         int indexBlockLength = 4 /* magic header */
-            + 4 /* index block length */
-            + 8 /* data object length */
-            + 8 /* data header length */
-            + 4 /* index entry count */
-            + 4 /* segment metadata length */
-            + segmentMetadataLength
-            + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
+                + 4 /* index block length */
+                + 8 /* data object length */
+                + 8 /* data header length */
+                + 4 /* index entry count */
+                + 4 /* segment metadata length */
+                + segmentMetadataLength
+                + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
         ByteBuf out = PulsarByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
 
         out.writeInt(INDEX_MAGIC_WORD)
-            .writeInt(indexBlockLength)
-            .writeLong(dataObjectLength)
-            .writeLong(dataHeaderLength)
-            .writeInt(indexEntryCount)
-            .writeInt(segmentMetadataLength);
+                .writeInt(indexBlockLength)
+                .writeLong(dataObjectLength)
+                .writeLong(dataHeaderLength)
+                .writeInt(indexEntryCount)
+                .writeInt(segmentMetadataLength);
         // write metadata
         out.writeBytes(ledgerMetadataByte);
 
         // write entries
-        this.indexEntries.entrySet().forEach(entry ->
-                out.writeLong(entry.getValue().getEntryId())
+        this.indexEntries.entrySet().forEach(entry -> out.writeLong(
+                        entry.getValue().getEntryId())
                 .writeInt(entry.getValue().getPartId())
                 .writeLong(entry.getValue().getOffset()));
 
@@ -185,8 +189,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         private long ctime;
         private State state;
         private Map<String, byte[]> customMetadata = Maps.newHashMap();
-        private TreeMap<Long, ArrayList<BookieId>> ensembles =
-                new TreeMap<>();
+        private TreeMap<Long, ArrayList<BookieId>> ensembles = new TreeMap<>();
 
         InternalLedgerMetadata(LedgerMetadataFormat ledgerMetadataFormat) {
             this.ensembleSize = ledgerMetadataFormat.getEnsembleSize();
@@ -200,8 +203,10 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                     ledgerMetadataFormat.getState().toString());
 
             if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-                ledgerMetadataFormat.getCustomMetadataList().forEach(
-                        entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
+                ledgerMetadataFormat
+                        .getCustomMetadataList()
+                        .forEach(entry -> this.customMetadata.put(
+                                entry.getKey(), entry.getValue().toByteArray()));
             }
 
             ledgerMetadataFormat.getSegmentList().forEach(segment -> {
@@ -343,8 +348,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         for (int i = 0; i < indexEntryCount; i++) {
             long entryId = dis.readLong();
-            this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(),
-                    dis.readLong(), dataHeaderLength));
+            this.indexEntries.putIfAbsent(
+                    entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(), dis.readLong(), dataHeaderLength));
         }
         return this;
     }
@@ -357,6 +362,4 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     public void close() {
         recycle();
     }
-
 }
-

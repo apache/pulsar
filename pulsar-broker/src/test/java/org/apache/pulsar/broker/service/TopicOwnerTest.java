@@ -106,7 +106,13 @@ public class TopicOwnerTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        pulsarAdmins[0].clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsarServices[0].getWebServiceAddress()).build());
+        pulsarAdmins[0]
+                .clusters()
+                .createCluster(
+                        testCluster,
+                        ClusterData.builder()
+                                .serviceUrl(pulsarServices[0].getWebServiceAddress())
+                                .build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Sets.newHashSet(testCluster))
                 .build();
@@ -145,7 +151,9 @@ public class TopicOwnerTest {
                     true);
             return CompletableFuture.completedFuture(Optional.of(lookupResult));
         };
-        doAnswer(answer).when(spyLeaderNamespaceService).getBrokerServiceUrlAsync(any(TopicName.class), any(LookupOptions.class));
+        doAnswer(answer)
+                .when(spyLeaderNamespaceService)
+                .getBrokerServiceUrlAsync(any(TopicName.class), any(LookupOptions.class));
         FieldUtils.writeField(leaderPulsar, "nsService", spyLeaderNamespaceService, true);
         return leaderAuthorizedBroker;
     }
@@ -184,7 +192,13 @@ public class TopicOwnerTest {
 
     @Test
     public void testConnectToInvalidateBundleCacheBroker() throws Exception {
-        Assert.assertEquals(pulsarAdmins[0].namespaces().getPolicies("my-tenant/my-ns").bundles.getNumBundles(), 16);
+        Assert.assertEquals(
+                pulsarAdmins[0]
+                        .namespaces()
+                        .getPolicies("my-tenant/my-ns")
+                        .bundles
+                        .getNumBundles(),
+                16);
 
         final String topic1 = "persistent://my-tenant/my-ns/topic-1";
         final String topic2 = "persistent://my-tenant/my-ns/topic-2";
@@ -194,23 +208,31 @@ public class TopicOwnerTest {
         String serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);
 
         while (serviceUrlForTopic1.equals(serviceUrlForTopic2)) {
-            // Retry for bundle distribution, should make sure bundles for topic1 and topic2 are maintained in different brokers.
+            // Retry for bundle distribution, should make sure bundles for topic1 and topic2 are maintained in different
+            // brokers.
             pulsarAdmins[0].namespaces().unload("my-tenant/my-ns");
             serviceUrlForTopic1 = pulsarAdmins[0].lookups().lookupTopic(topic1);
             serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);
         }
         // All brokers will invalidate bundles cache after namespace bundle split
-        pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
-                pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
-                true, null);
+        pulsarAdmins[0]
+                .namespaces()
+                .splitNamespaceBundle(
+                        "my-tenant/my-ns",
+                        pulsarServices[0]
+                                .getNamespaceService()
+                                .getBundle(TopicName.get(topic1))
+                                .getBundleRange(),
+                        true,
+                        null);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().
-                serviceUrl(serviceUrlForTopic1)
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrlForTopic1).build();
 
         // Check connect to a topic which owner broker invalidate all namespace bundles cache
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic2).subscriptionName("test").subscribe();
+        Consumer<byte[]> consumer =
+                client.newConsumer().topic(topic2).subscriptionName("test").subscribe();
         Assert.assertTrue(consumer.isConnected());
     }
 
@@ -226,8 +248,8 @@ public class TopicOwnerTest {
 
         Map<String, String> partitionedMap = new LinkedHashMap<>();
         for (int i = 0; i < partitions; i++) {
-           String partitionTopicName = topic + "-partition-" + i;
-           partitionedMap.put(partitionTopicName, pulsarAdmins[0].lookups().lookupTopic(partitionTopicName));
+            String partitionTopicName = topic + "-partition-" + i;
+            partitionedMap.put(partitionTopicName, pulsarAdmins[0].lookups().lookupTopic(partitionTopicName));
         }
 
         Assert.assertEquals(allPartitionMap.size(), partitionedMap.size());
@@ -235,7 +257,6 @@ public class TopicOwnerTest {
         for (Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
             Assert.assertTrue(entry.getValue().equalsIgnoreCase(partitionedMap.get(entry.getKey())));
         }
-
     }
 
     @Test
@@ -244,14 +265,12 @@ public class TopicOwnerTest {
         pulsarAdmins[0].topics().createPartitionedTopic(topicName, 16);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().
-                serviceUrl(pulsarServices[0].getBrokerServiceUrl())
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarServices[0].getBrokerServiceUrl())
                 .build();
 
-        Consumer<byte[]> consumer = client.newConsumer()
-                .topic(topicName)
-                .subscriptionName("my-sub")
-                .subscribe();
+        Consumer<byte[]> consumer =
+                client.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
         List<String> topics = pulsarAdmins[0].topics().getList("my-tenant/my-ns");
         Assert.assertEquals(topics.size(), 16);

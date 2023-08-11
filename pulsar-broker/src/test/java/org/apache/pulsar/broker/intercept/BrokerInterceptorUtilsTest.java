@@ -18,22 +18,20 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.nio.file.Paths;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
+import java.io.IOException;
+import java.nio.file.Paths;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BrokerInterceptorUtilsTest {
@@ -54,8 +52,7 @@ public class BrokerInterceptorUtilsTest {
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
                 .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockBrokerInterceptor.class;
-        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
-                .thenReturn(listenerClass);
+        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName()))).thenReturn(listenerClass);
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);
@@ -85,8 +82,7 @@ public class BrokerInterceptorUtilsTest {
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
                 .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockBrokerInterceptor.class;
-        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
-                .thenReturn(listenerClass);
+        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName()))).thenReturn(listenerClass);
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);
@@ -113,8 +109,7 @@ public class BrokerInterceptorUtilsTest {
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
                 .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = Runnable.class;
-        when(mockLoader.loadClass(eq(Runnable.class.getName())))
-                .thenReturn(listenerClass);
+        when(mockLoader.loadClass(eq(Runnable.class.getName()))).thenReturn(listenerClass);
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);

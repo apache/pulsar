@@ -39,14 +39,18 @@ public class BrokerEntryMetadataUtils<T> {
         if (interceptorNames != null && interceptorNames.size() > 0) {
             for (String interceptorName : interceptorNames) {
                 try {
-                    Class<BrokerEntryMetadataInterceptor> clz = (Class<BrokerEntryMetadataInterceptor>) ClassLoaderUtils
-                            .loadClass(interceptorName, classLoader);
+                    Class<BrokerEntryMetadataInterceptor> clz = (Class<BrokerEntryMetadataInterceptor>)
+                            ClassLoaderUtils.loadClass(interceptorName, classLoader);
                     try {
                         interceptors.add(clz.getDeclaredConstructor().newInstance());
-                    } catch (InstantiationException | IllegalAccessException
-                            | InvocationTargetException | NoSuchMethodException e) {
-                        log.error("Create new BrokerEntryMetadataInterceptor instance for {} failed.",
-                                interceptorName, e);
+                    } catch (InstantiationException
+                            | IllegalAccessException
+                            | InvocationTargetException
+                            | NoSuchMethodException e) {
+                        log.error(
+                                "Create new BrokerEntryMetadataInterceptor instance for {} failed.",
+                                interceptorName,
+                                e);
                         throw new RuntimeException(e);
                     }
                 } catch (ClassNotFoundException e) {
@@ -57,20 +61,20 @@ public class BrokerEntryMetadataUtils<T> {
         }
         return interceptors;
     }
-    public static <T> Set<T> loadInterceptors(
-            Set<String> interceptorNames, ClassLoader classLoader) {
+
+    public static <T> Set<T> loadInterceptors(Set<String> interceptorNames, ClassLoader classLoader) {
         Set<T> interceptors = new LinkedHashSet<>();
         if (interceptorNames != null && interceptorNames.size() > 0) {
             for (String interceptorName : interceptorNames) {
                 try {
-                    Class<T> clz = (Class<T>) ClassLoaderUtils
-                        .loadClass(interceptorName, classLoader);
+                    Class<T> clz = (Class<T>) ClassLoaderUtils.loadClass(interceptorName, classLoader);
                     try {
                         interceptors.add(clz.getDeclaredConstructor().newInstance());
-                    } catch (InstantiationException | IllegalAccessException
-                        | InvocationTargetException | NoSuchMethodException e) {
-                        log.error("Create new instance for {} failed. Exception is {}",
-                            interceptorName, e);
+                    } catch (InstantiationException
+                            | IllegalAccessException
+                            | InvocationTargetException
+                            | NoSuchMethodException e) {
+                        log.error("Create new instance for {} failed. Exception is {}", interceptorName, e);
                         throw new RuntimeException(e);
                     }
                 } catch (ClassNotFoundException e) {

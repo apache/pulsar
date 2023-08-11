@@ -25,12 +25,12 @@ public class ResourceConfigUtils {
         Double cpu = resources.getCpu();
         Long ram = resources.getRam();
         Long disk = resources.getDisk();
-        com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0.0,
-                "The cpu allocation for the function must be positive");
-        com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0L,
-                "The ram allocation for the function must be positive");
-        com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0L,
-                "The disk allocation for the function must be positive");
+        com.google.common.base.Preconditions.checkArgument(
+                cpu == null || cpu > 0.0, "The cpu allocation for the function must be positive");
+        com.google.common.base.Preconditions.checkArgument(
+                ram == null || ram > 0L, "The ram allocation for the function must be positive");
+        com.google.common.base.Preconditions.checkArgument(
+                disk == null || disk > 0L, "The disk allocation for the function must be positive");
     }
 
     public static Resources merge(Resources existingResources, Resources newResources) {

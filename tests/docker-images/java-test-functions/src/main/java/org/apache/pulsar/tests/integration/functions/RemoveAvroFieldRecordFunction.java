@@ -47,9 +47,11 @@ public class RemoveAvroFieldRecordFunction implements Function<GenericObject, Re
     public Record<GenericObject> process(GenericObject genericObject, Context context) throws Exception {
         Record<?> currentRecord = context.getCurrentRecord();
         log.info("apply to {} {}", genericObject, genericObject.getNativeObject());
-        log.info("record with schema {} version {} {}", currentRecord.getSchema(),
-            currentRecord.getMessage().get().getSchemaVersion(),
-            currentRecord);
+        log.info(
+                "record with schema {} version {} {}",
+                currentRecord.getSchema(),
+                currentRecord.getMessage().get().getSchemaVersion(),
+                currentRecord);
         Object nativeObject = genericObject.getNativeObject();
         Schema<?> schema = currentRecord.getSchema();
 
@@ -64,25 +66,27 @@ public class RemoveAvroFieldRecordFunction implements Function<GenericObject, Re
             // remove a column "age" from the "valueSchema"
             if (valueSchema.getSchemaInfo().getType() == SchemaType.AVRO) {
 
-                org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) valueSchema.getNativeSchema().get();
+                org.apache.avro.Schema avroSchema =
+                        (org.apache.avro.Schema) valueSchema.getNativeSchema().get();
                 if (avroSchema.getField(FIELD_TO_REMOVE) != null) {
                     org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
                     org.apache.avro.Schema originalAvroSchema = parser.parse(avroSchema.toString(false));
                     org.apache.avro.Schema modified = org.apache.avro.Schema.createRecord(
-                        originalAvroSchema.getName(), originalAvroSchema.getDoc(), originalAvroSchema.getNamespace(),
-                        originalAvroSchema.isError(),
-                        originalAvroSchema.getFields().
-                            stream()
-                            .filter(f -> !f.name().equals(FIELD_TO_REMOVE))
-                            .map(f -> new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal(),
-                                f.order()))
-                            .collect(Collectors.toList()));
+                            originalAvroSchema.getName(),
+                            originalAvroSchema.getDoc(),
+                            originalAvroSchema.getNamespace(),
+                            originalAvroSchema.isError(),
+                            originalAvroSchema.getFields().stream()
+                                    .filter(f -> !f.name().equals(FIELD_TO_REMOVE))
+                                    .map(f -> new org.apache.avro.Schema.Field(
+                                            f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
+                                    .collect(Collectors.toList()));
 
                     KeyValue originalObject = (KeyValue) nativeObject;
 
                     GenericRecord value = (GenericRecord) originalObject.getValue();
                     org.apache.avro.generic.GenericRecord genericRecord =
-                        (org.apache.avro.generic.GenericRecord) value.getNativeObject();
+                            (org.apache.avro.generic.GenericRecord) value.getNativeObject();
 
                     org.apache.avro.generic.GenericRecord newRecord = new GenericData.Record(modified);
                     for (org.apache.avro.Schema.Field field : modified.getFields()) {
@@ -101,22 +105,24 @@ public class RemoveAvroFieldRecordFunction implements Function<GenericObject, Re
                 }
             }
         } else if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
-            org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) schema.getNativeSchema().get();
+            org.apache.avro.Schema avroSchema =
+                    (org.apache.avro.Schema) schema.getNativeSchema().get();
             if (avroSchema.getField(FIELD_TO_REMOVE) != null) {
                 org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
                 org.apache.avro.Schema originalAvroSchema = parser.parse(avroSchema.toString(false));
                 org.apache.avro.Schema modified = org.apache.avro.Schema.createRecord(
-                    originalAvroSchema.getName(), originalAvroSchema.getDoc(), originalAvroSchema.getNamespace(),
-                    originalAvroSchema.isError(),
-                    originalAvroSchema.getFields().
-                        stream()
-                        .filter(f -> !f.name().equals(FIELD_TO_REMOVE))
-                        .map(f -> new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal(),
-                            f.order()))
-                        .collect(Collectors.toList()));
+                        originalAvroSchema.getName(),
+                        originalAvroSchema.getDoc(),
+                        originalAvroSchema.getNamespace(),
+                        originalAvroSchema.isError(),
+                        originalAvroSchema.getFields().stream()
+                                .filter(f -> !f.name().equals(FIELD_TO_REMOVE))
+                                .map(f -> new org.apache.avro.Schema.Field(
+                                        f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
+                                .collect(Collectors.toList()));
 
                 org.apache.avro.generic.GenericRecord genericRecord =
-                    (org.apache.avro.generic.GenericRecord) nativeObject;
+                        (org.apache.avro.generic.GenericRecord) nativeObject;
                 org.apache.avro.generic.GenericRecord newRecord = new GenericData.Record(modified);
                 for (org.apache.avro.Schema.Field field : modified.getFields()) {
                     newRecord.put(field.name(), genericRecord.get(field.name()));
@@ -156,8 +162,6 @@ public class RemoveAvroFieldRecordFunction implements Function<GenericObject, Re
         }
         log.info("output {} schema {}", outputObject, outputSchema);
 
-        return context.newOutputRecordBuilder(outputSchema)
-            .value(outputObject)
-            .build();
+        return context.newOutputRecordBuilder(outputSchema).value(outputObject).build();
     }
 }

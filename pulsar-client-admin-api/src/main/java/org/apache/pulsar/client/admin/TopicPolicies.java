@@ -46,8 +46,7 @@ public interface TopicPolicies {
      * @throws PulsarAdminException.NotFoundException Topic does not exist
      * @throws PulsarAdminException Unexpected error
      */
-    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic)
-            throws PulsarAdminException;
+    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException;
 
     /**
      * Get applied backlog quota map for a topic.
@@ -72,8 +71,8 @@ public interface TopicPolicies {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setBacklogQuota(String topic, BacklogQuota backlogQuota,
-                         BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException;
+    void setBacklogQuota(String topic, BacklogQuota backlogQuota, BacklogQuota.BacklogQuotaType backlogQuotaType)
+            throws PulsarAdminException;
 
     default void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
         setBacklogQuota(topic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
@@ -94,8 +93,7 @@ public interface TopicPolicies {
      */
     void removeBacklogQuota(String topic, BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException;
 
-    default void removeBacklogQuota(String topic)
-            throws PulsarAdminException {
+    default void removeBacklogQuota(String topic) throws PulsarAdminException {
         removeBacklogQuota(topic, BacklogQuota.BacklogQuotaType.destination_storage);
     }
 
@@ -106,8 +104,7 @@ public interface TopicPolicies {
      * @return
      * @throws PulsarAdminException
      */
-    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic
-            , boolean applied) throws PulsarAdminException;
+    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic, boolean applied) throws PulsarAdminException;
 
     /**
      * Get the delayed delivery policy applied for a specified topic asynchronously.
@@ -115,8 +112,7 @@ public interface TopicPolicies {
      * @param applied
      * @return
      */
-    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic
-            , boolean applied);
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic, boolean applied);
     /**
      * Get the delayed delivery policy for a specified topic.
      * @param topic
@@ -138,8 +134,8 @@ public interface TopicPolicies {
      * @param delayedDeliveryPolicies
      * @throws PulsarAdminException
      */
-    void setDelayedDeliveryPolicy(String topic
-            , DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException;
+    void setDelayedDeliveryPolicy(String topic, DelayedDeliveryPolicies delayedDeliveryPolicies)
+            throws PulsarAdminException;
 
     /**
      * Set the delayed delivery policy for a specified topic asynchronously.
@@ -147,8 +143,8 @@ public interface TopicPolicies {
      * @param delayedDeliveryPolicies
      * @return
      */
-    CompletableFuture<Void> setDelayedDeliveryPolicyAsync(String topic
-            , DelayedDeliveryPolicies delayedDeliveryPolicies);
+    CompletableFuture<Void> setDelayedDeliveryPolicyAsync(
+            String topic, DelayedDeliveryPolicies delayedDeliveryPolicies);
 
     /**
      * Remove the delayed delivery policy for a specified topic asynchronously.
@@ -468,8 +464,8 @@ public interface TopicPolicies {
      * @param inactiveTopicPolicies
      * @throws PulsarAdminException
      */
-    void setInactiveTopicPolicies(String topic
-            , InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException;
+    void setInactiveTopicPolicies(String topic, InactiveTopicPolicies inactiveTopicPolicies)
+            throws PulsarAdminException;
 
     /**
      * set inactive topic policies of a topic asynchronously.
@@ -921,8 +917,8 @@ public interface TopicPolicies {
     /**
      * Async version of {@link #setSubscriptionDispatchRate(String, String, DispatchRate)}.
      */
-    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, String subscriptionName,
-                                                             DispatchRate dispatchRate);
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(
+            String topic, String subscriptionName, DispatchRate dispatchRate);
 
     /**
      * If applied is true, get dispatch rate limiter for a specific subscription.
@@ -934,8 +930,8 @@ public interface TopicPolicies {
     /**
      * Async version of {@link #getSubscriptionDispatchRate(String, String, boolean)}.
      */
-    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName,
-                                                                     boolean applied);
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(
+            String topic, String subscriptionName, boolean applied);
 
     /**
      * Get subscription level dispatch rate limiter setting for a specific subscription.
@@ -1333,7 +1329,6 @@ public interface TopicPolicies {
      */
     CompletableFuture<Integer> getMaxProducersAsync(String topic, boolean applied);
 
-
     /**
      * Set the max number of producer for specified topic.
      *
@@ -1385,7 +1380,6 @@ public interface TopicPolicies {
      */
     CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String topic);
 
-
     /**
      * Set the max number of subscriptions for specified topic.
      *
@@ -1436,7 +1430,6 @@ public interface TopicPolicies {
      * @throws PulsarAdminException Unexpected error
      */
     CompletableFuture<Integer> getMaxMessageSizeAsync(String topic);
-
 
     /**
      * Set the max message size for specified topic.
@@ -1593,8 +1586,8 @@ public interface TopicPolicies {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setSubscriptionTypesEnabled(String topic,
-                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+    void setSubscriptionTypesEnabled(String topic, Set<SubscriptionType> subscriptionTypesEnabled)
+            throws PulsarAdminException;
 
     /**
      * Set is enable sub types asynchronously.
@@ -1603,8 +1596,8 @@ public interface TopicPolicies {
      * @param subscriptionTypesEnabled
      *            is enable subTypes
      */
-    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String topic,
-                                                             Set<SubscriptionType> subscriptionTypesEnabled);
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(
+            String topic, Set<SubscriptionType> subscriptionTypesEnabled);
 
     /**
      * Get is enable sub types.
@@ -1814,7 +1807,6 @@ public interface TopicPolicies {
      */
     CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic);
 
-
     /**
      * Sets the autoSubscriptionCreation policy for a given topic, overriding namespace settings.
      * <p/>
@@ -1843,8 +1835,7 @@ public interface TopicPolicies {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setAutoSubscriptionCreation(
-            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
+    void setAutoSubscriptionCreation(String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
             throws PulsarAdminException;
 
     /**
@@ -1879,8 +1870,8 @@ public interface TopicPolicies {
      * @return
      * @throws PulsarAdminException
      */
-    AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic,
-                                                                 boolean applied) throws PulsarAdminException;
+    AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic, boolean applied)
+            throws PulsarAdminException;
 
     /**
      * Get the autoSubscriptionCreation info within a topic asynchronously.

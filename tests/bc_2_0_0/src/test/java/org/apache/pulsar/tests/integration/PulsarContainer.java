@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import static java.time.temporal.ChronoUnit.SECONDS;
+import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
-
-import java.time.Duration;
-
-import static java.time.temporal.ChronoUnit.SECONDS;
 
 public class PulsarContainer extends GenericContainer<PulsarContainer> {
 
     public static final int PULSAR_PORT = 6650;
     public static final int BROKER_HTTP_PORT = 8080;
-    public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
-            "apachepulsar/pulsar-test-latest-version:latest");
+    public static final String DEFAULT_IMAGE_NAME =
+            System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME", "apachepulsar/pulsar-test-latest-version:latest");
 
     public PulsarContainer() {
         this(DEFAULT_IMAGE_NAME);
@@ -50,5 +48,4 @@ public class PulsarContainer extends GenericContainer<PulsarContainer> {
     public String getPlainTextPulsarBrokerUrl() {
         return String.format("pulsar://%s:%s", this.getHost(), this.getMappedPort(PULSAR_PORT));
     }
-
 }

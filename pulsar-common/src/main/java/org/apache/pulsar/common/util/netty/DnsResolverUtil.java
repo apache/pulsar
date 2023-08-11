@@ -46,8 +46,10 @@ public class DnsResolverUtil {
             ttl = (Integer) getTTLMethod.invoke(null);
             Method getNegativeTTLMethod = inetAddressCachePolicyClass.getMethod("getNegative");
             negativeTtl = (Integer) getNegativeTTLMethod.invoke(null);
-        } catch (NoSuchMethodException | ClassNotFoundException | InvocationTargetException
-                 | IllegalAccessException e) {
+        } catch (NoSuchMethodException
+                | ClassNotFoundException
+                | InvocationTargetException
+                | IllegalAccessException e) {
             log.warn("Cannot get DNS TTL settings from sun.net.InetAddressCachePolicy class", e);
         }
         TTL = ttl <= 0 ? DEFAULT_TTL : ttl;

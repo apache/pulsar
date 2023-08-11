@@ -92,12 +92,18 @@ public class MockZooKeeper extends ZooKeeper {
     private AtomicLong sequentialIdGenerator;
     private ThreadLocal<Long> epheralOwnerThreadLocal;
 
-    //see details of Objenesis caching - http://objenesis.org/details.html
-    //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
+    // see details of Objenesis caching - http://objenesis.org/details.html
+    // see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
     private static final Objenesis objenesis = new ObjenesisStd();
 
     public enum Op {
-        CREATE, GET, SET, GET_CHILDREN, DELETE, EXISTS, SYNC,
+        CREATE,
+        GET,
+        SET,
+        GET_CHILDREN,
+        DELETE,
+        EXISTS,
+        SYNC,
     }
 
     private static class Failure {
@@ -153,8 +159,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private static MockZooKeeper createMockZooKeeperInstance(ExecutorService executor, int readOpDelayMs) {
-        ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
-                objenesis.getInstantiatorOf(MockZooKeeper.class);
+        ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator = objenesis.getInstantiatorOf(MockZooKeeper.class);
         MockZooKeeper zk = mockZooKeeperInstantiator.newInstance();
         zk.epheralOwnerThreadLocal = new ThreadLocal<>();
         zk.init(executor);
@@ -187,8 +192,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     private MockZooKeeper(String quorum) throws Exception {
         // This constructor is never called
-        super(quorum, 1, event -> {
-        });
+        super(quorum, 1, event -> {});
         assert false;
     }
 
@@ -196,7 +200,6 @@ public class MockZooKeeper extends ZooKeeper {
     public States getState() {
         return States.CONNECTED;
     }
-
 
     @Slf4j
     private static class SingleAcquireAndReleaseLock {
@@ -253,7 +256,6 @@ public class MockZooKeeper extends ZooKeeper {
         lock();
         try {
 
-
             maybeThrowProgrammedFailure(Op.CREATE, path);
 
             if (stopped) {
@@ -274,7 +276,8 @@ public class MockZooKeeper extends ZooKeeper {
                 path = path + parentVersion;
 
                 // Update parent version
-                tree.put(parent,
+                tree.put(
+                        parent,
                         MockZNode.of(parentNode.getContent(), parentVersion + 1, parentNode.getEphemeralOwner()));
             }
 
@@ -294,16 +297,10 @@ public class MockZooKeeper extends ZooKeeper {
         executor.execute(() -> {
             triggerPersistentWatches(finalPath, parent, EventType.NodeCreated);
 
-            toNotifyCreate.forEach(
-                    watcher -> watcher.process(
-                            new WatchedEvent(EventType.NodeCreated,
-                                    KeeperState.SyncConnected,
-                                    finalPath)));
-            toNotifyParent.forEach(
-                    watcher -> watcher.process(
-                            new WatchedEvent(EventType.NodeChildrenChanged,
-                                    KeeperState.SyncConnected,
-                                    parent)));
+            toNotifyCreate.forEach(watcher ->
+                    watcher.process(new WatchedEvent(EventType.NodeCreated, KeeperState.SyncConnected, finalPath)));
+            toNotifyParent.forEach(watcher -> watcher.process(
+                    new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
         });
 
         return path;
@@ -326,9 +323,13 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
-                       final StringCallback cb, final Object ctx) {
-
+    public void create(
+            final String path,
+            final byte[] data,
+            final List<ACL> acl,
+            CreateMode createMode,
+            final StringCallback cb,
+            final Object ctx) {
 
         executor.execute(() -> {
             try {
@@ -367,29 +368,26 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
                 } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
                     unlockIfLocked();
-                    toNotifyParent.forEach(watcher -> watcher
-                            .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected,
-                                    parent)));
+                    toNotifyParent.forEach(watcher -> watcher.process(
+                            new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
-                    tree.put(name, MockZNode.of(data, 0,
-                            createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : -1L));
+                    tree.put(
+                            name,
+                            MockZNode.of(
+                                    data,
+                                    0,
+                                    createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : -1L));
                     watchers.removeAll(name);
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
 
                     triggerPersistentWatches(path, parent, EventType.NodeCreated);
 
-                    toNotifyCreate.forEach(
-                            watcher -> watcher.process(
-                                    new WatchedEvent(EventType.NodeCreated,
-                                            KeeperState.SyncConnected,
-                                            name)));
-                    toNotifyParent.forEach(
-                            watcher -> watcher.process(
-                                    new WatchedEvent(EventType.NodeChildrenChanged,
-                                            KeeperState.SyncConnected,
-                                            parent)));
+                    toNotifyCreate.forEach(watcher ->
+                            watcher.process(new WatchedEvent(EventType.NodeCreated, KeeperState.SyncConnected, name)));
+                    toNotifyParent.forEach(watcher -> watcher.process(
+                            new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
                 }
             } catch (Throwable ex) {
                 log.error("create path : {} error", path, ex);
@@ -398,7 +396,6 @@ public class MockZooKeeper extends ZooKeeper {
                 unlockIfLocked();
             }
         });
-
     }
 
     @Override
@@ -544,7 +541,6 @@ public class MockZooKeeper extends ZooKeeper {
             } finally {
                 unlockIfLocked();
             }
-
         });
     }
 
@@ -649,7 +645,6 @@ public class MockZooKeeper extends ZooKeeper {
                 unlockIfLocked();
             }
         });
-
     }
 
     @Override
@@ -763,7 +758,6 @@ public class MockZooKeeper extends ZooKeeper {
 
             cb.processResult(0, path, ctx);
         });
-
     }
 
     @Override
@@ -804,8 +798,8 @@ public class MockZooKeeper extends ZooKeeper {
         executor.execute(() -> {
             triggerPersistentWatches(path, null, EventType.NodeDataChanged);
 
-            toNotify.forEach(watcher -> watcher
-                    .process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path)));
+            toNotify.forEach(watcher ->
+                    watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path)));
         });
 
         return createStatForZNode(newZNode);
@@ -976,11 +970,10 @@ public class MockZooKeeper extends ZooKeeper {
                     unlockIfLocked();
                     cb.processResult(0, path, ctx);
 
-                    toNotifyDelete.forEach(watcher -> watcher
-                            .process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path)));
-                    toNotifyParent.forEach(watcher -> watcher
-                            .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected,
-                                    parent)));
+                    toNotifyDelete.forEach(watcher ->
+                            watcher.process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path)));
+                    toNotifyParent.forEach(watcher -> watcher.process(
+                            new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
                     triggerPersistentWatches(path, parent, EventType.NodeDeleted);
                 }
             } catch (Throwable ex) {
@@ -996,7 +989,6 @@ public class MockZooKeeper extends ZooKeeper {
         } catch (RejectedExecutionException ree) {
             cb.processResult(KeeperException.Code.SESSIONEXPIRED.intValue(), path, ctx);
         }
-
     }
 
     @Override
@@ -1026,10 +1018,8 @@ public class MockZooKeeper extends ZooKeeper {
                         res.add(new OpResult.DeleteResult());
                     }
                     case ZooDefs.OpCode.setData -> {
-                        Stat stat = this.setData(
-                                op.getPath(),
-                                (byte[]) FieldUtils.readField(op, "data", true),
-                                (int) FieldUtils.readField(op, "version", true));
+                        Stat stat = this.setData(op.getPath(), (byte[]) FieldUtils.readField(op, "data", true), (int)
+                                FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.SetDataResult(stat));
                     }
                     case ZooDefs.OpCode.getChildren -> {
@@ -1111,7 +1101,8 @@ public class MockZooKeeper extends ZooKeeper {
         if (error != KeeperException.Code.OK) {
             return Optional.of(error);
         }
-        Optional<Failure> failure = failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
+        Optional<Failure> failure =
+                failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
         if (failure.isPresent()) {
             failures.remove(failure.get());
             return Optional.of(failure.get().failReturnCode);

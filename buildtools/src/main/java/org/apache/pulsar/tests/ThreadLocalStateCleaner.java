@@ -35,8 +35,8 @@ import org.slf4j.LoggerFactory;
 public final class ThreadLocalStateCleaner {
     private static final Logger LOG = LoggerFactory.getLogger(ThreadLocalStateCleaner.class);
     public static final ThreadLocalStateCleaner INSTANCE = new ThreadLocalStateCleaner();
-    private static final Method GET_THREADLOCAL_MAP_METHOD = MethodUtils
-            .getMatchingMethod(ThreadLocal.class, "getMap", Thread.class);
+    private static final Method GET_THREADLOCAL_MAP_METHOD =
+            MethodUtils.getMatchingMethod(ThreadLocal.class, "getMap", Thread.class);
 
     static {
         GET_THREADLOCAL_MAP_METHOD.setAccessible(true);
@@ -47,13 +47,11 @@ public final class ThreadLocalStateCleaner {
     private volatile Field threadLocalEntryValueField;
 
     // enforce singleton
-    private ThreadLocalStateCleaner() {
-
-    }
+    private ThreadLocalStateCleaner() {}
 
     // use reflection to clear the state of the given thread local and thread
-    public <T> void cleanupThreadLocal(ThreadLocal<?> threadLocal, Thread thread,
-                                       BiConsumer<Thread, T> cleanedValueListener) {
+    public <T> void cleanupThreadLocal(
+            ThreadLocal<?> threadLocal, Thread thread, BiConsumer<Thread, T> cleanedValueListener) {
         Objects.nonNull(threadLocal);
         Objects.nonNull(thread);
         try {
@@ -63,8 +61,8 @@ public final class ThreadLocalStateCleaner {
                     callCleanedValueListener(threadLocal, thread, cleanedValueListener, threadLocalMap);
                 }
                 if (removeThreadlocalMethod == null) {
-                    removeThreadlocalMethod = MethodUtils.getMatchingMethod(
-                            threadLocalMap.getClass(), "remove", ThreadLocal.class);
+                    removeThreadlocalMethod =
+                            MethodUtils.getMatchingMethod(threadLocalMap.getClass(), "remove", ThreadLocal.class);
                     removeThreadlocalMethod.setAccessible(true);
                 }
                 removeThreadlocalMethod.invoke(threadLocalMap, threadLocal);
@@ -74,8 +72,11 @@ public final class ThreadLocalStateCleaner {
         }
     }
 
-    private <T> void callCleanedValueListener(ThreadLocal<?> threadLocal, Thread thread,
-                                              BiConsumer<Thread, T> cleanedValueListener, Object threadLocalMap)
+    private <T> void callCleanedValueListener(
+            ThreadLocal<?> threadLocal,
+            Thread thread,
+            BiConsumer<Thread, T> cleanedValueListener,
+            Object threadLocalMap)
             throws IllegalAccessException, InvocationTargetException {
         T currentValue = getCurrentValue(threadLocal, threadLocalMap);
         if (currentValue != null) {
@@ -95,18 +96,17 @@ public final class ThreadLocalStateCleaner {
         }
     }
 
-    private <T> T getCurrentValue(ThreadLocal<?> threadLocal, Object threadLocalMap) throws IllegalAccessException,
-            InvocationTargetException {
+    private <T> T getCurrentValue(ThreadLocal<?> threadLocal, Object threadLocalMap)
+            throws IllegalAccessException, InvocationTargetException {
         if (getThreadlocalEntryMethod == null) {
-            getThreadlocalEntryMethod = MethodUtils.getMatchingMethod(
-                    threadLocalMap.getClass(), "getEntry", ThreadLocal.class);
+            getThreadlocalEntryMethod =
+                    MethodUtils.getMatchingMethod(threadLocalMap.getClass(), "getEntry", ThreadLocal.class);
             getThreadlocalEntryMethod.setAccessible(true);
         }
         Object entry = getThreadlocalEntryMethod.invoke(threadLocalMap, threadLocal);
         if (entry != null) {
             if (threadLocalEntryValueField == null) {
-                threadLocalEntryValueField = FieldUtils.getField(entry.getClass(), "value",
-                        true);
+                threadLocalEntryValueField = FieldUtils.getField(entry.getClass(), "value", true);
             }
             return (T) threadLocalEntryValueField.get(entry);
         }

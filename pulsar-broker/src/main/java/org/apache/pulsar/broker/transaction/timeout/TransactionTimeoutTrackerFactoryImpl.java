@@ -36,8 +36,8 @@ public class TransactionTimeoutTrackerFactoryImpl implements TransactionTimeoutT
 
     private final TransactionMetadataStoreService transactionMetadataStoreService;
 
-    public TransactionTimeoutTrackerFactoryImpl(TransactionMetadataStoreService transactionMetadataStoreService,
-                                                HashedWheelTimer timer) {
+    public TransactionTimeoutTrackerFactoryImpl(
+            TransactionMetadataStoreService transactionMetadataStoreService, HashedWheelTimer timer) {
         this.transactionMetadataStoreService = transactionMetadataStoreService;
         this.timer = timer;
     }
@@ -46,5 +46,4 @@ public class TransactionTimeoutTrackerFactoryImpl implements TransactionTimeoutT
     public TransactionTimeoutTracker newTracker(TransactionCoordinatorID tcID) {
         return new TransactionTimeoutTrackerImpl(tcID.getId(), timer, tickTimeMillis, transactionMetadataStoreService);
     }
-
 }

@@ -48,10 +48,15 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
                 .create();
         for (int i = 0; i < 10; i++) {
             byte[] message = new byte[MESSAGE_SIZE];
@@ -83,8 +88,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
         internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
@@ -94,8 +103,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 2 - Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             log.info("second test success: with certs set, consumer sub success");
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
@@ -113,8 +126,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 1 - Using TLS on https without sending certs - expect failure
         internalSetUpForClient(false, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
@@ -124,8 +141,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 2 - Using TLS on https - sending certs
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             log.info("second test success: with certs set, consumer sub success");
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");

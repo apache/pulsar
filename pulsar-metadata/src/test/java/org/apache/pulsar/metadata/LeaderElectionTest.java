@@ -42,19 +42,19 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
         BlockingQueue<LeaderElectionState> notifications = new LinkedBlockingDeque<>();
 
         @Cleanup
-        LeaderElection<String> leaderElection = coordinationService.getLeaderElection(String.class,
-                "/my/leader-election", t -> {
+        LeaderElection<String> leaderElection =
+                coordinationService.getLeaderElection(String.class, "/my/leader-election", t -> {
                     notifications.add(t);
                 });
 
@@ -80,34 +80,29 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-
-        @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(store1);
+        @Cleanup CoordinationService cs1 = new CoordinationServiceImpl(store1);
 
         BlockingQueue<LeaderElectionState> n1 = new LinkedBlockingDeque<>();
 
         @Cleanup
-        LeaderElection<String> le1 = cs1.getLeaderElection(String.class,
-                "/my/leader-election", t -> {
-                    n1.add(t);
-                });
+        LeaderElection<String> le1 = cs1.getLeaderElection(String.class, "/my/leader-election", t -> {
+            n1.add(t);
+        });
 
-        @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store2);
+        @Cleanup CoordinationService cs2 = new CoordinationServiceImpl(store2);
 
         BlockingQueue<LeaderElectionState> n2 = new LinkedBlockingDeque<>();
 
         @Cleanup
-        LeaderElection<String> le2 = cs2.getLeaderElection(String.class,
-                "/my/leader-election", t -> {
-                    n2.add(t);
-                });
+        LeaderElection<String> le2 = cs2.getLeaderElection(String.class, "/my/leader-election", t -> {
+            n2.add(t);
+        });
 
         LeaderElectionState les1 = le1.elect("test-1").join();
         assertEquals(les1, LeaderElectionState.Leading);
@@ -132,17 +127,17 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void leaderNodeIsDeletedExternally(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
 
         BlockingQueue<LeaderElectionState> notifications = new LinkedBlockingDeque<>();
 
         @Cleanup
-        LeaderElection<String> leaderElection = coordinationService.getLeaderElection(String.class,
-                "/my/leader-election", t -> {
+        LeaderElection<String> leaderElection =
+                coordinationService.getLeaderElection(String.class, "/my/leader-election", t -> {
                     notifications.add(t);
                 });
 
@@ -160,19 +155,16 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void closeAll(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
         CoordinationService cs = new CoordinationServiceImpl(store);
 
-        LeaderElection<String> le1 = cs.getLeaderElection(String.class,
-                "/my/leader-election-1", t -> {
-                });
+        LeaderElection<String> le1 = cs.getLeaderElection(String.class, "/my/leader-election-1", t -> {});
 
-        LeaderElection<String> le2 = cs.getLeaderElection(String.class,
-                "/my/leader-election-2", t -> {
-                });
+        LeaderElection<String> le2 = cs.getLeaderElection(String.class, "/my/leader-election-2", t -> {});
 
         LeaderElectionState les1 = le1.elect("test-1").join();
         assertEquals(les1, LeaderElectionState.Leading);
@@ -186,25 +178,25 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(cache.get("/my/leader-election-2").join(), Optional.empty());
     }
 
-
     @Test(dataProvider = "impl")
     public void revalidateLeaderWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String path = newKey();
 
-        @Cleanup
-        CoordinationService cs = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService cs = new CoordinationServiceImpl(store);
 
-        @Cleanup
-        LeaderElection<String> le = cs.getLeaderElection(String.class,
-                path, __ -> {
-                });
+        @Cleanup LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {});
 
-        store.put(path, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"), Optional.of(-1L),
-                EnumSet.of(CreateOption.Ephemeral)).join();
+        store.put(
+                        path,
+                        ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
 
         LeaderElectionState les = le.elect("test-2").join();
         assertEquals(les, LeaderElectionState.Leading);
@@ -221,32 +213,31 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
-        @Cleanup
-        CoordinationService cs = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService cs = new CoordinationServiceImpl(store);
 
-        @Cleanup
-        LeaderElection<String> le = cs.getLeaderElection(String.class,
-                path, __ -> {
-                });
+        @Cleanup LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {});
 
-        store2.put(path, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"), Optional.of(-1L),
-                EnumSet.of(CreateOption.Ephemeral)).join();
+        store2.put(
+                        path,
+                        ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
 
         LeaderElectionState les = le.elect("test-1").join();
         assertEquals(les, LeaderElectionState.Leading);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
         assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
     }
-
 
     @Test(dataProvider = "impl")
     public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, Supplier<String> urlSupplier)
@@ -257,25 +248,25 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
-        @Cleanup
-        CoordinationService cs = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService cs = new CoordinationServiceImpl(store);
 
-        @Cleanup
-        LeaderElection<String> le = cs.getLeaderElection(String.class,
-                path, __ -> {
-                });
+        @Cleanup LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {});
 
-        store2.put(path, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"), Optional.of(-1L),
-                EnumSet.of(CreateOption.Ephemeral)).join();
+        store2.put(
+                        path,
+                        ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
 
         LeaderElectionState les = le.elect("test-2").join();
         assertEquals(les, LeaderElectionState.Following);

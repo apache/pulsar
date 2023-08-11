@@ -52,20 +52,19 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
     }
 
     @Override
-    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                          Function.FunctionDetails functionDetails) {
+    public void configureKubernetesRuntimeSecretsProvider(
+            V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
-    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                       Function.FunctionDetails functionDetails) {
+    public void configureProcessRuntimeSecretsProvider(
+            ProcessBuilder processBuilder, Function.FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
     public Type getSecretObjectType() {
-        return new TypeToken<String>() {
-        }.getType();
+        return new TypeToken<String>() {}.getType();
     }
 }

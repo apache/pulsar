@@ -73,49 +73,28 @@ public final class SchemaUtils {
 
     static {
         // int8
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.INT8,
-                Arrays.asList(Byte.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.INT8, Arrays.asList(Byte.class));
         // int16
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.INT16,
-                Arrays.asList(Short.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.INT16, Arrays.asList(Short.class));
         // int32
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.INT32,
-                Arrays.asList(Integer.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.INT32, Arrays.asList(Integer.class));
         // int64
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.INT64,
-                Arrays.asList(Long.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.INT64, Arrays.asList(Long.class));
         // float
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.FLOAT,
-                Arrays.asList(Float.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.FLOAT, Arrays.asList(Float.class));
         // double
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.DOUBLE,
-                Arrays.asList(Double.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.DOUBLE, Arrays.asList(Double.class));
         // boolean
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.BOOLEAN,
-                Arrays.asList(Boolean.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.BOOLEAN, Arrays.asList(Boolean.class));
         // string
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.STRING,
-                Arrays.asList(String.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.STRING, Arrays.asList(String.class));
         // bytes
-        SCHEMA_TYPE_CLASSES.put(
-                SchemaType.BYTES,
-                Arrays.asList(byte[].class, ByteBuffer.class, ByteBuf.class));
+        SCHEMA_TYPE_CLASSES.put(SchemaType.BYTES, Arrays.asList(byte[].class, ByteBuffer.class, ByteBuf.class));
         // build the reverse mapping
-        SCHEMA_TYPE_CLASSES.forEach(
-                (type, classes) -> classes.forEach(clz -> JAVA_CLASS_SCHEMA_TYPES.put(clz, type)));
+        SCHEMA_TYPE_CLASSES.forEach((type, classes) -> classes.forEach(clz -> JAVA_CLASS_SCHEMA_TYPES.put(clz, type)));
     }
 
-    public static void validateFieldSchema(String name,
-                                           SchemaType type,
-                                           Object val) {
+    public static void validateFieldSchema(String name, SchemaType type, Object val) {
         if (null == val) {
             return;
         }
@@ -180,10 +159,10 @@ public final class SchemaUtils {
         if (null == schemaVersionBytes) {
             return "NULL";
         } else if (
-            // the length of schema version is 8 bytes post 2.4.0
-            schemaVersionBytes.length == Long.BYTES
-            // the length of schema version is 64 bytes before 2.4.0
-            || schemaVersionBytes.length == Long.SIZE) {
+        // the length of schema version is 8 bytes post 2.4.0
+        schemaVersionBytes.length == Long.BYTES
+                // the length of schema version is 64 bytes before 2.4.0
+                || schemaVersionBytes.length == Long.SIZE) {
             ByteBuffer bb = ByteBuffer.wrap(schemaVersionBytes);
             return String.valueOf(bb.getLong());
         } else if (schemaVersionBytes.length == 0) {
@@ -191,7 +170,6 @@ public final class SchemaUtils {
         } else {
             return Base64.getEncoder().encodeToString(schemaVersionBytes);
         }
-
     }
 
     /**
@@ -202,9 +180,9 @@ public final class SchemaUtils {
      */
     public static String jsonifySchemaInfo(SchemaInfo schemaInfo) {
         GsonBuilder gsonBuilder = new GsonBuilder()
-            .setPrettyPrinting()
-            .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToStringAdapter(schemaInfo))
-            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+                .setPrettyPrinting()
+                .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToStringAdapter(schemaInfo))
+                .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
 
         return gsonBuilder.create().toJson(schemaInfo);
     }
@@ -227,9 +205,8 @@ public final class SchemaUtils {
     private static class SchemaPropertiesSerializer implements JsonSerializer<Map<String, String>> {
 
         @Override
-        public JsonElement serialize(Map<String, String> properties,
-                                     Type type,
-                                     JsonSerializationContext jsonSerializationContext) {
+        public JsonElement serialize(
+                Map<String, String> properties, Type type, JsonSerializationContext jsonSerializationContext) {
             SortedMap<String, String> sortedProperties = new TreeMap<>();
             sortedProperties.putAll(properties);
             JsonObject object = new JsonObject();
@@ -238,32 +215,29 @@ public final class SchemaUtils {
             });
             return object;
         }
-
     }
 
     private static class SchemaPropertiesDeserializer implements JsonDeserializer<Map<String, String>> {
 
         @Override
-        public Map<String, String> deserialize(JsonElement jsonElement,
-                                               Type type,
-                                               JsonDeserializationContext jsonDeserializationContext)
-            throws JsonParseException {
+        public Map<String, String> deserialize(
+                JsonElement jsonElement, Type type, JsonDeserializationContext jsonDeserializationContext)
+                throws JsonParseException {
 
             SortedMap<String, String> sortedProperties = new TreeMap<>();
-            jsonElement.getAsJsonObject().entrySet().forEach(entry -> sortedProperties.put(
-                entry.getKey(),
-                entry.getValue().getAsString()
-            ));
+            jsonElement
+                    .getAsJsonObject()
+                    .entrySet()
+                    .forEach(entry -> sortedProperties.put(
+                            entry.getKey(), entry.getValue().getAsString()));
             return sortedProperties;
         }
-
     }
 
-    private static final SchemaPropertiesSerializer SCHEMA_PROPERTIES_SERIALIZER =
-        new SchemaPropertiesSerializer();
+    private static final SchemaPropertiesSerializer SCHEMA_PROPERTIES_SERIALIZER = new SchemaPropertiesSerializer();
 
     private static final SchemaPropertiesDeserializer SCHEMA_PROPERTIES_DESERIALIZER =
-        new SchemaPropertiesDeserializer();
+            new SchemaPropertiesDeserializer();
 
     private static class ByteArrayToStringAdapter implements JsonSerializer<byte[]> {
 
@@ -283,7 +257,7 @@ public final class SchemaUtils {
                     return toJsonElement(schemaInfo.getSchemaDefinition());
                 case KEY_VALUE:
                     KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
-                        DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo);
+                            DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo);
                     JsonObject obj = new JsonObject();
                     String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey());
                     String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue());
@@ -308,9 +282,8 @@ public final class SchemaUtils {
     private static class SchemaInfoToStringAdapter implements JsonSerializer<SchemaInfo> {
 
         @Override
-        public JsonElement serialize(SchemaInfo schemaInfo,
-                                     Type type,
-                                     JsonSerializationContext jsonSerializationContext) {
+        public JsonElement serialize(
+                SchemaInfo schemaInfo, Type type, JsonSerializationContext jsonSerializationContext) {
             // schema will not a json, so use toJsonElement
             return toJsonElement(jsonifySchemaInfo(schemaInfo));
         }
@@ -326,8 +299,8 @@ public final class SchemaUtils {
      */
     public static String jsonifyKeyValueSchemaInfo(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) {
         GsonBuilder gsonBuilder = new GsonBuilder()
-            .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
-            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+                .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
+                .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
         return gsonBuilder.create().toJson(kvSchemaInfo);
     }
 
@@ -337,20 +310,23 @@ public final class SchemaUtils {
      * @param kvSchemaInfo the key/value schema info
      * @return the convert schema info data string
      */
-    public static String convertKeyValueSchemaInfoDataToString(
-            KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
+    public static String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo)
+            throws IOException {
         ObjectReader objectReader = ObjectMapperFactory.getMapper().reader();
         KeyValue<Object, Object> keyValue = new KeyValue<>(
-                SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
+                SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType())
+                        ? ""
                         : objectReader.readTree(kvSchemaInfo.getKey().getSchema()),
-                SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ? ""
+                SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType())
+                        ? ""
                         : objectReader.readTree(kvSchemaInfo.getValue().getSchema()));
         return ObjectMapperFactory.getMapper().writer().writeValueAsString(keyValue);
     }
 
     private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {
         return KEY_VALUE_SCHEMA_NULL_STRING.equals(jsonElement.toString())
-                ? KEY_VALUE_SCHEMA_IS_PRIMITIVE : jsonElement.toString().getBytes(UTF_8);
+                ? KEY_VALUE_SCHEMA_IS_PRIMITIVE
+                : jsonElement.toString().getBytes(UTF_8);
     }
 
     /**
@@ -359,16 +335,19 @@ public final class SchemaUtils {
      * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
      * @return the key/value schema info data bytes
      */
-    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(
-            byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes)
+            throws IOException {
         JsonObject jsonObject = (JsonObject) toJsonElement(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
         byte[] keyBytes = getKeyOrValueSchemaBytes(jsonObject.get("key"));
         byte[] valueBytes = getKeyOrValueSchemaBytes(jsonObject.get("value"));
         int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
         byte[] schema = new byte[dataLength];
-        //record the key value schema respective length
+        // record the key value schema respective length
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.heapBuffer(dataLength);
-        byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
+        byteBuf.writeInt(keyBytes.length)
+                .writeBytes(keyBytes)
+                .writeInt(valueBytes.length)
+                .writeBytes(valueBytes);
         byteBuf.readBytes(schema);
         return schema;
     }
@@ -380,8 +359,8 @@ public final class SchemaUtils {
      * @return the serialized schema properties
      */
     public static String serializeSchemaProperties(Map<String, String> properties) {
-        GsonBuilder gsonBuilder = new GsonBuilder()
-            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+        GsonBuilder gsonBuilder =
+                new GsonBuilder().registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
         return gsonBuilder.create().toJson(properties);
     }
 
@@ -392,9 +371,8 @@ public final class SchemaUtils {
      * @return the deserialized properties
      */
     public static Map<String, String> deserializeSchemaProperties(String serializedProperties) {
-        GsonBuilder gsonBuilder = new GsonBuilder()
-            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_DESERIALIZER);
+        GsonBuilder gsonBuilder =
+                new GsonBuilder().registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_DESERIALIZER);
         return gsonBuilder.create().fromJson(serializedProperties, Map.class);
     }
-
 }

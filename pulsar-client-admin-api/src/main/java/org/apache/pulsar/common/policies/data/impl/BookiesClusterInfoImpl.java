@@ -39,7 +39,7 @@ public final class BookiesClusterInfoImpl implements BookiesClusterInfo {
         return new BookiesClusterInfoImplBuilder();
     }
 
-    public static class BookiesClusterInfoImplBuilder implements BookiesClusterInfo.Builder{
+    public static class BookiesClusterInfoImplBuilder implements BookiesClusterInfo.Builder {
         private List<RawBookieInfo> bookies;
 
         public BookiesClusterInfoImplBuilder bookies(List<RawBookieInfo> bookies) {

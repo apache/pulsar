@@ -62,5 +62,4 @@ public class KeyStoreHolder {
             throw new KeyStoreException("Failed to set the private key", e);
         }
     }
-
 }

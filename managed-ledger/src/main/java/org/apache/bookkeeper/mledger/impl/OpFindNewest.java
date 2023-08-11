@@ -38,7 +38,9 @@ class OpFindNewest implements ReadEntryCallback {
     private final Object ctx;
 
     enum State {
-        checkFirst, checkLast, searching
+        checkFirst,
+        checkLast,
+        searching
     }
 
     PositionImpl searchPosition;
@@ -47,8 +49,13 @@ class OpFindNewest implements ReadEntryCallback {
     Position lastMatchedPosition = null;
     State state;
 
-    public OpFindNewest(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
-            long numberOfEntries, FindEntryCallback callback, Object ctx) {
+    public OpFindNewest(
+            ManagedCursorImpl cursor,
+            PositionImpl startPosition,
+            Predicate<Entry> condition,
+            long numberOfEntries,
+            FindEntryCallback callback,
+            Object ctx) {
         this.cursor = cursor;
         this.ledger = cursor.ledger;
         this.startPosition = startPosition;
@@ -63,8 +70,13 @@ class OpFindNewest implements ReadEntryCallback {
         this.state = State.checkFirst;
     }
 
-    public OpFindNewest(ManagedLedgerImpl ledger, PositionImpl startPosition, Predicate<Entry> condition,
-                        long numberOfEntries, FindEntryCallback callback, Object ctx) {
+    public OpFindNewest(
+            ManagedLedgerImpl ledger,
+            PositionImpl startPosition,
+            Predicate<Entry> condition,
+            long numberOfEntries,
+            FindEntryCallback callback,
+            Object ctx) {
         this.cursor = null;
         this.ledger = ledger;
         this.startPosition = startPosition;
@@ -83,56 +95,59 @@ class OpFindNewest implements ReadEntryCallback {
     public void readEntryComplete(Entry entry, Object ctx) {
         final Position position = entry.getPosition();
         switch (state) {
-        case checkFirst:
-            if (!condition.test(entry)) {
-                // If no entry is found that matches the condition, it is expected to pass null to the callback.
-                // Otherwise, a message before the expiration date will be deleted due to message TTL.
-                // cf. https://github.com/apache/pulsar/issues/5579
-                callback.findEntryComplete(null, OpFindNewest.this.ctx);
-                return;
-            } else {
-                lastMatchedPosition = position;
-                // check last entry
-                state = State.checkLast;
-                PositionImpl lastPosition = ledger.getLastPosition();
-                searchPosition = ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
-                if (lastPosition.compareTo(searchPosition) < 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position,
-                                searchPosition, lastPosition);
+            case checkFirst:
+                if (!condition.test(entry)) {
+                    // If no entry is found that matches the condition, it is expected to pass null to the callback.
+                    // Otherwise, a message before the expiration date will be deleted due to message TTL.
+                    // cf. https://github.com/apache/pulsar/issues/5579
+                    callback.findEntryComplete(null, OpFindNewest.this.ctx);
+                    return;
+                } else {
+                    lastMatchedPosition = position;
+                    // check last entry
+                    state = State.checkLast;
+                    PositionImpl lastPosition = ledger.getLastPosition();
+                    searchPosition = ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
+                    if (lastPosition.compareTo(searchPosition) < 0) {
+                        if (log.isDebugEnabled()) {
+                            log.debug(
+                                    "first position {} matches, last should be {}, but moving to lastPos {}",
+                                    position,
+                                    searchPosition,
+                                    lastPosition);
+                        }
+                        searchPosition = lastPosition;
                     }
-                    searchPosition = lastPosition;
+                    find();
                 }
-                find();
-            }
-            break;
-        case checkLast:
-            if (condition.test(entry)) {
-                callback.findEntryComplete(position, OpFindNewest.this.ctx);
-                return;
-            } else {
-                // start binary search
-                state = State.searching;
+                break;
+            case checkLast:
+                if (condition.test(entry)) {
+                    callback.findEntryComplete(position, OpFindNewest.this.ctx);
+                    return;
+                } else {
+                    // start binary search
+                    state = State.searching;
+                    searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+                    find();
+                }
+                break;
+            case searching:
+                if (condition.test(entry)) {
+                    // mid - last
+                    lastMatchedPosition = position;
+                    min = mid();
+                } else {
+                    // start - mid
+                    max = mid() - 1;
+                }
+
+                if (max <= min) {
+                    callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
+                    return;
+                }
                 searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
                 find();
-            }
-            break;
-        case searching:
-            if (condition.test(entry)) {
-                // mid - last
-                lastMatchedPosition = position;
-                min = mid();
-            } else {
-                // start - mid
-                max = mid() - 1;
-            }
-
-            if (max <= min) {
-                callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
-                return;
-            }
-            searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
-            find();
         }
     }
 

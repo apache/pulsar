@@ -40,7 +40,8 @@ public class PatternEntryFilter implements EntryFilter {
     }
 
     private Pattern getPattern(FilterContext context) {
-        String subscriptionRegex = context.getSubscription().getSubscriptionProperties().get(FILTER_PATTERN);
+        String subscriptionRegex =
+                context.getSubscription().getSubscriptionProperties().get(FILTER_PATTERN);
         if (subscriptionRegex == null) {
             return null;
         }
@@ -51,7 +52,8 @@ public class PatternEntryFilter implements EntryFilter {
         return context.getMsgMetadata().getPropertiesList().stream()
                 .filter(kv -> FILTER_PROPERTY.equals(kv.getKey()))
                 .map(KeyValue::getValue)
-                .findFirst().orElse(null);
+                .findFirst()
+                .orElse(null);
     }
 
     @Override

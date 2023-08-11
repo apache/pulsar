@@ -21,9 +21,9 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Map;
 
 /*
-    LoadReport is abstraction which represents the Load of ResourceUnit, it mandates that concrete classes
-    implement interfaces that expose its ResourceUnit, mapping of ServiceUnit to ServiceRequest.
- */
+   LoadReport is abstraction which represents the Load of ResourceUnit, it mandates that concrete classes
+   implement interfaces that expose its ResourceUnit, mapping of ServiceUnit to ServiceRequest.
+*/
 public interface LoadReport {
 
     Map<ServiceUnit, ServiceRequest> getServiceUnitRequests();
@@ -31,5 +31,4 @@ public interface LoadReport {
     ResourceUnit getResourceUnit();
 
     ResourceDescription getResourceUnitDescription();
-
 }

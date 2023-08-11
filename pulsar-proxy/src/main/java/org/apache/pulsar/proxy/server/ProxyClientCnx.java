@@ -44,9 +44,14 @@ public class ProxyClientCnx extends ClientCnx {
     private final String clientAuthRole;
     private final ProxyConnection proxyConnection;
 
-    public ProxyClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, String clientAuthRole,
-                          String clientAuthMethod, int protocolVersion,
-                          boolean forwardClientAuthData, ProxyConnection proxyConnection) {
+    public ProxyClientCnx(
+            ClientConfigurationData conf,
+            EventLoopGroup eventLoopGroup,
+            String clientAuthRole,
+            String clientAuthMethod,
+            int protocolVersion,
+            boolean forwardClientAuthData,
+            ProxyConnection proxyConnection) {
         super(conf, eventLoopGroup, protocolVersion);
         this.clientAuthRole = clientAuthRole;
         this.clientAuthMethod = clientAuthMethod;
@@ -57,9 +62,12 @@ public class ProxyClientCnx extends ClientCnx {
     @Override
     protected ByteBuf newConnectCommand() throws Exception {
         if (log.isDebugEnabled()) {
-            log.debug("New Connection opened via ProxyClientCnx with params clientAuthRole = {},"
+            log.debug(
+                    "New Connection opened via ProxyClientCnx with params clientAuthRole = {},"
                             + " clientAuthData = {}, clientAuthMethod = {}",
-                    clientAuthRole, proxyConnection.getClientAuthData(), clientAuthMethod);
+                    clientAuthRole,
+                    proxyConnection.getClientAuthData(),
+                    clientAuthMethod);
         }
         AuthData clientAuthData = null;
         if (forwardClientAuthData) {
@@ -70,9 +78,16 @@ public class ProxyClientCnx extends ClientCnx {
         }
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-        return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
-                proxyConnection.clientVersion, proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
-                clientAuthMethod, PulsarVersion.getVersion());
+        return Commands.newConnect(
+                authentication.getAuthMethodName(),
+                authData,
+                protocolVersion,
+                proxyConnection.clientVersion,
+                proxyToTargetBrokerAddress,
+                clientAuthRole,
+                clientAuthData,
+                clientAuthMethod,
+                PulsarVersion.getVersion());
     }
 
     @Override
@@ -80,15 +95,23 @@ public class ProxyClientCnx extends ClientCnx {
         checkArgument(authChallenge.hasChallenge());
         checkArgument(authChallenge.getChallenge().hasAuthData());
 
-        boolean isRefresh = Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData());
+        boolean isRefresh = Arrays.equals(
+                AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData());
         if (forwardClientAuthData && isRefresh) {
-            proxyConnection.getValidClientAuthData()
-                    .thenApplyAsync(authData -> {
-                        NettyChannelUtil.writeAndFlushWithVoidPromise(ctx,
-                                Commands.newAuthResponse(clientAuthMethod, authData, this.protocolVersion,
-                                        String.format("Pulsar-Java-v%s", PulsarVersion.getVersion())));
-                        return null;
-                        }, ctx.executor())
+            proxyConnection
+                    .getValidClientAuthData()
+                    .thenApplyAsync(
+                            authData -> {
+                                NettyChannelUtil.writeAndFlushWithVoidPromise(
+                                        ctx,
+                                        Commands.newAuthResponse(
+                                                clientAuthMethod,
+                                                authData,
+                                                this.protocolVersion,
+                                                String.format("Pulsar-Java-v%s", PulsarVersion.getVersion())));
+                                return null;
+                            },
+                            ctx.executor())
                     .exceptionally(ex -> {
                         log.warn("Failed to get valid client auth data. Closing connection.", ex);
                         ctx.close();

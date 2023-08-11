@@ -83,8 +83,8 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
     /**
      * MessageId that represents the next message published in the topic.
      */
-    MessageId latest = DefaultImplementation.getDefaultImplementation()
-            .newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
+    MessageId latest =
+            DefaultImplementation.getDefaultImplementation().newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
 
     // CHECKSTYLE.ON: ConstantName
 }

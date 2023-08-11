@@ -40,37 +40,52 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 
 @Parameters(commandDescription = "Operations about namespace isolation policy")
 public class CmdNamespaceIsolationPolicy extends CmdBase {
-    @Parameters(commandDescription = "Create/Update a namespace isolation policy for a cluster. "
-            + "This operation requires Pulsar super-user privileges")
+    @Parameters(
+            commandDescription = "Create/Update a namespace isolation policy for a cluster. "
+                    + "This operation requires Pulsar super-user privileges")
     private class SetPolicy extends CliCommand {
         @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
 
-        @Parameter(names = "--namespaces", description = "comma separated namespaces-regex list",
-                required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(
+                names = "--namespaces",
+                description = "comma separated namespaces-regex list",
+                required = true,
+                splitter = CommaParameterSplitter.class)
         private List<String> namespaces;
 
-        @Parameter(names = "--primary", description = "comma separated  primary-broker-regex list. "
-                + "In Pulsar, when namespaces (more specifically, namespace bundles) are assigned dynamically to "
-                + "brokers, the namespace isolation policy limits the set of brokers that can be used for assignment. "
-                + "Before topics are assigned to brokers, you can set the namespace isolation policy with a primary or "
-                + "a secondary regex to select desired brokers. If no broker matches the specified regex, you cannot "
-                + "create a topic. If there are not enough primary brokers, topics are assigned to secondary brokers. "
-                + "If there are not enough secondary brokers, topics are assigned to other brokers which do not have "
-                + "any isolation policies.", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(
+                names = "--primary",
+                description = "comma separated  primary-broker-regex list. "
+                        + "In Pulsar, when namespaces (more specifically, namespace bundles) are assigned dynamically to "
+                        + "brokers, the namespace isolation policy limits the set of brokers that can be used for assignment. "
+                        + "Before topics are assigned to brokers, you can set the namespace isolation policy with a primary or "
+                        + "a secondary regex to select desired brokers. If no broker matches the specified regex, you cannot "
+                        + "create a topic. If there are not enough primary brokers, topics are assigned to secondary brokers. "
+                        + "If there are not enough secondary brokers, topics are assigned to other brokers which do not have "
+                        + "any isolation policies.",
+                required = true,
+                splitter = CommaParameterSplitter.class)
         private List<String> primary;
 
-        @Parameter(names = "--secondary", description = "comma separated secondary-broker-regex list",
-                required = false, splitter = CommaParameterSplitter.class)
+        @Parameter(
+                names = "--secondary",
+                description = "comma separated secondary-broker-regex list",
+                required = false,
+                splitter = CommaParameterSplitter.class)
         private List<String> secondary = new ArrayList<String>(); // optional
 
-        @Parameter(names = "--auto-failover-policy-type",
-                description = "auto failover policy type name ['min_available']", required = true)
+        @Parameter(
+                names = "--auto-failover-policy-type",
+                description = "auto failover policy type name ['min_available']",
+                required = true)
         private String autoFailoverPolicyTypeName;
 
-        @Parameter(names = "--auto-failover-policy-params",
+        @Parameter(
+                names = "--auto-failover-policy-params",
                 description = "comma separated name=value auto failover policy parameters",
-                required = true, converter = NameValueParameterSplitter.class)
+                required = true,
+                converter = NameValueParameterSplitter.class)
         private Map<String, String> autoFailoverPolicyParams;
 
         void run() throws PulsarAdminException {
@@ -78,15 +93,16 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
             String policyName = getOneArgument(params, 1, 2);
 
             // validate and create the POJO
-            NamespaceIsolationData namespaceIsolationData = createNamespaceIsolationData(namespaces, primary, secondary,
-                    autoFailoverPolicyTypeName, autoFailoverPolicyParams);
+            NamespaceIsolationData namespaceIsolationData = createNamespaceIsolationData(
+                    namespaces, primary, secondary, autoFailoverPolicyTypeName, autoFailoverPolicyParams);
 
             getAdmin().clusters().createNamespaceIsolationPolicy(clusterName, policyName, namespaceIsolationData);
         }
     }
 
-    @Parameters(commandDescription = "List all namespace isolation policies of a cluster. "
-            + "This operation requires Pulsar super-user privileges")
+    @Parameters(
+            commandDescription = "List all namespace isolation policies of a cluster. "
+                    + "This operation requires Pulsar super-user privileges")
     private class GetAllPolicies extends CliCommand {
         @Parameter(description = "cluster-name", required = true)
         private List<String> params;
@@ -101,8 +117,9 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "List all brokers with namespace-isolation policies attached to it. "
-            + "This operation requires Pulsar super-user privileges")
+    @Parameters(
+            commandDescription = "List all brokers with namespace-isolation policies attached to it. "
+                    + "This operation requires Pulsar super-user privileges")
     private class GetAllBrokersWithPolicies extends CliCommand {
         @Parameter(description = "cluster-name", required = true)
         private List<String> params;
@@ -110,36 +127,40 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            List<BrokerNamespaceIsolationData> brokers = getAdmin().clusters()
-                    .getBrokersWithNamespaceIsolationPolicy(clusterName);
+            List<BrokerNamespaceIsolationData> brokers =
+                    getAdmin().clusters().getBrokersWithNamespaceIsolationPolicy(clusterName);
             List<BrokerNamespaceIsolationDataImpl> data = new ArrayList<>();
             brokers.forEach(v -> data.add((BrokerNamespaceIsolationDataImpl) v));
             print(data);
         }
     }
 
-    @Parameters(commandDescription = "Get broker with namespace-isolation policies attached to it. "
-            + "This operation requires Pulsar super-user privileges")
+    @Parameters(
+            commandDescription = "Get broker with namespace-isolation policies attached to it. "
+                    + "This operation requires Pulsar super-user privileges")
     private class GetBrokerWithPolicies extends CliCommand {
         @Parameter(description = "cluster-name", required = true)
         private List<String> params;
 
-        @Parameter(names = "--broker",
-                description = "Broker-name to get namespace-isolation policies attached to it", required = true)
+        @Parameter(
+                names = "--broker",
+                description = "Broker-name to get namespace-isolation policies attached to it",
+                required = true)
         private String broker;
 
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            BrokerNamespaceIsolationDataImpl brokerData = (BrokerNamespaceIsolationDataImpl) getAdmin().clusters()
-                    .getBrokerWithNamespaceIsolationPolicy(clusterName, broker);
+            BrokerNamespaceIsolationDataImpl brokerData = (BrokerNamespaceIsolationDataImpl)
+                    getAdmin().clusters().getBrokerWithNamespaceIsolationPolicy(clusterName, broker);
 
             print(brokerData);
         }
     }
 
-    @Parameters(commandDescription = "Get namespace isolation policy of a cluster. "
-            + "This operation requires Pulsar super-user privileges")
+    @Parameters(
+            commandDescription = "Get namespace isolation policy of a cluster. "
+                    + "This operation requires Pulsar super-user privileges")
     private class GetPolicy extends CliCommand {
         @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
@@ -148,15 +169,16 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
             String clusterName = getOneArgument(params, 0, 2);
             String policyName = getOneArgument(params, 1, 2);
 
-            NamespaceIsolationDataImpl nsIsolationData = (NamespaceIsolationDataImpl) getAdmin().clusters()
-                    .getNamespaceIsolationPolicy(clusterName, policyName);
+            NamespaceIsolationDataImpl nsIsolationData = (NamespaceIsolationDataImpl)
+                    getAdmin().clusters().getNamespaceIsolationPolicy(clusterName, policyName);
 
             print(nsIsolationData);
         }
     }
 
-    @Parameters(commandDescription = "Delete namespace isolation policy of a cluster. "
-            + "This operation requires Pulsar super-user privileges")
+    @Parameters(
+            commandDescription = "Delete namespace isolation policy of a cluster. "
+                    + "This operation requires Pulsar super-user privileges")
     private class DeletePolicy extends CliCommand {
         @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
@@ -170,16 +192,15 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
     }
 
     private List<String> validateList(List<String> list) {
-        return list.stream()
-                .filter(StringUtils::isNotEmpty)
-                .collect(Collectors.toList());
+        return list.stream().filter(StringUtils::isNotEmpty).collect(Collectors.toList());
     }
 
-    private NamespaceIsolationData createNamespaceIsolationData(List<String> namespaces,
-                                                                List<String> primary,
-                                                                List<String> secondary,
-                                                                String autoFailoverPolicyTypeName,
-                                                                Map<String, String> autoFailoverPolicyParams) {
+    private NamespaceIsolationData createNamespaceIsolationData(
+            List<String> namespaces,
+            List<String> primary,
+            List<String> secondary,
+            String autoFailoverPolicyTypeName,
+            Map<String, String> autoFailoverPolicyParams) {
 
         // validate
         namespaces = validateList(namespaces);
@@ -225,7 +246,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         if (policyType == AutoFailoverPolicyType.min_available) {
             // ignore
             boolean error = true;
-            String[] expectParamKeys = { "min_limit", "usage_threshold" };
+            String[] expectParamKeys = {"min_limit", "usage_threshold"};
 
             if (autoFailoverPolicyParams.size() == expectParamKeys.length) {
                 for (String paramKey : expectParamKeys) {
@@ -258,5 +279,4 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         jcommander.addCommand("brokers", new GetAllBrokersWithPolicies());
         jcommander.addCommand("broker", new GetBrokerWithPolicies());
     }
-
 }

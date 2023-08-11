@@ -39,22 +39,15 @@ public class RedisSinkConfig extends RedisAbstractConfig implements Serializable
     private static final long serialVersionUID = 4686456460365805717L;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "10000L",
-        help = "The amount of time in milliseconds before an operation is marked as timed out")
+            required = false,
+            defaultValue = "10000L",
+            help = "The amount of time in milliseconds before an operation is marked as timed out")
     private long operationTimeout = 10000L;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "1000L",
-        help = "The Redis operation time in milliseconds")
+    @FieldDoc(required = false, defaultValue = "1000L", help = "The Redis operation time in milliseconds")
     private long batchTimeMs = 1000L;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "200",
-        help = "The batch size of write to Redis database"
-    )
+    @FieldDoc(required = false, defaultValue = "200", help = "The batch size of write to Redis database")
     private int batchSize = 200;
 
     public static RedisSinkConfig load(String yamlFile) throws IOException {

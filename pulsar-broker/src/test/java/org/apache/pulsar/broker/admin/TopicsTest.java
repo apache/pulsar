@@ -115,9 +115,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn("test-app").when(topics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(topics).clientAuthData();
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
-        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster)));
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace,
-                                           Set.of(testLocalCluster));
+        admin.tenants()
+                .createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster)));
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testLocalCluster));
     }
 
     @Override
@@ -128,21 +128,22 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceToNonPartitionedTopic() throws Exception {
-        admin.topics().createNonPartitionedTopic("persistent://" + testTenant + "/"
-                + testNamespace + "/" + testTopicName);
+        admin.topics()
+                .createNonPartitionedTopic("persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
+        producerMessages.setKeySchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -152,43 +153,54 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 3);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
     }
 
     private static List<ProducerMessage> createMessages(String message) throws JsonProcessingException {
-        return ObjectMapperFactory.getMapper().reader()
-                .forType(new TypeReference<List<ProducerMessage>>() {
-                }).readValue(message);
+        return ObjectMapperFactory.getMapper()
+                .reader()
+                .forType(new TypeReference<List<ProducerMessage>>() {})
+                .readValue(message);
     }
 
     @Test
     public void testProduceToPartitionedTopic() throws Exception {
-        admin.topics().createPartitionedTopic("persistent://" + testTenant + "/" + testNamespace
-                + "/" + testTopicName + "-p", 5);
+        admin.topics()
+                .createPartitionedTopic(
+                        "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName + "-p", 5);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:5\",\"eventTime\":1603045262772,\"sequenceId\":5}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:6\",\"eventTime\":1603045262772,\"sequenceId\":6}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:7\",\"eventTime\":1603045262772,\"sequenceId\":7}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:8\",\"eventTime\":1603045262772,\"sequenceId\":8}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:9\",\"eventTime\":1603045262772,\"sequenceId\":9}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:10\",\"eventTime\":1603045262772,\"sequenceId\":10}]";
+        producerMessages.setKeySchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:5\",\"eventTime\":1603045262772,\"sequenceId\":5},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:6\",\"eventTime\":1603045262772,\"sequenceId\":6},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:7\",\"eventTime\":1603045262772,\"sequenceId\":7},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:8\",\"eventTime\":1603045262772,\"sequenceId\":8},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:9\",\"eventTime\":1603045262772,\"sequenceId\":9},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:10\",\"eventTime\":1603045262772,\"sequenceId\":10}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName + "-p", false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName + "-p", false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -199,10 +211,17 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getSchemaVersion(), 0);
         int[] messagePerPartition = new int[5];
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            messagePerPartition[Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2])]++;
+            messagePerPartition[
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2])]++;
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
         for (int index = 0; index < messagePerPartition.length; index++) {
             // We publish to each partition in round robin mode so each partition should get at most 2 message.
@@ -212,22 +231,23 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceToPartitionedTopicSpecificPartition() throws Exception {
-        admin.topics().createPartitionedTopic("persistent://" + testTenant + "/"
-                + testNamespace + "/" + testTopicName, 5);
+        admin.topics()
+                .createPartitionedTopic("persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName, 5);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
+        producerMessages.setKeySchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopicPartition(asyncResponse, testTenant, testNamespace, testTopicName, 2,false, producerMessages);
+        topics.produceOnPersistentTopicPartition(
+                asyncResponse, testTenant, testNamespace, testTopicName, 2, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -237,110 +257,144 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 4);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), 2);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    2);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
     }
 
     @Test
     public void testProduceFailed() throws Exception {
-        admin.topics().createNonPartitionedTopic("persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName);
-        pulsar.getBrokerService().getTopic("persistent://" + testTenant + "/" + testNamespace
-                + "/" + testTopicName, false).thenAccept(topic -> {
-            try {
-                PersistentTopic mockPersistentTopic = spy((PersistentTopic) topic.get());
-                AtomicInteger count = new AtomicInteger();
-                doAnswer(new Answer() {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                        Topic.PublishContext publishContext = invocationOnMock.getArgument(1);
-                        if (count.getAndIncrement() < 2) {
-                            publishContext.completed(null, -1, -1);
-                        } else {
-                            publishContext.completed(new BrokerServiceException.TopicFencedException("Fake exception"),
-                                    -1, -1);
+        admin.topics()
+                .createNonPartitionedTopic("persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName);
+        pulsar.getBrokerService()
+                .getTopic("persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName, false)
+                .thenAccept(topic -> {
+                    try {
+                        PersistentTopic mockPersistentTopic = spy((PersistentTopic) topic.get());
+                        AtomicInteger count = new AtomicInteger();
+                        doAnswer(new Answer() {
+                                    @Override
+                                    public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                                        Topic.PublishContext publishContext = invocationOnMock.getArgument(1);
+                                        if (count.getAndIncrement() < 2) {
+                                            publishContext.completed(null, -1, -1);
+                                        } else {
+                                            publishContext.completed(
+                                                    new BrokerServiceException.TopicFencedException("Fake exception"),
+                                                    -1,
+                                                    -1);
+                                        }
+                                        return null;
+                                    }
+                                })
+                                .when(mockPersistentTopic)
+                                .publishMessage(any(), any());
+                        BrokerService mockBrokerService = spy(pulsar.getBrokerService());
+                        doReturn(CompletableFuture.completedFuture(Optional.of(mockPersistentTopic)))
+                                .when(mockBrokerService)
+                                .getTopic(anyString(), anyBoolean());
+                        doReturn(mockBrokerService).when(pulsar).getBrokerService();
+                        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+                        Schema<String> schema = StringSchema.utf8();
+                        ProducerMessages producerMessages = new ProducerMessages();
+                        producerMessages.setKeySchema(ObjectMapperFactory.getMapper()
+                                .getObjectMapper()
+                                .writeValueAsString(schema.getSchemaInfo()));
+                        producerMessages.setValueSchema(ObjectMapperFactory.getMapper()
+                                .getObjectMapper()
+                                .writeValueAsString(schema.getSchemaInfo()));
+                        String message = "["
+                                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3},"
+                                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
+                        producerMessages.setMessages(createMessages(message));
+                        // Previous request should trigger namespace bundle loading, retry produce.
+                        topics.produceOnPersistentTopic(
+                                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+                        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+                        verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+                        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+                        Object responseEntity = responseCaptor.getValue().getEntity();
+                        Assert.assertTrue(responseEntity instanceof ProducerAcks);
+                        ProducerAcks response = (ProducerAcks) responseEntity;
+                        Assert.assertEquals(response.getMessagePublishResults().size(), 4);
+                        int errorResponse = 0;
+                        for (int index = 0;
+                                index < response.getMessagePublishResults().size();
+                                index++) {
+                            int errorCode = response.getMessagePublishResults()
+                                    .get(index)
+                                    .getErrorCode();
+                            if (0 == errorCode) {
+                                Assert.assertEquals(
+                                        Integer.parseInt(response.getMessagePublishResults()
+                                                .get(index)
+                                                .getMessageId()
+                                                .split(":")[2]),
+                                        -1);
+                                Assert.assertTrue(response.getMessagePublishResults()
+                                                .get(index)
+                                                .getMessageId()
+                                                .length()
+                                        > 0);
+                            } else {
+                                errorResponse++;
+                                Assert.assertEquals(errorCode, 2);
+                                Assert.assertEquals(
+                                        response.getMessagePublishResults()
+                                                .get(index)
+                                                .getErrorMsg(),
+                                        "org.apache.pulsar.broker.service.BrokerServiceException$"
+                                                + "TopicFencedException: Fake exception");
+                            }
                         }
-                        return null;
+                        // Add entry start to fail after 2nd operation, we published 4 msg so expecting 2 error
+                        // response.
+                        Assert.assertTrue(errorResponse == 2);
+                    } catch (Throwable e) {
+                        Assert.fail(e.getMessage());
                     }
-                }).when(mockPersistentTopic).publishMessage(any(), any());
-                BrokerService mockBrokerService = spy(pulsar.getBrokerService());
-                doReturn(CompletableFuture.completedFuture(Optional.of(mockPersistentTopic)))
-                        .when(mockBrokerService).getTopic(anyString(), anyBoolean());
-                doReturn(mockBrokerService).when(pulsar).getBrokerService();
-                AsyncResponse asyncResponse = mock(AsyncResponse.class);
-                Schema<String> schema = StringSchema.utf8();
-                ProducerMessages producerMessages = new ProducerMessages();
-                producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                        writeValueAsString(schema.getSchemaInfo()));
-                producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                        writeValueAsString(schema.getSchemaInfo()));
-                String message = "[" +
-                        "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                        "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                        "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                        "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4}]";
-                producerMessages.setMessages(createMessages(message));
-                // Previous request should trigger namespace bundle loading, retry produce.
-                topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
-                ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-                verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-                Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
-                Object responseEntity = responseCaptor.getValue().getEntity();
-                Assert.assertTrue(responseEntity instanceof ProducerAcks);
-                ProducerAcks response = (ProducerAcks) responseEntity;
-                Assert.assertEquals(response.getMessagePublishResults().size(), 4);
-                int errorResponse = 0;
-                for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-                    int errorCode = response.getMessagePublishResults().get(index).getErrorCode();
-                    if (0 == errorCode) {
-                        Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                                .getMessageId().split(":")[2]), -1);
-                        Assert.assertTrue(response.getMessagePublishResults().get(index)
-                                .getMessageId().length() > 0);
-                    } else {
-                        errorResponse++;
-                        Assert.assertEquals(errorCode, 2);
-                        Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorMsg(),
-                                "org.apache.pulsar.broker.service.BrokerServiceException$"
-                                         + "TopicFencedException: Fake exception");
-                    }
-                }
-                // Add entry start to fail after 2nd operation, we published 4 msg so expecting 2 error response.
-                Assert.assertTrue(errorResponse == 2);
-            } catch (Throwable e) {
-                Assert.fail(e.getMessage());
-            }
-        }).get();
+                })
+                .get();
     }
 
     @Test
     public void testLookUpWithRedirect() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         URI requestPath = URI.create(pulsar.getWebServiceAddress() + "/topics/my-tenant/my-namespace/my-topic");
-        //create topic on one broker
+        // create topic on one broker
         admin.topics().createNonPartitionedTopic(topicName);
         conf.setBrokerServicePort(Optional.of(0));
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        @Cleanup
-        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
+        @Cleanup PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         doReturn(false).when(topics).isRequestHttps();
         UriInfo uriInfo = mock(UriInfo.class);
         doReturn(requestPath).when(uriInfo).getRequestUri();
         FieldUtils.writeField(topics, "uri", uriInfo, true);
-        //do produce on another broker
+        // do produce on another broker
         topics.setPulsar(pulsar2);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(Schema.INT64.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         // Verify got redirect response
@@ -363,11 +417,12 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(Schema.INT64.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getMessage(), "Can't find owner of given topic.");
@@ -383,16 +438,17 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(Schema.INT64.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         System.out.println(responseCaptor.getValue().getMessage());
-        Assert.assertTrue(responseCaptor.getValue().getMessage()
-                .contains(String.format("Topic %s not found", topicName)));
+        Assert.assertTrue(
+                responseCaptor.getValue().getMessage().contains(String.format("Topic %s not found", topicName)));
     }
 
     @Test
@@ -400,23 +456,25 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        Consumer consumer = pulsarClient.newConsumer(Schema.INT64)
+        Consumer consumer = pulsarClient
+                .newConsumer(Schema.INT64)
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(Schema.INT64.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"111111111111\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"222222222222\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"333333333333\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"my-key\",\"payload\":\"444444444444\",\"eventTime\":1603045262772,\"sequenceId\":4}," +
-                "{\"key\":\"my-key\",\"payload\":\"555555555555\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(Schema.INT64.getSchemaInfo()));
+        String message =
+                "[" + "{\"key\":\"my-key\",\"payload\":\"111111111111\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                        + "{\"key\":\"my-key\",\"payload\":\"222222222222\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                        + "{\"key\":\"my-key\",\"payload\":\"333333333333\",\"eventTime\":1603045262772,\"sequenceId\":3},"
+                        + "{\"key\":\"my-key\",\"payload\":\"444444444444\",\"eventTime\":1603045262772,\"sequenceId\":4},"
+                        + "{\"key\":\"my-key\",\"payload\":\"555555555555\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -426,13 +484,22 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 5);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
 
-        List<Long> expectedMsg = Arrays.asList(111111111111l, 222222222222l, 333333333333l, 444444444444l, 555555555555l);
+        List<Long> expectedMsg =
+                Arrays.asList(111111111111l, 222222222222l, 333333333333l, 444444444444l, 555555555555l);
         Message<Long> msg = null;
         // Assert all messages published by REST producer can be received by consumer in expected order.
         for (int i = 0; i < 5; i++) {
@@ -448,21 +515,23 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        Consumer consumer = pulsarClient.newConsumer(StringSchema.utf8())
+        Consumer consumer = pulsarClient
+                .newConsumer(StringSchema.utf8())
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:5\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:5\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -472,14 +541,22 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 5);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
 
-        List<String> expectedMsg = Arrays.asList("RestProducer:1", "RestProducer:2", "RestProducer:3", "RestProducer:4",
-                "RestProducer:5");
+        List<String> expectedMsg =
+                Arrays.asList("RestProducer:1", "RestProducer:2", "RestProducer:3", "RestProducer:4", "RestProducer:5");
         Message<String> msg = null;
         // Assert all messages published by REST producer can be received by consumer in expected order.
         for (int i = 0; i < 5; i++) {
@@ -510,7 +587,8 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     private enum GPU {
-        AMD, NVIDIA
+        AMD,
+        NVIDIA
     }
 
     @Test
@@ -518,31 +596,36 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        GenericSchema jsonSchema = GenericJsonSchema.of(JSONSchema.of(SchemaDefinition.builder()
-                .withPojo(PC.class).build()).getSchemaInfo());
-        PC pc  = new PC("dell", "alienware", 2021, GPU.AMD,
-                new Seller("WA", "main street", 98004));
-        PC anotherPc  = new PC("asus", "rog", 2020, GPU.NVIDIA,
-                new Seller("CA", "back street", 90232));
-        Consumer consumer = pulsarClient.newConsumer(jsonSchema)
+        GenericSchema jsonSchema = GenericJsonSchema.of(
+                JSONSchema.of(SchemaDefinition.builder().withPojo(PC.class).build())
+                        .getSchemaInfo());
+        PC pc = new PC("dell", "alienware", 2021, GPU.AMD, new Seller("WA", "main street", 98004));
+        PC anotherPc = new PC("asus", "rog", 2020, GPU.NVIDIA, new Seller("CA", "back street", 90232));
+        Consumer consumer = pulsarClient
+                .newConsumer(jsonSchema)
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(jsonSchema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\""
-                + ObjectMapperFactory.getMapper().writer().writeValueAsString(pc).replace("\"", "\\\"")
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(jsonSchema.getSchemaInfo()));
+        String message = "[" + "{\"key\":\"my-key\",\"payload\":\""
+                + ObjectMapperFactory.getMapper()
+                        .writer()
+                        .writeValueAsString(pc)
+                        .replace("\"", "\\\"")
                 + "\",\"eventTime\":1603045262772,\"sequenceId\":1},"
                 + "{\"key\":\"my-key\",\"payload\":\""
-                + ObjectMapperFactory.getMapper().writer().writeValueAsString(anotherPc).replace("\"", "\\\"")
+                + ObjectMapperFactory.getMapper()
+                        .writer()
+                        .writeValueAsString(anotherPc)
+                        .replace("\"", "\\\"")
                 + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace,
-                testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -552,10 +635,18 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 2);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
 
         List<PC> expected = Arrays.asList(pc, anotherPc);
@@ -563,8 +654,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         // Assert all messages published by REST producer can be received by consumer in expected order.
         for (int i = 0; i < 2; i++) {
             msg = consumer.receive(2, TimeUnit.SECONDS);
-            PC msgPc = ObjectMapperFactory.getMapper().getObjectMapper().
-                    treeToValue(((GenericJsonRecord)jsonSchema.decode(msg.getData())).getJsonNode(), PC.class);
+            PC msgPc = ObjectMapperFactory.getMapper()
+                    .getObjectMapper()
+                    .treeToValue(((GenericJsonRecord) jsonSchema.decode(msg.getData())).getJsonNode(), PC.class);
             Assert.assertEquals(msgPc.brand, expected.get(i).brand);
             Assert.assertEquals(msgPc.model, expected.get(i).model);
             Assert.assertEquals(msgPc.year, expected.get(i).year);
@@ -581,21 +673,21 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        GenericSchemaImpl avroSchema = GenericAvroSchema.of(AvroSchema.of(SchemaDefinition.builder()
-                .withPojo(PC.class).build()).getSchemaInfo());
-        PC pc  = new PC("dell", "alienware", 2021, GPU.AMD,
-                new Seller("WA", "main street", 98004));
-        PC anotherPc  = new PC("asus", "rog", 2020, GPU.NVIDIA,
-                new Seller("CA", "back street", 90232));
-        Consumer consumer = pulsarClient.newConsumer(avroSchema)
+        GenericSchemaImpl avroSchema = GenericAvroSchema.of(
+                AvroSchema.of(SchemaDefinition.builder().withPojo(PC.class).build())
+                        .getSchemaInfo());
+        PC pc = new PC("dell", "alienware", 2021, GPU.AMD, new Seller("WA", "main street", 98004));
+        PC anotherPc = new PC("asus", "rog", 2020, GPU.NVIDIA, new Seller("CA", "back street", 90232));
+        Consumer consumer = pulsarClient
+                .newConsumer(avroSchema)
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(avroSchema.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(avroSchema.getSchemaInfo()));
 
         ReflectDatumWriter<PC> datumWriter = new ReflectDatumWriter(avroSchema.getAvroSchema());
         ByteArrayOutputStream outputStream1 = new ByteArrayOutputStream();
@@ -609,16 +701,15 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         datumWriter.write(anotherPc, encoder2);
         encoder2.flush();
 
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\""
+        String message = "[" + "{\"key\":\"my-key\",\"payload\":\""
                 + outputStream1.toString().replace("\"", "\\\"")
                 + "\",\"eventTime\":1603045262772,\"sequenceId\":1},"
                 + "{\"key\":\"my-key\",\"payload\":\""
                 + outputStream2.toString().replace("\"", "\\\"")
                 + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace,
-                testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -628,10 +719,18 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 2);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
 
         List<PC> expected = Arrays.asList(pc, anotherPc);
@@ -640,13 +739,21 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 2; i++) {
             msg = consumer.receive(2, TimeUnit.SECONDS);
             GenericAvroRecord avroRecord = (GenericAvroRecord) avroSchema.decode(msg.getData());
-            Assert.assertEquals(((Utf8)avroRecord.getAvroRecord().get("brand")).toString(), expected.get(i).brand);
-            Assert.assertEquals(((Utf8)avroRecord.getAvroRecord().get("model")).toString(), expected.get(i).model);
-            Assert.assertEquals((int)avroRecord.getAvroRecord().get("year"), expected.get(i).year);
-            Assert.assertEquals(((GenericData.EnumSymbol)avroRecord.getAvroRecord().get("gpu")).toString(), expected.get(i).gpu.toString());
-            Assert.assertEquals(((Utf8)((GenericRecord)avroRecord.getAvroRecord().get("seller")).get("state")).toString(), expected.get(i).seller.state);
-            Assert.assertEquals(((Utf8)((GenericRecord)avroRecord.getAvroRecord().get("seller")).get("street")).toString(), expected.get(i).seller.street);
-            Assert.assertEquals(((GenericRecord)avroRecord.getAvroRecord().get("seller")).get("zipCode"), expected.get(i).seller.zipCode);
+            Assert.assertEquals(((Utf8) avroRecord.getAvroRecord().get("brand")).toString(), expected.get(i).brand);
+            Assert.assertEquals(((Utf8) avroRecord.getAvroRecord().get("model")).toString(), expected.get(i).model);
+            Assert.assertEquals((int) avroRecord.getAvroRecord().get("year"), expected.get(i).year);
+            Assert.assertEquals(
+                    ((GenericData.EnumSymbol) avroRecord.getAvroRecord().get("gpu")).toString(),
+                    expected.get(i).gpu.toString());
+            Assert.assertEquals(
+                    ((Utf8) ((GenericRecord) avroRecord.getAvroRecord().get("seller")).get("state")).toString(),
+                    expected.get(i).seller.state);
+            Assert.assertEquals(
+                    ((Utf8) ((GenericRecord) avroRecord.getAvroRecord().get("seller")).get("street")).toString(),
+                    expected.get(i).seller.street);
+            Assert.assertEquals(
+                    ((GenericRecord) avroRecord.getAvroRecord().get("seller")).get("zipCode"),
+                    expected.get(i).seller.zipCode);
             Assert.assertEquals("my-key", msg.getKey());
         }
     }
@@ -656,33 +763,36 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        Schema keyValueSchema = KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(),
-                                                KeyValueEncodingType.SEPARATED);
-        Producer producer = pulsarClient.newProducer(keyValueSchema)
-                                        .topic(topicName)
-                                        .create();
-        Consumer consumer = pulsarClient.newConsumer(keyValueSchema)
-                                        .topic(topicName)
-                                        .subscriptionName("my-sub")
-                                        .subscriptionType(SubscriptionType.Exclusive)
-                                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                                        .subscribe();
+        Schema keyValueSchema =
+                KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(), KeyValueEncodingType.SEPARATED);
+        Producer producer =
+                pulsarClient.newProducer(keyValueSchema).topic(topicName).create();
+        Consumer consumer = pulsarClient
+                .newConsumer(keyValueSchema)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         for (int i = 0; i < 3; i++) {
             producer.newMessage(keyValueSchema)
                     .value(new KeyValue<>("my-key", "ClientProducer:" + i))
                     .send();
         }
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -692,14 +802,27 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 3);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
 
-        List<String> expectedMsg = Arrays.asList("ClientProducer:0", "ClientProducer:1", "ClientProducer:2",
-                                                 "RestProducer:1", "RestProducer:2", "RestProducer:3");
+        List<String> expectedMsg = Arrays.asList(
+                "ClientProducer:0",
+                "ClientProducer:1",
+                "ClientProducer:2",
+                "RestProducer:1",
+                "RestProducer:2",
+                "RestProducer:3");
         Message<String> msg = null;
         // Assert both messages published by client producer and REST producer can be received
         // by consumer in expected order.
@@ -715,28 +838,31 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        Schema keyValueSchema = KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(),
-                KeyValueEncodingType.SEPARATED);
-        Consumer consumer = pulsarClient.newConsumer(keyValueSchema)
+        Schema keyValueSchema =
+                KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(), KeyValueEncodingType.SEPARATED);
+        Consumer consumer = pulsarClient
+                .newConsumer(keyValueSchema)
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:5\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:4\",\"eventTime\":1603045262772,\"sequenceId\":4},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:5\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName,
-                false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
@@ -746,22 +872,31 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 5);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
         // Specify schema version to use existing schema.
         producerMessages = new ProducerMessages();
         producerMessages.setSchemaVersion(response.getSchemaVersion());
-        message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:6\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:7\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:8\",\"eventTime\":1603045262772,\"sequenceId\":3}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:9\",\"eventTime\":1603045262772,\"sequenceId\":4}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:10\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
+        message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:6\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:7\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:8\",\"eventTime\":1603045262772,\"sequenceId\":3},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:9\",\"eventTime\":1603045262772,\"sequenceId\":4},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:10\",\"eventTime\":1603045262772,\"sequenceId\":5}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
         responseEntity = responseCaptor.getValue().getEntity();
@@ -770,15 +905,30 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getMessagePublishResults().size(), 5);
         Assert.assertEquals(response.getSchemaVersion(), 0);
         for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
-            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
-                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(
+                    Integer.parseInt(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .split(":")[2]),
+                    -1);
             Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
-            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+            Assert.assertTrue(response.getMessagePublishResults()
+                            .get(index)
+                            .getMessageId()
+                            .length()
+                    > 0);
         }
 
-        List<String> expectedMsg = Arrays.asList("RestProducer:1", "RestProducer:2", "RestProducer:3",
-                "RestProducer:4", "RestProducer:5", "RestProducer:6",
-                "RestProducer:7", "RestProducer:8", "RestProducer:9",
+        List<String> expectedMsg = Arrays.asList(
+                "RestProducer:1",
+                "RestProducer:2",
+                "RestProducer:3",
+                "RestProducer:4",
+                "RestProducer:5",
+                "RestProducer:6",
+                "RestProducer:7",
+                "RestProducer:8",
+                "RestProducer:9",
                 "RestProducer:10");
         Message<String> msg = null;
         // Assert all messages published by REST producer can be received by consumer in expected order.
@@ -794,35 +944,42 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        Producer producer = pulsarClient.newProducer(StringSchema.utf8())
-                .topic(topicName)
-                .create();
+        Producer producer =
+                pulsarClient.newProducer(StringSchema.utf8()).topic(topicName).create();
 
         for (int i = 0; i < 3; i++) {
             producer.send("message");
         }
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:3\",\"eventTime\":1603045262772,\"sequenceId\":3}]";
         producerMessages.setMessages(createMessages(message));
-        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
+        topics.produceOnPersistentTopic(
+                asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertTrue(responseCaptor.getValue().getMessage().startsWith("Fail to publish message:"
-                + "java.util.concurrent.ExecutionException: org.apache.pulsar.broker.service.schema.exceptions."
-                + "SchemaException: Unable to add schema SchemaData(type=KEY_VALUE, isDeleted=false, "
-                + "timestamp="));
-        Assert.assertTrue(responseCaptor.getValue().getMessage().endsWith(
-                "user=Rest Producer, data=[0, 0, 0, 0, 0, 0, 0, 0], "
-                + "props={key.schema.properties={\"__charset\":\"UTF-8\"}, value.schema.properties={\"__charset\":"
-                + "\"UTF-8\"}, value.schema.type=STRING, key.schema.name=String, value.schema.name=String, "
-                + "kv.encoding.type=SEPARATED, key.schema.type=STRING}) to topic persistent:"
-                + "//my-tenant/my-namespace/my-topic"));
+        Assert.assertTrue(responseCaptor
+                .getValue()
+                .getMessage()
+                .startsWith("Fail to publish message:"
+                        + "java.util.concurrent.ExecutionException: org.apache.pulsar.broker.service.schema.exceptions."
+                        + "SchemaException: Unable to add schema SchemaData(type=KEY_VALUE, isDeleted=false, "
+                        + "timestamp="));
+        Assert.assertTrue(responseCaptor
+                .getValue()
+                .getMessage()
+                .endsWith("user=Rest Producer, data=[0, 0, 0, 0, 0, 0, 0, 0], "
+                        + "props={key.schema.properties={\"__charset\":\"UTF-8\"}, value.schema.properties={\"__charset\":"
+                        + "\"UTF-8\"}, value.schema.type=STRING, key.schema.name=String, value.schema.name=String, "
+                        + "kv.encoding.type=SEPARATED, key.schema.type=STRING}) to topic persistent:"
+                        + "//my-tenant/my-namespace/my-topic"));
     }
 }

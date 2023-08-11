@@ -38,7 +38,6 @@ public interface EntryFilter {
      */
     void close();
 
-
     enum FilterResult {
         /**
          * deliver to the consumer.
@@ -53,5 +52,4 @@ public interface EntryFilter {
          */
         RESCHEDULE
     }
-
 }

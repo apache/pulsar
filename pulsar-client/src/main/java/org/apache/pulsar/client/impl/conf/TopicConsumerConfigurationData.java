@@ -39,8 +39,8 @@ public class TopicConsumerConfigurationData implements Serializable {
         return of(new TopicNameMatcher.TopicsPattern(topicsPattern), priorityLevel);
     }
 
-    public static TopicConsumerConfigurationData ofTopicsPattern(@NonNull Pattern topicsPattern,
-                                                                 ConsumerConfigurationData<?> conf) {
+    public static TopicConsumerConfigurationData ofTopicsPattern(
+            @NonNull Pattern topicsPattern, ConsumerConfigurationData<?> conf) {
         return ofTopicsPattern(topicsPattern, conf.getPriorityLevel());
     }
 
@@ -48,8 +48,8 @@ public class TopicConsumerConfigurationData implements Serializable {
         return of(new TopicNameMatcher.TopicName(topicName), priorityLevel);
     }
 
-    public static TopicConsumerConfigurationData ofTopicName(@NonNull String topicName,
-                                                             ConsumerConfigurationData<?> conf) {
+    public static TopicConsumerConfigurationData ofTopicName(
+            @NonNull String topicName, ConsumerConfigurationData<?> conf) {
         return ofTopicName(topicName, conf.getPriorityLevel());
     }
 

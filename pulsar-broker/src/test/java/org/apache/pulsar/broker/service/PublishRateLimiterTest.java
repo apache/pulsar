@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.concurrent.ScheduledFuture;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.concurrent.ScheduledFuture;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
 public class PublishRateLimiterTest {
@@ -48,7 +46,8 @@ public class PublishRateLimiterTest {
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
 
-        precisePublishLimiter = new PrecisePublishLimiter(policies, CLUSTER_NAME, () -> System.out.print("Refresh permit"));
+        precisePublishLimiter =
+                new PrecisePublishLimiter(policies, CLUSTER_NAME, () -> System.out.print("Refresh permit"));
         publishRateLimiter = new PublishRateLimiterImpl(policies, CLUSTER_NAME);
     }
 
@@ -78,7 +77,6 @@ public class PublishRateLimiterTest {
         publishRateLimiter.incrementPublishCount(9, 110);
         publishRateLimiter.checkPublishRate();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
-
     }
 
     @Test
@@ -92,14 +90,13 @@ public class PublishRateLimiterTest {
         publishRateLimiter.incrementPublishCount(11, 110);
         publishRateLimiter.checkPublishRate();
         assertFalse(publishRateLimiter.isPublishRateExceeded());
-
     }
 
     @Test
     public void testPrecisePublishRateLimiterUpdate() {
         assertFalse(precisePublishLimiter.tryAcquire(15, 150));
 
-        //update
+        // update
         precisePublishLimiter.update(newPublishRate);
         assertTrue(precisePublishLimiter.tryAcquire(15, 150));
     }
@@ -107,30 +104,37 @@ public class PublishRateLimiterTest {
     @Test
     public void testPrecisePublishRateLimiterAcquire() throws Exception {
         Class precisePublishLimiterClass = Class.forName("org.apache.pulsar.broker.service.PrecisePublishLimiter");
-        Field topicPublishRateLimiterOnMessageField = precisePublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnMessage");
-        Field topicPublishRateLimiterOnByteField = precisePublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnByte");
+        Field topicPublishRateLimiterOnMessageField =
+                precisePublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnMessage");
+        Field topicPublishRateLimiterOnByteField =
+                precisePublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnByte");
         topicPublishRateLimiterOnMessageField.setAccessible(true);
         topicPublishRateLimiterOnByteField.setAccessible(true);
 
-        RateLimiter topicPublishRateLimiterOnMessage = (RateLimiter)topicPublishRateLimiterOnMessageField.get(
-                precisePublishLimiter);
-        RateLimiter topicPublishRateLimiterOnByte = (RateLimiter)topicPublishRateLimiterOnByteField.get(
-                precisePublishLimiter);
+        RateLimiter topicPublishRateLimiterOnMessage =
+                (RateLimiter) topicPublishRateLimiterOnMessageField.get(precisePublishLimiter);
+        RateLimiter topicPublishRateLimiterOnByte =
+                (RateLimiter) topicPublishRateLimiterOnByteField.get(precisePublishLimiter);
 
-        Method renewTopicPublishRateLimiterOnMessageMethod = topicPublishRateLimiterOnMessage.getClass().getDeclaredMethod("renew", null);
-        Method renewTopicPublishRateLimiterOnByteMethod = topicPublishRateLimiterOnByte.getClass().getDeclaredMethod("renew", null);
+        Method renewTopicPublishRateLimiterOnMessageMethod =
+                topicPublishRateLimiterOnMessage.getClass().getDeclaredMethod("renew", null);
+        Method renewTopicPublishRateLimiterOnByteMethod =
+                topicPublishRateLimiterOnByte.getClass().getDeclaredMethod("renew", null);
         renewTopicPublishRateLimiterOnMessageMethod.setAccessible(true);
         renewTopicPublishRateLimiterOnByteMethod.setAccessible(true);
 
         // running tryAcquire in order to lazyInit the renewTask
         precisePublishLimiter.tryAcquire(1, 10);
 
-        Field onMessageRenewTaskField = topicPublishRateLimiterOnMessage.getClass().getDeclaredField("renewTask");
+        Field onMessageRenewTaskField =
+                topicPublishRateLimiterOnMessage.getClass().getDeclaredField("renewTask");
         Field onByteRenewTaskField = topicPublishRateLimiterOnByte.getClass().getDeclaredField("renewTask");
         onMessageRenewTaskField.setAccessible(true);
         onByteRenewTaskField.setAccessible(true);
-        ScheduledFuture<?> onMessageRenewTask = (ScheduledFuture<?>) onMessageRenewTaskField.get(topicPublishRateLimiterOnMessage);
-        ScheduledFuture<?> onByteRenewTask = (ScheduledFuture<?>) onByteRenewTaskField.get(topicPublishRateLimiterOnByte);
+        ScheduledFuture<?> onMessageRenewTask =
+                (ScheduledFuture<?>) onMessageRenewTaskField.get(topicPublishRateLimiterOnMessage);
+        ScheduledFuture<?> onByteRenewTask =
+                (ScheduledFuture<?>) onByteRenewTaskField.get(topicPublishRateLimiterOnByte);
 
         onMessageRenewTask.cancel(false);
         onByteRenewTask.cancel(false);

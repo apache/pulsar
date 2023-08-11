@@ -56,5 +56,4 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
     public ObjectMapper getContext(Class<?> type) {
         return mapper;
     }
-
 }

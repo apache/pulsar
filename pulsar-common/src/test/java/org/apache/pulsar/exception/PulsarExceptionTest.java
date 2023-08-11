@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.exception;
 
-import org.testng.annotations.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
+import org.testng.annotations.Test;
 
 public class PulsarExceptionTest {
 
@@ -30,16 +29,14 @@ public class PulsarExceptionTest {
         String key = "123";
         String value = "abc";
 
-        PulsarExceptionSample testException =
-                new PulsarExceptionSample("key={}, value={}", key, value);
+        PulsarExceptionSample testException = new PulsarExceptionSample("key={}, value={}", key, value);
         assertThat(testException.getMessage()).isEqualTo("key=123, value=abc");
     }
 
     @Test
     public void testPulsarExceptionSimple() {
 
-        PulsarExceptionSample testException =
-                new PulsarExceptionSample("Simple Message");
+        PulsarExceptionSample testException = new PulsarExceptionSample("Simple Message");
         assertThat(testException.getMessage()).isEqualTo("Simple Message");
     }
 

@@ -40,10 +40,10 @@ import org.slf4j.LoggerFactory;
  * A simple connector to consume messages from a RabbitMQ queue.
  */
 @Connector(
-    name = "rabbitmq",
-    type = IOType.SOURCE,
-    help = "A simple connector to move messages from a RabbitMQ queue to a Pulsar topic",
-    configClass = RabbitMQSourceConfig.class)
+        name = "rabbitmq",
+        type = IOType.SOURCE,
+        help = "A simple connector to move messages from a RabbitMQ queue to a Pulsar topic",
+        configClass = RabbitMQSourceConfig.class)
 public class RabbitMQSource extends PushSource<byte[]> {
 
     private static Logger logger = LoggerFactory.getLogger(RabbitMQSource.class);
@@ -59,20 +59,20 @@ public class RabbitMQSource extends PushSource<byte[]> {
 
         ConnectionFactory connectionFactory = rabbitMQSourceConfig.createConnectionFactory();
         rabbitMQConnection = connectionFactory.newConnection(rabbitMQSourceConfig.getConnectionName());
-        logger.info("A new connection to {}:{} has been opened successfully.",
+        logger.info(
+                "A new connection to {}:{} has been opened successfully.",
                 rabbitMQConnection.getAddress().getCanonicalHostName(),
-                rabbitMQConnection.getPort()
-        );
+                rabbitMQConnection.getPort());
         rabbitMQChannel = rabbitMQConnection.createChannel();
         if (rabbitMQSourceConfig.isPassive()) {
             rabbitMQChannel.queueDeclarePassive(rabbitMQSourceConfig.getQueueName());
         } else {
             rabbitMQChannel.queueDeclare(rabbitMQSourceConfig.getQueueName(), false, false, false, null);
         }
-        logger.info("Setting channel.basicQos({}, {}).",
+        logger.info(
+                "Setting channel.basicQos({}, {}).",
                 rabbitMQSourceConfig.getPrefetchCount(),
-                rabbitMQSourceConfig.isPrefetchGlobal()
-        );
+                rabbitMQSourceConfig.isPrefetchGlobal());
         rabbitMQChannel.basicQos(rabbitMQSourceConfig.getPrefetchCount(), rabbitMQSourceConfig.isPrefetchGlobal());
         com.rabbitmq.client.Consumer consumer = new RabbitMQConsumer(this, rabbitMQChannel);
         rabbitMQChannel.basicConsume(rabbitMQSourceConfig.getQueueName(), consumer);

@@ -63,10 +63,8 @@ public class SplitDecision {
         this.reason = reason;
     }
 
-
     public void fail() {
         label = Failure;
         reason = Unknown;
     }
-
 }

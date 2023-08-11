@@ -76,16 +76,19 @@ import org.glassfish.jersey.client.spi.Connector;
 public class AsyncHttpConnector implements Connector {
     private static final TimeoutException READ_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Read timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
+
     @Getter
     private final AsyncHttpClient httpClient;
+
     private final Duration readTimeout;
     private final int maxRetries;
     private final PulsarServiceNameResolver serviceNameResolver;
-    private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
-            new DefaultThreadFactory("delayer"));
+    private final ScheduledExecutorService delayer =
+            Executors.newScheduledThreadPool(1, new DefaultThreadFactory("delayer"));
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
-        this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
+        this(
+                (int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
@@ -93,9 +96,12 @@ public class AsyncHttpConnector implements Connector {
     }
 
     @SneakyThrows
-    public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
-                              int requestTimeoutMs,
-                              int autoCertRefreshTimeSeconds, ClientConfigurationData conf) {
+    public AsyncHttpConnector(
+            int connectTimeoutMs,
+            int readTimeoutMs,
+            int requestTimeoutMs,
+            int autoCertRefreshTimeSeconds,
+            ClientConfigurationData conf) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
@@ -107,11 +113,11 @@ public class AsyncHttpConnector implements Connector {
         confBuilder.setIoThreadsCount(conf.getNumIoThreads());
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
-            public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
-                                     HttpRequest request, HttpResponse response) {
+            public boolean keepAlive(
+                    InetSocketAddress remoteAddress, Request ahcRequest, HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
                 return (response.status().code() / 100 != 5)
-                       && super.keepAlive(remoteAddress, ahcRequest, request, response);
+                        && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
 
@@ -123,8 +129,11 @@ public class AsyncHttpConnector implements Connector {
                 AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
 
                 if (conf.isUseKeyStoreTls()) {
-                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() :
-                            new KeyStoreParams(conf.getTlsKeyStoreType(), conf.getTlsKeyStorePath(),
+                    KeyStoreParams params = authData.hasDataForTls()
+                            ? authData.getTlsKeyStoreParams()
+                            : new KeyStoreParams(
+                                    conf.getTlsKeyStoreType(),
+                                    conf.getTlsKeyStorePath(),
                                     conf.getTlsKeyStorePassword());
 
                     final SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
@@ -150,17 +159,22 @@ public class AsyncHttpConnector implements Connector {
                     if (authData.hasDataForTls()) {
                         sslCtx = authData.getTlsTrustStoreStream() == null
                                 ? SecurityUtility.createAutoRefreshSslContextForClient(
-                                sslProvider,
-                                conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
-                                authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
+                                        sslProvider,
+                                        conf.isTlsAllowInsecureConnection(),
+                                        conf.getTlsTrustCertsFilePath(),
+                                        authData.getTlsCerificateFilePath(),
+                                        authData.getTlsPrivateKeyFilePath(),
+                                        null,
+                                        autoCertRefreshTimeSeconds,
+                                        delayer)
                                 : SecurityUtility.createNettySslContextForClient(
-                                sslProvider,
-                                conf.isTlsAllowInsecureConnection(),
-                                authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey(),
-                                conf.getTlsCiphers(),
-                                conf.getTlsProtocols());
+                                        sslProvider,
+                                        conf.isTlsAllowInsecureConnection(),
+                                        authData.getTlsTrustStoreStream(),
+                                        authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey(),
+                                        conf.getTlsCiphers(),
+                                        conf.getTlsProtocols());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 sslProvider,
@@ -173,8 +187,8 @@ public class AsyncHttpConnector implements Connector {
                     }
                     confBuilder.setSslContext(sslCtx);
                     if (!conf.isTlsHostnameVerificationEnable()) {
-                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
-                                .resolveHostUri().getHost()));
+                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(
+                                serviceNameResolver.resolveHostUri().getHost()));
                     }
                 }
             }
@@ -260,8 +274,8 @@ public class AsyncHttpConnector implements Connector {
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
         retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
-        CompletableFuture<Response> timeoutAfter = FutureUtil.createFutureWithTimeout(readTimeout, delayer,
-                () -> READ_TIMEOUT_EXCEPTION);
+        CompletableFuture<Response> timeoutAfter =
+                FutureUtil.createFutureWithTimeout(readTimeout, delayer, () -> READ_TIMEOUT_EXCEPTION);
         return resultFuture.applyToEither(timeoutAfter, Function.identity());
     }
 
@@ -273,32 +287,27 @@ public class AsyncHttpConnector implements Connector {
         if (!resultFuture.isDone()) {
             final CompletableFuture<T> operationFuture = operation.get();
 
-            operationFuture.whenComplete(
-                    (t, throwable) -> {
-                        if (throwable != null) {
-                            if (throwable instanceof CancellationException) {
-                                resultFuture.completeExceptionally(
-                                        new RetryException("Operation future was cancelled.", throwable));
-                            } else {
-                                if (retries > 0) {
-                                    retryOperation(
-                                            resultFuture,
-                                            operation,
-                                            retries - 1);
-                                } else {
-                                    resultFuture.completeExceptionally(
-                                        new RetryException("Could not complete the operation. Number of retries "
-                                            + "has been exhausted. Failed reason: " + throwable.getMessage(),
-                                            throwable));
-                                }
-                            }
+            operationFuture.whenComplete((t, throwable) -> {
+                if (throwable != null) {
+                    if (throwable instanceof CancellationException) {
+                        resultFuture.completeExceptionally(
+                                new RetryException("Operation future was cancelled.", throwable));
+                    } else {
+                        if (retries > 0) {
+                            retryOperation(resultFuture, operation, retries - 1);
                         } else {
-                            resultFuture.complete(t);
+                            resultFuture.completeExceptionally(new RetryException(
+                                    "Could not complete the operation. Number of retries "
+                                            + "has been exhausted. Failed reason: " + throwable.getMessage(),
+                                    throwable));
                         }
-                    });
+                    }
+                } else {
+                    resultFuture.complete(t);
+                }
+            });
 
-            resultFuture.whenComplete(
-                    (t, throwable) -> operationFuture.cancel(false));
+            resultFuture.whenComplete((t, throwable) -> operationFuture.cancel(false));
         }
     }
 
@@ -316,8 +325,8 @@ public class AsyncHttpConnector implements Connector {
         URI newUri = replaceWithNew(host, currentRequest.getUri());
         currentRequest.setUri(newUri);
 
-        BoundRequestBuilder builder =
-                httpClient.prepare(currentRequest.getMethod(), currentRequest.getUri().toString());
+        BoundRequestBuilder builder = httpClient.prepare(
+                currentRequest.getMethod(), currentRequest.getUri().toString());
 
         if (currentRequest.hasEntity()) {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -356,5 +365,4 @@ public class AsyncHttpConnector implements Connector {
             log.warn("Failed to close http client", e);
         }
     }
-
 }

@@ -46,10 +46,9 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
     @Test
     public void testDisconnection() throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis(300_000)
-                        .build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                zks.getConnectionString(),
+                MetadataStoreConfig.builder().sessionTimeoutMillis(300_000).build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
         store.registerSessionListener(sessionEvents::add);
@@ -70,10 +69,9 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
     @Test
     public void testSessionLost() throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis(5_000)
-                        .build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                zks.getConnectionString(),
+                MetadataStoreConfig.builder().sessionTimeoutMillis(5_000).build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
         store.registerSessionListener(sessionEvents::add);
@@ -101,23 +99,19 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
     @Test
     public void testReacquireLocksAfterSessionLost() throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis(2_000)
-                        .build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                zks.getConnectionString(),
+                MetadataStoreConfig.builder().sessionTimeoutMillis(2_000).build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
         store.registerSessionListener(sessionEvents::add);
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
-        @Cleanup
-        LockManager<String> lm1 = coordinationService.getLockManager(String.class);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup LockManager<String> lm1 = coordinationService.getLockManager(String.class);
 
         String path = newKey();
 
         ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
-
 
         zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
 
@@ -140,21 +134,19 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
     public void testReacquireLeadershipAfterSessionLost() throws Exception {
         //  ---  init
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis(2_000)
-                        .build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                zks.getConnectionString(),
+                MetadataStoreConfig.builder().sessionTimeoutMillis(2_000).build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
         store.registerSessionListener(sessionEvents::add);
         BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
         String path = newKey();
 
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
         @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
-        @Cleanup
-        LeaderElection<String> le1 = coordinationService.getLeaderElection(String.class, path,
-                leaderElectionEvents::add);
+        LeaderElection<String> le1 =
+                coordinationService.getLeaderElection(String.class, path, leaderElectionEvents::add);
         // --- test manual elect
         le1.elect("value-1").join();
         assertEquals(le1.getState(), LeaderElectionState.Leading);
@@ -170,14 +162,16 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionLost);
         // --- test  le1 can be leader
-        Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading)); // reacquire leadership
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(() -> assertEquals(le1.getState(), LeaderElectionState.Leading)); // reacquire leadership
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
-        Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(() -> assertEquals(le1.getState(), LeaderElectionState.Leading));
         assertTrue(store.get(path).join().isPresent());
     }
 }

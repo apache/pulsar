@@ -44,8 +44,8 @@ public class PackagesBase extends AdminResource {
         return pulsar().getPackagesManagement();
     }
 
-    private CompletableFuture<PackageName> getPackageNameAsync(String type, String tenant, String namespace,
-                                                               String packageName, String version) {
+    private CompletableFuture<PackageName> getPackageNameAsync(
+            String type, String tenant, String namespace, String packageName, String version) {
         CompletableFuture<PackageName> future = new CompletableFuture<>();
         try {
             PackageName name = PackageName.get(type, tenant, namespace, packageName, version);
@@ -74,26 +74,37 @@ public class PackagesBase extends AdminResource {
         return null;
     }
 
-    protected void internalGetMetadata(String type, String tenant, String namespace, String packageName,
-                                                  String version, AsyncResponse asyncResponse) {
+    protected void internalGetMetadata(
+            String type,
+            String tenant,
+            String namespace,
+            String packageName,
+            String version,
+            AsyncResponse asyncResponse) {
         checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().getMeta(name))
-            .thenAccept(asyncResponse::resume)
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+                .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                .thenCompose(name -> getPackagesManagement().getMeta(name))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected void internalUpdateMetadata(String type, String tenant, String namespace, String packageName,
-                                          String version, PackageMetadata metadata, AsyncResponse asyncResponse) {
+    protected void internalUpdateMetadata(
+            String type,
+            String tenant,
+            String namespace,
+            String packageName,
+            String version,
+            PackageMetadata metadata,
+            AsyncResponse asyncResponse) {
         checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().updateMeta(name, metadata))
-            .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+                .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                .thenCompose(name -> getPackagesManagement().updateMeta(name, metadata))
+                .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected StreamingOutput internalDownload(String type, String tenant, String namespace,
-                                               String packageName, String version) {
+    protected StreamingOutput internalDownload(
+            String type, String tenant, String namespace, String packageName, String version) {
         try {
             checkPermissions(tenant, namespace).get();
         } catch (InterruptedException e) {
@@ -102,7 +113,8 @@ public class PackagesBase extends AdminResource {
             if (e.getCause() instanceof WebApplicationException) {
                 throw (WebApplicationException) e.getCause();
             } else {
-                throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
+                throw new RestException(
+                        Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
             }
         }
         try {
@@ -114,9 +126,12 @@ public class PackagesBase extends AdminResource {
                     throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof PackagesManagementException.NotFoundException) {
-                        throw new RestException(Response.Status.NOT_FOUND, e.getCause().getMessage());
+                        throw new RestException(
+                                Response.Status.NOT_FOUND, e.getCause().getMessage());
                     } else {
-                        throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
+                        throw new RestException(
+                                Response.Status.INTERNAL_SERVER_ERROR,
+                                e.getCause().getMessage());
                     }
                 } catch (UnsupportedOperationException e) {
                     throw new RestException(Response.Status.SERVICE_UNAVAILABLE, e.getMessage());
@@ -127,41 +142,52 @@ public class PackagesBase extends AdminResource {
         }
     }
 
-    protected void internalUpload(String type, String tenant, String namespace, String packageName, String version,
-                                  PackageMetadata metadata, InputStream uploadedInputStream,
-                                  AsyncResponse asyncResponse) {
+    protected void internalUpload(
+            String type,
+            String tenant,
+            String namespace,
+            String packageName,
+            String version,
+            PackageMetadata metadata,
+            InputStream uploadedInputStream,
+            AsyncResponse asyncResponse) {
         checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().upload(name, metadata, uploadedInputStream))
-            .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+                .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                .thenCompose(name -> getPackagesManagement().upload(name, metadata, uploadedInputStream))
+                .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected void internalDelete(String type, String tenant, String namespace, String packageName, String version,
-                                  AsyncResponse asyncResponse) {
+    protected void internalDelete(
+            String type,
+            String tenant,
+            String namespace,
+            String packageName,
+            String version,
+            AsyncResponse asyncResponse) {
         checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().delete(name))
-            .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+                .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                .thenCompose(name -> getPackagesManagement().delete(name))
+                .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
-    protected void internalListVersions(String type, String tenant, String namespace, String packageName,
-                                                     AsyncResponse asyncResponse) {
+    protected void internalListVersions(
+            String type, String tenant, String namespace, String packageName, AsyncResponse asyncResponse) {
         checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, ""))
-            .thenCompose(name -> getPackagesManagement().list(name))
-            .thenAccept(asyncResponse::resume)
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+                .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, ""))
+                .thenCompose(name -> getPackagesManagement().list(name))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
     }
 
     protected void internalListPackages(String type, String tenant, String namespace, AsyncResponse asyncResponse) {
         try {
             PackageType packageType = PackageType.getEnum(type);
             checkPermissions(tenant, namespace)
-                .thenCompose(ignore -> getPackagesManagement().list(packageType, tenant, namespace))
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+                    .thenCompose(ignore -> getPackagesManagement().list(packageType, tenant, namespace))
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(e -> handleError(e.getCause(), asyncResponse));
         } catch (IllegalArgumentException iae) {
             asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED, iae.getMessage()));
         }
@@ -178,20 +204,27 @@ public class PackagesBase extends AdminResource {
                 return future;
             }
             getAuthorizationService()
-                .allowNamespaceOperationAsync(namespaceName, NamespaceOperation.PACKAGES, originalPrincipal(),
-                    clientAppId(), clientAuthData())
-                .whenComplete((hasPermission, throwable) -> {
-                    if (throwable != null) {
-                        future.completeExceptionally(throwable);
-                        return;
-                    }
-                    if (hasPermission) {
-                        future.complete(null);
-                    } else {
-                        future.completeExceptionally(new RestException(Response.Status.UNAUTHORIZED, String.format(
-                            "Role %s has not the 'package' permission to do the packages operations.", clientAppId())));
-                    }
-                });
+                    .allowNamespaceOperationAsync(
+                            namespaceName,
+                            NamespaceOperation.PACKAGES,
+                            originalPrincipal(),
+                            clientAppId(),
+                            clientAuthData())
+                    .whenComplete((hasPermission, throwable) -> {
+                        if (throwable != null) {
+                            future.completeExceptionally(throwable);
+                            return;
+                        }
+                        if (hasPermission) {
+                            future.complete(null);
+                        } else {
+                            future.completeExceptionally(new RestException(
+                                    Response.Status.UNAUTHORIZED,
+                                    String.format(
+                                            "Role %s has not the 'package' permission to do the packages operations.",
+                                            clientAppId())));
+                        }
+                    });
         } else {
             future.complete(null);
         }

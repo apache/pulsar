@@ -49,20 +49,18 @@ public class JAASCredentialsContainer implements Closeable {
     private LoginContext loginContext;
     private Map<String, String> configuration;
 
-    public JAASCredentialsContainer(String loginContextName,
-                                    CallbackHandler callbackHandler,
-                                    Map<String, String> configuration)
-        throws LoginException {
+    public JAASCredentialsContainer(
+            String loginContextName, CallbackHandler callbackHandler, Map<String, String> configuration)
+            throws LoginException {
         this.configuration = configuration;
         this.callbackHandler = callbackHandler;
         this.loginContextName = loginContextName;
-        AppConfigurationEntry[] entries = Configuration.getConfiguration()
-            .getAppConfigurationEntry(loginContextName);
+        AppConfigurationEntry[] entries = Configuration.getConfiguration().getAppConfigurationEntry(loginContextName);
         if (entries == null) {
             final String errorMessage = "loginContext name (JAAS file section header) was null. "
-                + "Please check your java.security.login.auth.config (="
-                + System.getProperty("java.security.login.auth.config")
-                + ") for section header: " + this.loginContextName;
+                    + "Please check your java.security.login.auth.config (="
+                    + System.getProperty("java.security.login.auth.config")
+                    + ") for section header: " + this.loginContextName;
             log.error("No JAAS Configuration section header found for Client: {}", errorMessage);
             throw new LoginException(errorMessage);
         }
@@ -72,7 +70,8 @@ public class JAASCredentialsContainer implements Closeable {
 
         this.loginContext = loginContext;
         this.subject = loginContext.getSubject();
-        this.isKrbTicket = !this.subject.getPrivateCredentials(KerberosTicket.class).isEmpty();
+        this.isKrbTicket =
+                !this.subject.getPrivateCredentials(KerberosTicket.class).isEmpty();
         if (isKrbTicket) {
             this.isUsingTicketCache = SaslConstants.isUsingTicketCache(loginContextName);
             this.principal = SaslConstants.getPrincipal(loginContextName);

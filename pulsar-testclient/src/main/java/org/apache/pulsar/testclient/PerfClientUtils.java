@@ -39,7 +39,7 @@ import org.slf4j.Logger;
 @UtilityClass
 public class PerfClientUtils {
 
-    private static volatile  Consumer<Integer> exitProcedure = System::exit;
+    private static volatile Consumer<Integer> exitProcedure = System::exit;
 
     public static void setExitProcedure(Consumer<Integer> exitProcedure) {
         PerfClientUtils.exitProcedure = Objects.requireNonNull(exitProcedure);
@@ -56,9 +56,11 @@ public class PerfClientUtils {
      */
     public static void printJVMInformation(Logger log) {
         log.info("JVM args {}", ManagementFactory.getRuntimeMXBean().getInputArguments());
-        log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}",
+        log.info(
+                "Netty max memory (PlatformDependent.maxDirectMemory()) {}",
                 FileUtils.byteCountToDisplaySize(DirectMemoryUtils.jvmMaxDirectMemory()));
-        log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}",
+        log.info(
+                "JVM max heap memory (Runtime.getRuntime().maxMemory()) {}",
                 FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
     }
 
@@ -94,13 +96,12 @@ public class PerfClientUtils {
         return clientBuilder;
     }
 
-    public static PulsarAdminBuilder createAdminBuilderFromArguments(PerformanceBaseArguments arguments,
-                                                                     final String adminUrl)
+    public static PulsarAdminBuilder createAdminBuilderFromArguments(
+            PerformanceBaseArguments arguments, final String adminUrl)
             throws PulsarClientException.UnsupportedAuthenticationException {
 
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+        PulsarAdminBuilder pulsarAdminBuilder =
+                PulsarAdmin.builder().serviceHttpUrl(adminUrl).tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -116,5 +117,4 @@ public class PerfClientUtils {
 
         return pulsarAdminBuilder;
     }
-
 }

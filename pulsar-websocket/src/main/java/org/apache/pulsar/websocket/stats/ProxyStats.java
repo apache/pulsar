@@ -51,8 +51,7 @@ public class ProxyStats {
         this.jvmMetrics = JvmMetrics.create(
                 service.getExecutor(), "prx", service.getConfig().getJvmGCMetricsLoggerClassName());
         this.topicStats =
-                ConcurrentOpenHashMap.<String, ProxyNamespaceStats>newBuilder()
-                        .build();
+                ConcurrentOpenHashMap.<String, ProxyNamespaceStats>newBuilder().build();
         this.metricsCollection = new ArrayList<>();
         this.tempMetricsCollection = new ArrayList<>();
         // schedule stat generation task every 1 minute
@@ -167,5 +166,4 @@ public class ProxyStats {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyStats.class);
-
 }

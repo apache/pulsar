@@ -60,7 +60,9 @@ public class ResponseHandlerFilter implements Filter {
         if (!response.isCommitted()) {
             ((HttpServletResponse) response).addHeader(BROKER_ADDRESS_HEADER_NAME, brokerAddress);
         } else {
-            LOG.warn("Cannot add header {} to request {} since it's already committed.", BROKER_ADDRESS_HEADER_NAME,
+            LOG.warn(
+                    "Cannot add header {} to request {} since it's already committed.",
+                    BROKER_ADDRESS_HEADER_NAME,
                     request);
         }
         chain.doFilter(request, response);
@@ -122,5 +124,4 @@ public class ResponseHandlerFilter implements Filter {
     public void destroy() {
         // No state to clean up.
     }
-
 }

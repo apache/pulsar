@@ -31,37 +31,24 @@ import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 /**
  * The auto failover policy configuration data.
  */
-@ApiModel(
-        value = "AutoFailoverPolicyData",
-        description = "The auto failover policy configuration data"
-)
+@ApiModel(value = "AutoFailoverPolicyData", description = "The auto failover policy configuration data")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class AutoFailoverPolicyDataImpl implements AutoFailoverPolicyData {
-    @ApiModelProperty(
-            name = "policy_type",
-            value = "The auto failover policy type",
-            allowableValues = "min_available"
-    )
+    @ApiModelProperty(name = "policy_type", value = "The auto failover policy type", allowableValues = "min_available")
     @JsonProperty("policy_type")
     private AutoFailoverPolicyType policyType;
 
     @ApiModelProperty(
             name = "parameters",
-            value =
-                    "The parameters applied to the auto failover policy specified by `policy_type`.\n"
-                            + "The parameters for 'min_available' are :\n"
-                            + "  - 'min_limit': the limit of minimal number of available brokers in primary"
-                            + " group before auto failover\n"
-                            + "  - 'usage_threshold': the resource usage threshold. If the usage of a broker"
-                            + " is beyond this value, it would be marked as unavailable\n",
-            example =
-                    "{\n"
-                            + "  \"min_limit\": 3,\n"
-                            + "  \"usage_threshold\": 80\n"
-                            + "}\n"
-    )
+            value = "The parameters applied to the auto failover policy specified by `policy_type`.\n"
+                    + "The parameters for 'min_available' are :\n"
+                    + "  - 'min_limit': the limit of minimal number of available brokers in primary"
+                    + " group before auto failover\n"
+                    + "  - 'usage_threshold': the resource usage threshold. If the usage of a broker"
+                    + " is beyond this value, it would be marked as unavailable\n",
+            example = "{\n" + "  \"min_limit\": 3,\n" + "  \"usage_threshold\": 80\n" + "}\n")
     private Map<String, String> parameters;
 
     public static AutoFailoverPolicyDataImplBuilder builder() {

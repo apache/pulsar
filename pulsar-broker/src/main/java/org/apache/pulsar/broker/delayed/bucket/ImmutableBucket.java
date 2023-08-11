@@ -50,8 +50,13 @@ class ImmutableBucket extends Bucket {
     @Setter
     List<Long> firstScheduleTimestamps = new ArrayList<>();
 
-    ImmutableBucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
-                    BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
+    ImmutableBucket(
+            String dispatcherName,
+            ManagedCursor cursor,
+            FutureUtil.Sequencer<Void> sequencer,
+            BucketSnapshotStorage storage,
+            long startLedgerId,
+            long endLedgerId) {
         super(dispatcherName, cursor, sequencer, storage, startLedgerId, endLedgerId);
     }
 
@@ -67,25 +72,32 @@ class ImmutableBucket extends Bucket {
         return asyncLoadNextBucketSnapshotEntry(true, cutoffTimeSupplier);
     }
 
-    private CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry(boolean isRecover,
-                                                                                   Supplier<Long> cutoffTimeSupplier) {
+    private CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry(
+            boolean isRecover, Supplier<Long> cutoffTimeSupplier) {
         final long bucketId = getAndUpdateBucketId();
         final CompletableFuture<Integer> loadMetaDataFuture;
         if (isRecover) {
             final long cutoffTime = cutoffTimeSupplier.get();
             // Load Metadata of bucket snapshot
             final String bucketKey = bucketKey();
-            loadMetaDataFuture = executeWithRetry(() -> bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
-                    .whenComplete((___, ex) -> {
-                        if (ex != null) {
-                            log.warn("[{}] Failed to get bucket snapshot metadata,"
-                                            + " bucketKey: {}, bucketId: {}",
-                                    dispatcherName, bucketKey, bucketId, ex);
-                        }
-                    }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
+            loadMetaDataFuture = executeWithRetry(
+                            () -> bucketSnapshotStorage
+                                    .getBucketSnapshotMetadata(bucketId)
+                                    .whenComplete((___, ex) -> {
+                                        if (ex != null) {
+                                            log.warn(
+                                                    "[{}] Failed to get bucket snapshot metadata,"
+                                                            + " bucketKey: {}, bucketId: {}",
+                                                    dispatcherName,
+                                                    bucketKey,
+                                                    bucketId,
+                                                    ex);
+                                        }
+                                    }),
+                            BucketSnapshotPersistenceException.class,
+                            MaxRetryTimes)
                     .thenApply(snapshotMetadata -> {
-                        List<SnapshotSegmentMetadata> metadataList =
-                                snapshotMetadata.getMetadataListList();
+                        List<SnapshotSegmentMetadata> metadataList = snapshotMetadata.getMetadataListList();
 
                         // Skip all already reach schedule time snapshot segments
                         int nextSnapshotEntryIndex = 0;
@@ -96,8 +108,9 @@ class ImmutableBucket extends Bucket {
 
                         this.setLastSegmentEntryId(metadataList.size());
                         this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
-                        List<Long> firstScheduleTimestamps = metadataList.stream().map(
-                                SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
+                        List<Long> firstScheduleTimestamps = metadataList.stream()
+                                .map(SnapshotSegmentMetadata::getMinScheduleTimestamp)
+                                .toList();
                         this.setFirstScheduleTimestamps(firstScheduleTimestamps);
 
                         return nextSnapshotEntryIndex + 1;
@@ -112,21 +125,28 @@ class ImmutableBucket extends Bucket {
             }
 
             return executeWithRetry(
-                    () -> bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId,
-                            nextSegmentEntryId).whenComplete((___, ex) -> {
-                        if (ex != null) {
-                            log.warn("[{}] Failed to get bucket snapshot segment. bucketKey: {},"
-                                            + " bucketId: {}, segmentEntryId: {}", dispatcherName, bucketKey(),
-                                    bucketId, nextSegmentEntryId, ex);
-                        }
-                    }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                            () -> bucketSnapshotStorage
+                                    .getBucketSnapshotSegment(bucketId, nextSegmentEntryId, nextSegmentEntryId)
+                                    .whenComplete((___, ex) -> {
+                                        if (ex != null) {
+                                            log.warn(
+                                                    "[{}] Failed to get bucket snapshot segment. bucketKey: {},"
+                                                            + " bucketId: {}, segmentEntryId: {}",
+                                                    dispatcherName,
+                                                    bucketKey(),
+                                                    bucketId,
+                                                    nextSegmentEntryId,
+                                                    ex);
+                                        }
+                                    }),
+                            BucketSnapshotPersistenceException.class,
+                            MaxRetryTimes)
                     .thenApply(bucketSnapshotSegments -> {
                         if (CollectionUtils.isEmpty(bucketSnapshotSegments)) {
                             return Collections.emptyList();
                         }
 
-                        SnapshotSegment snapshotSegment =
-                                bucketSnapshotSegments.get(0);
+                        SnapshotSegment snapshotSegment = bucketSnapshotSegments.get(0);
                         List<DelayedIndex> indexList = snapshotSegment.getIndexesList();
                         this.setCurrentSegmentEntryId(nextSegmentEntryId);
                         if (isRecover) {
@@ -141,12 +161,13 @@ class ImmutableBucket extends Bucket {
      * Recover delayed index bit map and message numbers.
      * @throws InvalidRoaringFormat invalid bitmap serialization format
      */
-    private void recoverDelayedIndexBitMapAndNumber(int startSnapshotIndex,
-                                                    List<SnapshotSegmentMetadata> segmentMetaList) {
+    private void recoverDelayedIndexBitMapAndNumber(
+            int startSnapshotIndex, List<SnapshotSegmentMetadata> segmentMetaList) {
         delayedIndexBitMap.clear(); // cleanup dirty bm
         final var numberMessages = new MutableLong(0);
         for (int i = startSnapshotIndex; i < segmentMetaList.size(); i++) {
-            for (final var entry : segmentMetaList.get(i).getDelayedIndexBitMapMap().entrySet()) {
+            for (final var entry :
+                    segmentMetaList.get(i).getDelayedIndexBitMapMap().entrySet()) {
                 final var ledgerId = entry.getKey();
                 final var bs = entry.getValue();
                 final var sbm = new RoaringBitmap();
@@ -175,17 +196,25 @@ class ImmutableBucket extends Bucket {
         if (nextSegmentEntryId > lastSegmentEntryId) {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
-        return executeWithRetry(() -> {
-            return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId,
-                    lastSegmentEntryId).whenComplete((__, ex) -> {
-                if (ex != null) {
-                    log.warn(
-                            "[{}] Failed to get remain bucket snapshot segment, bucketKey: {},"
-                                    + " nextSegmentEntryId: {}, lastSegmentEntryId: {}",
-                            dispatcherName, bucketKey(), nextSegmentEntryId, lastSegmentEntryId, ex);
-                }
-            });
-        }, BucketSnapshotPersistenceException.class, MaxRetryTimes);
+        return executeWithRetry(
+                () -> {
+                    return bucketSnapshotStorage
+                            .getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId, lastSegmentEntryId)
+                            .whenComplete((__, ex) -> {
+                                if (ex != null) {
+                                    log.warn(
+                                            "[{}] Failed to get remain bucket snapshot segment, bucketKey: {},"
+                                                    + " nextSegmentEntryId: {}, lastSegmentEntryId: {}",
+                                            dispatcherName,
+                                            bucketKey(),
+                                            nextSegmentEntryId,
+                                            lastSegmentEntryId,
+                                            ex);
+                                }
+                            });
+                },
+                BucketSnapshotPersistenceException.class,
+                MaxRetryTimes);
     }
 
     CompletableFuture<Void> asyncDeleteBucketSnapshot(BucketDelayedMessageIndexStats stats) {
@@ -193,27 +222,40 @@ class ImmutableBucket extends Bucket {
         stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
         String bucketKey = bucketKey();
         long bucketId = getAndUpdateBucketId();
-        return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
-                executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
-                        BucketSnapshotPersistenceException.class, MaxRetryTimes)).whenComplete((__, ex) -> {
+        return removeBucketCursorProperty(bucketKey)
+                .thenCompose(__ -> executeWithRetry(
+                        () -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
+                        BucketSnapshotPersistenceException.class,
+                        MaxRetryTimes))
+                .whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
-                                dispatcherName, bucketId, bucketKey, ex);
+                        log.error(
+                                "[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                dispatcherName,
+                                bucketId,
+                                bucketKey,
+                                ex);
 
                         stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
                     } else {
-                        log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
-                                dispatcherName, bucketId, bucketKey);
+                        log.info(
+                                "[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
+                                dispatcherName,
+                                bucketId,
+                                bucketKey);
 
-                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                        stats.recordSuccessEvent(
+                                BucketDelayedMessageIndexStats.Type.delete,
                                 System.currentTimeMillis() - deleteStartTime);
                     }
-        });
+                });
     }
 
     CompletableFuture<Void> clear(BucketDelayedMessageIndexStats stats) {
         delayedIndexBitMap.clear();
-        return getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).exceptionally(e -> null)
+        return getSnapshotCreateFuture()
+                .orElse(NULL_LONG_PROMISE)
+                .exceptionally(e -> null)
                 .thenCompose(__ -> asyncDeleteBucketSnapshot(stats));
     }
 
@@ -221,8 +263,12 @@ class ImmutableBucket extends Bucket {
         long bucketId = getAndUpdateBucketId();
         return bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
             if (ex != null) {
-                log.error("[{}] Failed to get snapshot length, bucketId: {}, bucketKey: {}",
-                        dispatcherName, bucketId, bucketKey(), ex);
+                log.error(
+                        "[{}] Failed to get snapshot length, bucketId: {}, bucketKey: {}",
+                        dispatcherName,
+                        bucketId,
+                        bucketKey(),
+                        ex);
             } else {
                 setSnapshotLength(length);
             }

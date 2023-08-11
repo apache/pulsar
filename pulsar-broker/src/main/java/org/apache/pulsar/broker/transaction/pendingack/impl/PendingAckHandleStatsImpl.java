@@ -52,11 +52,13 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
         }
 
         labelSucceed = exposeTopicLevelMetrics0
-                ? new String[]{namespace, topic, subscription, "succeed"} : new String[]{namespace, "succeed"};
+                ? new String[] {namespace, topic, subscription, "succeed"}
+                : new String[] {namespace, "succeed"};
         labelFailed = exposeTopicLevelMetrics0
-                ? new String[]{namespace, topic, subscription, "failed"} : new String[]{namespace, "failed"};
-        commitLatencyLabel = exposeTopicLevelMetrics0
-                ? new String[]{namespace, topic, subscription} : new String[]{namespace};
+                ? new String[] {namespace, topic, subscription, "failed"}
+                : new String[] {namespace, "failed"};
+        commitLatencyLabel =
+                exposeTopicLevelMetrics0 ? new String[] {namespace, topic, subscription} : new String[] {namespace};
     }
 
     @Override
@@ -91,16 +93,14 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
             exposeTopicLevelMetrics0 = exposeTopicLevelMetrics;
 
             String[] labelNames = exposeTopicLevelMetrics
-                    ? new String[]{"namespace", "topic", "subscription", "status"}
-                    : new String[]{"namespace", "status"};
+                    ? new String[] {"namespace", "topic", "subscription", "status"}
+                    : new String[] {"namespace", "status"};
 
-            commitTxnCounter = Counter
-                    .build("pulsar_txn_tp_committed_count", "-")
+            commitTxnCounter = Counter.build("pulsar_txn_tp_committed_count", "-")
                     .labelNames(labelNames)
                     .register();
 
-            abortTxnCounter = Counter
-                    .build("pulsar_txn_tp_aborted_count", "-")
+            abortTxnCounter = Counter.build("pulsar_txn_tp_aborted_count", "-")
                     .labelNames(labelNames)
                     .register();
 
@@ -109,8 +109,10 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
                     .quantile(0.9, 0.01)
                     .quantile(0.99, 0.01)
                     .quantile(0.999, 0.01)
-                    .labelNames(exposeTopicLevelMetrics
-                            ? new String[]{"namespace", "topic", "subscription"} : new String[]{"namespace"})
+                    .labelNames(
+                            exposeTopicLevelMetrics
+                                    ? new String[] {"namespace", "topic", "subscription"}
+                                    : new String[] {"namespace"})
                     .register();
         }
     }

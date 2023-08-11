@@ -71,8 +71,7 @@ public class PulsarFunctionTlsTest {
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
     private final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    private final String CA_CERT_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    private final String CA_CERT_FILE_PATH = ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
@@ -84,7 +83,8 @@ public class PulsarFunctionTlsTest {
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
-    private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
+    private PulsarFunctionTestTemporaryDirectory[] tempDirectories =
+            new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
     @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
@@ -124,20 +124,21 @@ public class PulsarFunctionTlsTest {
             config.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
             config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
             config.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
+                    "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
             config.setFunctionsWorkerEnabled(true);
             config.setTlsEnabled(true);
 
             WorkerConfig workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, null);
-            tempDirectories[i] = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+            tempDirectories[i] =
+                    PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
             tempDirectories[i].useTemporaryDirectoriesForWorkerConfig(workerConfig);
             workerConfig.setPulsarFunctionsNamespace("public/functions");
             workerConfig.setSchedulerClassName(
-                org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
+                    org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-            workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                    new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+            workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                    .getObjectMapper()
+                    .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
             workerConfig.setFailureCheckFreqMs(100);
             workerConfig.setNumFunctionPackageReplicas(1);
             workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -153,8 +154,7 @@ public class PulsarFunctionTlsTest {
 
             configurations[i] = config;
 
-            pulsarServices[i] = new PulsarService(
-                config, workerConfig, Optional.of(fnWorkerServices[i]), code -> {});
+            pulsarServices[i] = new PulsarService(config, workerConfig, Optional.of(fnWorkerServices[i]), code -> {});
             pulsarServices[i].start();
 
             // Sleep until pulsarServices[0] becomes leader, this way we can spy namespace bundle assignment easily.
@@ -169,10 +169,10 @@ public class PulsarFunctionTlsTest {
             authTls.configure(authParams);
 
             pulsarAdmins[i] = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsarServices[i].getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-                .authentication(authTls)
-                .build();
+                    .serviceHttpUrl(pulsarServices[i].getWebServiceAddressTls())
+                    .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                    .authentication(authTls)
+                    .build();
         }
         leaderPulsar = pulsarServices[0];
         leaderAdmin = pulsarAdmins[0];
@@ -206,10 +206,11 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
                     pulsarServices[i].close();
-                    pulsarServices[i].getConfiguration().
-                            getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
-                    pulsarServices[i].getConfiguration()
-                            .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i]
+                            .getConfiguration()
+                            .getBrokerServicePort()
+                            .ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i].getConfiguration().getWebServicePort().ifPresent(PortManager::releaseLockedPort);
                 }
             }
             bkEnsemble.stop();
@@ -232,25 +233,29 @@ public class PulsarFunctionTlsTest {
     @Test
     public void testFunctionsCreation() throws Exception {
 
-        String jarFilePathUrl = String.format("%s:%s", org.apache.pulsar.common.functions.Utils.FILE,
-                PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+        String jarFilePathUrl = String.format(
+                "%s:%s",
+                org.apache.pulsar.common.functions.Utils.FILE,
+                PulsarSink.class
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .getPath());
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             String functionName = "function-" + i;
-            FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, testTenant, "my-ns",
-                functionName, "my.*", "sink-topic-" + i, "sub-" + i);
+            FunctionConfig functionConfig = createFunctionConfig(
+                    jarFilePathUrl, testTenant, "my-ns", functionName, "my.*", "sink-topic-" + i, "sub-" + i);
 
             log.info(" -------- Start test function : {}", functionName);
 
-            pulsarAdmins[i].functions().createFunctionWithUrl(
-                functionConfig, jarFilePathUrl
-            );
+            pulsarAdmins[i].functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
             // Function creation is not strongly consistent, so this test can fail with a get that is too eager and
             // does not have retries.
             final PulsarAdmin admin = pulsarAdmins[i];
-            Awaitility.await().ignoreExceptions()
-                    .untilAsserted(() -> admin.functions().getFunction(testTenant, "my-ns", functionName));
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> admin.functions()
+                    .getFunction(testTenant, "my-ns", functionName));
 
             FunctionConfig config = pulsarAdmins[i].functions().getFunction(testTenant, "my-ns", functionName);
             assertEquals(config.getTenant(), testTenant);
@@ -262,14 +267,14 @@ public class PulsarFunctionTlsTest {
     }
 
     protected static FunctionConfig createFunctionConfig(
-        String jarFile,
-        String tenant,
-        String namespace,
-        String functionName,
-        String sourceTopic,
-        String sinkTopic,
-        String subscriptionName
-    ) throws JsonProcessingException {
+            String jarFile,
+            String tenant,
+            String namespace,
+            String functionName,
+            String sourceTopic,
+            String sinkTopic,
+            String subscriptionName)
+            throws JsonProcessingException {
         File file = new File(jarFile);
         try {
             ClassLoader classLoader = ClassLoaderUtils.loadJar(file);
@@ -294,10 +299,10 @@ public class PulsarFunctionTlsTest {
         functionConfig.setAutoAck(true);
         functionConfig.setOutput(sinkTopic);
 
-        log.info("Function Config: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
-            .writeValueAsString(functionConfig));
+        log.info(
+                "Function Config: {}",
+                new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(functionConfig));
 
         return functionConfig;
     }
-
 }

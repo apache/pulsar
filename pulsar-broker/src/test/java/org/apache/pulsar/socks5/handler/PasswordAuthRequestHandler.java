@@ -46,5 +46,4 @@ public class PasswordAuthRequestHandler extends SimpleChannelInboundHandler<Defa
                     .addListener(ChannelFutureListener.CLOSE);
         }
     }
-
 }

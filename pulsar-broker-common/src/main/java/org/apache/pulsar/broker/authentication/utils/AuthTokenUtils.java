@@ -63,7 +63,6 @@ public class AuthTokenUtils {
         }
     }
 
-
     public static PublicKey decodePublicKey(byte[] key, SignatureAlgorithm algType) throws IOException {
         try {
             X509EncodedKeySpec spec = new X509EncodedKeySpec(key);
@@ -90,9 +89,7 @@ public class AuthTokenUtils {
     }
 
     public static String createToken(Key signingKey, String subject, Optional<Date> expiryTime) {
-        JwtBuilder builder = Jwts.builder()
-                .setSubject(subject)
-                .signWith(signingKey);
+        JwtBuilder builder = Jwts.builder().setSubject(subject).signWith(signingKey);
 
         expiryTime.ifPresent(builder::setExpiration);
 

@@ -24,7 +24,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,8 +74,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -84,8 +83,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         assertEquals(proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
         proxyService.start();
 
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         proxyWebServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null);
@@ -117,12 +116,20 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     public void testConnectionsStats() throws Exception {
         final String topicName1 = "persistent://sample/test/local/connections-stats";
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName1).enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic(topicName1)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName1).subscriptionName("my-sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName1)
+                .subscriptionName("my-sub")
+                .subscribe();
 
         int totalMessages = 10;
         for (int i = 0; i < totalMessages; i++) {
@@ -135,14 +142,16 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(msg);
         }
 
-        @Cleanup
-        Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/connections").request()
+        @Cleanup Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Response r = httpClient
+                .target(proxyWebServer.getServiceUri())
+                .path("/proxy-stats/connections")
+                .request()
                 .get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         String response = r.readEntity(String.class).trim();
-        List<ConnectionStats> connectionStats = new Gson().fromJson(response, new TypeToken<List<ConnectionStats>>() {
-        }.getType());
+        List<ConnectionStats> connectionStats =
+                new Gson().fromJson(response, new TypeToken<List<ConnectionStats>>() {}.getType());
 
         assertNotNull(connectionStats);
 
@@ -161,16 +170,32 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         final String topicName2 = "persistent://sample/test/local/topic-stats-2";
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
-        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic(topicName).enableBatching(false)
-                .producerName("producer1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
+        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES)
+                .topic(topicName)
+                .enableBatching(false)
+                .producerName("producer1")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
-        Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic(topicName2).enableBatching(false)
-                .producerName("producer2").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
+                .topic(topicName2)
+                .enableBatching(false)
+                .producerName("producer2")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName2).subscriptionName("my-sub")
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
+                .topic(topicName2)
+                .subscriptionName("my-sub")
                 .subscribe();
 
         int totalMessages = 10;
@@ -186,14 +211,16 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
             msg = consumer2.receive(1, TimeUnit.SECONDS);
         }
 
-        @Cleanup
-        Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/topics").request()
+        @Cleanup Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Response r = httpClient
+                .target(proxyWebServer.getServiceUri())
+                .path("/proxy-stats/topics")
+                .request()
                 .get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         String response = r.readEntity(String.class).trim();
-        Map<String, TopicStats> topicStats = new Gson().fromJson(response, new TypeToken<Map<String, TopicStats>>() {
-        }.getType());
+        Map<String, TopicStats> topicStats =
+                new Gson().fromJson(response, new TypeToken<Map<String, TopicStats>>() {}.getType());
 
         assertNotNull(topicStats.get(topicName));
 
@@ -210,12 +237,13 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     public void testChangeLogLevel() {
         Assert.assertEquals(proxyService.getProxyLogLevel(), 2);
         int newLogLevel = 1;
-        @Cleanup
-        Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/logging/" + newLogLevel)
-                .request().post(Entity.entity("", MediaType.APPLICATION_JSON));
+        @Cleanup Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Response r = httpClient
+                .target(proxyWebServer.getServiceUri())
+                .path("/proxy-stats/logging/" + newLogLevel)
+                .request()
+                .post(Entity.entity("", MediaType.APPLICATION_JSON));
         Assert.assertEquals(r.getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         Assert.assertEquals(proxyService.getProxyLogLevel(), newLogLevel);
     }
-
 }

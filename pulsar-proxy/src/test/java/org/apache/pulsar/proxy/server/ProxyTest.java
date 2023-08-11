@@ -80,8 +80,10 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     public static class Foo {
         @Nullable
         private String field1;
+
         @Nullable
         private String field2;
+
         private int field3;
     }
 
@@ -95,8 +97,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -114,13 +116,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducer() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
-            .topic("persistent://sample/test/local/producer-topic")
-            .create();
+                .topic("persistent://sample/test/local/producer-topic")
+                .create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -130,20 +132,23 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducerConsumer() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-            .topic("persistent://sample/test/local/producer-consumer-topic")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic("persistent://sample/test/local/producer-consumer-topic")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // Create a consumer directly attached to broker
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://sample/test/local/producer-consumer-topic").subscriptionName("my-sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://sample/test/local/producer-consumer-topic")
+                .subscriptionName("my-sub")
+                .subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -164,20 +169,24 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-            .topic("persistent://sample/test/local/partitioned-topic")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+                .topic("persistent://sample/test/local/partitioned-topic")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
 
         // Create a consumer directly attached to broker
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
-                .subscriptionName("my-sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://sample/test/local/partitioned-topic")
+                .subscriptionName("my-sub")
+                .subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -193,15 +202,16 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
      * test auto create partitioned topic by proxy
      **/
     @Test
-    public void testAutoCreateTopic() throws Exception{
+    public void testAutoCreateTopic() throws Exception {
         int defaultPartition = 2;
         int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(defaultPartition);
         try {
             @Cleanup
-            PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-              .build();
+            PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(proxyService.getServiceUrl())
+                    .build();
             String topic = "persistent://sample/test/local/partitioned-proxy-topic";
             CompletableFuture<List<String>> partitionNamesFuture = client.getPartitionsForTopic(topic);
             List<String> partitionNames = partitionNamesFuture.get(30000, TimeUnit.MILLISECONDS);
@@ -215,20 +225,21 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRegexSubscription() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-            .connectionsPerBroker(5).ioThreads(5).build();
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(proxyService.getServiceUrl())
+                .connectionsPerBroker(5)
+                .ioThreads(5)
+                .build();
 
         // create two topics by subscribing to a topic and closing it
         try (Consumer<byte[]> ignored = client.newConsumer()
-            .topic("persistent://sample/test/local/regex-sub-topic1")
-            .subscriptionName("proxy-ignored")
-            .subscribe()) {
-        }
+                .topic("persistent://sample/test/local/regex-sub-topic1")
+                .subscriptionName("proxy-ignored")
+                .subscribe()) {}
         try (Consumer<byte[]> ignored = client.newConsumer()
-            .topic("persistent://sample/test/local/regex-sub-topic2")
-            .subscriptionName("proxy-ignored")
-            .subscribe()) {
-        }
+                .topic("persistent://sample/test/local/regex-sub-topic2")
+                .subscriptionName("proxy-ignored")
+                .subscribe()) {}
 
         String subName = "regex-sub-proxy-test-" + System.currentTimeMillis();
 
@@ -236,17 +247,17 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         String regexSubscriptionPattern = "persistent://sample/test/local/regex-sub-topic.*";
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
-            .topicsPattern(regexSubscriptionPattern)
-            .subscriptionName(subName)
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .subscribe()) {
+                .topicsPattern(regexSubscriptionPattern)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe()) {
             log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
 
             final int numMessages = 20;
 
             try (Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/regex-sub-topic1")
-                .create()) {
+                    .topic("persistent://sample/test/local/regex-sub-topic1")
+                    .create()) {
                 for (int i = 0; i < numMessages; i++) {
                     producer.send(("message-" + i).getBytes(UTF_8));
                 }
@@ -262,7 +273,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 60_000)
     public void testRegexSubscriptionWithTopicDiscovery() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         String subName = "regex-proxy-test-" + System.currentTimeMillis();
         String regexSubscriptionPattern = "persistent://sample/test/local/.*";
         try (Consumer<byte[]> consumer = client.newConsumer()
@@ -274,9 +286,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             final int topics = 10;
             final String topicPrefix = "persistent://sample/test/local/regex-topic-";
             for (int i = 0; i < topics; i++) {
-                Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                        .topic(topicPrefix + i)
-                        .create();
+                Producer<byte[]> producer =
+                        client.newProducer(Schema.BYTES).topic(topicPrefix + i).create();
                 producer.send(("" + i).getBytes(UTF_8));
                 producer.close();
             }
@@ -290,25 +301,29 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetSchema() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Schema<Foo> schema = Schema.AVRO(Foo.class);
         try {
-            try (Producer<Foo> ignored = client.newProducer(schema).topic("persistent://sample/test/local/get-schema")
-                .create()) {
-            }
+            try (Producer<Foo> ignored = client.newProducer(schema)
+                    .topic("persistent://sample/test/local/get-schema")
+                    .create()) {}
         } catch (Exception ex) {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
         }
         byte[] schemaVersion = new byte[8];
         byte b = Long.valueOf(0L).byteValue();
-        for (int i = 0; i < 8; i++){
+        for (int i = 0; i < 8; i++) {
             schemaVersion[i] = b;
         }
-        SchemaInfo schemaInfo = ((PulsarClientImpl) client).getLookup()
+        SchemaInfo schemaInfo = ((PulsarClientImpl) client)
+                .getLookup()
                 .getSchema(TopicName.get("persistent://sample/test/local/get-schema"), schemaVersion)
-                .get().orElse(null);
-        Assert.assertEquals(new String(schemaInfo.getSchema()), new String(schema.getSchemaInfo().getSchema()));
+                .get()
+                .orElse(null);
+        Assert.assertEquals(
+                new String(schemaInfo.getSchema()),
+                new String(schema.getSchemaInfo().getSchema()));
     }
 
     @Test
@@ -319,15 +334,16 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl(proxyService.getServiceUrl());
 
-        @Cleanup
-        PulsarClient client = getClientActiveConsumerChangeNotSupported(conf);
+        @Cleanup PulsarClient client = getClientActiveConsumerChangeNotSupported(conf);
+
+        @Cleanup Producer<byte[]> producer = client.newProducer().topic(topic).create();
 
         @Cleanup
-        Producer<byte[]> producer = client.newProducer().topic(topic).create();
-
-        @Cleanup
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(sub)
-                .subscriptionType(SubscriptionType.Failover).subscribe();
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(sub)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test-msg".getBytes());
@@ -343,28 +359,33 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetClientVersion() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
 
         String topic = "persistent://sample/test/local/testGetClientVersion";
         String subName = "test-sub";
 
         @Cleanup
-        Consumer<byte[]> consumer = client.newConsumer()
-                .topic(topic)
-                .subscriptionName(subName)
-                .subscribe();
+        Consumer<byte[]> consumer =
+                client.newConsumer().topic(topic).subscriptionName(subName).subscribe();
 
         consumer.receiveAsync();
 
-
-        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers()
-                .get(0).getClientVersion(), String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        Assert.assertEquals(
+                admin.topics()
+                        .getStats(topic)
+                        .getSubscriptions()
+                        .get(subName)
+                        .getConsumers()
+                        .get(0)
+                        .getClientVersion(),
+                String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
     }
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {
-        ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());
+        ThreadFactory threadFactory = new DefaultThreadFactory(
+                "pulsar-client-io", Thread.currentThread().isDaemon());
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
         ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
@@ -378,5 +399,4 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         return new PulsarClientImpl(conf, eventLoopGroup, cnxPool);
     }
-
 }

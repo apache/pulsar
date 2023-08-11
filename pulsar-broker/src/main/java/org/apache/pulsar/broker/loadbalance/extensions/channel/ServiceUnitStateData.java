@@ -27,10 +27,14 @@ import org.apache.commons.lang3.StringUtils;
  * Defines data for the service unit state changes.
  * This data will be broadcast in ServiceUnitStateChannel.
  */
-
 public record ServiceUnitStateData(
-        ServiceUnitState state, String dstBroker, String sourceBroker,
-        Map<String, Optional<String>> splitServiceUnitToDestBroker, boolean force, long timestamp, long versionId) {
+        ServiceUnitState state,
+        String dstBroker,
+        String sourceBroker,
+        Map<String, Optional<String>> splitServiceUnitToDestBroker,
+        boolean force,
+        long timestamp,
+        long versionId) {
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
@@ -39,30 +43,47 @@ public record ServiceUnitStateData(
         }
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker,
-                                Map<String, Optional<String>> splitServiceUnitToDestBroker, long versionId) {
-        this(state, dstBroker, sourceBroker, splitServiceUnitToDestBroker, false,
-                System.currentTimeMillis(), versionId);
+    public ServiceUnitStateData(
+            ServiceUnitState state,
+            String dstBroker,
+            String sourceBroker,
+            Map<String, Optional<String>> splitServiceUnitToDestBroker,
+            long versionId) {
+        this(
+                state,
+                dstBroker,
+                sourceBroker,
+                splitServiceUnitToDestBroker,
+                false,
+                System.currentTimeMillis(),
+                versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker,
-                                Map<String, Optional<String>> splitServiceUnitToDestBroker, boolean force,
-                                long versionId) {
-        this(state, dstBroker, sourceBroker, splitServiceUnitToDestBroker, force,
-                System.currentTimeMillis(), versionId);
+    public ServiceUnitStateData(
+            ServiceUnitState state,
+            String dstBroker,
+            String sourceBroker,
+            Map<String, Optional<String>> splitServiceUnitToDestBroker,
+            boolean force,
+            long versionId) {
+        this(
+                state,
+                dstBroker,
+                sourceBroker,
+                splitServiceUnitToDestBroker,
+                force,
+                System.currentTimeMillis(),
+                versionId);
     }
 
     public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker, long versionId) {
         this(state, dstBroker, sourceBroker, null, false, System.currentTimeMillis(), versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker, boolean force,
-                                long versionId) {
-        this(state, dstBroker, sourceBroker, null, force,
-                System.currentTimeMillis(), versionId);
+    public ServiceUnitStateData(
+            ServiceUnitState state, String dstBroker, String sourceBroker, boolean force, long versionId) {
+        this(state, dstBroker, sourceBroker, null, force, System.currentTimeMillis(), versionId);
     }
-
-
 
     public ServiceUnitStateData(ServiceUnitState state, String dstBroker, long versionId) {
         this(state, dstBroker, null, null, false, System.currentTimeMillis(), versionId);

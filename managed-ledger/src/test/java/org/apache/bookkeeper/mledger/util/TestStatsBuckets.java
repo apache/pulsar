@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import org.testng.annotations.Test;
 
 public class TestStatsBuckets {
@@ -52,7 +51,7 @@ public class TestStatsBuckets {
         assertEquals(stats.getAvg(), Double.NaN);
         assertEquals(stats.getSum(), 0);
         assertEquals(stats.getCount(), 0);
-        assertEquals(stats.getBuckets(), new long[] { 0, 0, 0, 0 });
+        assertEquals(stats.getBuckets(), new long[] {0, 0, 0, 0});
 
         stats.addValue(5);
 
@@ -60,14 +59,14 @@ public class TestStatsBuckets {
         assertEquals(stats.getAvg(), Double.NaN);
         assertEquals(stats.getSum(), 0);
         assertEquals(stats.getCount(), 0);
-        assertEquals(stats.getBuckets(), new long[] { 0, 0, 0, 0 });
+        assertEquals(stats.getBuckets(), new long[] {0, 0, 0, 0});
 
         stats.refresh();
 
         assertEquals(stats.getAvg(), 5.0);
         assertEquals(stats.getSum(), 5);
         assertEquals(stats.getCount(), 1);
-        assertEquals(stats.getBuckets(), new long[] { 1, 0, 0, 0 });
+        assertEquals(stats.getBuckets(), new long[] {1, 0, 0, 0});
 
         stats.addValue(15);
 
@@ -75,14 +74,14 @@ public class TestStatsBuckets {
         assertEquals(stats.getAvg(), 5.0);
         assertEquals(stats.getSum(), 5);
         assertEquals(stats.getCount(), 1);
-        assertEquals(stats.getBuckets(), new long[] { 1, 0, 0, 0 });
+        assertEquals(stats.getBuckets(), new long[] {1, 0, 0, 0});
 
         stats.refresh();
 
         assertEquals(stats.getAvg(), 15.0);
         assertEquals(stats.getSum(), 15);
         assertEquals(stats.getCount(), 1);
-        assertEquals(stats.getBuckets(), new long[] { 0, 1, 0, 0 });
+        assertEquals(stats.getBuckets(), new long[] {0, 1, 0, 0});
 
         stats.addValue(50);
 
@@ -97,7 +96,7 @@ public class TestStatsBuckets {
         assertEquals(stats.getAvg(), 30.0);
         assertEquals(stats.getSum(), 90);
         assertEquals(stats.getCount(), 3);
-        assertEquals(stats.getBuckets(), new long[] { 1, 0, 1, 1 });
+        assertEquals(stats.getBuckets(), new long[] {1, 0, 1, 1});
     }
 
     @Test
@@ -109,7 +108,7 @@ public class TestStatsBuckets {
         StatsBuckets stats2 = new StatsBuckets(10, 20, 30);
         stats2.addAll(stats);
         stats2.refresh();
-        assertEquals(stats2.getSum(),3);
-        assertEquals(stats2.getCount(),2);
+        assertEquals(stats2.getSum(), 3);
+        assertEquals(stats2.getCount(), 2);
     }
 }

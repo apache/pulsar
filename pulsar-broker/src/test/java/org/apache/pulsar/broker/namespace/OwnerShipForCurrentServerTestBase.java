@@ -43,6 +43,7 @@ public abstract class OwnerShipForCurrentServerTestBase {
 
     @Getter
     private final List<ServiceConfiguration> serviceConfigurationList = new ArrayList<>();
+
     @Getter
     private final List<PulsarService> pulsarServiceList = new ArrayList<>();
 
@@ -54,9 +55,13 @@ public abstract class OwnerShipForCurrentServerTestBase {
     public void internalSetup() throws Exception {
         init();
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()).build());
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress())
+                .build());
 
-        pulsarClient = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl()).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .build();
     }
 
     private void init() throws Exception {
@@ -87,15 +92,13 @@ public abstract class OwnerShipForCurrentServerTestBase {
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =
-                    PulsarTestContext.builder()
-                            .config(conf);
+                    PulsarTestContext.builder().config(conf);
             if (i > 0) {
                 testContextBuilder.reuseMockBookkeeperAndMetadataStores(pulsarTestContexts.get(0));
             } else {
                 testContextBuilder.withMockZookeeper();
             }
-            PulsarTestContext pulsarTestContext = testContextBuilder
-                    .build();
+            PulsarTestContext pulsarTestContext = testContextBuilder.build();
             PulsarService pulsar = pulsarTestContext.getPulsarService();
             pulsarServiceList.add(pulsar);
             pulsarTestContexts.add(pulsarTestContext);
@@ -115,7 +118,7 @@ public abstract class OwnerShipForCurrentServerTestBase {
                 pulsarClient = null;
             }
             if (pulsarTestContexts.size() > 0) {
-                for(int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
+                for (int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
                     pulsarTestContexts.get(i).close();
                 }
                 pulsarTestContexts.clear();

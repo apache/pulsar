@@ -41,10 +41,12 @@ public class ShadedJCloudsUtils {
      * open a GH and share your problem.
      * Apache Http Client module should work well in all the environments.
      */
-    private static final boolean ENABLE_APACHE_HC_MODULE = Boolean
-            .parseBoolean(System.getProperty("pulsar.jclouds.use_apache_hc", "false"));
-    private static final boolean ENABLE_OKHTTP_MODULE = Boolean
-            .parseBoolean(System.getProperty("pulsar.jclouds.use_okhttp", "false"));
+    private static final boolean ENABLE_APACHE_HC_MODULE =
+            Boolean.parseBoolean(System.getProperty("pulsar.jclouds.use_apache_hc", "false"));
+
+    private static final boolean ENABLE_OKHTTP_MODULE =
+            Boolean.parseBoolean(System.getProperty("pulsar.jclouds.use_okhttp", "false"));
+
     static {
         log.info("Considering -Dpulsar.jclouds.use_apache_hc=" + ENABLE_APACHE_HC_MODULE);
         log.info("Considering -Dpulsar.jclouds.use_okhttp=" + ENABLE_OKHTTP_MODULE);
@@ -64,5 +66,4 @@ public class ShadedJCloudsUtils {
         }
         builder.modules(modules);
     }
-
 }

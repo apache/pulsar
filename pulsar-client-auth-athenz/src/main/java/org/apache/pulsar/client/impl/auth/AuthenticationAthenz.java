@@ -86,8 +86,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
 
     private final ReadWriteLock cachedRoleTokenLock = new ReentrantReadWriteLock();
 
-    public AuthenticationAthenz() {
-    }
+    public AuthenticationAthenz() {}
 
     @Override
     public String getAuthMethodName() {
@@ -100,8 +99,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         readLock.lock();
         try {
             if (cachedRoleTokenIsValid()) {
-                return new AuthenticationDataAthenz(roleToken,
-                        isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
+                return new AuthenticationDataAthenz(
+                        roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
             }
         } finally {
             readLock.unlock();
@@ -196,8 +195,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     }
 
     @Override
-    public void start() throws PulsarClientException {
-    }
+    public void start() throws PulsarClientException {}
 
     @Override
     public void close() throws IOException {
@@ -217,12 +215,12 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                     keyRefresher = Utils.generateKeyRefresherFromCaCert(caCertPath, x509CertChainPath, privateKeyPath);
                     keyRefresher.startup(retryFrequencyInMillis);
                 }
-                final SSLContext sslContext = Utils.buildSSLContext(keyRefresher.getKeyManagerProxy(),
-                        keyRefresher.getTrustManagerProxy());
+                final SSLContext sslContext =
+                        Utils.buildSSLContext(keyRefresher.getKeyManagerProxy(), keyRefresher.getTrustManagerProxy());
                 ztsClient = new ZTSClient(ztsUrl, sslContext);
             } else {
-                ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
-                        privateKey, keyId);
+                ServiceIdentityProvider siaProvider =
+                        new SimpleServiceIdentityProvider(tenantDomain, tenantService, privateKey, keyId);
                 ztsClient = new ZTSClient(ztsUrl, tenantDomain, tenantService, siaProvider);
             }
             ztsClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
@@ -258,8 +256,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                 throw new IllegalArgumentException(
                         "Unsupported media type or encoding format: " + urlConnection.getContentType());
             }
-            String keyData = CharStreams.toString(new InputStreamReader((InputStream) urlConnection.getContent(),
-                    Charset.defaultCharset()));
+            String keyData = CharStreams.toString(
+                    new InputStreamReader((InputStream) urlConnection.getContent(), Charset.defaultCharset()));
             privateKey = Crypto.loadPrivateKey(keyData);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid privateKey format", e);

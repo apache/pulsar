@@ -49,11 +49,11 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGenerateLedgerId(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                        MetadataStoreConfig.builder().fsyncEnable(false).build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        @Cleanup
-        PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
+        @Cleanup PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
         // Create *nThread* threads each generate *nLedgers* ledger id,
         // and then check there is no identical ledger id.
         final int nThread = 2;
@@ -107,9 +107,11 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
             });
         }
 
-        assertTrue(countDownLatch2.await(120, TimeUnit.SECONDS),
-                "Wait ledger id generation threads to stop timeout : ");
-        log.info("Number of generated ledger id: {}, time used: {}", shortLedgerIds.size() + longLedgerIds.size(),
+        assertTrue(
+                countDownLatch2.await(120, TimeUnit.SECONDS), "Wait ledger id generation threads to stop timeout : ");
+        log.info(
+                "Number of generated ledger id: {}, time used: {}",
+                shortLedgerIds.size() + longLedgerIds.size(),
                 System.currentTimeMillis() - start);
         assertEquals(errCount.get(), 0, "Error occur during ledger id generation : ");
 
@@ -131,11 +133,11 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
     @Test
     public void testGenerateLedgerIdWithZkPrefix() throws Exception {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(zks.getConnectionString() + "/test", MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                zks.getConnectionString() + "/test",
+                MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
+        @Cleanup PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
         // Create *nThread* threads each generate *nLedgers* ledger id,
         // and then check there is no identical ledger id.
         final int nThread = 2;
@@ -169,7 +171,9 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
 
         countDownLatch1.await();
         for (Long ledgerId : shortLedgerIds) {
-            assertFalse(store.exists("/ledgers/idgen/ID-" + String.format("%010d", ledgerId)).get(),
+            assertFalse(
+                    store.exists("/ledgers/idgen/ID-" + String.format("%010d", ledgerId))
+                            .get(),
                     "Exception during deleting node for id generation : ");
         }
         CountDownLatch countDownLatch2 = new CountDownLatch(nThread * nLedgers);
@@ -193,15 +197,19 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
             });
         }
 
-        assertTrue(countDownLatch2.await(120, TimeUnit.SECONDS),
-                "Wait ledger id generation threads to stop timeout : ");
-        ///test/ledgers/idgen-long/HOB-0000000001/ID-0000000000
+        assertTrue(
+                countDownLatch2.await(120, TimeUnit.SECONDS), "Wait ledger id generation threads to stop timeout : ");
+        /// test/ledgers/idgen-long/HOB-0000000001/ID-0000000000
         for (Long ledgerId : longLedgerIds) {
-            assertFalse(store.exists("/ledgers/idgen-long/HOB-0000000001/ID-" + String.format("%010d", ledgerId >> 32)).get(),
+            assertFalse(
+                    store.exists("/ledgers/idgen-long/HOB-0000000001/ID-" + String.format("%010d", ledgerId >> 32))
+                            .get(),
                     "Exception during deleting node for id generation : ");
         }
 
-        log.info("Number of generated ledger id: {}, time used: {}", shortLedgerIds.size() + longLedgerIds.size(),
+        log.info(
+                "Number of generated ledger id: {}, time used: {}",
+                shortLedgerIds.size() + longLedgerIds.size(),
                 System.currentTimeMillis() - start);
         assertEquals(errCount.get(), 0, "Error occur during ledger id generation : ");
 
@@ -220,16 +228,14 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
         }
     }
 
-
     @Test(dataProvider = "impl")
     public void testEnsureCounterIsNotResetWithContainerNodes(String provider, Supplier<String> urlSupplier)
             throws Exception {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
+        @Cleanup PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
 
         CountDownLatch l1 = new CountDownLatch(1);
         AtomicLong res1 = new AtomicLong();

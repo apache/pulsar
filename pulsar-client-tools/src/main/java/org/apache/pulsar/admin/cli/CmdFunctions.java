@@ -60,8 +60,9 @@ import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
-@Parameters(commandDescription = "Interface for managing Pulsar Functions "
-        + "(lightweight, Lambda-style compute processes that work with Pulsar)")
+@Parameters(
+        commandDescription = "Interface for managing Pulsar Functions "
+                + "(lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
     private final LocalRunner localRunner;
     private final CreateFunction creater;
@@ -69,8 +70,10 @@ public class CmdFunctions extends CmdBase {
     private final UpdateFunction updater;
     private final GetFunction getter;
     private final GetFunctionStatus functionStatus;
+
     @Getter
     private final GetFunctionStats functionStats;
+
     private final RestartFunction restart;
     private final StopFunction stop;
     private final StartFunction start;
@@ -183,216 +186,348 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionDetailsCommand extends BaseCommand {
-        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function"
-                + " #Java, Python")
+        @Parameter(
+                names = "--fqfn",
+                description = "The Fully Qualified Function Name (FQFN) for the function" + " #Java, Python")
         protected String fqfn;
+
         @Parameter(names = "--tenant", description = "The tenant of a Pulsar Function #Java, Python, Go")
         protected String tenant;
+
         @Parameter(names = "--namespace", description = "The namespace of a Pulsar Function #Java, Python, Go")
         protected String namespace;
+
         @Parameter(names = "--name", description = "The name of a Pulsar Function #Java, Python, Go")
         protected String functionName;
         // for backwards compatibility purposes
         @Parameter(names = "--className", description = "The class name of a Pulsar Function", hidden = true)
         protected String deprecatedClassName;
+
         @Parameter(names = "--classname", description = "The class name of a Pulsar Function #Java, Python")
         protected String className;
-        @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
+
+        @Parameter(
+                names = {"-t", "--function-type"},
+                description = "The built-in Pulsar Function type")
         protected String functionType;
-        @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
-                + "when function is deleted")
+
+        @Parameter(
+                names = "--cleanup-subscription",
+                description = "Whether delete the subscription " + "when function is deleted")
         protected Boolean cleanupSubscription;
-        @Parameter(names = "--jar", description = "Path to the JAR file for the function "
-                + "(if the function is written in Java). It also supports URL path [http/https/file "
-                + "(file protocol assumes that file already exists on worker host)/function "
-                + "(package URL from packages management service)] from which worker can download the package. #Java",
+
+        @Parameter(
+                names = "--jar",
+                description =
+                        "Path to the JAR file for the function "
+                                + "(if the function is written in Java). It also supports URL path [http/https/file "
+                                + "(file protocol assumes that file already exists on worker host)/function "
+                                + "(package URL from packages management service)] from which worker can download the package. #Java",
                 listConverter = StringConverter.class)
         protected String jarFile;
-        @Parameter(names = "--py", description = "Path to the main Python file/Python Wheel file for the function "
-                + "(if the function is written in Python). It also supports URL path [http/https/file "
-                + "(file protocol assumes that file already exists on worker host)/function "
-                + "(package URL from packages management service)] from which worker can download the package. #Python",
+
+        @Parameter(
+                names = "--py",
+                description =
+                        "Path to the main Python file/Python Wheel file for the function "
+                                + "(if the function is written in Python). It also supports URL path [http/https/file "
+                                + "(file protocol assumes that file already exists on worker host)/function "
+                                + "(package URL from packages management service)] from which worker can download the package. #Python",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(names = "--go", description = "Path to the main Go executable binary for the function "
-                + "(if the function is written in Go). It also supports URL path [http/https/file "
-                + "(file protocol assumes that file already exists on worker host)/function "
-                + "(package URL from packages management service)] from which worker can download the package. #Go")
+
+        @Parameter(
+                names = "--go",
+                description =
+                        "Path to the main Go executable binary for the function "
+                                + "(if the function is written in Go). It also supports URL path [http/https/file "
+                                + "(file protocol assumes that file already exists on worker host)/function "
+                                + "(package URL from packages management service)] from which worker can download the package. #Go")
         protected String goFile;
-        @Parameter(names = {"-i", "--inputs"}, description = "The input topic or "
-                + "topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function"
-                + " #Java, Python, Go")
+
+        @Parameter(
+                names = {"-i", "--inputs"},
+                description = "The input topic or "
+                        + "topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function"
+                        + " #Java, Python, Go")
         protected String inputs;
         // for backwards compatibility purposes
-        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics "
-                + "under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. "
-                + "Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)",
+        @Parameter(
+                names = "--topicsPattern",
+                description = "TopicsPattern to consume from list of topics "
+                        + "under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. "
+                        + "Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)",
                 hidden = true)
         protected String deprecatedTopicsPattern;
-        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from a list of topics "
-                + "under a namespace that matches the pattern. [--input] and [--topics-pattern] are mutually "
-                + "exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java "
-                + "functions only) #Java, Python")
+
+        @Parameter(
+                names = "--topics-pattern",
+                description = "The topic pattern to consume from a list of topics "
+                        + "under a namespace that matches the pattern. [--input] and [--topics-pattern] are mutually "
+                        + "exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java "
+                        + "functions only) #Java, Python")
         protected String topicsPattern;
 
-        @Parameter(names = {"-o", "--output"},
+        @Parameter(
+                names = {"-o", "--output"},
                 description = "The output topic of a Pulsar Function (If none is specified, no output is written)"
                         + " #Java, Python, Go")
         protected String output;
-        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)"
-                + " #Java")
+
+        @Parameter(
+                names = "--producer-config",
+                description = "The custom producer configuration (as a JSON string)" + " #Java")
         protected String producerConfig;
         // for backwards compatibility purposes
-        @Parameter(names = "--logTopic",
-                description = "The topic to which the logs of a Pulsar Function are produced", hidden = true)
+        @Parameter(
+                names = "--logTopic",
+                description = "The topic to which the logs of a Pulsar Function are produced",
+                hidden = true)
         protected String deprecatedLogTopic;
-        @Parameter(names = "--log-topic", description = "The topic to which the logs of a Pulsar Function are produced"
-                + " #Java, Python, Go")
+
+        @Parameter(
+                names = "--log-topic",
+                description = "The topic to which the logs of a Pulsar Function are produced" + " #Java, Python, Go")
         protected String logTopic;
 
-        @Parameter(names = {"-st", "--schema-type"}, description = "The builtin schema type or "
-                + "custom schema class name to be used for messages output by the function #Java")
+        @Parameter(
+                names = {"-st", "--schema-type"},
+                description = "The builtin schema type or "
+                        + "custom schema class name to be used for messages output by the function #Java")
         protected String schemaType = "";
 
         // for backwards compatibility purposes
-        @Parameter(names = "--customSerdeInputs",
-                description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
+        @Parameter(
+                names = "--customSerdeInputs",
+                description = "The map of input topics to SerDe class names (as a JSON string)",
+                hidden = true)
         protected String deprecatedCustomSerdeInputString;
-        @Parameter(names = "--custom-serde-inputs",
+
+        @Parameter(
+                names = "--custom-serde-inputs",
                 description = "The map of input topics to SerDe class names (as a JSON string) #Java, Python")
         protected String customSerdeInputString;
-        @Parameter(names = "--custom-schema-inputs",
+
+        @Parameter(
+                names = "--custom-schema-inputs",
                 description = "The map of input topics to Schema properties (as a JSON string) #Java, Python")
         protected String customSchemaInputString;
-        @Parameter(names = "--custom-schema-outputs",
+
+        @Parameter(
+                names = "--custom-schema-outputs",
                 description = "The map of input topics to Schema properties (as a JSON string) #Java")
         protected String customSchemaOutputString;
-        @Parameter(names = "--input-specs",
+
+        @Parameter(
+                names = "--input-specs",
                 description = "The map of inputs to custom configuration (as a JSON string) #Java, Python, Go")
         protected String inputSpecs;
-        @Parameter(names = "--input-type-class-name",
+
+        @Parameter(
+                names = "--input-type-class-name",
                 description = "The class name of input type class #Java, Python, Go")
         protected String inputTypeClassName;
         // for backwards compatibility purposes
-        @Parameter(names = "--outputSerdeClassName",
-                description = "The SerDe class to be used for messages output by the function", hidden = true)
+        @Parameter(
+                names = "--outputSerdeClassName",
+                description = "The SerDe class to be used for messages output by the function",
+                hidden = true)
         protected String deprecatedOutputSerdeClassName;
-        @Parameter(names = "--output-serde-classname",
+
+        @Parameter(
+                names = "--output-serde-classname",
                 description = "The SerDe class to be used for messages output by the function #Java, Python")
         protected String outputSerdeClassName;
-        @Parameter(names = "--output-type-class-name",
+
+        @Parameter(
+                names = "--output-type-class-name",
                 description = "The class name of output type class #Java, Python, Go")
         protected String outputTypeClassName;
         // for backwards compatibility purposes
-        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file that specifies "
-                + "the configuration of a Pulsar Function", hidden = true)
+        @Parameter(
+                names = "--functionConfigFile",
+                description =
+                        "The path to a YAML config file that specifies " + "the configuration of a Pulsar Function",
+                hidden = true)
         protected String deprecatedFnConfigFile;
-        @Parameter(names = "--function-config-file",
+
+        @Parameter(
+                names = "--function-config-file",
                 description = "The path to a YAML config file that specifies the configuration of a Pulsar Function"
                         + " #Java, Python, Go")
         protected String fnConfigFile;
         // for backwards compatibility purposes
-        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) "
-                + "applied to the function", hidden = true)
+        @Parameter(
+                names = "--processingGuarantees",
+                description = "The processing guarantees (aka delivery semantics) " + "applied to the function",
+                hidden = true)
         protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
-        @Parameter(names = "--processing-guarantees",
+
+        @Parameter(
+                names = "--processing-guarantees",
                 description = "The processing guarantees (as known as delivery semantics) applied to the function."
-                    + " Available values are: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
-                    + " If it is not specified, the `ATLEAST_ONCE` delivery guarantee is used."
-                    + " #Java, Python, Go")
+                        + " Available values are: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
+                        + " If it is not specified, the `ATLEAST_ONCE` delivery guarantee is used."
+                        + " #Java, Python, Go")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         // for backwards compatibility purposes
         @Parameter(names = "--userConfig", description = "User-defined config key/values", hidden = true)
         protected String deprecatedUserConfigString;
+
         @Parameter(names = "--user-config", description = "User-defined config key/values #Java, Python, Go")
         protected String userConfigString;
-        @Parameter(names = "--retainOrdering",
-                description = "Function consumes and processes messages in order", hidden = true)
+
+        @Parameter(
+                names = "--retainOrdering",
+                description = "Function consumes and processes messages in order",
+                hidden = true)
         protected Boolean deprecatedRetainOrdering;
+
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order #Java")
         protected Boolean retainOrdering;
-        @Parameter(names = "--retain-key-ordering",
+
+        @Parameter(
+                names = "--retain-key-ordering",
                 description = "Function consumes and processes messages in key order #Java")
         protected Boolean retainKeyOrdering;
-        @Parameter(names = "--batch-builder", description = "BatcherBuilder provides two types of "
-                + "batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+
+        @Parameter(
+                names = "--batch-builder",
+                description = "BatcherBuilder provides two types of "
+                        + "batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
         protected String batchBuilder;
-        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties "
-                + "to output topic when processing (use false to disable it) #Java", arity = 1)
+
+        @Parameter(
+                names = "--forward-source-message-property",
+                description = "Forwarding input message's properties "
+                        + "to output topic when processing (use false to disable it) #Java",
+                arity = 1)
         protected Boolean forwardSourceMessageProperty = true;
-        @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific "
-                + "subscription-name for input-topic consumer #Java, Python, Go")
+
+        @Parameter(
+                names = "--subs-name",
+                description = "Pulsar source subscription name if user wants a specific "
+                        + "subscription-name for input-topic consumer #Java, Python, Go")
         protected String subsName;
-        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to "
-                + "consume messages from the specified location #Java")
+
+        @Parameter(
+                names = "--subs-position",
+                description = "Pulsar source subscription position if user wants to "
+                        + "consume messages from the specified location #Java")
         protected SubscriptionInitialPosition subsPosition;
-        @Parameter(names = "--skip-to-latest", description = "Whether or not the consumer skip to latest message "
-            + "upon function instance restart", arity = 1)
+
+        @Parameter(
+                names = "--skip-to-latest",
+                description = "Whether or not the consumer skip to latest message " + "upon function instance restart",
+                arity = 1)
         protected Boolean skipToLatest;
-        @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function "
-                + "(i.e. the number of function instances to run) #Java")
+
+        @Parameter(
+                names = "--parallelism",
+                description = "The parallelism factor of a Pulsar Function "
+                        + "(i.e. the number of function instances to run) #Java")
         protected Integer parallelism;
-        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated "
-                + "per function instance(applicable only to docker runtime) #Java(Process & K8s),Python(K8s),Go(K8s)")
+
+        @Parameter(
+                names = "--cpu",
+                description =
+                        "The cpu in cores that need to be allocated "
+                                + "per function instance(applicable only to docker runtime) #Java(Process & K8s),Python(K8s),Go(K8s)")
         protected Double cpu;
-        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated "
-                + "per function instance(applicable only to process/docker runtime)"
-                + " #Java(Process & K8s),Python(K8s),Go(K8s)")
+
+        @Parameter(
+                names = "--ram",
+                description = "The ram in bytes that need to be allocated "
+                        + "per function instance(applicable only to process/docker runtime)"
+                        + " #Java(Process & K8s),Python(K8s),Go(K8s)")
         protected Long ram;
-        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated "
-                + "per function instance(applicable only to docker runtime) #Java(Process & K8s),Python(K8s),Go(K8s)")
+
+        @Parameter(
+                names = "--disk",
+                description =
+                        "The disk in bytes that need to be allocated "
+                                + "per function instance(applicable only to docker runtime) #Java(Process & K8s),Python(K8s),Go(K8s)")
         protected Long disk;
         // for backwards compatibility purposes
         @Parameter(names = "--windowLengthCount", description = "The number of messages per window", hidden = true)
         protected Integer deprecatedWindowLengthCount;
+
         @Parameter(names = "--window-length-count", description = "The number of messages per window #Java")
         protected Integer windowLengthCount;
         // for backwards compatibility purposes
-        @Parameter(names = "--windowLengthDurationMs",
-                description = "The time duration of the window in milliseconds", hidden = true)
+        @Parameter(
+                names = "--windowLengthDurationMs",
+                description = "The time duration of the window in milliseconds",
+                hidden = true)
         protected Long deprecatedWindowLengthDurationMs;
-        @Parameter(names = "--window-length-duration-ms",
+
+        @Parameter(
+                names = "--window-length-duration-ms",
                 description = "The time duration of the window in milliseconds #Java")
         protected Long windowLengthDurationMs;
         // for backwards compatibility purposes
-        @Parameter(names = "--slidingIntervalCount",
-                description = "The number of messages after which the window slides", hidden = true)
+        @Parameter(
+                names = "--slidingIntervalCount",
+                description = "The number of messages after which the window slides",
+                hidden = true)
         protected Integer deprecatedSlidingIntervalCount;
-        @Parameter(names = "--sliding-interval-count",
+
+        @Parameter(
+                names = "--sliding-interval-count",
                 description = "The number of messages after which the window slides #Java")
         protected Integer slidingIntervalCount;
         // for backwards compatibility purposes
-        @Parameter(names = "--slidingIntervalDurationMs",
-                description = "The time duration after which the window slides", hidden = true)
+        @Parameter(
+                names = "--slidingIntervalDurationMs",
+                description = "The time duration after which the window slides",
+                hidden = true)
         protected Long deprecatedSlidingIntervalDurationMs;
-        @Parameter(names = "--sliding-interval-duration-ms",
+
+        @Parameter(
+                names = "--sliding-interval-duration-ms",
                 description = "The time duration after which the window slides #Java")
         protected Long slidingIntervalDurationMs;
         // for backwards compatibility purposes
-        @Parameter(names = "--autoAck",
-                description = "Whether or not the framework acknowledges messages automatically", hidden = true)
+        @Parameter(
+                names = "--autoAck",
+                description = "Whether or not the framework acknowledges messages automatically",
+                hidden = true)
         protected Boolean deprecatedAutoAck = null;
-        @Parameter(names = "--auto-ack",
-                description = "Whether or not the framework acknowledges messages automatically"
-                        + " #Java, Python, Go", arity = 1)
+
+        @Parameter(
+                names = "--auto-ack",
+                description = "Whether or not the framework acknowledges messages automatically" + " #Java, Python, Go",
+                arity = 1)
         protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long deprecatedTimeoutMs;
+
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds #Java, Python")
         protected Long timeoutMs;
-        @Parameter(names = "--max-message-retries",
+
+        @Parameter(
+                names = "--max-message-retries",
                 description = "How many times should we try to process a message before giving up #Java")
         protected Integer maxMessageRetries;
-        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to "
-                + "customize the runtime, see docs for configured runtime for details #Java")
+
+        @Parameter(
+                names = "--custom-runtime-options",
+                description = "A string that encodes options to "
+                        + "customize the runtime, see docs for configured runtime for details #Java")
         protected String customRuntimeOptions;
-        @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
-                + "how the secret is fetched by the underlying secrets provider #Java, Python")
+
+        @Parameter(
+                names = "--secrets",
+                description = "The map of secretName to an object that encapsulates "
+                        + "how the secret is fetched by the underlying secrets provider #Java, Python")
         protected String secretsString;
-        @Parameter(names = "--dead-letter-topic",
+
+        @Parameter(
+                names = "--dead-letter-topic",
                 description = "The topic where messages that are not processed successfully are sent to #Java")
         protected String deadLetterTopic;
+
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -692,7 +827,8 @@ public class CmdFunctions extends CmdBase {
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             // go doesn't need className
             if (functionConfig.getPy() != null
-                    || (functionConfig.getJar() != null && !functionConfig.getJar().startsWith("builtin://"))) {
+                    || (functionConfig.getJar() != null
+                            && !functionConfig.getJar().startsWith("builtin://"))) {
                 if (StringUtils.isEmpty(functionConfig.getClassName())) {
                     throw new ParameterException("No Function Classname specified");
                 }
@@ -710,28 +846,33 @@ public class CmdFunctions extends CmdBase {
                 org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
             }
 
-            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())
+            if (isNotBlank(functionConfig.getJar())
+                    && isNotBlank(functionConfig.getPy())
                     && isNotBlank(functionConfig.getGo())) {
                 throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Cannot specify both.");
             }
 
-            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy())
+            if (isBlank(functionConfig.getJar())
+                    && isBlank(functionConfig.getPy())
                     && isBlank(functionConfig.getGo())) {
                 throw new ParameterException("Either a Java jar or a Python file or a Go executable binary needs to"
                         + " be specified for the function. Please specify one.");
             }
 
-            if (!isBlank(functionConfig.getJar()) && !functionConfig.getJar().startsWith("builtin://")
+            if (!isBlank(functionConfig.getJar())
+                    && !functionConfig.getJar().startsWith("builtin://")
                     && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
                     && !new File(functionConfig.getJar()).exists()) {
                 throw new ParameterException("The specified jar file does not exist");
             }
-            if (!isBlank(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
+            if (!isBlank(functionConfig.getPy())
+                    && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
                     && !new File(functionConfig.getPy()).exists()) {
                 throw new ParameterException("The specified python file does not exist");
             }
-            if (!isBlank(functionConfig.getGo()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getGo())
+            if (!isBlank(functionConfig.getGo())
+                    && !Utils.isFunctionPackageUrlSupported(functionConfig.getGo())
                     && !new File(functionConfig.getGo()).exists()) {
                 throw new ParameterException("The specified go executable binary does not exist");
             }
@@ -743,69 +884,96 @@ public class CmdFunctions extends CmdBase {
 
         // TODO: this should become BookKeeper URL and it should be fetched from Pulsar client.
         // for backwards compatibility purposes
-        @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service "
-                + "(the default is Apache BookKeeper)", hidden = true)
+        @Parameter(
+                names = "--stateStorageServiceUrl",
+                description = "The URL for the state storage service " + "(the default is Apache BookKeeper)",
+                hidden = true)
         protected String deprecatedStateStorageServiceUrl;
-        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service "
-                + "(the default is Apache BookKeeper) #Java, Python")
+
+        @Parameter(
+                names = "--state-storage-service-url",
+                description =
+                        "The URL for the state storage service " + "(the default is Apache BookKeeper) #Java, Python")
         protected String stateStorageServiceUrl;
         // for backwards compatibility purposes
         @Parameter(names = "--brokerServiceUrl", description = "The URL for Pulsar broker", hidden = true)
         protected String deprecatedBrokerServiceUrl;
+
         @Parameter(names = "--broker-service-url", description = "The URL for Pulsar broker #Java, Python, Go")
         protected String brokerServiceUrl;
+
         @Parameter(names = "--web-service-url", description = "The URL for Pulsar web service #Java, Python")
         protected String webServiceUrl = null;
         // for backwards compatibility purposes
-        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using "
-                + "which function-process can connect to broker", hidden = true)
+        @Parameter(
+                names = "--clientAuthPlugin",
+                description = "Client authentication plugin using " + "which function-process can connect to broker",
+                hidden = true)
         protected String deprecatedClientAuthPlugin;
-        @Parameter(names = "--client-auth-plugin",
+
+        @Parameter(
+                names = "--client-auth-plugin",
                 description = "Client authentication plugin using which function-process can connect to broker"
                         + " #Java, Python")
         protected String clientAuthPlugin;
         // for backwards compatibility purposes
         @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
         protected String deprecatedClientAuthParams;
+
         @Parameter(names = "--client-auth-params", description = "Client authentication param #Java, Python")
         protected String clientAuthParams;
         // for backwards compatibility purposes
         @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
         protected Boolean deprecatedUseTls = null;
+
         @Parameter(names = "--use-tls", description = "Use tls connection #Java, Python")
         protected boolean useTls;
         // for backwards compatibility purposes
         @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
         protected Boolean deprecatedTlsAllowInsecureConnection = null;
+
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection #Java, Python")
         protected boolean tlsAllowInsecureConnection;
         // for backwards compatibility purposes
-        @Parameter(names = "--hostname_verification_enabled",
-                description = "Enable hostname verification", hidden = true)
+        @Parameter(
+                names = "--hostname_verification_enabled",
+                description = "Enable hostname verification",
+                hidden = true)
         protected Boolean deprecatedTlsHostNameVerificationEnabled = null;
-        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification"
-                + " #Java, Python")
+
+        @Parameter(
+                names = "--hostname-verification-enabled",
+                description = "Enable hostname verification" + " #Java, Python")
         protected boolean tlsHostNameVerificationEnabled;
         // for backwards compatibility purposes
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
         protected String deprecatedTlsTrustCertFilePath;
+
         @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path #Java, Python")
         protected String tlsTrustCertFilePath;
         // for backwards compatibility purposes
         @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
         protected Integer deprecatedInstanceIdOffset = null;
+
         @Parameter(names = "--instance-id-offset", description = "Start the instanceIds from this offset #Java, Python")
         protected Integer instanceIdOffset = 0;
+
         @Parameter(names = "--runtime", description = "either THREAD or PROCESS. Only applies for Java functions #Java")
         protected String runtime;
-        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider"
-                + " #Java, Python")
+
+        @Parameter(
+                names = "--secrets-provider-classname",
+                description = "Whats the classname for secrets provider" + " #Java, Python")
         protected String secretsProviderClassName;
-        @Parameter(names = "--secrets-provider-config",
+
+        @Parameter(
+                names = "--secrets-provider-config",
                 description = "Config that needs to be passed to secrets provider #Java, Python")
         protected String secretsProviderConfig;
-        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server"
-                + " #Java, Python, Go")
+
+        @Parameter(
+                names = "--metrics-port-start",
+                description = "The starting port range for metrics server" + " #Java, Python, Go")
         protected String metricsPortStart;
 
         private void mergeArgs() {
@@ -896,8 +1064,10 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Check the current status of a Pulsar Function")
     class GetFunctionStatus extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId "
-                + "(Get-status of all instances if instance-id is not provided)")
+        @Parameter(
+                names = "--instance-id",
+                description =
+                        "The function instanceId " + "(Get-status of all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -905,7 +1075,8 @@ public class CmdFunctions extends CmdBase {
             if (isBlank(instanceId)) {
                 print(getAdmin().functions().getFunctionStatus(tenant, namespace, functionName));
             } else {
-                print(getAdmin().functions()
+                print(getAdmin()
+                        .functions()
                         .getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId)));
             }
         }
@@ -914,8 +1085,10 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Get the current stats of a Pulsar Function")
     class GetFunctionStats extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId "
-                + "(Get-stats of all instances if instance-id is not provided)")
+        @Parameter(
+                names = "--instance-id",
+                description =
+                        "The function instanceId " + "(Get-stats of all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -924,8 +1097,9 @@ public class CmdFunctions extends CmdBase {
             if (isBlank(instanceId)) {
                 print(getAdmin().functions().getFunctionStats(tenant, namespace, functionName));
             } else {
-               print(getAdmin().functions()
-                       .getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
+                print(getAdmin()
+                        .functions()
+                        .getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
             }
         }
     }
@@ -933,15 +1107,17 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Restart function instance")
     class RestartFunction extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId "
-                + "(restart all instances if instance-id is not provided)")
+        @Parameter(
+                names = "--instance-id",
+                description = "The function instanceId " + "(restart all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    getAdmin().functions()
+                    getAdmin()
+                            .functions()
                             .restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
@@ -956,8 +1132,9 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Stops function instance")
     class StopFunction extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId "
-                + "(stop all instances if instance-id is not provided)")
+        @Parameter(
+                names = "--instance-id",
+                description = "The function instanceId " + "(stop all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -978,8 +1155,9 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Starts a stopped function instance")
     class StartFunction extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId "
-                + "(start all instances if instance-id is not provided)")
+        @Parameter(
+                names = "--instance-id",
+                description = "The function instanceId " + "(start all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -1057,11 +1235,14 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Fetch the current state associated with a Pulsar Function")
     class StateGetter extends FunctionCommand {
 
-        @Parameter(names = { "-k", "--key" }, description = "Key name of State")
+        @Parameter(
+                names = {"-k", "--key"},
+                description = "Key name of State")
         private String key = null;
 
-        @Parameter(names = { "-w", "--watch" }, description = "Watch for changes in the value associated with a key "
-                + "for a Pulsar Function")
+        @Parameter(
+                names = {"-w", "--watch"},
+                description = "Watch for changes in the value associated with a key " + "for a Pulsar Function")
         private boolean watch = false;
 
         @Override
@@ -1071,8 +1252,8 @@ public class CmdFunctions extends CmdBase {
             }
             do {
                 try {
-                    FunctionState functionState = getAdmin().functions()
-                                                       .getFunctionState(tenant, namespace, functionName, key);
+                    FunctionState functionState =
+                            getAdmin().functions().getFunctionState(tenant, namespace, functionName, key);
                     Gson gson = new GsonBuilder().setPrettyPrinting().create();
                     System.out.println(gson.toJson(functionState));
                 } catch (PulsarAdminException pae) {
@@ -1092,35 +1273,48 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Put the state associated with a Pulsar Function")
     class StatePutter extends FunctionCommand {
 
-        @Parameter(names = { "-s", "--state" }, description = "The FunctionState that needs to be put", required = true)
+        @Parameter(
+                names = {"-s", "--state"},
+                description = "The FunctionState that needs to be put",
+                required = true)
         private String state = null;
 
         @Override
         void runCmd() throws Exception {
-            FunctionState stateRepr =
-                    ObjectMapperFactory.getMapper().reader().readValue(state, FunctionState.class);
-            getAdmin().functions()
-                    .putFunctionState(tenant, namespace, functionName, stateRepr);
+            FunctionState stateRepr = ObjectMapperFactory.getMapper().reader().readValue(state, FunctionState.class);
+            getAdmin().functions().putFunctionState(tenant, namespace, functionName, stateRepr);
         }
     }
 
     @Parameters(commandDescription = "Trigger the specified Pulsar Function with a supplied value")
     class TriggerFunction extends FunctionCommand {
         // for backward compatibility purposes
-        @Parameter(names = "--triggerValue",
-                description = "The value with which you want to trigger the function", hidden = true)
+        @Parameter(
+                names = "--triggerValue",
+                description = "The value with which you want to trigger the function",
+                hidden = true)
         protected String deprecatedTriggerValue;
+
         @Parameter(names = "--trigger-value", description = "The value with which you want to trigger the function")
         protected String triggerValue;
         // for backward compatibility purposes
-        @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which "
-                + "you want to trigger the function", hidden = true)
+        @Parameter(
+                names = "--triggerFile",
+                description =
+                        "The path to the file that contains the data with which " + "you want to trigger the function",
+                hidden = true)
         protected String deprecatedTriggerFile;
-        @Parameter(names = "--trigger-file", description = "The path to the file that contains the data with which "
-                + "you want to trigger the function")
+
+        @Parameter(
+                names = "--trigger-file",
+                description =
+                        "The path to the file that contains the data with which " + "you want to trigger the function")
         protected String triggerFile;
-        @Parameter(names = "--topic", description = "The specific topic name that the function consumes from that"
-                + " you want to inject the data to")
+
+        @Parameter(
+                names = "--topic",
+                description = "The specific topic name that the function consumes from that"
+                        + " you want to inject the data to")
         protected String topic;
 
         public void mergeArgs() {
@@ -1139,7 +1333,8 @@ public class CmdFunctions extends CmdBase {
             if (triggerFile == null && triggerValue == null) {
                 throw new ParameterException("Either a trigger value or a trigger filepath needs to be specified");
             }
-            String retval = getAdmin().functions()
+            String retval = getAdmin()
+                    .functions()
                     .triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
             System.out.println(retval);
         }
@@ -1151,17 +1346,21 @@ public class CmdFunctions extends CmdBase {
         @Parameter(
                 names = "--sourceFile",
                 description = "The file whose contents need to be uploaded",
-                listConverter = StringConverter.class, hidden = true)
+                listConverter = StringConverter.class,
+                hidden = true)
         protected String deprecatedSourceFile;
+
         @Parameter(
                 names = "--source-file",
                 description = "The file whose contents need to be uploaded",
                 listConverter = StringConverter.class)
         protected String sourceFile;
+
         @Parameter(
                 names = "--path",
                 description = "Path or functionPkgUrl where the contents need to be stored",
-                listConverter = StringConverter.class, required = true)
+                listConverter = StringConverter.class,
+                required = true)
         protected String path;
 
         private void mergeArgs() {
@@ -1188,21 +1387,25 @@ public class CmdFunctions extends CmdBase {
         @Parameter(
                 names = "--destinationFile",
                 description = "The file to store downloaded content",
-                listConverter = StringConverter.class, hidden = true)
+                listConverter = StringConverter.class,
+                hidden = true)
         protected String deprecatedDestinationFile;
+
         @Parameter(
                 names = "--destination-file",
                 description = "The file to store downloaded content",
                 listConverter = StringConverter.class)
         protected String destinationFile;
+
         @Parameter(
                 names = "--path",
                 description = "Path or functionPkgUrl to store the content",
-                listConverter = StringConverter.class, required = false, hidden = true)
+                listConverter = StringConverter.class,
+                required = false,
+                hidden = true)
         protected String path;
-        @Parameter(
-                names = "--transform-function",
-                description = "Download the transform Function of the connector")
+
+        @Parameter(names = "--transform-function", description = "Download the transform Function of the connector")
         protected Boolean transformFunction = false;
 
         private void mergeArgs() {
@@ -1228,7 +1431,8 @@ public class CmdFunctions extends CmdBase {
             if (path != null) {
                 getAdmin().functions().downloadFunction(destinationFile, path);
             } else {
-                getAdmin().functions()
+                getAdmin()
+                        .functions()
                         .downloadFunction(destinationFile, tenant, namespace, functionName, transformFunction);
             }
             print("Downloaded successfully");
@@ -1361,8 +1565,8 @@ public class CmdFunctions extends CmdBase {
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
-            throw new ParameterException("Fully qualified function names (FQFNs) must "
-                    + "be of the form tenant/namespace/name");
+            throw new ParameterException(
+                    "Fully qualified function names (FQFNs) must " + "be of the form tenant/namespace/name");
         } else {
             functionConfig.setTenant(args[0]);
             functionConfig.setNamespace(args[1]);
@@ -1374,13 +1578,11 @@ public class CmdFunctions extends CmdBase {
     public class ListBuiltInFunctions extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            getAdmin().functions().getBuiltInFunctions()
-                    .forEach(function -> {
-                        System.out.println(function.getName());
-                        System.out.println(WordUtils.wrap(function.getDescription(), 80));
-                        System.out.println("----------------------------------------");
-                    });
+            getAdmin().functions().getBuiltInFunctions().forEach(function -> {
+                System.out.println(function.getName());
+                System.out.println(WordUtils.wrap(function.getDescription(), 80));
+                System.out.println("----------------------------------------");
+            });
         }
     }
-
 }

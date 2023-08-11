@@ -183,33 +183,33 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
-    *
-    * @param maxTimestamp the max timestamp of the entries to be evicted
-    * @return the tota
-    */
-   public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
-       long removedSize = 0;
-       int removedCount = 0;
+     *
+     * @param maxTimestamp the max timestamp of the entries to be evicted
+     * @return the tota
+     */
+    public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
+        long removedSize = 0;
+        int removedCount = 0;
 
-       while (true) {
-           Map.Entry<Key, Value> entry = entries.firstEntry();
-           if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
-               break;
-           }
-           Value value = entry.getValue();
-           boolean removeHits = entries.remove(entry.getKey(), value);
-           if (!removeHits) {
-               break;
-           }
+        while (true) {
+            Map.Entry<Key, Value> entry = entries.firstEntry();
+            if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
+                break;
+            }
+            Value value = entry.getValue();
+            boolean removeHits = entries.remove(entry.getKey(), value);
+            if (!removeHits) {
+                break;
+            }
 
-           removedSize += weighter.getSize(value);
-           removedCount++;
-           value.release();
-       }
+            removedSize += weighter.getSize(value);
+            removedCount++;
+            value.release();
+        }
 
-       size.addAndGet(-removedSize);
-       return Pair.of(removedCount, removedSize);
-   }
+        size.addAndGet(-removedSize);
+        return Pair.of(removedCount, removedSize);
+    }
 
     /**
      * Just for testing. Getting the number of entries is very expensive on the conncurrent map
@@ -276,5 +276,4 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             return 1;
         }
     }
-
 }

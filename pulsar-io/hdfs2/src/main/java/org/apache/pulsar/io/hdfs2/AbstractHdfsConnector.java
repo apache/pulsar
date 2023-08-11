@@ -55,7 +55,7 @@ public abstract class AbstractHdfsConnector {
     protected CompressionCodecFactory compressionCodecFactory;
 
     public AbstractHdfsConnector() {
-       hdfsResources.set(new HdfsResources(null, null, null));
+        hdfsResources.set(new HdfsResources(null, null, null));
     }
 
     /*
@@ -73,8 +73,8 @@ public abstract class AbstractHdfsConnector {
         /* Disable caching of Configuration and FileSystem objects, else we cannot reconfigure
          * the processor without a complete restart
          */
-        String disableCacheName = String.format("fs.%s.impl.disable.cache",
-                FileSystem.getDefaultUri(config).getScheme());
+        String disableCacheName = String.format(
+                "fs.%s.impl.disable.cache", FileSystem.getDefaultUri(config).getScheme());
         config.set(disableCacheName, "true");
 
         // If kerberos is enabled, create the file system as the kerberos principal
@@ -83,8 +83,8 @@ public abstract class AbstractHdfsConnector {
         UserGroupInformation ugi;
         synchronized (RESOURCES_LOCK) {
             if (SecurityUtil.isSecurityEnabled(config)) {
-                ugi = SecurityUtil.loginKerberos(config,
-                        connectorConfig.getKerberosUserPrincipal(), connectorConfig.getKeytab());
+                ugi = SecurityUtil.loginKerberos(
+                        config, connectorConfig.getKerberosUserPrincipal(), connectorConfig.getKeytab());
                 fs = getFileSystemAsUser(config, ugi);
             } else {
                 config.set("ipc.client.fallback-to-simple-auth-allowed", "true");
@@ -109,7 +109,8 @@ public abstract class AbstractHdfsConnector {
         if (!foundResources) {
             // check that at least 1 non-default resource is available on the classpath
             String configStr = config.toString();
-            for (String resource : configStr.substring(configStr.indexOf(":") + 1).split(",")) {
+            for (String resource :
+                    configStr.substring(configStr.indexOf(":") + 1).split(",")) {
                 if (!resource.contains("default") && config.getResource(resource.trim()) != null) {
                     foundResources = true;
                     break;
@@ -176,18 +177,19 @@ public abstract class AbstractHdfsConnector {
 
     protected String getEncoding() {
         return StringUtils.isNotBlank(connectorConfig.getEncoding())
-                   ? connectorConfig.getEncoding() : Charset.defaultCharset().name();
+                ? connectorConfig.getEncoding()
+                : Charset.defaultCharset().name();
     }
 
     protected CompressionCodec getCompressionCodec() {
-       if (connectorConfig.getCompression() == null) {
-           return null;
-       }
+        if (connectorConfig.getCompression() == null) {
+            return null;
+        }
 
-       CompressionCodec codec = getCompressionCodecFactory()
-               .getCodecByName(connectorConfig.getCompression().name());
+        CompressionCodec codec = getCompressionCodecFactory()
+                .getCodecByName(connectorConfig.getCompression().name());
 
-       return (codec != null) ? codec : new DefaultCodec();
+        return (codec != null) ? codec : new DefaultCodec();
     }
 
     protected CompressionCodecFactory getCompressionCodecFactory() {
@@ -241,6 +243,5 @@ public abstract class AbstractHdfsConnector {
                 return clazz;
             }
         }
-
     }
 }

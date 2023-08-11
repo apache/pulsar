@@ -35,8 +35,7 @@ import org.slf4j.LoggerFactory;
 public class AvroReader<T> implements SchemaReader<T> {
 
     private ReflectDatumReader<T> reader;
-    private static final ThreadLocal<BinaryDecoder> decoders =
-            new ThreadLocal<>();
+    private static final ThreadLocal<BinaryDecoder> decoders = new ThreadLocal<>();
     private final Schema schema;
 
     public AvroReader(Schema schema) {
@@ -55,8 +54,8 @@ public class AvroReader<T> implements SchemaReader<T> {
         }
     }
 
-    public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader,
-        boolean jsr310ConversionEnabled) {
+    public AvroReader(
+            Schema writerSchema, Schema readerSchema, ClassLoader classLoader, boolean jsr310ConversionEnabled) {
         this.schema = readerSchema;
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
@@ -107,5 +106,4 @@ public class AvroReader<T> implements SchemaReader<T> {
     }
 
     private static final Logger log = LoggerFactory.getLogger(AvroReader.class);
-
 }

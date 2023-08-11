@@ -53,7 +53,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         private final String type;
         private final String label;
         // For future nested fields
-        private final Map <String, Object> definition;
+        private final Map<String, Object> definition;
     }
 
     private static <T> org.apache.avro.Schema createProtobufAvroSchema(Class<T> pojo) {
@@ -76,9 +76,12 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         protoMessageInstance.getDescriptorForType().getFields().forEach(new Consumer<Descriptors.FieldDescriptor>() {
             @Override
             public void accept(Descriptors.FieldDescriptor fieldDescriptor) {
-                protoBufParsingInfos.add(new ProtoBufParsingInfo(fieldDescriptor.getNumber(),
-                        fieldDescriptor.getName(), fieldDescriptor.getType().name(),
-                        fieldDescriptor.toProto().getLabel().name(), null));
+                protoBufParsingInfos.add(new ProtoBufParsingInfo(
+                        fieldDescriptor.getNumber(),
+                        fieldDescriptor.getName(),
+                        fieldDescriptor.getType().name(),
+                        fieldDescriptor.toProto().getLabel().name(),
+                        null));
             }
         });
 
@@ -94,8 +97,10 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     }
 
     public static <T> ProtobufSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
-        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo)
-                .withProperties(properties).build();
+        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder()
+                .withPojo(pojo)
+                .withProperties(properties)
+                .build();
         return ProtobufSchema.of(schemaDefinition);
     }
 
@@ -107,23 +112,25 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
                     + " is not assignable from " + pojo.getName());
         }
 
-            SchemaInfo schemaInfo = SchemaInfoImpl.builder()
-                    .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
-                    .type(SchemaType.PROTOBUF)
-                    .name("")
-                    .properties(schemaDefinition.getProperties())
-                    .build();
+        SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+                .schema(createProtobufAvroSchema(schemaDefinition.getPojo())
+                        .toString()
+                        .getBytes(UTF_8))
+                .type(SchemaType.PROTOBUF)
+                .name("")
+                .properties(schemaDefinition.getProperties())
+                .build();
 
         try {
-            return new ProtobufSchema(schemaInfo,
-                (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+            return new ProtobufSchema(schemaInfo, (GeneratedMessageV3)
+                    pojo.getMethod("getDefaultInstance").invoke(null));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(
-            Class pojo, Map<String, String> properties){
+            Class pojo, Map<String, String> properties) {
         return ofGenericClass(pojo, properties);
     }
 }

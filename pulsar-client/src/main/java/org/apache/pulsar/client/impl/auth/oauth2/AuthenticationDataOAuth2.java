@@ -59,5 +59,4 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
     public String getCommandData() {
         return this.accessToken;
     }
-
 }

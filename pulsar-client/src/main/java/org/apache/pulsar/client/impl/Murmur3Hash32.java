@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 public class Murmur3Hash32 implements Hash {
     private static final Murmur3Hash32 instance = new Murmur3Hash32();
 
-    private Murmur3Hash32(){ }
+    private Murmur3Hash32() {}
 
     public static Hash getInstance() {
         return instance;
@@ -36,8 +36,8 @@ public class Murmur3Hash32 implements Hash {
 
     @Override
     public int makeHash(String s) {
-        return org.apache.pulsar.common.util.Murmur3_32Hash.getInstance()
-            .makeHash(s.getBytes(StandardCharsets.UTF_8)) & Integer.MAX_VALUE;
+        return org.apache.pulsar.common.util.Murmur3_32Hash.getInstance().makeHash(s.getBytes(StandardCharsets.UTF_8))
+                & Integer.MAX_VALUE;
     }
 
     @Override

@@ -34,7 +34,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  * {@link org.apache.pulsar.common.schema.SchemaType#JSON},
  * and {@link org.apache.pulsar.common.schema.SchemaType#PROTOBUF}.
  */
-public abstract class AvroBaseStructSchema<T> extends AbstractStructSchema<T>{
+public abstract class AvroBaseStructSchema<T> extends AbstractStructSchema<T> {
 
     protected final Schema schema;
 
@@ -43,7 +43,7 @@ public abstract class AvroBaseStructSchema<T> extends AbstractStructSchema<T>{
         this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
     }
 
-    public Schema getAvroSchema(){
+    public Schema getAvroSchema() {
         return schema;
     }
 

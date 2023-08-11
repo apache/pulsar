@@ -28,11 +28,15 @@ import lombok.Getter;
 public final class ParameterDescriptor {
     @Builder.Default
     private List<String> names = new ArrayList<>();
+
     private boolean mainParameter;
+
     @Builder.Default
     private String description = "";
+
     @Builder.Default
     private ParameterType type = ParameterType.STRING;
+
     @Builder.Default
-    private  boolean required = false;
+    private boolean required = false;
 }

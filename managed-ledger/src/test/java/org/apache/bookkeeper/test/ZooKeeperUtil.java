@@ -20,7 +20,6 @@
  * This file is derived from ZooKeeperUtil from Apache BookKeeper
  * http://bookkeeper.apache.org
  */
-
 package org.apache.bookkeeper.test;
 
 import static org.testng.Assert.assertTrue;
@@ -55,6 +54,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
         // are disabled by default due to security reasons
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
     }
+
     static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
 
     // ZooKeeper related variables
@@ -121,23 +121,26 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
             String pathToCreate = ledgersPath.substring(0, last);
             CompletableFuture<Void> future = new CompletableFuture<>();
             if (zkc.exists(pathToCreate, false) == null) {
-                ZkUtils.asyncCreateFullPathOptimistic(zkc,
+                ZkUtils.asyncCreateFullPathOptimistic(
+                        zkc,
                         pathToCreate,
                         new byte[0],
                         ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT, (i, s, o, s1) -> {
+                        CreateMode.PERSISTENT,
+                        (i, s, o, s1) -> {
                             future.complete(null);
-                        }, null);
+                        },
+                        null);
             }
             future.join();
         }
 
         ZooKeeperCluster.super.createBKEnsemble(ledgersPath);
     }
+
     @Override
     public void restartCluster() throws Exception {
-        zks = new ZooKeeperServer(zkTmpDir, zkTmpDir,
-                ZooKeeperServer.DEFAULT_TICK_TIME);
+        zks = new ZooKeeperServer(zkTmpDir, zkTmpDir, ZooKeeperServer.DEFAULT_TICK_TIME);
         serverFactory = new NIOServerCnxnFactory();
         serverFactory.configure(zkaddr, 100);
         serverFactory.startup(zks);
@@ -148,8 +151,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
             connectString = zkaddr.getAddress().getHostAddress() + ":" + zooKeeperPort;
         }
 
-        boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(),
-                ClientBase.CONNECTION_TIMEOUT);
+        boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT);
         LOG.debug("Server up: " + b);
 
         // create a zookeeper client
@@ -161,9 +163,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
     }
 
     @Override
-    public void sleepCluster(final int time,
-                             final TimeUnit timeUnit,
-                             final CountDownLatch l)
+    public void sleepCluster(final int time, final TimeUnit timeUnit, final CountDownLatch l)
             throws InterruptedException, IOException {
         Thread[] allthreads = new Thread[Thread.activeCount()];
         Thread.enumerate(allthreads);
@@ -198,7 +198,8 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
         // shutdown ZK server
         if (serverFactory != null) {
             serverFactory.shutdown();
-            assertTrue(ClientBase.waitForServerDown(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT),
+            assertTrue(
+                    ClientBase.waitForServerDown(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT),
                     "waiting for server down");
         }
         if (zks != null) {

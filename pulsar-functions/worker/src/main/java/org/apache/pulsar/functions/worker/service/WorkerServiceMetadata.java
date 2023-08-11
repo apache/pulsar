@@ -38,5 +38,4 @@ class WorkerServiceMetadata {
      * The path to the worker service package.
      */
     private Path archivePath;
-
 }

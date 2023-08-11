@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.pulsar.proxy.server.ProxyServiceStarterTest.ARGS;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Producer;
@@ -34,17 +43,6 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-
-import static org.apache.pulsar.proxy.server.ProxyServiceStarterTest.ARGS;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
     private ProxyServiceStarter serviceStarter;
@@ -89,8 +87,10 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducer() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl)
-                .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(serviceUrl)
+                .allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .build();
 
         @Cleanup
@@ -120,12 +120,17 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();
-        String consumeUri = "ws://localhost:" + webPort + "/ws/consumer/persistent/sample/test/local/websocket-topic/my-sub";
+        String consumeUri =
+                "ws://localhost:" + webPort + "/ws/consumer/persistent/sample/test/local/websocket-topic/my-sub";
         Future<Session> consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
         consumerSession.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        producerSession.get().getRemote().sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
+        producerSession
+                .get()
+                .getRemote()
+                .sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
         assertTrue(consumerSocket.getResponse().contains("ping"));
-        ProducerMessage message = ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
+        ProducerMessage message =
+                ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
         assertEquals(new String(Base64.getDecoder().decode(message.getPayload())), "my payload");
     }
 
@@ -140,20 +145,16 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         }
 
         @Override
-        public void onWebSocketClose(int i, String s) {
-        }
+        public void onWebSocketClose(int i, String s) {}
 
         @Override
-        public void onWebSocketConnect(Session session) {
-        }
+        public void onWebSocketConnect(Session session) {}
 
         @Override
-        public void onWebSocketError(Throwable throwable) {
-        }
+        public void onWebSocketError(Throwable throwable) {}
 
         @Override
-        public void onWebSocketPing(ByteBuffer payload) {
-        }
+        public void onWebSocketPing(ByteBuffer payload) {}
 
         @Override
         public void onWebSocketPong(ByteBuffer payload) {
@@ -164,5 +165,4 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
             return incomingMessages.take();
         }
     }
-
 }

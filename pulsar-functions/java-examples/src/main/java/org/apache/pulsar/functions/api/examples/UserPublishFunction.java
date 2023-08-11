@@ -34,7 +34,9 @@ public class UserPublishFunction implements Function<String, Void> {
         Optional<Object> topicToWrite = context.getUserConfigValue("topic");
         if (topicToWrite.isPresent()) {
             try {
-                context.newOutputMessage((String) topicToWrite.get(), Schema.STRING).value(input).sendAsync();
+                context.newOutputMessage((String) topicToWrite.get(), Schema.STRING)
+                        .value(input)
+                        .sendAsync();
             } catch (PulsarClientException e) {
                 e.printStackTrace();
             }
@@ -42,4 +44,3 @@ public class UserPublishFunction implements Function<String, Void> {
         return null;
     }
 }
-

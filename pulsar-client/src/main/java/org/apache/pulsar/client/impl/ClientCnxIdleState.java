@@ -33,7 +33,7 @@ public class ClientCnxIdleState {
     /** The time when marks the connection is idle. **/
     private long idleMarkTime;
 
-    public ClientCnxIdleState(ClientCnx clientCnx){
+    public ClientCnxIdleState(ClientCnx clientCnx) {
         this.clientCnx = clientCnx;
         this.createTime = System.currentTimeMillis();
         this.state = State.USING;
@@ -132,7 +132,7 @@ public class ClientCnxIdleState {
                 idleMarkTime = 0;
                 return true;
             }
-            if (isUsing()){
+            if (isUsing()) {
                 return true;
             }
         }

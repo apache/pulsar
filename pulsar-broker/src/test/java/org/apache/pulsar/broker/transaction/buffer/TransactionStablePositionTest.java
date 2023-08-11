@@ -63,8 +63,9 @@ public class TransactionStablePositionTest extends TransactionTestBase {
     @BeforeMethod
     protected void setup() throws Exception {
         setUpBase(1, 16, TOPIC, 0);
-        Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+        Awaitility.await()
+                .until(() -> ((PulsarClientImpl) pulsarClient).getTcClient().getState()
+                        == TransactionCoordinatorClient.State.READY);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -74,9 +75,11 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
     @Test
     public void commitTxnTest() throws Exception {
-        Transaction txn = pulsarClient.newTransaction()
+        Transaction txn = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -87,7 +90,8 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -122,9 +126,11 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
     @Test
     public void abortTxnTest() throws Exception {
-        Transaction txn = pulsarClient.newTransaction()
+        Transaction txn = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -135,7 +141,8 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -168,19 +175,19 @@ public class TransactionStablePositionTest extends TransactionTestBase {
     @DataProvider(name = "enableTransactionAndState")
     public static Object[][] enableTransactionAndState() {
         return new Object[][] {
-                { true, TopicTransactionBufferState.State.None },
-                { false, TopicTransactionBufferState.State.None },
-                { true, TopicTransactionBufferState.State.Initializing },
-                { false, TopicTransactionBufferState.State.Initializing }
+            {true, TopicTransactionBufferState.State.None},
+            {false, TopicTransactionBufferState.State.None},
+            {true, TopicTransactionBufferState.State.Initializing},
+            {false, TopicTransactionBufferState.State.Initializing}
         };
     }
 
     @Test(dataProvider = "enableTransactionAndState")
-    public void testSyncNormalPositionWhenTBRecover(boolean clientEnableTransaction,
-                                                    TopicTransactionBufferState.State state) throws Exception {
+    public void testSyncNormalPositionWhenTBRecover(
+            boolean clientEnableTransaction, TopicTransactionBufferState.State state) throws Exception {
 
-        final String topicName = NAMESPACE1 + "/testSyncNormalPositionWhenTBRecover-"
-                + clientEnableTransaction + state.name();
+        final String topicName =
+                NAMESPACE1 + "/testSyncNormalPositionWhenTBRecover-" + clientEnableTransaction + state.name();
         if (pulsarClient != null) {
             pulsarClient.shutdown();
         }
@@ -190,13 +197,18 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .enableTransaction(clientEnableTransaction)
                 .build();
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topicName)
                 .create();
 
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(TopicName.get(topicName).toString(), false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(topicName).toString(), false)
+                .get()
+                .get();
 
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
 
@@ -229,12 +241,13 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
 
         // change MaxReadPosition to normal message position
-        assertEquals(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
+        assertEquals(
+                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
                 topicTransactionBuffer.getMaxReadPosition());
     }
 
-    private void checkTopicTransactionBufferState(boolean clientEnableTransaction,
-                                                  TopicTransactionBuffer topicTransactionBuffer) {
+    private void checkTopicTransactionBufferState(
+            boolean clientEnableTransaction, TopicTransactionBuffer topicTransactionBuffer) {
         // recover success
         Awaitility.await().until(() -> {
             if (clientEnableTransaction) {

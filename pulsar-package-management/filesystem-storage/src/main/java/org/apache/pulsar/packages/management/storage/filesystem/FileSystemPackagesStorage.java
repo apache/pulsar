@@ -37,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 
-
 /**
  * Packages management storage implementation with filesystem.
  */
@@ -84,11 +83,9 @@ public class FileSystemPackagesStorage implements PackagesStorage {
         try {
             File f = getPath(path);
 
-            @Cleanup
-            OutputStream os = new FileOutputStream(f);
+            @Cleanup OutputStream os = new FileOutputStream(f);
 
-            @Cleanup
-            BufferedOutputStream bos = new BufferedOutputStream(os);
+            @Cleanup BufferedOutputStream bos = new BufferedOutputStream(os);
             ByteStreams.copy(inputStream, bos);
 
             return CompletableFuture.completedFuture(null);
@@ -102,11 +99,9 @@ public class FileSystemPackagesStorage implements PackagesStorage {
     @Override
     public CompletableFuture<Void> readAsync(String path, OutputStream outputStream) {
         try {
-            @Cleanup
-            InputStream is = new FileInputStream(getPath(path));
+            @Cleanup InputStream is = new FileInputStream(getPath(path));
 
-            @Cleanup
-            BufferedInputStream bis = new BufferedInputStream(is);
+            @Cleanup BufferedInputStream bis = new BufferedInputStream(is);
             ByteStreams.copy(bis, outputStream);
 
             return CompletableFuture.completedFuture(null);

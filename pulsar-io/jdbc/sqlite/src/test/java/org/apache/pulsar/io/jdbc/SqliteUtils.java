@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.io.jdbc;
 
-
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +27,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class SqliteUtils {
@@ -77,7 +75,7 @@ public final class SqliteUtils {
     public void deleteTable(final String table) throws SQLException {
         execute("DROP TABLE IF EXISTS " + table);
 
-        //random errors of table not being available happens in the unit tests
+        // random errors of table not being available happens in the unit tests
         try {
             Thread.sleep(100);
         } catch (InterruptedException e) {
@@ -88,7 +86,7 @@ public final class SqliteUtils {
     public int select(final String query, final ResultSetReadCallback callback) throws SQLException {
         int count = 0;
         try (Connection connection = getConnection(true);
-             Statement stmt = connection.createStatement()) {
+                Statement stmt = connection.createStatement()) {
             try (ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     callback.read(rs);
@@ -102,7 +100,7 @@ public final class SqliteUtils {
     public String dump(final String query) throws SQLException {
         StringBuilder builder = new StringBuilder();
         try (Connection connection = getConnection(true);
-             Statement stmt = connection.createStatement()) {
+                Statement stmt = connection.createStatement()) {
             try (ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     for (int i = 0; i < rs.getMetaData().getColumnCount(); i++) {
@@ -122,5 +120,4 @@ public final class SqliteUtils {
             stmt.executeUpdate(sql);
         }
     }
-
 }

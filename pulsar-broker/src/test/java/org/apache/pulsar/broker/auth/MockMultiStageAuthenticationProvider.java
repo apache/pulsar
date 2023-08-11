@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import java.net.SocketAddress;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import java.net.SocketAddress;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -37,9 +37,8 @@ public class MockMultiStageAuthenticationProvider extends MockAuthenticationProv
     }
 
     @Override
-    public AuthenticationState newAuthState(AuthData authData,
-                                            SocketAddress remoteAddress,
-                                            SSLSession sslSession) throws AuthenticationException {
+    public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
+            throws AuthenticationException {
         return new MockMultiStageAuthenticationState(this);
     }
 }

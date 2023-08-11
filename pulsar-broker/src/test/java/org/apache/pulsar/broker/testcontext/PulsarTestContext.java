@@ -157,7 +157,6 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean startable;
 
-
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
@@ -209,8 +208,7 @@ public class PulsarTestContext implements AutoCloseable {
      * @return a ServerCnx instance
      */
     public ServerCnx createServerCnxSpy() {
-        return BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class,
-                getPulsarService());
+        return BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class, getPulsarService());
     }
 
     /**
@@ -280,7 +278,8 @@ public class PulsarTestContext implements AutoCloseable {
             }
 
             // change the default value for nic speed
-            if (unconfiguredDefaults.getLoadBalancerOverrideBrokerNicSpeedGbps()
+            if (unconfiguredDefaults
+                    .getLoadBalancerOverrideBrokerNicSpeedGbps()
                     .equals(svcConfig.getLoadBalancerOverrideBrokerNicSpeedGbps())) {
                 svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             }
@@ -357,8 +356,7 @@ public class PulsarTestContext implements AutoCloseable {
          * @param pulsarServiceCustomizer the function to customize the PulsarService instance
          * @return the builder
          */
-        public Builder pulsarServiceCustomizer(
-                Consumer<PulsarService> pulsarServiceCustomizer) {
+        public Builder pulsarServiceCustomizer(Consumer<PulsarService> pulsarServiceCustomizer) {
             this.pulsarServiceCustomizer = pulsarServiceCustomizer;
             return this;
         }
@@ -376,12 +374,10 @@ public class PulsarTestContext implements AutoCloseable {
                     mockZooKeeperGlobal(otherContext.getMockZooKeeperGlobal());
                 }
             } else {
-                localMetadataStore(NonClosingProxyHandler.createNonClosingProxy(otherContext.getLocalMetadataStore(),
-                        MetadataStoreExtended.class
-                ));
+                localMetadataStore(NonClosingProxyHandler.createNonClosingProxy(
+                        otherContext.getLocalMetadataStore(), MetadataStoreExtended.class));
                 configurationMetadataStore(NonClosingProxyHandler.createNonClosingProxy(
-                        otherContext.getConfigurationMetadataStore(), MetadataStoreExtended.class
-                ));
+                        otherContext.getConfigurationMetadataStore(), MetadataStoreExtended.class));
             }
             return this;
         }
@@ -437,10 +433,17 @@ public class PulsarTestContext implements AutoCloseable {
             MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
             List<ACL> dummyAclList = new ArrayList<>(0);
 
-            ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
-                    "".getBytes(StandardCharsets.UTF_8), dummyAclList, CreateMode.PERSISTENT);
+            ZkUtils.createFullPathOptimistic(
+                    zk,
+                    "/ledgers/available/192.168.1.1:" + 5000,
+                    "".getBytes(StandardCharsets.UTF_8),
+                    dummyAclList,
+                    CreateMode.PERSISTENT);
 
-            zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(StandardCharsets.UTF_8), dummyAclList,
+            zk.create(
+                    "/ledgers/LAYOUT",
+                    "1\nflat:1".getBytes(StandardCharsets.UTF_8),
+                    dummyAclList,
                     CreateMode.PERSISTENT);
 
             registerCloseable(zk::shutdown);
@@ -487,8 +490,7 @@ public class PulsarTestContext implements AutoCloseable {
          * @param managedLedgerFactory the managed ledger factory to use (could be a mock)
          * @return the builder
          */
-        public Builder managedLedgerClients(BookKeeper bookKeeperClient,
-                                            ManagedLedgerFactory managedLedgerFactory) {
+        public Builder managedLedgerClients(BookKeeper bookKeeperClient, ManagedLedgerFactory managedLedgerFactory) {
             return managedLedgerClientFactory(
                     PulsarTestContext.createManagedLedgerClientFactory(bookKeeperClient, managedLedgerFactory));
         }
@@ -509,7 +511,7 @@ public class PulsarTestContext implements AutoCloseable {
      * With Lombok, it is necessary to extend the generated Builder class for adding customizations related to
      * instantiation and completing the builder.
      */
-    static abstract class AbstractCustomBuilder extends Builder {
+    abstract static class AbstractCustomBuilder extends Builder {
         AbstractCustomBuilder(boolean startable) {
             super.startable = startable;
         }
@@ -550,12 +552,15 @@ public class PulsarTestContext implements AutoCloseable {
         private void initializeCommonPulsarServices(SpyConfig spyConfig) {
             if (super.bookKeeperClient == null && super.managedLedgerClientFactory == null) {
                 if (super.executor == null) {
-                    OrderedExecutor createdExecutor = OrderedExecutor.newBuilder().numThreads(1)
-                            .name(PulsarTestContext.class.getSimpleName() + "-executor").build();
+                    OrderedExecutor createdExecutor = OrderedExecutor.newBuilder()
+                            .numThreads(1)
+                            .name(PulsarTestContext.class.getSimpleName() + "-executor")
+                            .build();
                     registerCloseable(() -> GracefulExecutorServicesShutdown.initiate()
                             .timeout(Duration.ZERO)
                             .shutdown(createdExecutor)
-                            .handle().get());
+                            .handle()
+                            .get());
                     super.executor = createdExecutor;
                 }
                 NonClosableMockBookKeeper mockBookKeeper;
@@ -583,23 +588,22 @@ public class PulsarTestContext implements AutoCloseable {
                     }
                     if (super.configurationMetadataStore == null) {
                         if (super.mockZooKeeperGlobal != null) {
-                            configurationMetadataStore(createMockZookeeperMetadataStore(super.mockZooKeeperGlobal,
-                                    MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
+                            configurationMetadataStore(createMockZookeeperMetadataStore(
+                                    super.mockZooKeeperGlobal, MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
                         } else {
                             configurationMetadataStore(mockZookeeperMetadataStore);
                         }
                     }
                 } else {
                     try {
-                        MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended("memory:local",
-                                MetadataStoreConfig.builder().build());
+                        MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended(
+                                "memory:local", MetadataStoreConfig.builder().build());
                         registerCloseable(() -> {
                             store.close();
                             resetSpyOrMock(store);
                         });
                         MetadataStoreExtended nonClosingProxy =
-                                NonClosingProxyHandler.createNonClosingProxy(store, MetadataStoreExtended.class
-                                );
+                                NonClosingProxyHandler.createNonClosingProxy(store, MetadataStoreExtended.class);
                         if (super.localMetadataStore == null) {
                             localMetadataStore(nonClosingProxy);
                         }
@@ -613,16 +617,19 @@ public class PulsarTestContext implements AutoCloseable {
             }
         }
 
-        private MetadataStoreExtended createMockZookeeperMetadataStore(MockZooKeeper mockZooKeeper,
-                                                                       String metadataStoreName) {
+        private MetadataStoreExtended createMockZookeeperMetadataStore(
+                MockZooKeeper mockZooKeeper, String metadataStoreName) {
             // provide a unique session id for each instance
             MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper, false);
             registerCloseable(() -> {
                 mockZooKeeperSession.close();
                 resetSpyOrMock(mockZooKeeperSession);
             });
-            ZKMetadataStore zkMetadataStore = new ZKMetadataStore(mockZooKeeperSession,
-                    MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
+            ZKMetadataStore zkMetadataStore = new ZKMetadataStore(
+                    mockZooKeeperSession,
+                    MetadataStoreConfig.builder()
+                            .metadataStoreName(metadataStoreName)
+                            .build());
             registerCloseable(() -> {
                 zkMetadataStore.close();
                 resetSpyOrMock(zkMetadataStore);
@@ -661,18 +668,26 @@ public class PulsarTestContext implements AutoCloseable {
 
         @Override
         protected void initializePulsarServices(SpyConfig spyConfig, Builder builder) {
-            BookKeeperClientFactory bookKeeperClientFactory =
-                    new MockBookKeeperClientFactory(builder.bookKeeperClient);
+            BookKeeperClientFactory bookKeeperClientFactory = new MockBookKeeperClientFactory(builder.bookKeeperClient);
             CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
-            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
-                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+            if (builder.compactionServiceFactory == null
+                    && builder.config
+                            .getCompactionServiceFactoryClassName()
+                            .equals(PulsarCompactionServiceFactory.class.getName())) {
                 compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
-            PulsarService pulsarService = spyConfig.getPulsarService()
-                    .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, compactionServiceFactory,
+            PulsarService pulsarService = spyConfig
+                    .getPulsarService()
+                    .spy(
+                            StartableTestPulsarService.class,
+                            spyConfig,
+                            builder.config,
+                            builder.localMetadataStore,
+                            builder.configurationMetadataStore,
+                            compactionServiceFactory,
                             builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.brokerServiceCustomizer);
+                            bookKeeperClientFactory,
+                            builder.brokerServiceCustomizer);
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }
@@ -717,30 +732,39 @@ public class PulsarTestContext implements AutoCloseable {
                     }
                     NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class, metadataStore, 30);
                     TopicResources tsr = spyConfigPulsarResources.spy(TopicResources.class, metadataStore);
-                    pulsarResources(
-                            spyConfigPulsarResources.spy(
-                                    NonStartableTestPulsarService.TestPulsarResources.class, builder.localMetadataStore,
-                                    builder.configurationMetadataStore,
-                                    tsr, nsr));
+                    pulsarResources(spyConfigPulsarResources.spy(
+                            NonStartableTestPulsarService.TestPulsarResources.class,
+                            builder.localMetadataStore,
+                            builder.configurationMetadataStore,
+                            tsr,
+                            nsr));
                 } else {
-                    pulsarResources(
-                            spyConfigPulsarResources.spy(PulsarResources.class, builder.localMetadataStore,
-                                    builder.configurationMetadataStore));
+                    pulsarResources(spyConfigPulsarResources.spy(
+                            PulsarResources.class, builder.localMetadataStore, builder.configurationMetadataStore));
                 }
             }
-            BookKeeperClientFactory bookKeeperClientFactory =
-                    new MockBookKeeperClientFactory(builder.bookKeeperClient);
+            BookKeeperClientFactory bookKeeperClientFactory = new MockBookKeeperClientFactory(builder.bookKeeperClient);
             CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
-            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
-                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+            if (builder.compactionServiceFactory == null
+                    && builder.config
+                            .getCompactionServiceFactoryClassName()
+                            .equals(PulsarCompactionServiceFactory.class.getName())) {
                 compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
-            PulsarService pulsarService = spyConfig.getPulsarService()
-                    .spy(NonStartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, compactionServiceFactory,
+            PulsarService pulsarService = spyConfig
+                    .getPulsarService()
+                    .spy(
+                            NonStartableTestPulsarService.class,
+                            spyConfig,
+                            builder.config,
+                            builder.localMetadataStore,
+                            builder.configurationMetadataStore,
+                            compactionServiceFactory,
                             builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.pulsarResources,
-                            builder.managedLedgerClientFactory, builder.brokerServiceCustomizer);
+                            bookKeeperClientFactory,
+                            builder.pulsarResources,
+                            builder.managedLedgerClientFactory,
+                            builder.brokerServiceCustomizer);
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }
@@ -753,16 +777,17 @@ public class PulsarTestContext implements AutoCloseable {
     }
 
     @NotNull
-    private static ManagedLedgerStorage createManagedLedgerClientFactory(BookKeeper bookKeeperClient,
-                                                                         ManagedLedgerFactory managedLedgerFactory) {
+    private static ManagedLedgerStorage createManagedLedgerClientFactory(
+            BookKeeper bookKeeperClient, ManagedLedgerFactory managedLedgerFactory) {
         return new ManagedLedgerStorage() {
 
             @Override
-            public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                                   BookKeeperClientFactory bookkeeperProvider, EventLoopGroup eventLoopGroup)
-                    throws Exception {
-
-            }
+            public void initialize(
+                    ServiceConfiguration conf,
+                    MetadataStoreExtended metadataStore,
+                    BookKeeperClientFactory bookkeeperProvider,
+                    EventLoopGroup eventLoopGroup)
+                    throws Exception {}
 
             @Override
             public ManagedLedgerFactory getManagedLedgerFactory() {
@@ -780,9 +805,7 @@ public class PulsarTestContext implements AutoCloseable {
             }
 
             @Override
-            public void close() throws IOException {
-
-            }
+            public void close() throws IOException {}
         };
     }
 }

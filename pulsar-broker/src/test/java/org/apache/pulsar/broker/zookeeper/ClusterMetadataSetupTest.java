@@ -76,7 +76,7 @@ public class ClusterMetadataSetupTest {
             "--web-service-url", "http://127.0.0.1:8080",
             "--web-service-url-tls", "https://127.0.0.1:8443",
             "--broker-service-url", "pulsar://127.0.0.1:6650",
-            "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
         SortedMap<String, String> data1 = localZkS.dumpData();
@@ -90,29 +90,28 @@ public class ClusterMetadataSetupTest {
 
     @DataProvider(name = "bundleNumberForDefaultNamespace")
     public static Object[][] bundleNumberForDefaultNamespace() {
-        return new Object[][] { { 0 }, {  128 } };
+        return new Object[][] {{0}, {128}};
     }
 
     @Test(dataProvider = "bundleNumberForDefaultNamespace")
     public void testSetBundleNumberForDefaultNamespace(int bundleNumber) throws Exception {
         String[] args = {
-                "--cluster", "testSetDefaultNamespaceBundleNumber-cluster",
-                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
-                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651",
-                "--default-namespace-bundle-number", String.valueOf(bundleNumber)
+            "--cluster", "testSetDefaultNamespaceBundleNumber-cluster",
+            "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
+            "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+            "--web-service-url", "http://127.0.0.1:8080",
+            "--web-service-url-tls", "https://127.0.0.1:8443",
+            "--broker-service-url", "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651",
+            "--default-namespace-bundle-number", String.valueOf(bundleNumber)
         };
         PulsarClusterMetadataSetup.main(args);
         try (ZooKeeper zk = ZooKeeperClient.newBuilder()
                 .connectString("127.0.0.1:" + localZkS.getZookeeperPort())
                 .build()) {
-            Policies policies =
-                    ObjectMapperFactory.getMapper().reader().readValue(
-                            zk.getData("/admin/policies/public/default", false, null),
-                            Policies.class);
+            Policies policies = ObjectMapperFactory.getMapper()
+                    .reader()
+                    .readValue(zk.getData("/admin/policies/public/default", false, null), Policies.class);
             assertNotNull(policies);
             if (bundleNumber > 0) {
                 assertEquals(policies.bundles.getNumBundles(), bundleNumber);
@@ -124,33 +123,39 @@ public class ClusterMetadataSetupTest {
 
     @DataProvider(name = "useMetadataStoreUrl")
     public static Object[][] useMetadataStoreUrlDataSet() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @Test(dataProvider = "useMetadataStoreUrl")
     public void testSetupClusterWithMultiZkServers(boolean useMetadataStoreUrl) throws Exception {
-        HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
-                "bookies", "ledgers", "pulsar", "stream", "admin"
-        ));
+        HashSet<String> firstLevelNodes =
+                new HashSet<>(Arrays.asList("bookies", "ledgers", "pulsar", "stream", "admin"));
         final String metadataStoreParam;
         final String metadataStoreValue;
         if (useMetadataStoreUrl) {
             metadataStoreParam = "--metadata-store";
-            metadataStoreValue = "zk:127.0.0.1:" + localZkS.getZookeeperPort()
-                    + ",127.0.0.1:" + localZkS.getZookeeperPort() + "/test";
+            metadataStoreValue = "zk:127.0.0.1:" + localZkS.getZookeeperPort() + ",127.0.0.1:"
+                    + localZkS.getZookeeperPort() + "/test";
         } else {
             metadataStoreParam = "--zookeeper";
-            metadataStoreValue = "127.0.0.1:" + localZkS.getZookeeperPort()
-                    + ",127.0.0.1:" + localZkS.getZookeeperPort() + "/test";
+            metadataStoreValue =
+                    "127.0.0.1:" + localZkS.getZookeeperPort() + ",127.0.0.1:" + localZkS.getZookeeperPort() + "/test";
         }
         String[] args = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
-                metadataStoreParam, metadataStoreValue,
-                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort() + "/test",
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            "--cluster",
+            "testReSetupClusterMetadata-cluster",
+            metadataStoreParam,
+            metadataStoreValue,
+            "--configuration-store",
+            "127.0.0.1:" + localZkS.getZookeeperPort() + "/test",
+            "--web-service-url",
+            "http://127.0.0.1:8080",
+            "--web-service-url-tls",
+            "https://127.0.0.1:8443",
+            "--broker-service-url",
+            "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls",
+            "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -159,17 +164,16 @@ public class ClusterMetadataSetupTest {
                 .build()) {
             assertNotNull(zk.exists("/test", false));
             assertEquals(new HashSet<>(zk.getChildren("/test", false)), firstLevelNodes);
-            assertEquals(new HashSet<>(zk.getChildren("/test/ledgers", false)),
+            assertEquals(
+                    new HashSet<>(zk.getChildren("/test/ledgers", false)),
                     new HashSet<>(Arrays.asList("available", "INSTANCEID")));
-
         }
     }
 
     @Test(dataProvider = "useMetadataStoreUrl")
     public void testSetupClusterDefault(boolean useMetadataStoreUrl) throws Exception {
-        HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
-                "bookies", "ledgers", "pulsar", "stream", "admin", "zookeeper"
-        ));
+        HashSet<String> firstLevelNodes =
+                new HashSet<>(Arrays.asList("bookies", "ledgers", "pulsar", "stream", "admin", "zookeeper"));
         final String metadataStoreParam;
         final String metadataStoreValue;
         if (useMetadataStoreUrl) {
@@ -180,13 +184,20 @@ public class ClusterMetadataSetupTest {
             metadataStoreValue = "127.0.0.1:" + localZkS.getZookeeperPort();
         }
         String[] args = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
-                metadataStoreParam, metadataStoreValue,
-                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            "--cluster",
+            "testReSetupClusterMetadata-cluster",
+            metadataStoreParam,
+            metadataStoreValue,
+            "--configuration-store",
+            "127.0.0.1:" + localZkS.getZookeeperPort(),
+            "--web-service-url",
+            "http://127.0.0.1:8080",
+            "--web-service-url-tls",
+            "https://127.0.0.1:8443",
+            "--broker-service-url",
+            "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls",
+            "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -195,17 +206,16 @@ public class ClusterMetadataSetupTest {
                 .build()) {
             assertNotNull(zk.exists("/", false));
             assertEquals(new HashSet<>(zk.getChildren("/", false)), firstLevelNodes);
-            assertEquals(new HashSet<>(zk.getChildren("/ledgers", false)),
+            assertEquals(
+                    new HashSet<>(zk.getChildren("/ledgers", false)),
                     new HashSet<>(Arrays.asList("available", "INSTANCEID")));
-
         }
     }
 
     @Test(dataProvider = "useMetadataStoreUrl")
     public void testSetupClusterInChrootMode(boolean useMetadataStoreUrl) throws Exception {
-        HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
-                "bookies", "ledgers", "pulsar", "stream", "admin"
-        ));
+        HashSet<String> firstLevelNodes =
+                new HashSet<>(Arrays.asList("bookies", "ledgers", "pulsar", "stream", "admin"));
         final String rootPath = "/test-prefix";
         final String metadataStoreParam;
         final String metadataStoreValue;
@@ -218,13 +228,20 @@ public class ClusterMetadataSetupTest {
         }
 
         String[] args = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
-                metadataStoreParam, metadataStoreValue,
-                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            "--cluster",
+            "testReSetupClusterMetadata-cluster",
+            metadataStoreParam,
+            metadataStoreValue,
+            "--configuration-store",
+            "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
+            "--web-service-url",
+            "http://127.0.0.1:8080",
+            "--web-service-url-tls",
+            "https://127.0.0.1:8443",
+            "--broker-service-url",
+            "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls",
+            "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -238,9 +255,8 @@ public class ClusterMetadataSetupTest {
 
     @Test(dataProvider = "useMetadataStoreUrl")
     public void testSetupClusterInNestedChrootMode(boolean useMetadataStoreUrl) throws Exception {
-        HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
-                "bookies", "ledgers", "pulsar", "stream", "admin"
-        ));
+        HashSet<String> firstLevelNodes =
+                new HashSet<>(Arrays.asList("bookies", "ledgers", "pulsar", "stream", "admin"));
         final String rootPath = "/test-prefix/nested";
         final String metadataStoreParam;
         final String metadataStoreValue;
@@ -252,13 +268,20 @@ public class ClusterMetadataSetupTest {
             metadataStoreValue = "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath;
         }
         String[] args = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
-                metadataStoreParam, metadataStoreValue,
-                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            "--cluster",
+            "testReSetupClusterMetadata-cluster",
+            metadataStoreParam,
+            metadataStoreValue,
+            "--configuration-store",
+            "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
+            "--web-service-url",
+            "http://127.0.0.1:8080",
+            "--web-service-url-tls",
+            "https://127.0.0.1:8443",
+            "--broker-service-url",
+            "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls",
+            "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -274,49 +297,49 @@ public class ClusterMetadataSetupTest {
     public void testSetupWithBkMetadataServiceUri() throws Exception {
         String zkConnection = "127.0.0.1:" + localZkS.getZookeeperPort();
         String[] args = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
-                "--zookeeper", zkConnection,
-                "--configuration-store", zkConnection,
-                "--existing-bk-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            "--cluster", "testReSetupClusterMetadata-cluster",
+            "--zookeeper", zkConnection,
+            "--configuration-store", zkConnection,
+            "--existing-bk-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
+            "--web-service-url", "http://127.0.0.1:8080",
+            "--web-service-url-tls", "https://127.0.0.1:8443",
+            "--broker-service-url", "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
 
         PulsarClusterMetadataSetup.main(args);
 
-        try (MetadataStoreExtended localStore = PulsarClusterMetadataSetup
-                .initLocalMetadataStore(zkConnection, 30000)) {
+        try (MetadataStoreExtended localStore =
+                PulsarClusterMetadataSetup.initLocalMetadataStore(zkConnection, 30000)) {
             // expected not exist
             assertFalse(localStore.exists("/ledgers").get());
 
             String[] bookkeeperMetadataServiceUriArgs = {
-                    "--cluster", "testReSetupClusterMetadata-cluster",
-                    "--zookeeper", zkConnection,
-                    "--configuration-store", zkConnection,
-                    "--bookkeeper-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
-                    "--web-service-url", "http://127.0.0.1:8080",
-                    "--web-service-url-tls", "https://127.0.0.1:8443",
-                    "--broker-service-url", "pulsar://127.0.0.1:6650",
-                    "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+                "--cluster", "testReSetupClusterMetadata-cluster",
+                "--zookeeper", zkConnection,
+                "--configuration-store", zkConnection,
+                "--bookkeeper-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
+                "--web-service-url", "http://127.0.0.1:8080",
+                "--web-service-url-tls", "https://127.0.0.1:8443",
+                "--broker-service-url", "pulsar://127.0.0.1:6650",
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
             };
 
             PulsarClusterMetadataSetup.main(bookkeeperMetadataServiceUriArgs);
-            try (MetadataStoreExtended bookkeeperMetadataServiceUriStore = PulsarClusterMetadataSetup
-                    .initLocalMetadataStore(zkConnection, 30000)) {
+            try (MetadataStoreExtended bookkeeperMetadataServiceUriStore =
+                    PulsarClusterMetadataSetup.initLocalMetadataStore(zkConnection, 30000)) {
                 // expected not exist
                 assertFalse(bookkeeperMetadataServiceUriStore.exists("/ledgers").get());
             }
 
             String[] args1 = {
-                    "--cluster", "testReSetupClusterMetadata-cluster",
-                    "--zookeeper", zkConnection,
-                    "--configuration-store", zkConnection,
-                    "--web-service-url", "http://127.0.0.1:8080",
-                    "--web-service-url-tls", "https://127.0.0.1:8443",
-                    "--broker-service-url", "pulsar://127.0.0.1:6650",
-                    "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+                "--cluster", "testReSetupClusterMetadata-cluster",
+                "--zookeeper", zkConnection,
+                "--configuration-store", zkConnection,
+                "--web-service-url", "http://127.0.0.1:8080",
+                "--web-service-url-tls", "https://127.0.0.1:8443",
+                "--broker-service-url", "pulsar://127.0.0.1:6650",
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
             };
 
             PulsarClusterMetadataSetup.main(args1);
@@ -329,26 +352,32 @@ public class ClusterMetadataSetupTest {
     @Test
     public void testInitialNamespaceSetup() throws Exception {
         // missing arguments
-        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{}), 1);
+        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[] {}), 1);
         // invalid namespace
-        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{
-                "--cluster", "testInitialNamespaceSetup-cluster",
-                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
-                "a/b/c/d"
-        }), 1);
+        assertEquals(
+                PulsarInitialNamespaceSetup.doMain(new String[] {
+                    "--cluster",
+                    "testInitialNamespaceSetup-cluster",
+                    "--configuration-store",
+                    "127.0.0.1:" + localZkS.getZookeeperPort(),
+                    "a/b/c/d"
+                }),
+                1);
 
         String[] args = {
-                "--cluster", "testInitialNamespaceSetup-cluster",
-                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
-                "test/a",
-                "test/b",
-                "test/c",
+            "--cluster",
+            "testInitialNamespaceSetup-cluster",
+            "--configuration-store",
+            "127.0.0.1:" + localZkS.getZookeeperPort(),
+            "test/a",
+            "test/b",
+            "test/c",
         };
         assertEquals(PulsarInitialNamespaceSetup.doMain(args), 0);
-        try (MetadataStoreExtended store = MetadataStoreExtended.create("127.0.0.1:" + localZkS.getZookeeperPort(),
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(
+                "127.0.0.1:" + localZkS.getZookeeperPort(),
                 MetadataStoreConfig.builder().build())) {
-            TenantResources tenantResources = new TenantResources(store,
-                    PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC);
+            TenantResources tenantResources = new TenantResources(store, PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC);
             List<String> namespaces = tenantResources.getListOfNamespaces("test");
             assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("test/a", "test/b", "test/c")));
         }
@@ -359,13 +388,13 @@ public class ClusterMetadataSetupTest {
 
         final String zkServers = "127.0.0.1:" + localZkS.getZookeeperPort();
         String[] args = {
-                "--cluster", "testInitialNamespaceSetupZKDefaultsFallback-cluster",
-                "--configuration-store", zkServers,
-                "--zookeeper", zkServers,
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+            "--cluster", "testInitialNamespaceSetupZKDefaultsFallback-cluster",
+            "--configuration-store", zkServers,
+            "--zookeeper", zkServers,
+            "--web-service-url", "http://127.0.0.1:8080",
+            "--web-service-url-tls", "https://127.0.0.1:8443",
+            "--broker-service-url", "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
         log.info("zkdata:" + localZkS.dumpData());
@@ -386,17 +415,14 @@ public class ClusterMetadataSetupTest {
         }
 
         @Cleanup
-        final org.apache.distributedlog.ZooKeeperClient zkc = ZooKeeperClientBuilder
-                .newBuilder()
+        final org.apache.distributedlog.ZooKeeperClient zkc = ZooKeeperClientBuilder.newBuilder()
                 .zkServers(zkServers)
                 .sessionTimeoutMs(20000)
                 .zkAclId(null)
                 .build();
         BKDLConfig bkdlConfigFromZk = BKDLConfig.resolveDLConfig(zkc, dlogUri);
         assertEquals(bkdlConfigFromZk.getBkLedgersPath(), "/ledgers");
-
     }
-
 
     @Test
     public void testInitialNamespaceSetupZKDefaultsFallbackWithChroot() throws Exception {
@@ -404,13 +430,13 @@ public class ClusterMetadataSetupTest {
         final String zkServers = "127.0.0.1:" + localZkS.getZookeeperPort();
         final String chrootPath = "/my-chroot";
         String[] args = {
-                "--cluster", "testInitialNamespaceSetupZKDefaultsFallback-cluster",
-                "--configuration-store", zkServers + chrootPath,
-                "--zookeeper", zkServers + chrootPath,
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+            "--cluster", "testInitialNamespaceSetupZKDefaultsFallback-cluster",
+            "--configuration-store", zkServers + chrootPath,
+            "--zookeeper", zkServers + chrootPath,
+            "--web-service-url", "http://127.0.0.1:8080",
+            "--web-service-url-tls", "https://127.0.0.1:8443",
+            "--broker-service-url", "pulsar://127.0.0.1:6650",
+            "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
         BKDLConfig dlConfig = new BKDLConfig(zkServers, chrootPath + "/ledgers");
@@ -430,15 +456,13 @@ public class ClusterMetadataSetupTest {
         }
 
         @Cleanup
-        final org.apache.distributedlog.ZooKeeperClient zkc = ZooKeeperClientBuilder
-                .newBuilder()
+        final org.apache.distributedlog.ZooKeeperClient zkc = ZooKeeperClientBuilder.newBuilder()
                 .zkServers(zkServers)
                 .sessionTimeoutMs(20000)
                 .zkAclId(null)
                 .build();
         BKDLConfig bkdlConfigFromZk = BKDLConfig.resolveDLConfig(zkc, dlogUri);
         assertEquals(bkdlConfigFromZk.getBkLedgersPath(), chrootPath + "/ledgers");
-
     }
 
     @BeforeClass
@@ -528,6 +552,4 @@ public class ClusterMetadataSetupTest {
             }
         }
     }
-
-
 }

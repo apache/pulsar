@@ -102,5 +102,4 @@ public class SimpleTestProducerSocket {
     }
 
     private static final Logger log = LoggerFactory.getLogger(SimpleTestProducerSocket.class);
-
 }

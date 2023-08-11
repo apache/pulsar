@@ -20,6 +20,4 @@ package org.apache.pulsar.client.impl.auth;
 
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
-public class AuthenticationDataNull implements AuthenticationDataProvider {
-
-}
+public class AuthenticationDataNull implements AuthenticationDataProvider {}

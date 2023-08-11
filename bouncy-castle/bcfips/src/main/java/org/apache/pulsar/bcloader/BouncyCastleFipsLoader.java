@@ -31,6 +31,7 @@ import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 @Slf4j
 public class BouncyCastleFipsLoader implements BCLoader {
     public static Provider provider;
+
     static {
         if (Security.getProvider(BC_FIPS) == null) {
             Security.addProvider(new BouncyCastleFipsProvider());

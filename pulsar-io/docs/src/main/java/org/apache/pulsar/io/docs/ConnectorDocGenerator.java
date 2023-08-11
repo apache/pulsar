@@ -128,7 +128,9 @@ public class ConnectorDocGenerator {
                 required = true)
         String outputDir = null;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         boolean help = false;
     }
 
@@ -154,5 +156,4 @@ public class ConnectorDocGenerator {
         ConnectorDocGenerator docGen = new ConnectorDocGenerator();
         docGen.generatorConnectorYamlFiles(mainArgs.outputDir);
     }
-
 }

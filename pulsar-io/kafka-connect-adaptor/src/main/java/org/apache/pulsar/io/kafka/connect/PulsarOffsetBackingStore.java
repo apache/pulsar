@@ -77,8 +77,10 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             this.readerConfigMap = loadConfigFromJsonString(
                     workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_READER_CONFIG));
         } catch (JsonProcessingException exception) {
-            log.warn("The provided reader configs are invalid, "
-                    + "will not passing any extra config to the reader builder.", exception);
+            log.warn(
+                    "The provided reader configs are invalid, "
+                            + "will not passing any extra config to the reader builder.",
+                    exception);
         }
 
         log.info("Configure offset backing store on pulsar topic {}", topic);
@@ -141,11 +143,10 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
     void processMessage(Message<byte[]> message) {
         if (message.getKey() != null) {
-            data.put(
-                ByteBuffer.wrap(message.getKey().getBytes(UTF_8)),
-                ByteBuffer.wrap(message.getValue()));
+            data.put(ByteBuffer.wrap(message.getKey().getBytes(UTF_8)), ByteBuffer.wrap(message.getValue()));
         } else {
-            log.debug("Got message without key from the offset storage topic, skip it. message value: {}",
+            log.debug(
+                    "Got message without key from the offset storage topic, skip it. message value: {}",
                     message.getValue());
         }
     }
@@ -153,16 +154,14 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     @Override
     public void start() {
         try {
-            producer = client.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+            producer = client.newProducer(Schema.BYTES).topic(topic).create();
             log.info("Successfully created producer to produce updates to topic {}", topic);
 
             reader = client.newReader(Schema.BYTES)
                     .topic(topic)
                     .startMessageId(MessageId.earliest)
                     .loadConf(readerConfigMap)
-                .create();
+                    .create();
             log.info("Successfully created reader to replay updates from topic {}", topic);
 
             CompletableFuture<Void> endFuture = new CompletableFuture<>();
@@ -170,10 +169,10 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             endFuture.get();
         } catch (PulsarClientException e) {
             log.error("Failed to setup pulsar producer/reader to cluster", e);
-            throw new RuntimeException("Failed to setup pulsar producer/reader to cluster ",  e);
+            throw new RuntimeException("Failed to setup pulsar producer/reader to cluster ", e);
         } catch (ExecutionException | InterruptedException e) {
             log.error("Failed to start PulsarOffsetBackingStore", e);
-            throw new RuntimeException("Failed to start PulsarOffsetBackingStore",  e);
+            throw new RuntimeException("Failed to start PulsarOffsetBackingStore", e);
         }
     }
 
@@ -239,9 +238,9 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
                 valBytes = MessageId.earliest.toByteArray();
             }
             producer.newMessage()
-                .key(new String(keyBytes, UTF_8))
-                .value(valBytes)
-                .sendAsync();
+                    .key(new String(keyBytes, UTF_8))
+                    .value(valBytes)
+                    .sendAsync();
         });
         return producer.flushAsync().whenComplete((ignored, cause) -> {
             if (null != callback) {

@@ -65,10 +65,13 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @JsonProperty("publishers")
     public List<NonPersistentPublisherStats> getNonPersistentPublishers() {
-        return Stream.concat(nonPersistentPublishers.stream().sorted(
-                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
-                nonPersistentPublishersMap.values().stream().sorted(
-                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
+        return Stream.concat(
+                        nonPersistentPublishers.stream()
+                                .sorted(Comparator.comparing(
+                                        NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                        nonPersistentPublishersMap.values().stream()
+                                .sorted(Comparator.comparing(
+                                        NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -95,10 +98,13 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public List<NonPersistentPublisherStats> getPublishers() {
-        return Stream.concat(nonPersistentPublishers.stream().sorted(
-                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
-                nonPersistentPublishersMap.values().stream().sorted(
-                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
+        return Stream.concat(
+                        nonPersistentPublishers.stream()
+                                .sorted(Comparator.comparing(
+                                        NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                        nonPersistentPublishersMap.values().stream()
+                                .sorted(Comparator.comparing(
+                                        NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -158,13 +164,15 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         for (int index = 0; index < stats.getNonPersistentPublishers().size(); index++) {
             NonPersistentPublisherStats s = stats.getNonPersistentPublishers().get(index);
             if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
-                ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
-                        .computeIfAbsent(s.getProducerName(), key -> {
-                            final NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
-                            newStats.setSupportsPartialProducer(true);
-                            newStats.setProducerName(s.getProducerName());
-                            return newStats;
-                        })).add((NonPersistentPublisherStatsImpl) s);
+                ((NonPersistentPublisherStatsImpl)
+                                this.nonPersistentPublishersMap.computeIfAbsent(s.getProducerName(), key -> {
+                                    final NonPersistentPublisherStatsImpl newStats =
+                                            new NonPersistentPublisherStatsImpl();
+                                    newStats.setSupportsPartialProducer(true);
+                                    newStats.setProducerName(s.getProducerName());
+                                    return newStats;
+                                }))
+                        .add((NonPersistentPublisherStatsImpl) s);
             } else {
                 // Add a non-persistent publisher stat entry to this.nonPersistentPublishers
                 // if this.nonPersistentPublishers.size() is smaller than
@@ -181,47 +189,51 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
             }
         }
 
-        if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
+        if (this.getNonPersistentSubscriptions().size()
+                != stats.getNonPersistentSubscriptions().size()) {
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
                 NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
-                this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
-                        .add((NonPersistentSubscriptionStatsImpl)
+                this.getNonPersistentSubscriptions()
+                        .put(subscription, subscriptionStats.add((NonPersistentSubscriptionStatsImpl)
                                 stats.getNonPersistentSubscriptions().get(subscription)));
             }
         } else {
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
                 if (this.getNonPersistentSubscriptions().get(subscription) != null) {
-                    ((NonPersistentSubscriptionStatsImpl) this.getNonPersistentSubscriptions().get(subscription))
-                          .add((NonPersistentSubscriptionStatsImpl)
-                                  stats.getNonPersistentSubscriptions().get(subscription));
+                    ((NonPersistentSubscriptionStatsImpl)
+                                    this.getNonPersistentSubscriptions().get(subscription))
+                            .add((NonPersistentSubscriptionStatsImpl)
+                                    stats.getNonPersistentSubscriptions().get(subscription));
                 } else {
                     NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
-                    this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
-                         .add((NonPersistentSubscriptionStatsImpl)
-                                 stats.getNonPersistentSubscriptions().get(subscription)));
+                    this.getNonPersistentSubscriptions()
+                            .put(subscription, subscriptionStats.add((NonPersistentSubscriptionStatsImpl)
+                                    stats.getNonPersistentSubscriptions().get(subscription)));
                 }
             }
         }
 
-        if (this.getNonPersistentReplicators().size() != stats.getNonPersistentReplicators().size()) {
+        if (this.getNonPersistentReplicators().size()
+                != stats.getNonPersistentReplicators().size()) {
             for (String repl : stats.getNonPersistentReplicators().keySet()) {
                 NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
-                this.getNonPersistentReplicators().put(repl, replStats
-                        .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
+                this.getNonPersistentReplicators().put(repl, replStats.add((NonPersistentReplicatorStatsImpl)
+                        stats.getNonPersistentReplicators().get(repl)));
             }
         } else {
             for (String repl : stats.getNonPersistentReplicators().keySet()) {
                 if (this.getNonPersistentReplicators().get(repl) != null) {
-                    ((NonPersistentReplicatorStatsImpl) this.getNonPersistentReplicators().get(repl))
-                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl));
+                    ((NonPersistentReplicatorStatsImpl)
+                                    this.getNonPersistentReplicators().get(repl))
+                            .add((NonPersistentReplicatorStatsImpl)
+                                    stats.getNonPersistentReplicators().get(repl));
                 } else {
                     NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
-                    this.getNonPersistentReplicators().put(repl, replStats
-                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
+                    this.getNonPersistentReplicators().put(repl, replStats.add((NonPersistentReplicatorStatsImpl)
+                            stats.getNonPersistentReplicators().get(repl)));
                 }
             }
         }
         return this;
     }
-
 }

@@ -65,41 +65,57 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Optional<FunctionAuthProvider> authProvider;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Optional<RuntimeCustomizer> runtimeCustomizer;
 
     @VisibleForTesting
-    public ProcessRuntimeFactory(String pulsarServiceUrl,
-                                 String pulsarWebServiceUrl,
-                                 String stateStorageServiceUrl,
-                                 AuthenticationConfig authConfig,
-                                 String javaInstanceJarFile,
-                                 String pythonInstanceFile,
-                                 String logDirectory,
-                                 String extraDependenciesDir,
-                                 String narExtractionDirectory,
-                                 SecretsProviderConfigurator secretsProviderConfigurator,
-                                 boolean authenticationEnabled,
-                                 Optional<FunctionAuthProvider> functionAuthProvider,
-                                 Optional<RuntimeCustomizer> runtimeCustomizer) {
+    public ProcessRuntimeFactory(
+            String pulsarServiceUrl,
+            String pulsarWebServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String javaInstanceJarFile,
+            String pythonInstanceFile,
+            String logDirectory,
+            String extraDependenciesDir,
+            String narExtractionDirectory,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            boolean authenticationEnabled,
+            Optional<FunctionAuthProvider> functionAuthProvider,
+            Optional<RuntimeCustomizer> runtimeCustomizer) {
 
-        initialize(pulsarServiceUrl, pulsarWebServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
-                pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory,
-                secretsProviderConfigurator, authenticationEnabled, functionAuthProvider, runtimeCustomizer);
+        initialize(
+                pulsarServiceUrl,
+                pulsarWebServiceUrl,
+                stateStorageServiceUrl,
+                authConfig,
+                javaInstanceJarFile,
+                pythonInstanceFile,
+                logDirectory,
+                extraDependenciesDir,
+                narExtractionDirectory,
+                secretsProviderConfigurator,
+                authenticationEnabled,
+                functionAuthProvider,
+                runtimeCustomizer);
     }
 
     @Override
-    public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
-                           SecretsProviderConfigurator secretsProviderConfigurator,
-                           ConnectorsManager connectorsManager,
-                           FunctionsManager functionsManager,
-                           Optional<FunctionAuthProvider> authProvider,
-                           Optional<RuntimeCustomizer> runtimeCustomizer) {
+    public void initialize(
+            WorkerConfig workerConfig,
+            AuthenticationConfig authenticationConfig,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            ConnectorsManager connectorsManager,
+            FunctionsManager functionsManager,
+            Optional<FunctionAuthProvider> authProvider,
+            Optional<RuntimeCustomizer> runtimeCustomizer) {
         ProcessRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ProcessRuntimeFactoryConfig.class);
 
-        initialize(workerConfig.getPulsarServiceUrl(),
+        initialize(
+                workerConfig.getPulsarServiceUrl(),
                 workerConfig.getPulsarWebServiceUrl(),
                 workerConfig.getStateStorageServiceUrl(),
                 authenticationConfig,
@@ -114,19 +130,20 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                 runtimeCustomizer);
     }
 
-    private void initialize(String pulsarServiceUrl,
-                            String pulsarWebServiceUrl,
-                            String stateStorageServiceUrl,
-                            AuthenticationConfig authConfig,
-                            String javaInstanceJarFile,
-                            String pythonInstanceFile,
-                            String logDirectory,
-                            String extraDependenciesDir,
-                            String narExtractionDirectory,
-                            SecretsProviderConfigurator secretsProviderConfigurator,
-                            boolean authenticationEnabled,
-                            Optional<FunctionAuthProvider> functionAuthProvider,
-                            Optional<RuntimeCustomizer> runtimeCustomizer) {
+    private void initialize(
+            String pulsarServiceUrl,
+            String pulsarWebServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String javaInstanceJarFile,
+            String pythonInstanceFile,
+            String logDirectory,
+            String extraDependenciesDir,
+            String narExtractionDirectory,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            boolean authenticationEnabled,
+            Optional<FunctionAuthProvider> functionAuthProvider,
+            Optional<RuntimeCustomizer> runtimeCustomizer) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarWebServiceUrl = pulsarWebServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
@@ -143,8 +160,10 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         if (this.javaInstanceJarFile == null) {
             String envJavaInstanceJarLocation = System.getProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY);
             if (null != envJavaInstanceJarLocation) {
-                log.info("Java instance jar location is not defined,"
-                        + " using the location defined in system environment : {}", envJavaInstanceJarLocation);
+                log.info(
+                        "Java instance jar location is not defined,"
+                                + " using the location defined in system environment : {}",
+                        envJavaInstanceJarLocation);
                 this.javaInstanceJarFile = envJavaInstanceJarLocation;
             } else {
                 throw new RuntimeException("No JavaInstanceJar specified");
@@ -154,8 +173,10 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         if (this.pythonInstanceFile == null) {
             String envPythonInstanceLocation = System.getProperty("pulsar.functions.python.instance.file");
             if (null != envPythonInstanceLocation) {
-                log.info("Python instance file location is not defined"
-                        + " using the location defined in system environment : {}", envPythonInstanceLocation);
+                log.info(
+                        "Python instance file location is not defined"
+                                + " using the location defined in system environment : {}",
+                        envPythonInstanceLocation);
                 this.pythonInstanceFile = envPythonInstanceLocation;
             } else {
                 throw new RuntimeException("No PythonInstanceFile specified");
@@ -177,8 +198,10 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             String envProcessContainerExtraDependenciesDir =
                     System.getProperty("pulsar.functions.extra.dependencies.dir");
             if (null != envProcessContainerExtraDependenciesDir) {
-                log.info("Extra dependencies location is not defined using"
-                        + " the location defined in system environment : {}", envProcessContainerExtraDependenciesDir);
+                log.info(
+                        "Extra dependencies location is not defined using"
+                                + " the location defined in system environment : {}",
+                        envProcessContainerExtraDependenciesDir);
                 this.extraDependenciesDir = envProcessContainerExtraDependenciesDir;
             } else {
                 log.info("No extra dependencies location is defined in either"
@@ -191,11 +214,14 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
-                                          String originalCodeFileName,
-                                          String transformFunctionFile,
-                                          String originalTransformFunctionFileName,
-                                          Long expectedHealthCheckInterval) throws Exception {
+    public ProcessRuntime createContainer(
+            InstanceConfig instanceConfig,
+            String codeFile,
+            String originalCodeFileName,
+            String transformFunctionFile,
+            String originalTransformFunctionFileName,
+            Long expectedHealthCheckInterval)
+            throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
@@ -207,31 +233,32 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             case GO:
                 break;
             default:
-                throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
+                throw new RuntimeException("Unsupported Runtime "
+                        + instanceConfig.getFunctionDetails().getRuntime());
         }
 
         // configure auth if necessary
         if (authenticationEnabled) {
-            authProvider
-                    .ifPresent(functionAuthProvider -> functionAuthProvider.configureAuthenticationConfig(authConfig,
-                            Optional.ofNullable(getFunctionAuthData(
-                                    Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
+            authProvider.ifPresent(functionAuthProvider -> functionAuthProvider.configureAuthenticationConfig(
+                    authConfig,
+                    Optional.ofNullable(
+                            getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
         return new ProcessRuntime(
-            instanceConfig,
-            instanceFile,
-            extraDependenciesDir,
-            narExtractionDirectory,
-            logDirectory,
-            codeFile,
-            transformFunctionFile,
-            pulsarServiceUrl,
-            stateStorageServiceUrl,
-            authConfig,
-            secretsProviderConfigurator,
-            expectedHealthCheckInterval,
-            pulsarWebServiceUrl);
+                instanceConfig,
+                instanceFile,
+                extraDependenciesDir,
+                narExtractionDirectory,
+                logDirectory,
+                codeFile,
+                transformFunctionFile,
+                pulsarServiceUrl,
+                stateStorageServiceUrl,
+                authConfig,
+                secretsProviderConfigurator,
+                expectedHealthCheckInterval,
+                pulsarWebServiceUrl);
     }
 
     @Override
@@ -245,6 +272,5 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 }

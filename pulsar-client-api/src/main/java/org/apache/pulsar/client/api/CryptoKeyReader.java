@@ -53,5 +53,4 @@ public interface CryptoKeyReader extends Serializable {
      * @return byte array of the private key value
      */
     EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata);
-
 }

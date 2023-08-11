@@ -115,8 +115,8 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
-                                       EnumSet<CreateOption> options) {
+    public CompletableFuture<Stat> put(
+            String path, byte[] value, Optional<Long> expectedVersion, EnumSet<CreateOption> options) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.PUT, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
@@ -214,7 +214,8 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
             return Optional.of(ex);
         }
         while (true) {
-            Optional<Failure> failure = failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
+            Optional<Failure> failure =
+                    failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
             if (failure.isPresent()) {
                 if (failures.remove(failure.get())) {
                     return failure.map(Failure::getException);

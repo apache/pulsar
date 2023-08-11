@@ -21,13 +21,11 @@ package org.apache.pulsar.transaction.coordinator;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
@@ -48,17 +46,15 @@ public class TransactionMetadataStoreProviderTest {
 
     @DataProvider(name = "providers")
     public static Object[][] providers() {
-        return new Object[][] {
-            { InMemTransactionMetadataStoreProvider.class.getName() }
-        };
+        return new Object[][] {{InMemTransactionMetadataStoreProvider.class.getName()}};
     }
 
     private final String providerClassName;
     private TransactionMetadataStoreProvider provider;
     private TransactionCoordinatorID tcId;
     private TransactionMetadataStore store;
-    private HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
-            1, TimeUnit.MILLISECONDS);
+    private HashedWheelTimer transactionTimer =
+            new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"), 1, TimeUnit.MILLISECONDS);
 
     @Factory(dataProvider = "providers")
     public TransactionMetadataStoreProviderTest(String providerClassName) throws Exception {
@@ -69,21 +65,28 @@ public class TransactionMetadataStoreProviderTest {
     @BeforeMethod
     public void setup() throws Exception {
         this.tcId = new TransactionCoordinatorID(1L);
-        this.store = this.provider.openStore(tcId, null, null,
-                null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl(), 0L,
-                new TxnLogBufferedWriterConfig(), transactionTimer).get();
+        this.store = this.provider
+                .openStore(
+                        tcId,
+                        null,
+                        null,
+                        null,
+                        new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl(),
+                        0L,
+                        new TxnLogBufferedWriterConfig(),
+                        transactionTimer)
+                .get();
     }
 
     @AfterClass
-    public void cleanup(){
+    public void cleanup() {
         transactionTimer.stop();
     }
 
     @Test
     public void testGetTxnStatusNotFound() throws Exception {
         try {
-            this.store.getTxnStatus(
-                new TxnID(tcId.getId(), 12345L)).get();
+            this.store.getTxnStatus(new TxnID(tcId.getId(), 12345L)).get();
             fail("Should fail to get txn status of a non-existent transaction");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof TransactionNotFoundException);
@@ -104,7 +107,9 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
+        this.store
+                .updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false)
+                .get();
 
         // get the new status
         TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
@@ -119,7 +124,9 @@ public class TransactionMetadataStoreProviderTest {
 
         // update the status
         try {
-            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING, false).get();
+            this.store
+                    .updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING, false)
+                    .get();
             fail("Should fail to update txn status if it is not in expected status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
@@ -138,7 +145,9 @@ public class TransactionMetadataStoreProviderTest {
 
         // update the status
         try {
-            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN, false).get();
+            this.store
+                    .updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN, false)
+                    .get();
             fail("Should fail to update txn status if it can not transition to the new status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
@@ -185,7 +194,9 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.producedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
+        this.store
+                .updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false)
+                .get();
 
         // add partitions should fail if it is already committing.
         List<String> newPartitions2 = new ArrayList<>();
@@ -213,10 +224,22 @@ public class TransactionMetadataStoreProviderTest {
         String topicPartition2 = "persistent://public/default/txn-ack-partition-1";
         String topicPartition3 = "persistent://public/default/txn-ack-partition-2";
         List<TransactionSubscription> partitions = new ArrayList<>();
-        partitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
-        partitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
-        partitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-2").build());
-        partitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
+        partitions.add(TransactionSubscription.builder()
+                .topic(topicPartition1)
+                .subscription("sub-0")
+                .build());
+        partitions.add(TransactionSubscription.builder()
+                .topic(topicPartition1)
+                .subscription("sub-1")
+                .build());
+        partitions.add(TransactionSubscription.builder()
+                .topic(topicPartition2)
+                .subscription("sub-2")
+                .build());
+        partitions.add(TransactionSubscription.builder()
+                .topic(topicPartition3)
+                .subscription("sub-4")
+                .build());
 
         // add the list of partitions to the transaction
         this.store.addAckedPartitionToTxn(txnID, partitions).get();
@@ -227,30 +250,68 @@ public class TransactionMetadataStoreProviderTest {
 
         // add another list of partition. duplicated partitions should be removed
         List<TransactionSubscription> newPartitions = new ArrayList<>();
-        newPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
-        newPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
-        newPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
-        newPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
+        newPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition1)
+                .subscription("sub-0")
+                .build());
+        newPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition1)
+                .subscription("sub-1")
+                .build());
+        newPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition2)
+                .subscription("sub-5")
+                .build());
+        newPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition3)
+                .subscription("sub-6")
+                .build());
         this.store.addAckedPartitionToTxn(txnID, newPartitions);
 
         txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
         List<TransactionSubscription> finalPartitions = new ArrayList<>();
-        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
-        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
-        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-2").build());
-        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
-        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
-        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
+        finalPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition1)
+                .subscription("sub-0")
+                .build());
+        finalPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition1)
+                .subscription("sub-1")
+                .build());
+        finalPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition2)
+                .subscription("sub-2")
+                .build());
+        finalPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition2)
+                .subscription("sub-5")
+                .build());
+        finalPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition3)
+                .subscription("sub-4")
+                .build());
+        finalPartitions.add(TransactionSubscription.builder()
+                .topic(topicPartition3)
+                .subscription("sub-6")
+                .build());
         assertEquals(txn.ackedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
+        this.store
+                .updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false)
+                .get();
 
         // add partitions should fail if it is already committing.
         List<TransactionSubscription> newPartitions2 = new ArrayList<>();
-        newPartitions2.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-7").build());
-        newPartitions2.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-8").build());
+        newPartitions2.add(TransactionSubscription.builder()
+                .topic(topicPartition2)
+                .subscription("sub-7")
+                .build());
+        newPartitions2.add(TransactionSubscription.builder()
+                .topic(topicPartition3)
+                .subscription("sub-8")
+                .build());
         try {
             this.store.addAckedPartitionToTxn(txnID, newPartitions2).get();
             fail("Should fail to add acked partitions if the transaction is not in OPEN status");
@@ -262,5 +323,4 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.status(), TxnStatus.COMMITTING);
         assertEquals(txn.ackedPartitions(), finalPartitions);
     }
-
 }

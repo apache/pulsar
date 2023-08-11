@@ -45,8 +45,7 @@ public class AdminProxyHandlerTest {
     public void setupMocks() throws ServletException {
         // given
         HttpClient httpClient = mock(HttpClient.class);
-        adminProxyHandler = new AdminProxyHandler(mock(ProxyConfiguration.class),
-                mock(BrokerDiscoveryProvider.class)) {
+        adminProxyHandler = new AdminProxyHandler(mock(ProxyConfiguration.class), mock(BrokerDiscoveryProvider.class)) {
             @Override
             protected HttpClient createHttpClient() throws ServletException {
                 return httpClient;
@@ -64,17 +63,15 @@ public class AdminProxyHandlerTest {
         doReturn(-1).when(request).getContentLength();
 
         try {
-            AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider =
-                    adminProxyHandler.new ReplayableProxyContentProvider(
-                            request, mock(HttpServletResponse.class), mock(Request.class), mock(InputStream.class),
-                            1024);
+            AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider = adminProxyHandler
+            .new ReplayableProxyContentProvider(
+                    request, mock(HttpServletResponse.class), mock(Request.class), mock(InputStream.class), 1024);
             Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBuffer");
             field.setAccessible(true);
             Assert.assertEquals(((ByteArrayOutputStream) field.get(replayableProxyContentProvider)).size(), 0);
         } catch (IllegalArgumentException e) {
             Assert.fail("IllegalArgumentException should not be thrown");
         }
-
     }
 
     @Test
@@ -85,10 +82,13 @@ public class AdminProxyHandlerTest {
         doReturn(requestBodySize).when(request).getContentLength();
         byte[] inputBuffer = new byte[requestBodySize];
 
-        AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider =
-                adminProxyHandler.new ReplayableProxyContentProvider(request, mock(HttpServletResponse.class),
-                        mock(Request.class), new ByteArrayInputStream(inputBuffer),
-                        maxRequestBodySize);
+        AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider = adminProxyHandler
+        .new ReplayableProxyContentProvider(
+                request,
+                mock(HttpServletResponse.class),
+                mock(Request.class),
+                new ByteArrayInputStream(inputBuffer),
+                maxRequestBodySize);
 
         // when
 
@@ -118,10 +118,13 @@ public class AdminProxyHandlerTest {
         }
         doReturn(inputBuffer.length).when(request).getContentLength();
 
-        AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider =
-                adminProxyHandler.new ReplayableProxyContentProvider(request, mock(HttpServletResponse.class),
-                        mock(Request.class), new ByteArrayInputStream(inputBuffer),
-                        maxRequestBodySize);
+        AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider = adminProxyHandler
+        .new ReplayableProxyContentProvider(
+                request,
+                mock(HttpServletResponse.class),
+                mock(Request.class),
+                new ByteArrayInputStream(inputBuffer),
+                maxRequestBodySize);
 
         ByteBuffer consumeBuffer = ByteBuffer.allocate(maxRequestBodySize);
         // content can be consumed multiple times

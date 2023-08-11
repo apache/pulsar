@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,12 +33,9 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.GrowablePriorityLongPairQueue.LongPair;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class GrowablePriorityLongPairQueueTest {
 
@@ -50,7 +47,6 @@ public class GrowablePriorityLongPairQueueTest {
         } catch (IllegalArgumentException e) {
             // ok
         }
-
     }
 
     @Test
@@ -264,8 +260,14 @@ public class GrowablePriorityLongPairQueueTest {
 
         List<LongPair> values = new ArrayList<>(queue.items());
         values.sort(null);
-        assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
-                new LongPair(6, 6), new LongPair(7, 7)));
+        assertEquals(
+                values,
+                Lists.newArrayList(
+                        new LongPair(0, 0),
+                        new LongPair(1, 1),
+                        new LongPair(3, 3),
+                        new LongPair(6, 6),
+                        new LongPair(7, 7)));
 
         List<LongPair> removeList = new ArrayList<>();
         queue.forEach((first, second) -> {
@@ -293,8 +295,14 @@ public class GrowablePriorityLongPairQueueTest {
 
         List<LongPair> values = new ArrayList<>(queue.items());
         values.sort(null);
-        assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
-                new LongPair(6, 6), new LongPair(7, 7)));
+        assertEquals(
+                values,
+                Lists.newArrayList(
+                        new LongPair(0, 0),
+                        new LongPair(1, 1),
+                        new LongPair(3, 3),
+                        new LongPair(6, 6),
+                        new LongPair(7, 7)));
 
         int removeItems = queue.removeIf((first, second) -> first < 5);
 
@@ -380,7 +388,5 @@ public class GrowablePriorityLongPairQueueTest {
         queue.add(3, 3);
         assertTrue(queue.exists(7, 7));
         assertFalse(queue.exists(7, 1));
-
     }
-
 }

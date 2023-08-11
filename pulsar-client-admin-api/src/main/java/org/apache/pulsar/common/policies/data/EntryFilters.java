@@ -31,5 +31,4 @@ public class EntryFilters {
      * Entry filters class names separated by a comma.
      */
     private String entryFilterNames;
-
 }

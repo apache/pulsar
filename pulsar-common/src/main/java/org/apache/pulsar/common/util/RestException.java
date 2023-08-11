@@ -50,7 +50,12 @@ public class RestException extends WebApplicationException {
     }
 
     public RestException(int code, String message) {
-        super(message, Response.status(code).entity(new ErrorData(message)).type(MediaType.APPLICATION_JSON).build());
+        super(
+                message,
+                Response.status(code)
+                        .entity(new ErrorData(message))
+                        .type(MediaType.APPLICATION_JSON)
+                        .build());
     }
 
     public RestException(Throwable t) {
@@ -62,11 +67,10 @@ public class RestException extends WebApplicationException {
             WebApplicationException e = (WebApplicationException) t;
             return e.getResponse();
         } else {
-            return Response
-                .status(Status.INTERNAL_SERVER_ERROR)
-                .entity(getExceptionData(t))
-                .type(MediaType.TEXT_PLAIN)
-                .build();
+            return Response.status(Status.INTERNAL_SERVER_ERROR)
+                    .entity(getExceptionData(t))
+                    .type(MediaType.TEXT_PLAIN)
+                    .build();
         }
     }
 }

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.examples;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -42,49 +41,45 @@ public class TransactionExample {
         String serviceUrl = "pulsar://localhost:6650";
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
-            .build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
 
         String inputTopic = "input-topic";
         String outputTopic1 = "output-topic-1";
         String outputTopic2 = "output-topic-2";
 
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
-            .topic(inputTopic)
-            .subscriptionType(SubscriptionType.Exclusive)
-            .subscriptionName("transactional-sub")
-            .subscribe();
+                .topic(inputTopic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("transactional-sub")
+                .subscribe();
 
         Producer<String> producer1 = client.newProducer(Schema.STRING)
-            .topic(outputTopic1)
-            .sendTimeout(0, TimeUnit.MILLISECONDS)
-            .create();
+                .topic(outputTopic1)
+                .sendTimeout(0, TimeUnit.MILLISECONDS)
+                .create();
 
         Producer<String> producer2 = client.newProducer(Schema.STRING)
-            .topic(outputTopic2)
-            .sendTimeout(0, TimeUnit.MILLISECONDS)
-            .create();
-
+                .topic(outputTopic2)
+                .sendTimeout(0, TimeUnit.MILLISECONDS)
+                .create();
 
         while (true) {
             Message<String> message = consumer.receive();
 
             // process the messages to generate other messages
             String outputMessage1 = message.getValue() + "-output-1";
-            String outputMessage2= message.getValue() + "-output-2";
+            String outputMessage2 = message.getValue() + "-output-2";
 
             Transaction txn = client.newTransaction()
-                .withTransactionTimeout(1, TimeUnit.MINUTES)
-                .build().get();
+                    .withTransactionTimeout(1, TimeUnit.MINUTES)
+                    .build()
+                    .get();
 
-            CompletableFuture<MessageId> sendFuture1 = producer1.newMessage(txn)
-                .value(outputMessage1)
-                .sendAsync();
+            CompletableFuture<MessageId> sendFuture1 =
+                    producer1.newMessage(txn).value(outputMessage1).sendAsync();
 
-            CompletableFuture<MessageId> sendFuture2 = producer2.newMessage(txn)
-                .value(outputMessage2)
-                .sendAsync();
+            CompletableFuture<MessageId> sendFuture2 =
+                    producer2.newMessage(txn).value(outputMessage2).sendAsync();
 
             CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(), txn);
 
@@ -96,5 +91,4 @@ public class TransactionExample {
             MessageId msgId2 = sendFuture2.get();
         }
     }
-
 }

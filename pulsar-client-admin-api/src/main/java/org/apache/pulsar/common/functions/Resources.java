@@ -51,9 +51,11 @@ public class Resources {
             return DEFAULT;
         }
 
-        double cpu = resources.getCpu() == null ? Resources.getDefaultResources().getCpu() : resources.getCpu();
+        double cpu =
+                resources.getCpu() == null ? Resources.getDefaultResources().getCpu() : resources.getCpu();
         long ram = resources.getRam() == null ? Resources.getDefaultResources().getRam() : resources.getRam();
-        long disk = resources.getDisk() == null ? Resources.getDefaultResources().getDisk() : resources.getDisk();
+        long disk =
+                resources.getDisk() == null ? Resources.getDefaultResources().getDisk() : resources.getDisk();
 
         return new Resources(cpu, ram, disk);
     }

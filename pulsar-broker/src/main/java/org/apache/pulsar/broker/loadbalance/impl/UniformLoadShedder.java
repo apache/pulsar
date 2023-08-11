@@ -70,7 +70,8 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
         MutableDouble minMsgRate = new MutableDouble(Integer.MAX_VALUE);
         MutableDouble minThroughputRate = new MutableDouble(Integer.MAX_VALUE);
         brokersData.forEach((broker, data) -> {
-            double msgRate = data.getLocalData().getMsgRateIn() + data.getLocalData().getMsgRateOut();
+            double msgRate =
+                    data.getLocalData().getMsgRateIn() + data.getLocalData().getMsgRateOut();
             double throughputRate = data.getLocalData().getMsgThroughputIn()
                     + data.getLocalData().getMsgThroughputOut();
             if (msgRate > maxMsgRate.getValue() || throughputRate > maxThroughputRate.getValue()) {
@@ -94,18 +95,18 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
         if (minThroughputRate.getValue() <= EPS && minThroughputRate.getValue() >= -EPS) {
             minThroughputRate.setValue(1.0);
         }
-        double msgRateDifferencePercentage = ((maxMsgRate.getValue() - minMsgRate.getValue()) * 100)
-                / (minMsgRate.getValue());
+        double msgRateDifferencePercentage =
+                ((maxMsgRate.getValue() - minMsgRate.getValue()) * 100) / (minMsgRate.getValue());
         double msgThroughputDifferenceRate = maxThroughputRate.getValue() / minThroughputRate.getValue();
 
         // if the threshold matches then find out how much load needs to be unloaded by considering number of msgRate
         // and throughput.
         boolean isMsgRateThresholdExceeded = conf.getLoadBalancerMsgRateDifferenceShedderThreshold() > 0
                 && msgRateDifferencePercentage > conf.getLoadBalancerMsgRateDifferenceShedderThreshold();
-        boolean isMsgThroughputThresholdExceeded = conf
-                .getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold() > 0
-                && msgThroughputDifferenceRate > conf
-                        .getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold();
+        boolean isMsgThroughputThresholdExceeded =
+                conf.getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold() > 0
+                        && msgThroughputDifferenceRate
+                                > conf.getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold();
 
         if (isMsgRateThresholdExceeded || isMsgThroughputThresholdExceeded) {
             if (log.isDebugEnabled()) {
@@ -113,19 +114,24 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                         "Found bundles for uniform load balancing. "
                                 + "overloaded broker {} with (msgRate,throughput)= ({},{}) "
                                 + "and underloaded broker {} with (msgRate,throughput)= ({},{})",
-                        overloadedBroker.getValue(), maxMsgRate.getValue(), maxThroughputRate.getValue(),
-                        underloadedBroker.getValue(), minMsgRate.getValue(), minThroughputRate.getValue());
+                        overloadedBroker.getValue(),
+                        maxMsgRate.getValue(),
+                        maxThroughputRate.getValue(),
+                        underloadedBroker.getValue(),
+                        minMsgRate.getValue(),
+                        minThroughputRate.getValue());
             }
             MutableInt msgRateRequiredFromUnloadedBundles = new MutableInt(
                     (int) ((maxMsgRate.getValue() - minMsgRate.getValue()) * conf.getMaxUnloadPercentage()));
-            MutableInt msgThroughputRequiredFromUnloadedBundles = new MutableInt(
-                    (int) ((maxThroughputRate.getValue() - minThroughputRate.getValue())
-                            * conf.getMaxUnloadPercentage()));
-            LocalBrokerData overloadedBrokerData = brokersData.get(overloadedBroker.getValue()).getLocalData();
+            MutableInt msgThroughputRequiredFromUnloadedBundles = new MutableInt((int)
+                    ((maxThroughputRate.getValue() - minThroughputRate.getValue()) * conf.getMaxUnloadPercentage()));
+            LocalBrokerData overloadedBrokerData =
+                    brokersData.get(overloadedBroker.getValue()).getLocalData();
 
             if (overloadedBrokerData.getBundles().size() > 1
-                && (msgRateRequiredFromUnloadedBundles.getValue() >= conf.getMinUnloadMessage()
-                    || msgThroughputRequiredFromUnloadedBundles.getValue() >= conf.getMinUnloadMessageThroughput())) {
+                    && (msgRateRequiredFromUnloadedBundles.getValue() >= conf.getMinUnloadMessage()
+                            || msgThroughputRequiredFromUnloadedBundles.getValue()
+                                    >= conf.getMinUnloadMessageThroughput())) {
                 // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
                 // under-loaded broker
                 loadBundleData.entrySet().stream()
@@ -138,8 +144,10 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                                     ? shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut()
                                     : shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
                             return Triple.of(bundle, bundleData, throughput);
-                        }).filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
-                        .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight())).forEach((e) -> {
+                        })
+                        .filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
+                        .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight()))
+                        .forEach((e) -> {
                             if (conf.getMaxUnloadBundleNumPerShedding() != -1
                                     && selectedBundlesCache.size() >= conf.getMaxUnloadBundleNumPerShedding()) {
                                 return;
@@ -147,12 +155,12 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                             String bundle = e.getLeft();
                             BundleData bundleData = e.getMiddle();
                             TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                            double throughput = shortTermData.getMsgThroughputIn()
-                                    + shortTermData.getMsgThroughputOut();
+                            double throughput =
+                                    shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
                             double bundleMsgRate = shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut();
                             if (isMsgRateThresholdExceeded) {
-                                if (bundleMsgRate <= (msgRateRequiredFromUnloadedBundles.getValue()
-                                        + 1000/* delta */)) {
+                                if (bundleMsgRate
+                                        <= (msgRateRequiredFromUnloadedBundles.getValue() + 1000 /* delta */)) {
                                     log.info("Found bundle to unload with msgRate {}", bundleMsgRate);
                                     msgRateRequiredFromUnloadedBundles.add(-bundleMsgRate);
                                     selectedBundlesCache.put(overloadedBroker.getValue(), bundle);

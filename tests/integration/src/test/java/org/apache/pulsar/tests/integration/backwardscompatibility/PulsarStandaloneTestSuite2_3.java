@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.backwardscompatibility;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 
-public abstract class PulsarStandaloneTestSuite2_3  extends PulsarStandaloneTestSuite {
+public abstract class PulsarStandaloneTestSuite2_3 extends PulsarStandaloneTestSuite {
     public PulsarStandaloneTestSuite2_3() {
         super(PulsarContainer.PULSAR_2_3_IMAGE_NAME);
     }

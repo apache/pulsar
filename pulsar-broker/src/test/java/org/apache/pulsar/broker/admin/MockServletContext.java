@@ -25,7 +25,6 @@ import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.Map;
 import java.util.Set;
-
 import javax.servlet.Filter;
 import javax.servlet.FilterRegistration;
 import javax.servlet.RequestDispatcher;
@@ -37,7 +36,6 @@ import javax.servlet.ServletRegistration.Dynamic;
 import javax.servlet.SessionCookieConfig;
 import javax.servlet.SessionTrackingMode;
 import javax.servlet.descriptor.JspConfigDescriptor;
-
 import org.eclipse.jetty.util.AttributesMap;
 
 public class MockServletContext extends AttributesMap implements ServletContext {
@@ -121,18 +119,14 @@ public class MockServletContext extends AttributesMap implements ServletContext 
     }
 
     @Override
-    public void log(String msg) {
-    }
+    public void log(String msg) {}
 
     @Override
     @Deprecated
-    public void log(Exception exception, String msg) {
-    }
+    public void log(Exception exception, String msg) {}
 
     @Override
-    public void log(String message, Throwable throwable) {
-
-    }
+    public void log(String message, Throwable throwable) {}
 
     @Override
     public String getRealPath(String path) {
@@ -230,8 +224,7 @@ public class MockServletContext extends AttributesMap implements ServletContext 
     }
 
     @Override
-    public void setSessionTrackingModes(Set<SessionTrackingMode> sessionTrackingModes) {
-    }
+    public void setSessionTrackingModes(Set<SessionTrackingMode> sessionTrackingModes) {}
 
     @Override
     public Set<SessionTrackingMode> getDefaultSessionTrackingModes() {
@@ -244,16 +237,13 @@ public class MockServletContext extends AttributesMap implements ServletContext 
     }
 
     @Override
-    public void addListener(String className) {
-    }
+    public void addListener(String className) {}
 
     @Override
-    public <T extends EventListener> void addListener(T t) {
-    }
+    public <T extends EventListener> void addListener(T t) {}
 
     @Override
-    public void addListener(Class<? extends EventListener> listenerClass) {
-    }
+    public void addListener(Class<? extends EventListener> listenerClass) {}
 
     @Override
     public <T extends EventListener> T createListener(Class<T> clazz) throws ServletException {
@@ -271,8 +261,7 @@ public class MockServletContext extends AttributesMap implements ServletContext 
     }
 
     @Override
-    public void declareRoles(String... roleNames) {
-    }
+    public void declareRoles(String... roleNames) {}
 
     @Override
     public String getVirtualServerName() {

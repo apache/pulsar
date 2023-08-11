@@ -24,21 +24,18 @@ import org.apache.pulsar.common.configuration.FieldContext;
 @Data
 public class ProcessRuntimeFactoryConfig {
     @FieldContext(
-        doc = "The path to the java instance. Change the jar location only when you put"
-            + " the java instance jar in a different location"
-    )
+            doc = "The path to the java instance. Change the jar location only when you put"
+                    + " the java instance jar in a different location")
     protected String javaInstanceJarLocation;
+
     @FieldContext(
-        doc = "The path to the python instance. Change the python instance location only"
-            + " when you put the python instance in a different location"
-    )
+            doc = "The path to the python instance. Change the python instance location only"
+                    + " when you put the python instance in a different location")
     protected String pythonInstanceLocation;
-    @FieldContext(
-        doc = "The path to the log directory"
-    )
+
+    @FieldContext(doc = "The path to the log directory")
     protected String logDirectory;
-    @FieldContext(
-        doc = "the directory for dropping extra function dependencies"
-    )
+
+    @FieldContext(doc = "the directory for dropping extra function dependencies")
     protected String extraFunctionDependenciesDir;
 }

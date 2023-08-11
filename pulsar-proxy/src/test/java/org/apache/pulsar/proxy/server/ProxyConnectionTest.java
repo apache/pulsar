@@ -30,15 +30,12 @@ public class ProxyConnectionTest {
 
     @Test
     public void testMatchesHostAndPort() {
-        assertTrue(ProxyConnection
-                .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:6650", "1.2.3.4:6650"));
-        assertTrue(ProxyConnection
-                .matchesHostAndPort("pulsar+ssl://", "pulsar+ssl://1.2.3.4:6650", "1.2.3.4:6650"));
-        assertFalse(ProxyConnection
-                .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:12345", "5.6.7.8:1234"));
-        assertFalse(ProxyConnection
-                .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:12345", "1.2.3.4:1234"));
+        assertTrue(ProxyConnection.matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:6650", "1.2.3.4:6650"));
+        assertTrue(ProxyConnection.matchesHostAndPort("pulsar+ssl://", "pulsar+ssl://1.2.3.4:6650", "1.2.3.4:6650"));
+        assertFalse(ProxyConnection.matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:12345", "5.6.7.8:1234"));
+        assertFalse(ProxyConnection.matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:12345", "1.2.3.4:1234"));
     }
+
     @Test
     public void testCreateClientConfiguration() {
         ProxyConfiguration proxyConfiguration = new ProxyConfiguration();

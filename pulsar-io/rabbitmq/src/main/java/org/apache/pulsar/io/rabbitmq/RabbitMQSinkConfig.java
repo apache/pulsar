@@ -37,22 +37,13 @@ public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serial
 
     private static final long serialVersionUID = 1L;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The exchange to publish the messages on")
+    @FieldDoc(required = true, defaultValue = "", help = "The exchange to publish the messages on")
     private String exchangeName;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "",
-            help = "The routing key used for publishing the messages")
+    @FieldDoc(required = false, defaultValue = "", help = "The routing key used for publishing the messages")
     private String routingKey;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "topic",
-        help = "The exchange type to publish the messages on")
+    @FieldDoc(required = false, defaultValue = "topic", help = "The exchange type to publish the messages on")
     private String exchangeType = "topic";
 
     public static RabbitMQSinkConfig load(String yamlFile) throws IOException {

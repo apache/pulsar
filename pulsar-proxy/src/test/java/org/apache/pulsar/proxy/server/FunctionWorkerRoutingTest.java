@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import javax.servlet.http.HttpServletRequest;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import javax.servlet.http.HttpServletRequest;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class FunctionWorkerRoutingTest {
 
@@ -41,20 +39,16 @@ public class FunctionWorkerRoutingTest {
         AdminProxyHandler handler = new AdminProxyHandler(proxyConfig, discoveryProvider);
 
         String funcUrl = handler.rewriteTarget(buildRequest("/admin/v3/functions/test/test"));
-        Assert.assertEquals(funcUrl, String.format("%s/admin/v3/functions/%s/%s",
-                functionWorkerUrl, "test", "test"));
+        Assert.assertEquals(funcUrl, String.format("%s/admin/v3/functions/%s/%s", functionWorkerUrl, "test", "test"));
 
         String sourceUrl = handler.rewriteTarget(buildRequest("/admin/v3/sources/test/test"));
-        Assert.assertEquals(sourceUrl, String.format("%s/admin/v3/sources/%s/%s",
-                functionWorkerUrl, "test", "test"));
+        Assert.assertEquals(sourceUrl, String.format("%s/admin/v3/sources/%s/%s", functionWorkerUrl, "test", "test"));
 
         String sinkUrl = handler.rewriteTarget(buildRequest("/admin/v3/sinks/test/test"));
-        Assert.assertEquals(sinkUrl, String.format("%s/admin/v3/sinks/%s/%s",
-                functionWorkerUrl, "test", "test"));
+        Assert.assertEquals(sinkUrl, String.format("%s/admin/v3/sinks/%s/%s", functionWorkerUrl, "test", "test"));
 
         String tenantUrl = handler.rewriteTarget(buildRequest("/admin/v2/tenants/test"));
-        Assert.assertEquals(tenantUrl, String.format("%s/admin/v2/tenants/%s",
-                brokerUrl, "test"));
+        Assert.assertEquals(tenantUrl, String.format("%s/admin/v2/tenants/%s", brokerUrl, "test"));
     }
 
     static HttpServletRequest buildRequest(String url) {
@@ -62,5 +56,4 @@ public class FunctionWorkerRoutingTest {
         when(mockReq.getRequestURI()).thenReturn(url);
         return mockReq;
     }
-
 }

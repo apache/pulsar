@@ -44,7 +44,6 @@ public class RedirectManager {
 
     private final LockManager<BrokerLookupData> brokerLookupDataLockManager;
 
-
     public RedirectManager(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.brokerLookupDataLockManager = pulsar.getCoordinationService().getLockManager(BrokerLookupData.class);
@@ -61,14 +60,15 @@ public class RedirectManager {
             Map<String, BrokerLookupData> map = new ConcurrentHashMap<>();
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (String brokerId : availableBrokers) {
-                futures.add(this.brokerLookupDataLockManager.readLock(
-                        String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, brokerId)).thenAccept(lookupDataOpt -> {
-                    if (lookupDataOpt.isPresent()) {
-                        map.put(brokerId, lookupDataOpt.get());
-                    } else {
-                        log.warn("Got an empty lookup data, brokerId: {}", brokerId);
-                    }
-                }));
+                futures.add(this.brokerLookupDataLockManager
+                        .readLock(String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, brokerId))
+                        .thenAccept(lookupDataOpt -> {
+                            if (lookupDataOpt.isPresent()) {
+                                map.put(brokerId, lookupDataOpt.get());
+                            } else {
+                                log.warn("Got an empty lookup data, brokerId: {}", brokerId);
+                            }
+                        }));
             }
 
             return FutureUtil.waitForAll(futures).thenApply(__ -> map);
@@ -100,8 +100,7 @@ public class RedirectManager {
 
             if (Objects.equals(latestServiceLookupData.get().getLoadManagerClassName(), currentLMClassName)) {
                 if (debug) {
-                    log.info("No need to redirect, current load manager class name: {}",
-                            currentLMClassName);
+                    log.info("No need to redirect, current load manager class name: {}", currentLMClassName);
                 }
                 return Optional.empty();
             }
@@ -114,12 +113,12 @@ public class RedirectManager {
             });
             var selectedBroker = candidateBrokers.get((int) (Math.random() * candidateBrokers.size()));
 
-            return Optional.of(new LookupResult(selectedBroker.getWebServiceUrl(),
+            return Optional.of(new LookupResult(
+                    selectedBroker.getWebServiceUrl(),
                     selectedBroker.getWebServiceUrlTls(),
                     selectedBroker.getPulsarServiceUrl(),
                     selectedBroker.getPulsarServiceUrlTls(),
                     true));
         });
     }
-
 }

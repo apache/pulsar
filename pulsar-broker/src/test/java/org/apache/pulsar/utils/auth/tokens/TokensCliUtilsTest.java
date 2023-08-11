@@ -43,16 +43,16 @@ public class TokensCliUtilsTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            TokensCliUtils.main(new String[]{"gen-doc"});
+            TokensCliUtils.main(new String[] {"gen-doc"});
 
             String message = baoStream.toString();
 
             String[] innerClassList = {
-                    TokensCliUtils.CommandCreateSecretKey.class.getName(),
-                    TokensCliUtils.CommandCreateKeyPair.class.getName(),
-                    TokensCliUtils.CommandCreateToken.class.getName(),
-                    TokensCliUtils.CommandShowToken.class.getName(),
-                    TokensCliUtils.CommandValidateToken.class.getName()
+                TokensCliUtils.CommandCreateSecretKey.class.getName(),
+                TokensCliUtils.CommandCreateKeyPair.class.getName(),
+                TokensCliUtils.CommandCreateToken.class.getName(),
+                TokensCliUtils.CommandShowToken.class.getName(),
+                TokensCliUtils.CommandValidateToken.class.getName()
             };
 
             for (String name : innerClassList) {

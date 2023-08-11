@@ -33,11 +33,10 @@ import org.apache.pulsar.io.core.annotations.IOType;
  * apply schema into it.
  */
 @Connector(
-    name = "kafka",
-    type = IOType.SINK,
-    help = "The KafkaBytesSink is used for moving messages from Pulsar to Kafka.",
-    configClass = KafkaSinkConfig.class
-)
+        name = "kafka",
+        type = IOType.SINK,
+        help = "The KafkaBytesSink is used for moving messages from Pulsar to Kafka.",
+        configClass = KafkaSinkConfig.class)
 @Slf4j
 public class KafkaBytesSink extends KafkaAbstractSink<String, byte[]> {
 

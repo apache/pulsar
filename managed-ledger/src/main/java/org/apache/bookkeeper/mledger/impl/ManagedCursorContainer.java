@@ -56,9 +56,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    public ManagedCursorContainer() {
-
-    }
+    public ManagedCursorContainer() {}
 
     // Used to keep track of slowest cursor.
     private final ArrayList<Item> heap = new ArrayList<>();
@@ -69,7 +67,6 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     private final StampedLock rwLock = new StampedLock();
 
     private int durableCursorCount;
-
 
     /**
      * Add a cursor to the container. The cursor will be optionally tracked for the slowest reader when

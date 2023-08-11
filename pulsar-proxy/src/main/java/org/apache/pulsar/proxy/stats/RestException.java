@@ -45,11 +45,16 @@ public class RestException extends WebApplicationException {
     }
 
     public RestException(int code, String message) {
-        super(Response.status(code).entity(new ErrorData(message)).type(MediaType.APPLICATION_JSON).build());
+        super(Response.status(code)
+                .entity(new ErrorData(message))
+                .type(MediaType.APPLICATION_JSON)
+                .build());
     }
 
     public RestException(Throwable t) {
-        super(Response.status(500).entity(getExceptionData(t)).type(MediaType.TEXT_PLAIN).build());
+        super(Response.status(500)
+                .entity(getExceptionData(t))
+                .type(MediaType.TEXT_PLAIN)
+                .build());
     }
-
 }

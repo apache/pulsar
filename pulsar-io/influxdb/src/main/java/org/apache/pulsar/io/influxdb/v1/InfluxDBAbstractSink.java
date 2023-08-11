@@ -53,7 +53,7 @@ public abstract class InfluxDBAbstractSink<T> extends BatchSink<Point, T> {
                     influxDBSinkConfig.getConsistencyLevel().toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Illegal Consistency Level, valid values are: "
-                + Arrays.asList(InfluxDB.ConsistencyLevel.values()));
+                    + Arrays.asList(InfluxDB.ConsistencyLevel.values()));
         }
 
         influxDatabase = influxDBSinkConfig.getDatabase();
@@ -78,8 +78,7 @@ public abstract class InfluxDBAbstractSink<T> extends BatchSink<Point, T> {
 
     @Override
     protected void writePoints(List<Point> points) throws Exception {
-        BatchPoints.Builder batchBuilder = BatchPoints
-                .database(influxDatabase)
+        BatchPoints.Builder batchBuilder = BatchPoints.database(influxDatabase)
                 .retentionPolicy(retentionPolicy)
                 .consistency(consistencyLevel);
 

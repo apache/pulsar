@@ -64,5 +64,4 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
         throw new IllegalArgumentException(
                 "Not a valid principle. Should be [pass|fail|error].[pass|fail|error], found " + principal);
     }
-
 }

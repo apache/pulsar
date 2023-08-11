@@ -20,10 +20,9 @@ package org.apache.pulsar.tests.integration.semantics;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -69,25 +68,24 @@ public class SemanticsTest extends PulsarTestSuite {
         String topicName = generateTopicName(nsName, "testeffectivelyonce", true);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl.get())
-            .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
-            .topic(topicName)
-            .subscriptionName("test-sub")
-            .ackTimeout(10, TimeUnit.SECONDS)
-            .subscriptionType(SubscriptionType.Exclusive)
-            .subscribe();
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
 
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(topicName)
-            .enableBatching(false)
-            .producerName("effectively-once-producer")
-            .initialSequenceId(1L)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .producerName("effectively-once-producer")
+                .initialSequenceId(1L)
+                .create();
 
         // send messages
         sendMessagesIdempotency(producer);
@@ -98,22 +96,13 @@ public class SemanticsTest extends PulsarTestSuite {
 
     private static void sendMessagesIdempotency(Producer<String> producer) throws Exception {
         // sending message
-        producer.newMessage()
-            .sequenceId(1L)
-            .value("message-1")
-            .send();
+        producer.newMessage().sequenceId(1L).value("message-1").send();
 
         // sending a duplicated message
-        producer.newMessage()
-            .sequenceId(1L)
-            .value("duplicated-message-1")
-            .send();
+        producer.newMessage().sequenceId(1L).value("duplicated-message-1").send();
 
         // sending a second message
-        producer.newMessage()
-            .sequenceId(2L)
-            .value("message-2")
-            .send();
+        producer.newMessage().sequenceId(2L).value("message-2").send();
     }
 
     private static void checkMessagesIdempotencyDisabled(Consumer<String> consumer) throws Exception {
@@ -122,9 +111,8 @@ public class SemanticsTest extends PulsarTestSuite {
         receiveAndAssertMessage(consumer, 2L, "message-2");
     }
 
-    private static void receiveAndAssertMessage(Consumer<String> consumer,
-                                                long expectedSequenceId,
-                                                String expectedContent) throws Exception {
+    private static void receiveAndAssertMessage(
+            Consumer<String> consumer, long expectedSequenceId, String expectedContent) throws Exception {
         Message<String> msg = consumer.receive();
         log.info("Received message {}", msg);
         assertEquals(expectedSequenceId, msg.getSequenceId());
@@ -140,25 +128,24 @@ public class SemanticsTest extends PulsarTestSuite {
         String topicName = generateTopicName(nsName, "testeffectivelyonce", true);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl.get())
-            .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
-            .topic(topicName)
-            .subscriptionName("test-sub")
-            .ackTimeout(10, TimeUnit.SECONDS)
-            .subscriptionType(SubscriptionType.Exclusive)
-            .subscribe();
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
 
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(topicName)
-            .enableBatching(false)
-            .producerName("effectively-once-producer")
-            .initialSequenceId(1L)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .producerName("effectively-once-producer")
+                .initialSequenceId(1L)
+                .create();
 
         // send messages
         sendMessagesIdempotency(producer);
@@ -188,13 +175,13 @@ public class SemanticsTest extends PulsarTestSuite {
         int numMessages = 10;
 
         try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build()) {
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build()) {
 
             for (int t = 0; t < numTopics; t++) {
                 try (Producer<String> producer = client.newProducer(Schema.STRING)
-                    .topic(topicName + "-" + t)
-                    .create()) {
+                        .topic(topicName + "-" + t)
+                        .create()) {
 
                     for (int i = 0; i < numMessages; i++) {
                         producer.send("sip-topic-" + t + "-message-" + i);
@@ -210,10 +197,10 @@ public class SemanticsTest extends PulsarTestSuite {
             }
 
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(topics)
-                .subscriptionName("my-sub")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe()) {
+                    .topic(topics)
+                    .subscriptionName("my-sub")
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe()) {
 
                 for (int i = 0; i < numTopics * numMessages; i++) {
                     Message<String> m = consumer.receive();
@@ -242,28 +229,29 @@ public class SemanticsTest extends PulsarTestSuite {
 
         List<MessageId> producedMsgIds;
 
-        try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl.get())
-            .build()) {
+        try (PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
 
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("my-sub")
-                .subscribe()) {
+                    .topic(topicName)
+                    .subscriptionName("my-sub")
+                    .subscribe()) {
 
                 try (Producer<String> producer = client.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .enableBatching(true)
-                    .batchingMaxMessages(5)
-                    .batchingMaxPublishDelay(1, TimeUnit.HOURS)
-                    .create()) {
+                        .topic(topicName)
+                        .enableBatching(true)
+                        .batchingMaxMessages(5)
+                        .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                        .create()) {
 
                     List<CompletableFuture<MessageId>> sendFutures = Lists.newArrayList();
                     for (int i = 0; i < numMessages; i++) {
                         sendFutures.add(producer.sendAsync("batch-message-" + i));
                     }
-                    CompletableFuture.allOf(sendFutures.toArray(new CompletableFuture<?>[numMessages])).get();
-                    producedMsgIds = sendFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
+                    CompletableFuture.allOf(sendFutures.toArray(new CompletableFuture<?>[numMessages]))
+                            .get();
+                    producedMsgIds =
+                            sendFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
                 }
 
                 for (int i = 0; i < numMessages; i++) {

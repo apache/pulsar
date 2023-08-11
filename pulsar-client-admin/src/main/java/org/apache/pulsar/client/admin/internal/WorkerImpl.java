@@ -65,8 +65,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<Collection<Metrics>> getMetricsAsync() {
         WebTarget path = workerStats.path("metrics");
-        return asyncGetRequest(path, new GenericType<List<Metrics>>() {})
-                .thenApply(list -> list);
+        return asyncGetRequest(path, new GenericType<List<Metrics>>() {}).thenApply(list -> list);
     }
 
     @Override
@@ -88,7 +87,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<WorkerInfo> getClusterLeaderAsync() {
         WebTarget path = worker.path("cluster").path("leader");
-        return asyncGetRequest(path, new GenericType<WorkerInfo>(){});
+        return asyncGetRequest(path, new GenericType<WorkerInfo>() {});
     }
 
     @Override
@@ -110,6 +109,6 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<Void> rebalanceAsync() {
         final WebTarget path = worker.path("rebalance");
-        return asyncPutRequest(path,  Entity.entity("", MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 }

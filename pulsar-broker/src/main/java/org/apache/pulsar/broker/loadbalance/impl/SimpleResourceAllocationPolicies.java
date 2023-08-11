@@ -46,7 +46,9 @@ public class SimpleResourceAllocationPolicies {
 
     private Optional<NamespaceIsolationPolicies> getIsolationPolicies(String clusterName) {
         try {
-            return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
+            return pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getIsolationPolicies()
                     .getIsolationDataPolicies(clusterName);
         } catch (Exception e) {
             LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies", e);
@@ -55,15 +57,18 @@ public class SimpleResourceAllocationPolicies {
     }
 
     private CompletableFuture<Optional<NamespaceIsolationPolicies>> getIsolationPoliciesAsync(String clusterName) {
-        return this.pulsar.getPulsarResources().getNamespaceResources()
-                .getIsolationPolicies().getIsolationDataPoliciesAsync(clusterName);
+        return this.pulsar
+                .getPulsarResources()
+                .getNamespaceResources()
+                .getIsolationPolicies()
+                .getIsolationDataPoliciesAsync(clusterName);
     }
 
     public CompletableFuture<Boolean> areIsolationPoliciesPresentAsync(NamespaceName namespace) {
         return getIsolationPoliciesAsync(pulsar.getConfiguration().getClusterName())
                 .thenApply(policies -> {
-                    return policies.filter(isolationPolicies ->
-                                    isolationPolicies.getPolicyByNamespace(namespace) != null)
+                    return policies.filter(
+                                    isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace) != null)
                             .isPresent();
                 });
     }
@@ -106,7 +111,8 @@ public class SimpleResourceAllocationPolicies {
         try {
             Optional<NamespaceIsolationPolicies> policies =
                     getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            return policies.map(isolationPolicies -> isolationPolicies.isSharedBroker(broker)).orElse(true);
+            return policies.map(isolationPolicies -> isolationPolicies.isSharedBroker(broker))
+                    .orElse(true);
 
         } catch (Exception e) {
             LOG.warn("isPrimaryForAnyNamespace", e);

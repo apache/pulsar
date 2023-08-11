@@ -62,22 +62,23 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
     @Test
     public void testPeekMessages() throws Exception {
         @Cleanup
-        PulsarClient newPulsarClient = PulsarClient.builder()
-            .serviceUrl(lookupUrl.toString())
-            .build();
+        PulsarClient newPulsarClient =
+                PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
 
         final String topic = "persistent://my-property/my-ns/test-publish-timestamp";
 
         @Cleanup
-        Consumer<byte[]> consumer = newPulsarClient.newConsumer()
-            .topic(topic)
-            .subscriptionName("my-sub")
-            .subscribe();
+        Consumer<byte[]> consumer = newPulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .subscribe();
 
         final int numMessages = 5;
 
         @Cleanup
-        Producer<byte[]> producer = newPulsarClient.newProducer()
+        Producer<byte[]> producer = newPulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
@@ -85,9 +86,7 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
                 .create();
 
         for (int i = 0; i < numMessages; i++) {
-            producer.newMessage()
-                .value(("value-" + i).getBytes(UTF_8))
-                .sendAsync();
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).sendAsync();
         }
         producer.flush();
 
@@ -105,13 +104,13 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
 
     @DataProvider
     public Object[] getStatsDataProvider() {
-        return new Object[]{
-                // v1 topic
-                TopicDomain.persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent+ "://my-property/test/my-ns/" + UUID.randomUUID(),
-                //v2 topic
-                TopicDomain.persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
+        return new Object[] {
+            // v1 topic
+            TopicDomain.persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
+            TopicDomain.non_persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
+            // v2 topic
+            TopicDomain.persistent + "://my-property/my-ns/" + UUID.randomUUID(),
+            TopicDomain.non_persistent + "://my-property/my-ns/" + UUID.randomUUID(),
         };
     }
 
@@ -120,13 +119,13 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
-        PulsarClient newPulsarClient = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
-                .build();
+        PulsarClient newPulsarClient =
+                PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
 
         final String subscriptionName = "my-sub";
         @Cleanup
-        Consumer<byte[]> consumer = newPulsarClient.newConsumer()
+        Consumer<byte[]> consumer = newPulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subscriptionName)
                 .subscribe();

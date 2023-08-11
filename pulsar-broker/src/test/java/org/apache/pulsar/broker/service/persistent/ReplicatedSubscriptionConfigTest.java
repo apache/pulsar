@@ -20,9 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -54,7 +52,8 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         String topic = BrokerTestUtil.newUniqueName("createReplicatedSubscription");
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub1")
                 .replicateSubscriptionState(true)
@@ -75,7 +74,8 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         this.conf.setEnableReplicatedSubscriptions(true);
         String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscription");
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .replicateSubscriptionState(false)
@@ -85,7 +85,8 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         assertFalse(stats.getSubscriptions().get("sub").isReplicated());
         consumer.close();
 
-        consumer = pulsarClient.newConsumer(Schema.STRING)
+        consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .replicateSubscriptionState(true)
@@ -101,7 +102,8 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         this.conf.setEnableReplicatedSubscriptions(true);
         String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscriptionAfterRestart");
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .replicateSubscriptionState(false)
@@ -113,7 +115,8 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
 
         admin.topics().unload(topic);
 
-        consumer = pulsarClient.newConsumer(Schema.STRING)
+        consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .replicateSubscriptionState(true)
@@ -128,7 +131,8 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
     public void testDisableReplicatedSubscriptions() throws Exception {
         this.conf.setEnableReplicatedSubscriptions(false);
         String topic = BrokerTestUtil.newUniqueName("disableReplicatedSubscriptions");
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .replicateSubscriptionState(true)

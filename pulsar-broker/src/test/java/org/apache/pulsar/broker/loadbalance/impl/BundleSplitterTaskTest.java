@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -33,10 +36,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * @author hezhangjian
@@ -142,10 +141,10 @@ public class BundleSplitterTaskTest {
 
         int currentBundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
         final Map<String, String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
-        Assert.assertEquals(bundlesToSplit.size() + currentBundleCount,
+        Assert.assertEquals(
+                bundlesToSplit.size() + currentBundleCount,
                 pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
     }
-
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
@@ -153,5 +152,4 @@ public class BundleSplitterTaskTest {
         pulsar.close();
         bkEnsemble.stop();
     }
-
 }

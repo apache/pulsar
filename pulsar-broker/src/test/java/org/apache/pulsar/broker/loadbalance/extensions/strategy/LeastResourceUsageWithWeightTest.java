@@ -119,8 +119,7 @@ public class LeastResourceUsageWithWeightTest {
         assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("3"));
     }
 
-    public void testArithmeticException()
-            throws NoSuchFieldException, IllegalAccessException {
+    public void testArithmeticException() throws NoSuchFieldException, IllegalAccessException {
         var ctx = setupContext();
         var brokerLoadStore = ctx.brokerLoadDataStore();
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
@@ -144,8 +143,8 @@ public class LeastResourceUsageWithWeightTest {
 
         Set<String> candidates = new HashSet<>();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,50, 100));
-        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx,100, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 50, 100));
+        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 100, 100));
         brokerLoadDataStore.pushAsync("3", null);
         brokerLoadDataStore.pushAsync("4", null);
         candidates.add("1");
@@ -155,7 +154,7 @@ public class LeastResourceUsageWithWeightTest {
         assertEquals(result, "1");
 
         strategy = new LeastResourceUsageWithWeight();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,100, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 100, 100));
         result = strategy.select(candidates, bundleData, ctx).get();
         assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
 
@@ -166,12 +165,10 @@ public class LeastResourceUsageWithWeightTest {
         assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
     }
 
-
     private BrokerLoadData createBrokerData(LoadManagerContext ctx, double usage, double limit) {
         var brokerLoadData = new BrokerLoadData();
         SystemResourceUsage usages = createUsage(usage, limit);
-        brokerLoadData.update(usages, 1, 1, 1, 1, 1, 1,
-                ctx.brokerConfiguration());
+        brokerLoadData.update(usages, 1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
         return brokerLoadData;
     }
 
@@ -186,8 +183,10 @@ public class LeastResourceUsageWithWeightTest {
     }
 
     private void updateLoad(LoadManagerContext ctx, String broker, double usage) {
-        ctx.brokerLoadDataStore().get(broker).get().update(createUsage(usage, 100.0),
-                1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
+        ctx.brokerLoadDataStore()
+                .get(broker)
+                .get()
+                .update(createUsage(usage, 100.0), 1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
     }
 
     public static LoadManagerContext getContext() {
@@ -202,10 +201,9 @@ public class LeastResourceUsageWithWeightTest {
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
             Map<String, BrokerLoadData> map = new HashMap<>();
-            @Override
-            public void close() {
 
-            }
+            @Override
+            public void close() {}
 
             @Override
             public CompletableFuture<Void> pushAsync(String key, BrokerLoadData loadData) {
@@ -233,9 +231,7 @@ public class LeastResourceUsageWithWeightTest {
             }
 
             @Override
-            public void forEach(BiConsumer<String, BrokerLoadData> action) {
-
-            }
+            public void forEach(BiConsumer<String, BrokerLoadData> action) {}
 
             @Override
             public Set<Map.Entry<String, BrokerLoadData>> entrySet() {
@@ -248,14 +244,10 @@ public class LeastResourceUsageWithWeightTest {
             }
 
             @Override
-            public void closeTableView() throws IOException {
-
-            }
+            public void closeTableView() throws IOException {}
 
             @Override
-            public void startTableView() throws LoadDataStoreException {
-
-            }
+            public void startTableView() throws LoadDataStoreException {}
         };
 
         doReturn(conf).when(ctx).brokerConfiguration();

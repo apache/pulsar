@@ -83,10 +83,13 @@ public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
+
     @Getter
     private final DnsAddressResolverGroup dnsAddressResolverGroup;
+
     @Getter
     private final BrokerProxyValidator brokerProxyValidator;
+
     private String serviceUrl;
     private String serviceUrlTls;
     private final AuthenticationService authenticationService;
@@ -94,6 +97,7 @@ public class ProxyService implements Closeable {
     private MetadataStoreExtended localMetadataStore;
     private MetadataStoreExtended configMetadataStore;
     private PulsarResources pulsarResources;
+
     @Getter
     private ProxyExtensions proxyExtensions = null;
 
@@ -120,28 +124,35 @@ public class ProxyService implements Closeable {
 
     private final ScheduledExecutorService statsExecutor;
 
-    static final Gauge ACTIVE_CONNECTIONS = Gauge
-            .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
+    static final Gauge ACTIVE_CONNECTIONS = Gauge.build(
+                    "pulsar_proxy_active_connections", "Number of connections currently active in the proxy")
+            .create()
             .register();
 
-    static final Counter NEW_CONNECTIONS = Counter
-            .build("pulsar_proxy_new_connections", "Counter of connections being opened in the proxy").create()
+    static final Counter NEW_CONNECTIONS = Counter.build(
+                    "pulsar_proxy_new_connections", "Counter of connections being opened in the proxy")
+            .create()
             .register();
 
-    static final Counter REJECTED_CONNECTIONS = Counter
-            .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
+    static final Counter REJECTED_CONNECTIONS = Counter.build(
+                    "pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling")
+            .create()
             .register();
 
-    static final Counter OPS_COUNTER = Counter
-            .build("pulsar_proxy_binary_ops", "Counter of proxy operations").create().register();
+    static final Counter OPS_COUNTER = Counter.build("pulsar_proxy_binary_ops", "Counter of proxy operations")
+            .create()
+            .register();
 
-    static final Counter BYTES_COUNTER = Counter
-            .build("pulsar_proxy_binary_bytes", "Counter of proxy bytes").create().register();
+    static final Counter BYTES_COUNTER = Counter.build("pulsar_proxy_binary_bytes", "Counter of proxy bytes")
+            .create()
+            .register();
 
     @Getter
     private final Set<ProxyConnection> clientCnxs;
+
     @Getter
     private final Map<String, TopicStats> topicStats;
+
     @Getter
     private AdditionalServlets proxyAdditionalServlets;
 
@@ -151,34 +162,33 @@ public class ProxyService implements Closeable {
     @Getter
     private final ConnectionController connectionController;
 
-    public ProxyService(ProxyConfiguration proxyConfig,
-                        AuthenticationService authenticationService) throws Exception {
+    public ProxyService(ProxyConfiguration proxyConfig, AuthenticationService authenticationService) throws Exception {
         requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.clientCnxs = Sets.newConcurrentHashSet();
         this.topicStats = new ConcurrentHashMap<>();
 
-        this.lookupRequestSemaphore = new AtomicReference<>(
-                new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
+        this.lookupRequestSemaphore =
+                new AtomicReference<>(new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
         if (proxyConfig.getProxyLogLevel().isPresent()) {
             proxyLogLevel = proxyConfig.getProxyLogLevel().get();
         } else {
             proxyLogLevel = 0;
         }
-        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(proxyConfig.getNumAcceptorThreads(),
-                false, acceptorThreadFactory);
-        this.workerGroup = EventLoopUtil.newEventLoopGroup(proxyConfig.getNumIOThreads(),
-                false, workersThreadFactory);
+        this.acceptorGroup =
+                EventLoopUtil.newEventLoopGroup(proxyConfig.getNumAcceptorThreads(), false, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(proxyConfig.getNumIOThreads(), false, workersThreadFactory);
         this.authenticationService = authenticationService;
 
-        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup));
+        DnsNameResolverBuilder dnsNameResolverBuilder =
+                new DnsNameResolverBuilder().channelType(EventLoopUtil.getDatagramChannelClass(workerGroup));
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
 
         dnsAddressResolverGroup = new DnsAddressResolverGroup(dnsNameResolverBuilder);
 
-        brokerProxyValidator = new BrokerProxyValidator(dnsAddressResolverGroup.getResolver(workerGroup.next()),
+        brokerProxyValidator = new BrokerProxyValidator(
+                dnsAddressResolverGroup.getResolver(workerGroup.next()),
                 proxyConfig.getBrokerProxyAllowedHostNames(),
                 proxyConfig.getBrokerProxyAllowedIPAddresses(),
                 proxyConfig.getBrokerProxyAllowedTargetPorts());
@@ -187,22 +197,27 @@ public class ProxyService implements Closeable {
         proxyExtensions = ProxyExtensions.load(proxyConfig);
         proxyExtensions.initialize(proxyConfig);
 
-        statsExecutor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.schedule(() -> {
-            this.clientCnxs.forEach(cnx -> {
-                if (cnx.getDirectProxyHandler() != null
-                        && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
-                    cnx.getDirectProxyHandler().getInboundChannelRequestsRate().calculateRate();
-                }
-            });
-            this.topicStats.forEach((topic, stats) -> {
-                stats.calculate();
-            });
-        }, 60, TimeUnit.SECONDS);
+        statsExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
+        statsExecutor.schedule(
+                () -> {
+                    this.clientCnxs.forEach(cnx -> {
+                        if (cnx.getDirectProxyHandler() != null
+                                && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
+                            cnx.getDirectProxyHandler()
+                                    .getInboundChannelRequestsRate()
+                                    .calculateRate();
+                        }
+                    });
+                    this.topicStats.forEach((topic, stats) -> {
+                        stats.calculate();
+                    });
+                },
+                60,
+                TimeUnit.SECONDS);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
-            proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+            proxyClientAuthentication = AuthenticationFactory.create(
+                    proxyConfig.getBrokerClientAuthenticationPlugin(),
                     proxyConfig.getBrokerClientAuthenticationParameters());
         } else {
             proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
@@ -223,8 +238,8 @@ public class ProxyService implements Closeable {
             configMetadataStore = createConfigurationMetadataStore();
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, pulsarResources);
-            authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
-                    pulsarResources);
+            authorizationService =
+                    new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig), pulsarResources);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
@@ -232,8 +247,8 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
-                new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+        bootstrap.childOption(
+                ChannelOption.RCVBUF_ALLOCATOR, new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
         Class<? extends ServerSocketChannel> serverSocketChannelClass =
                 EventLoopUtil.getServerSocketChannelClass(workerGroup);
@@ -249,19 +264,30 @@ public class ProxyService implements Closeable {
         // Bind and start to accept incoming connections.
         if (proxyConfig.getServicePort().isPresent()) {
             try {
-                listenChannel = bootstrap.bind(proxyConfig.getBindAddress(),
-                        proxyConfig.getServicePort().get()).sync().channel();
+                listenChannel = bootstrap
+                        .bind(
+                                proxyConfig.getBindAddress(),
+                                proxyConfig.getServicePort().get())
+                        .sync()
+                        .channel();
                 LOG.info("Started Pulsar Proxy at {}", listenChannel.localAddress());
             } catch (Exception e) {
-                throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort().get(), e);
+                throw new IOException(
+                        "Failed to bind Pulsar Proxy on port "
+                                + proxyConfig.getServicePort().get(),
+                        e);
             }
         }
 
         if (proxyConfig.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
-            listenChannelTls = tlsBootstrap.bind(proxyConfig.getBindAddress(),
-                    proxyConfig.getServicePortTls().get()).sync().channel();
+            listenChannelTls = tlsBootstrap
+                    .bind(
+                            proxyConfig.getBindAddress(),
+                            proxyConfig.getServicePortTls().get())
+                    .sync()
+                    .channel();
             LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
         }
 
@@ -269,13 +295,15 @@ public class ProxyService implements Closeable {
                 ServiceConfigurationUtils.getDefaultOrConfiguredAddress(proxyConfig.getAdvertisedAddress());
 
         if (proxyConfig.getServicePort().isPresent()) {
-            this.serviceUrl = String.format("pulsar://%s:%d/", hostname, getListenPort().get());
+            this.serviceUrl =
+                    String.format("pulsar://%s:%d/", hostname, getListenPort().get());
         } else {
             this.serviceUrl = null;
         }
 
         if (proxyConfig.getServicePortTls().isPresent()) {
-            this.serviceUrlTls = String.format("pulsar+ssl://%s:%d/", hostname, getListenPortTls().get());
+            this.serviceUrlTls = String.format(
+                    "pulsar+ssl://%s:%d/", hostname, getListenPortTls().get());
         } else {
             this.serviceUrlTls = null;
         }
@@ -300,8 +328,9 @@ public class ProxyService implements Closeable {
     }
 
     // This call is used for starting additional protocol handlers
-    public void startProxyExtensions(Map<String, Map<InetSocketAddress,
-            ChannelInitializer<SocketChannel>>> protocolHandlers, ServerBootstrap serverBootstrap) {
+    public void startProxyExtensions(
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlers,
+            ServerBootstrap serverBootstrap) {
 
         protocolHandlers.forEach((extensionName, initializers) -> {
             initializers.forEach((address, initializer) -> {
@@ -315,10 +344,12 @@ public class ProxyService implements Closeable {
         });
     }
 
-    private void startProxyExtension(String extensionName,
-                                     SocketAddress address,
-                                     ChannelInitializer<SocketChannel> initializer,
-                                     ServerBootstrap serverBootstrap) throws IOException {
+    private void startProxyExtension(
+            String extensionName,
+            SocketAddress address,
+            ChannelInitializer<SocketChannel> initializer,
+            ServerBootstrap serverBootstrap)
+            throws IOException {
         ServerBootstrap bootstrap;
         boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
         if (useSeparateThreadPool) {
@@ -326,8 +357,8 @@ public class ProxyService implements Closeable {
             bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
-                    new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+            bootstrap.childOption(
+                    ChannelOption.RCVBUF_ALLOCATOR, new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
             EventLoopUtil.enableTriggeredMode(bootstrap);
             DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ext-" + extensionName);
@@ -431,17 +462,21 @@ public class ProxyService implements Closeable {
 
     private void closeAllConnections() {
         try {
-            workerGroup.submit(() -> {
-                // Close all the connections
-                if (!clientCnxs.isEmpty()) {
-                    LOG.info("Closing {} proxy connections, including connections to brokers", clientCnxs.size());
-                    for (ProxyConnection clientCnx : clientCnxs) {
-                        clientCnx.ctx().close();
-                    }
-                } else {
-                    LOG.info("No proxy connections to close");
-                }
-            }).sync();
+            workerGroup
+                    .submit(() -> {
+                        // Close all the connections
+                        if (!clientCnxs.isEmpty()) {
+                            LOG.info(
+                                    "Closing {} proxy connections, including connections to brokers",
+                                    clientCnxs.size());
+                            for (ProxyConnection clientCnx : clientCnxs) {
+                                clientCnx.ctx().close();
+                            }
+                        } else {
+                            LOG.info("No proxy connections to close");
+                        }
+                    })
+                    .sync();
         } catch (InterruptedException e) {
             LOG.info("Closing of connections interrupted");
             Thread.currentThread().interrupt();
@@ -497,13 +532,15 @@ public class ProxyService implements Closeable {
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createLocalMetadataStore(proxyConfig.getMetadataStoreUrl(),
+        return PulsarResources.createLocalMetadataStore(
+                proxyConfig.getMetadataStoreUrl(),
                 proxyConfig.getMetadataStoreSessionTimeoutMillis(),
                 proxyConfig.isMetadataStoreAllowReadOnlyOperations());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createConfigMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
+        return PulsarResources.createConfigMetadataStore(
+                proxyConfig.getConfigurationMetadataStoreUrl(),
                 proxyConfig.getMetadataStoreSessionTimeoutMillis(),
                 proxyConfig.isMetadataStoreAllowReadOnlyOperations());
     }

@@ -39,12 +39,10 @@ public class PulsarDecoderTest {
         ByteBuf cmdBuf = changeBuf.slice(4, changeBuf.writerIndex() - 4);
         PulsarDecoder decoder = spy(new PulsarDecoder() {
             @Override
-            protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
-            }
+            protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {}
 
             @Override
-            protected void messageReceived() {
-            }
+            protected void messageReceived() {}
         });
         decoder.channelRead(mock(ChannelHandlerContext.class), cmdBuf);
         verify(decoder, times(1)).handleActiveConsumerChange(any(CommandActiveConsumerChange.class));

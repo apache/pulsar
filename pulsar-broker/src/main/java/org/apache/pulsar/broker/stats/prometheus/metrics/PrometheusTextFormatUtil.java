@@ -32,8 +32,13 @@ public class PrometheusTextFormatUtil {
         // pulsar_bookie_client_bookkeeper_ml_scheduler_completed_tasks_0{cluster="pulsar"} 1044057
         try {
             w.append("# TYPE ").append(name).append(" gauge\n");
-            w.append(name).append("{cluster=\"").append(cluster).append("\"}")
-                    .append(' ').append(gauge.getSample().toString()).append('\n');
+            w.append(name)
+                    .append("{cluster=\"")
+                    .append(cluster)
+                    .append("\"}")
+                    .append(' ')
+                    .append(gauge.getSample().toString())
+                    .append('\n');
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -45,8 +50,13 @@ public class PrometheusTextFormatUtil {
         // jvm_threads_started_total{cluster="test"} 59
         try {
             w.append("# TYPE ").append(name).append(" counter\n");
-            w.append(name).append("{cluster=\"").append(cluster).append("\"}")
-                    .append(' ').append(counter.get().toString()).append('\n');
+            w.append(name)
+                    .append("{cluster=\"")
+                    .append(cluster)
+                    .append("\"}")
+                    .append(' ')
+                    .append(counter.get().toString())
+                    .append('\n');
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -114,25 +124,44 @@ public class PrometheusTextFormatUtil {
         }
     }
 
-    private static void writeQuantile(Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster,
-                                      Boolean success, double quantile) throws IOException {
-        w.append(name).append("{cluster=\"").append(cluster).append("\", success=\"")
-                .append(success.toString()).append("\", quantile=\"")
-                .append(Double.toString(quantile)).append("\"} ")
-                .append(Double.toString(opStat.getQuantileValue(success, quantile))).append('\n');
+    private static void writeQuantile(
+            Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster, Boolean success, double quantile)
+            throws IOException {
+        w.append(name)
+                .append("{cluster=\"")
+                .append(cluster)
+                .append("\", success=\"")
+                .append(success.toString())
+                .append("\", quantile=\"")
+                .append(Double.toString(quantile))
+                .append("\"} ")
+                .append(Double.toString(opStat.getQuantileValue(success, quantile)))
+                .append('\n');
     }
 
-    private static void writeCount(Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster,
-                                   Boolean success) throws IOException {
-        w.append(name).append("_count{cluster=\"").append(cluster).append("\", success=\"")
-                .append(success.toString()).append("\"} ")
-                .append(Long.toString(opStat.getCount(success))).append('\n');
+    private static void writeCount(
+            Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster, Boolean success)
+            throws IOException {
+        w.append(name)
+                .append("_count{cluster=\"")
+                .append(cluster)
+                .append("\", success=\"")
+                .append(success.toString())
+                .append("\"} ")
+                .append(Long.toString(opStat.getCount(success)))
+                .append('\n');
     }
 
-    private static void writeSum(Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster,
-                                 Boolean success) throws IOException {
-        w.append(name).append("_sum{cluster=\"").append(cluster).append("\", success=\"")
-                .append(success.toString()).append("\"} ")
-                .append(Double.toString(opStat.getSum(success))).append('\n');
+    private static void writeSum(
+            Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster, Boolean success)
+            throws IOException {
+        w.append(name)
+                .append("_sum{cluster=\"")
+                .append(cluster)
+                .append("\", success=\"")
+                .append(success.toString())
+                .append("\"} ")
+                .append(Double.toString(opStat.getSum(success)))
+                .append('\n');
     }
 }

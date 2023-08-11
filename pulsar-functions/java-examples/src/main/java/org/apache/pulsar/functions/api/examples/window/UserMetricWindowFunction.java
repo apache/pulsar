@@ -34,7 +34,8 @@ public class UserMetricWindowFunction implements WindowFunction<String, Void> {
 
         for (Record<String> record : inputs) {
             if (record.getEventTime().isPresent()) {
-                context.recordMetric("MessageEventTime", record.getEventTime().get().doubleValue());
+                context.recordMetric(
+                        "MessageEventTime", record.getEventTime().get().doubleValue());
             }
         }
 

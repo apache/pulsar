@@ -51,5 +51,4 @@ public class EncryptionContext {
         private byte[] keyValue;
         private Map<String, String> metadata;
     }
-
 }

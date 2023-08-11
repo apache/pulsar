@@ -101,7 +101,6 @@ abstract class AbstractMetrics {
         }
     }
 
-
     protected final PulsarService pulsar;
 
     abstract List<Metrics> generate();
@@ -235,13 +234,15 @@ abstract class AbstractMetrics {
      * @param metrics
      * @param ledger
      */
-    protected void populateDimensionMap(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics,
-            ManagedLedgerImpl ledger) {
+    protected void populateDimensionMap(
+            Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics, ManagedLedgerImpl ledger) {
         ledgersByDimensionMap.computeIfAbsent(metrics, __ -> new ArrayList<>()).add(ledger);
     }
 
-    protected void populateDimensionMap(Map<Metrics, List<TopicStats>> topicsStatsByDimensionMap,
-            Metrics metrics, TopicStats destStats) {
-        topicsStatsByDimensionMap.computeIfAbsent(metrics, __ -> new ArrayList<>()).add(destStats);
+    protected void populateDimensionMap(
+            Map<Metrics, List<TopicStats>> topicsStatsByDimensionMap, Metrics metrics, TopicStats destStats) {
+        topicsStatsByDimensionMap
+                .computeIfAbsent(metrics, __ -> new ArrayList<>())
+                .add(destStats);
     }
 }

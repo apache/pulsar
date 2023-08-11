@@ -24,14 +24,11 @@ import org.apache.flume.conf.FlumeConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StaticZooKeeperConfigurationProvider extends
-        AbstractZooKeeperConfigurationProvider {
+public class StaticZooKeeperConfigurationProvider extends AbstractZooKeeperConfigurationProvider {
 
-    private static final Logger LOGGER = LoggerFactory
-            .getLogger(StaticZooKeeperConfigurationProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(StaticZooKeeperConfigurationProvider.class);
 
-    public StaticZooKeeperConfigurationProvider(String agentName,
-                                                String zkConnString, String basePath) {
+    public StaticZooKeeperConfigurationProvider(String agentName, String zkConnString, String basePath) {
         super(agentName, zkConnString, basePath);
     }
 
@@ -51,5 +48,4 @@ public class StaticZooKeeperConfigurationProvider extends
             throw new FlumeException(e);
         }
     }
-
 }

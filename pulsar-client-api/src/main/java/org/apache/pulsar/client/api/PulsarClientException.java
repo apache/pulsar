@@ -121,9 +121,11 @@ public class PulsarClientException extends IOException {
                 } else {
                     sb.append(',');
                 }
-                sb.append("{\"attempt\":").append(i++)
-                    .append(",\"error\":\"").append(t.toString().replace("\"", "\\\""))
-                    .append("\"}");
+                sb.append("{\"attempt\":")
+                        .append(i++)
+                        .append(",\"error\":\"")
+                        .append(t.toString().replace("\"", "\\\""))
+                        .append("\"}");
             }
             sb.append("]}");
             return sb.toString();
@@ -297,7 +299,6 @@ public class PulsarClientException extends IOException {
         public TimeoutException(String msg, long sequenceId) {
             super(msg, sequenceId);
         }
-
     }
 
     /**
@@ -1005,7 +1006,7 @@ public class PulsarClientException extends IOException {
             return new MessageAcknowledgeException(msg);
         } else if (t instanceof TransactionConflictException) {
             return new TransactionConflictException(msg);
-        } else if (t instanceof  TransactionHasOperationFailedException) {
+        } else if (t instanceof TransactionHasOperationFailedException) {
             return new TransactionHasOperationFailedException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
@@ -1027,7 +1028,7 @@ public class PulsarClientException extends IOException {
             return (PulsarClientException) t;
         } else if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
-        }  else if (t instanceof InterruptedException) {
+        } else if (t instanceof InterruptedException) {
             return new PulsarClientException(t);
         } else if (!(t instanceof ExecutionException)) {
             // Generic exception
@@ -1142,7 +1143,6 @@ public class PulsarClientException extends IOException {
             e = t.getCause();
         }
     }
-
 
     public long getSequenceId() {
         return sequenceId;

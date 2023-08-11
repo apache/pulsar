@@ -66,17 +66,20 @@ public class RocksdbMetadataStoreTest {
         Path tempDir;
         tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
         log.info("Temp dir:{}", tempDir.toAbsolutePath());
-        String optionFilePath =
-                getClass().getClassLoader().getResource("rocksdb_option_file_example.ini").getPath();
+        String optionFilePath = getClass()
+                .getClassLoader()
+                .getResource("rocksdb_option_file_example.ini")
+                .getPath();
         log.info("optionFilePath={}", optionFilePath);
-        store = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
+        store = MetadataStoreFactory.create(
+                "rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().configFilePath(optionFilePath).build());
         Assert.assertTrue(store instanceof RocksdbMetadataStore);
 
         String path = "/test";
         byte[] data = "data".getBytes();
 
-        //test put
+        // test put
         CompletableFuture<Stat> f = store.put(path, data, Optional.of(-1L));
 
         CompletableFuture<Stat> failedPut = store.put(path, data, Optional.of(100L));
@@ -94,12 +97,13 @@ public class RocksdbMetadataStoreTest {
         Assert.assertNotNull(store.put(path + "/b", data, Optional.of(-1L)));
         Assert.assertNotNull(store.put(path + "/c", data, Optional.of(-1L)));
 
-        //reopen db
+        // reopen db
         store.close();
-        store = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
+        store = MetadataStoreFactory.create(
+                "rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().configFilePath(optionFilePath).build());
 
-        //test get
+        // test get
         CompletableFuture<Optional<GetResult>> readResult = store.get(path);
         Assert.assertNotNull(readResult.get());
         Assert.assertTrue(readResult.get().isPresent());
@@ -117,10 +121,12 @@ public class RocksdbMetadataStoreTest {
 
         Path tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
         log.info("Temp dir:{}", tempDir.toAbsolutePath());
-        MetadataStore store1 = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
+        MetadataStore store1 = MetadataStoreFactory.create(
+                "rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().build());
 
-        MetadataStore store2 = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
+        MetadataStore store2 = MetadataStoreFactory.create(
+                "rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().build());
 
         // We should get the same instance

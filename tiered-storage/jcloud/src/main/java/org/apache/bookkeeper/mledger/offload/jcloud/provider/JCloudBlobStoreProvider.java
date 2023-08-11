@@ -81,8 +81,7 @@ import org.jclouds.s3.reference.S3Constants;
  *</p>
  */
 @Slf4j
-public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, BlobStoreBuilder, CredentialBuilder  {
-
+public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, BlobStoreBuilder, CredentialBuilder {
     AWS_S3("aws-s3", new AWSS3ProviderMetadata()) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
@@ -116,11 +115,13 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             if (config.getCredentials() == null) {
                 try {
                     String gcsKeyContent = Files.asCharSource(
-                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)),
-                            Charset.defaultCharset()).read();
+                                    new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)),
+                                    Charset.defaultCharset())
+                            .read();
                     config.setProviderCredentials(() -> new GoogleCredentialsFromJson(gcsKeyContent).get());
                 } catch (IOException ioe) {
-                    log.error("Cannot read GCS service account credentials file: {}",
+                    log.error(
+                            "Cannot read GCS service account credentials file: {}",
                             config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile"));
                     throw new IllegalArgumentException(ioe);
                 }
@@ -148,9 +149,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                         .getBlobStore();
             } else {
                 log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
-                return contextBuilder
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
+                return contextBuilder.buildView(BlobStoreContext.class).getBlobStore();
             }
         }
 
@@ -167,7 +166,6 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             config.setProviderCredentials(() -> new Credentials(accountName, accountKey));
         }
     },
-
 
     /**
      * Aliyun OSS is compatible with the S3 API.
@@ -211,18 +209,16 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
             if (Strings.isNullOrEmpty(config.getBucket())) {
-                throw new IllegalArgumentException(
-                    "Bucket cannot be empty for Local offload");
+                throw new IllegalArgumentException("Bucket cannot be empty for Local offload");
             }
         }
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
 
-            ContextBuilder contextBuilder =  ContextBuilder.newBuilder("transient");
+            ContextBuilder contextBuilder = ContextBuilder.newBuilder("transient");
             ShadedJCloudsUtils.addStandardModules(contextBuilder);
-            BlobStoreContext ctx = contextBuilder
-                    .buildView(BlobStoreContext.class);
+            BlobStoreContext ctx = contextBuilder.buildView(BlobStoreContext.class);
 
             BlobStore bs = ctx.getBlobStore();
 
@@ -258,7 +254,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     }
 
     public static boolean driverSupported(String driverName) {
-        for (JCloudBlobStoreProvider provider: JCloudBlobStoreProvider.values()) {
+        for (JCloudBlobStoreProvider provider : JCloudBlobStoreProvider.values()) {
             if (provider.getDriver().equalsIgnoreCase(driverName)) {
                 return true;
             }
@@ -286,18 +282,16 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     static final ConfigValidation VALIDATION = (TieredStorageConfiguration config) -> {
         if (Strings.isNullOrEmpty(config.getRegion()) && Strings.isNullOrEmpty(config.getServiceEndpoint())) {
             throw new IllegalArgumentException(
-                "Either Region or ServiceEndpoint must specified for " + config.getDriver() + " offload");
+                    "Either Region or ServiceEndpoint must specified for " + config.getDriver() + " offload");
         }
 
         if (Strings.isNullOrEmpty(config.getBucket())) {
-            throw new IllegalArgumentException(
-                "Bucket cannot be empty for " + config.getDriver() + " offload");
+            throw new IllegalArgumentException("Bucket cannot be empty for " + config.getDriver() + " offload");
         }
 
         if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
-            throw new IllegalArgumentException(
-                "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
-                + config.getDriver() + " offload");
+            throw new IllegalArgumentException("ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
+                    + config.getDriver() + " offload");
         }
     };
 
@@ -311,17 +305,14 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
 
         if (config.getProviderCredentials() != null) {
-                return contextBuilder
-                        .credentialsSupplier(config.getCredentials()::get)
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
-        } else {
-            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
             return contextBuilder
+                    .credentialsSupplier(config.getCredentials()::get)
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
+        } else {
+            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            return contextBuilder.buildView(BlobStoreContext.class).getBlobStore();
         }
-
     };
 
     static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
@@ -329,7 +320,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             final AWSCredentialsProvider authChain;
             try {
                 if (!Strings.isNullOrEmpty(config.getConfigProperty(S3_ID_FIELD))
-                    && !Strings.isNullOrEmpty(config.getConfigProperty(S3_SECRET_FIELD))) {
+                        && !Strings.isNullOrEmpty(config.getConfigProperty(S3_SECRET_FIELD))) {
                     AWSCredentials awsCredentials = new AWSCredentials() {
                         @Override
                         public String getAWSAccessKeyId() {
@@ -341,18 +332,15 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                             return config.getConfigProperty(S3_SECRET_FIELD);
                         }
                     };
-                    authChain = new AWSStaticCredentialsProvider(
-                            new BasicAWSCredentials(
-                                config.getConfigProperty(S3_ID_FIELD),
-                                config.getConfigProperty(S3_SECRET_FIELD)));
+                    authChain = new AWSStaticCredentialsProvider(new BasicAWSCredentials(
+                            config.getConfigProperty(S3_ID_FIELD), config.getConfigProperty(S3_SECRET_FIELD)));
                 } else if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
                     authChain = DefaultAWSCredentialsProviderChain.getInstance();
                 } else {
-                    authChain =
-                            new STSAssumeRoleSessionCredentialsProvider.Builder(
+                    authChain = new STSAssumeRoleSessionCredentialsProvider.Builder(
                                     config.getConfigProperty(S3_ROLE_FIELD),
-                                    config.getConfigProperty(S3_ROLE_SESSION_NAME_FIELD)
-                            ).build();
+                                    config.getConfigProperty(S3_ROLE_SESSION_NAME_FIELD))
+                            .build();
                 }
 
                 // Important! Delay the building of actual credentials
@@ -374,8 +362,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                         // in the event we hit this branch, we likely don't have expiring
                         // credentials, however, this still allows for the user to update
                         // profiles creds or some other mechanism
-                        jcloudCred = new Credentials(
-                                newCreds.getAWSAccessKeyId(), newCreds.getAWSSecretKey());
+                        jcloudCred = new Credentials(newCreds.getAWSAccessKeyId(), newCreds.getAWSSecretKey());
                     }
                     return jcloudCred;
                 });
@@ -404,27 +391,22 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                     .getBlobStore();
         } else {
             log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
-            return contextBuilder
-                    .buildView(BlobStoreContext.class)
-                    .getBlobStore();
+            return contextBuilder.buildView(BlobStoreContext.class).getBlobStore();
         }
     };
 
     static final ConfigValidation S3_VALIDATION = (TieredStorageConfiguration config) -> {
         if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
-            throw new IllegalArgumentException(
-                    "ServiceEndpoint must specified for " + config.getDriver() + " offload");
+            throw new IllegalArgumentException("ServiceEndpoint must specified for " + config.getDriver() + " offload");
         }
 
         if (Strings.isNullOrEmpty(config.getBucket())) {
-            throw new IllegalArgumentException(
-                    "Bucket cannot be empty for " + config.getDriver() + " offload");
+            throw new IllegalArgumentException("Bucket cannot be empty for " + config.getDriver() + " offload");
         }
 
         if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
-            throw new IllegalArgumentException(
-                    "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
-                            + config.getDriver() + " offload");
+            throw new IllegalArgumentException("ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
+                    + config.getDriver() + " offload");
         }
     };
 
@@ -444,9 +426,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         if (StringUtils.isEmpty(accountKey.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key secret.");
         }
-        Credentials credentials = new Credentials(
-                accountName, accountKey);
+        Credentials credentials = new Credentials(accountName, accountKey);
         config.setProviderCredentials(() -> credentials);
     };
-
 }

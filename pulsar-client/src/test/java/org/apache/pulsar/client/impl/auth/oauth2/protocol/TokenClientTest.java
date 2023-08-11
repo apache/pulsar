@@ -38,8 +38,8 @@ public class TokenClientTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void exchangeClientCredentialsSuccessByScopeTest() throws
-            IOException, TokenExchangeException, ExecutionException, InterruptedException {
+    public void exchangeClientCredentialsSuccessByScopeTest()
+            throws IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
         TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
@@ -55,7 +55,8 @@ public class TokenClientTest {
         ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
         when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
+        when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded"))
+                .thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
         when(listenableFuture.get()).thenReturn(response);
@@ -63,15 +64,16 @@ public class TokenClientTest {
         TokenResult tokenResult = new TokenResult();
         tokenResult.setAccessToken("test-access-token");
         tokenResult.setIdToken("test-id");
-        when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
+        when(response.getResponseBodyAsBytes())
+                .thenReturn(new Gson().toJson(tokenResult).getBytes());
         TokenResult tr = tokenClient.exchangeClientCredentials(request);
         assertNotNull(tr);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void exchangeClientCredentialsSuccessWithoutOptionalClientCredentialsTest() throws
-            IOException, TokenExchangeException, ExecutionException, InterruptedException {
+    public void exchangeClientCredentialsSuccessWithoutOptionalClientCredentialsTest()
+            throws IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
         TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
@@ -85,7 +87,8 @@ public class TokenClientTest {
         ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
         when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
+        when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded"))
+                .thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
         when(listenableFuture.get()).thenReturn(response);
@@ -93,7 +96,8 @@ public class TokenClientTest {
         TokenResult tokenResult = new TokenResult();
         tokenResult.setAccessToken("test-access-token");
         tokenResult.setIdToken("test-id");
-        when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
+        when(response.getResponseBodyAsBytes())
+                .thenReturn(new Gson().toJson(tokenResult).getBytes());
         TokenResult tr = tokenClient.exchangeClientCredentials(request);
         assertNotNull(tr);
     }

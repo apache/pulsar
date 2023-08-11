@@ -60,8 +60,11 @@ import org.slf4j.LoggerFactory;
  */
 @Path("/non-persistent")
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/non-persistent",
-        description = "Non-Persistent topic admin apis", tags = "non-persistent topic", hidden = true)
+@Api(
+        value = "/non-persistent",
+        description = "Non-Persistent topic admin apis",
+        tags = "non-persistent topic",
+        hidden = true)
 @SuppressWarnings("deprecation")
 public class NonPersistentTopics extends PersistentTopics {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopics.class);
@@ -69,9 +72,11 @@ public class NonPersistentTopics extends PersistentTopics {
     @GET
     @Path("/{property}/{cluster}/{namespace}/{topic}/partitions")
     @ApiOperation(hidden = true, value = "Get partitioned topic metadata.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission")})
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+                @ApiResponse(code = 403, message = "Don't have admin permission")
+            })
     public void getPartitionedMetadata(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
@@ -80,17 +85,19 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        super.getPartitionedMetadata(asyncResponse, property, cluster, namespace, encodedTopic, authoritative,
-                checkAllowAutoCreation);
+        super.getPartitionedMetadata(
+                asyncResponse, property, cluster, namespace, encodedTopic, authoritative, checkAllowAutoCreation);
     }
 
     @GET
     @Path("{property}/{cluster}/{namespace}/{topic}/internalStats")
     @ApiOperation(hidden = true, value = "Get the internal stats for the topic.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "Topic does not exist")
+            })
     public void getInternalStats(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
@@ -119,14 +126,20 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @PUT
     @Path("/{property}/{cluster}/{namespace}/{topic}/partitions")
-    @ApiOperation(hidden = true, value = "Create a partitioned topic.",
+    @ApiOperation(
+            hidden = true,
+            value = "Create a partitioned topic.",
             notes = "It needs to be called before creating a producer on a partitioned topic.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than or equal"
-                    + " to maxNumPartitionsPerPartitionedTopic"),
-            @ApiResponse(code = 409, message = "Partitioned topic already exist")})
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                @ApiResponse(
+                        code = 406,
+                        message = "The number of partitions should be more than 0 and less than or equal"
+                                + " to maxNumPartitionsPerPartitionedTopic"),
+                @ApiResponse(code = 409, message = "Partitioned topic already exist")
+            })
     public void createPartitionedTopic(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
@@ -147,14 +160,19 @@ public class NonPersistentTopics extends PersistentTopics {
     @PUT
     @Path("/{property}/{cluster}/{namespace}/{topic}/unload")
     @ApiOperation(hidden = true, value = "Unload a topic")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
-    public void unloadTopic(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
-                            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-                            @PathParam("topic") @Encoded String encodedTopic,
-                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "Namespace or topic does not exist")
+            })
+    public void unloadTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalUnloadTopic(asyncResponse, authoritative);
@@ -167,15 +185,22 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}")
-    @ApiOperation(value = "Get the list of non-persistent topics under a namespace.",
-            response = String.class, responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist")})
-    public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
-                        @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-                        @QueryParam("bundle") String nsBundle) {
+    @ApiOperation(
+            value = "Get the list of non-persistent topics under a namespace.",
+            response = String.class,
+            responseContainer = "List")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "Namespace doesn't exist")
+            })
+    public void getList(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @QueryParam("bundle") String nsBundle) {
         log.info("[{}] list of topics on namespace {}/{}/{}", clientAppId(), property, cluster, namespace);
 
         Policies policies = null;
@@ -209,11 +234,18 @@ public class NonPersistentTopics extends PersistentTopics {
                 continue;
             }
             try {
-                futures.add(pulsar().getAdminClient().nonPersistentTopics().getListInBundleAsync(nsName.toString(),
-                        bundle));
+                futures.add(pulsar().getAdminClient()
+                        .nonPersistentTopics()
+                        .getListInBundleAsync(nsName.toString(), bundle));
             } catch (PulsarServerException e) {
-                log.error("[{}] Failed to get list of topics under namespace {}/{}/{}/{}", clientAppId(), property,
-                        cluster, namespace, bundle, e);
+                log.error(
+                        "[{}] Failed to get list of topics under namespace {}/{}/{}/{}",
+                        clientAppId(),
+                        property,
+                        cluster,
+                        namespace,
+                        bundle,
+                        e);
                 asyncResponse.resume(new RestException(e));
                 return;
             }
@@ -237,16 +269,27 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/{bundle}")
-    @ApiOperation(value = "Get the list of non-persistent topics under a namespace bundle.",
-            response = String.class, responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist")})
-    public List<String> getListFromBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                                          @PathParam("namespace") String namespace,
-                                          @PathParam("bundle") String bundleRange) {
-        log.info("[{}] list of topics on namespace bundle {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
+    @ApiOperation(
+            value = "Get the list of non-persistent topics under a namespace bundle.",
+            response = String.class,
+            responseContainer = "List")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "Namespace doesn't exist")
+            })
+    public List<String> getListFromBundle(
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange) {
+        log.info(
+                "[{}] list of topics on namespace bundle {}/{}/{}/{}",
+                clientAppId(),
+                property,
+                cluster,
+                namespace,
                 bundleRange);
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
@@ -261,13 +304,18 @@ public class NonPersistentTopics extends PersistentTopics {
         NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         try {
             if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
-                .get(pulsar().getConfig().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
-                log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property,
-                    cluster, namespace, bundleRange);
+                    .get(pulsar().getConfig().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
+                log.info(
+                        "[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}",
+                        clientAppId(),
+                        property,
+                        cluster,
+                        namespace,
+                        bundleRange);
                 return null;
             }
-            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange,
-                true, true);
+            NamespaceBundle nsBundle =
+                    validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, true, true);
             final List<String> topicList = new ArrayList<>();
             pulsar().getBrokerService().forEachTopic(topic -> {
                 TopicName topicName = TopicName.get(topic.getName());
@@ -286,7 +334,8 @@ public class NonPersistentTopics extends PersistentTopics {
 
     private Topic getTopicReference(TopicName topicName) {
         try {
-            return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+            return pulsar().getBrokerService()
+                    .getTopicIfExists(topicName.toString())
                     .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
         } catch (ExecutionException e) {

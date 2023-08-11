@@ -46,7 +46,6 @@ public final class CommandUtils {
             return Collections.emptyMap();
         }
 
-        return keyValues.stream()
-                .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
+        return keyValues.stream().collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
     }
 }

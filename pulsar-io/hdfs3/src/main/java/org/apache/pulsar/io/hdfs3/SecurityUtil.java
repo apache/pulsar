@@ -44,8 +44,8 @@ public class SecurityUtil {
      *
      * @throws IOException if login failed
      */
-    public static synchronized UserGroupInformation loginKerberos(final Configuration config,
-            final String principal, final String keyTab) throws IOException {
+    public static synchronized UserGroupInformation loginKerberos(
+            final Configuration config, final String principal, final String keyTab) throws IOException {
         Validate.notNull(config);
         Validate.notNull(principal);
         Validate.notNull(keyTab);

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -37,7 +36,6 @@ package org.apache.pulsar.broker.admin.v3;
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -56,20 +54,21 @@ public class AsyncResponseTest {
 
     @GET
     @Path("/asyncGet/{topicName}/{delayMilliseconds}")
-    public void asyncGet(@Suspended AsyncResponse response,
-                         @PathParam("topicName") String topicName,
-                         @PathParam("delayMilliseconds") long delayMilliseconds) {
+    public void asyncGet(
+            @Suspended AsyncResponse response,
+            @PathParam("topicName") String topicName,
+            @PathParam("delayMilliseconds") long delayMilliseconds) {
         new Thread(() -> {
-            if (delayMilliseconds > 0) {
-                try {
-                    Thread.sleep(delayMilliseconds);
-                } catch (InterruptedException e) {
-                    log.error("Failed to handle test method asyncGet.", e);
-                    response.resume(new RestException(e));
-                }
-            }
-            response.resume(Response.noContent().build());
-        }).start();
+                    if (delayMilliseconds > 0) {
+                        try {
+                            Thread.sleep(delayMilliseconds);
+                        } catch (InterruptedException e) {
+                            log.error("Failed to handle test method asyncGet.", e);
+                            response.resume(new RestException(e));
+                        }
+                    }
+                    response.resume(Response.noContent().build());
+                })
+                .start();
     }
-
 }

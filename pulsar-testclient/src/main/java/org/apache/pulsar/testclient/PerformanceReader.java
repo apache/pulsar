@@ -62,28 +62,35 @@ public class PerformanceReader {
     @Parameters(commandDescription = "Test pulsar reader performance.")
     static class Arguments extends PerformanceTopicListArguments {
 
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
+        @Parameter(
+                names = {"-r", "--rate"},
+                description = "Simulate a slow message reader (rate in msg/s)")
         public double rate = 0;
 
-        @Parameter(names = { "-m",
-                "--start-message-id" }, description = "Start message id. This can be either 'earliest', "
-                + "'latest' or a specific message id by using 'lid:eid'")
+        @Parameter(
+                names = {"-m", "--start-message-id"},
+                description = "Start message id. This can be either 'earliest', "
+                        + "'latest' or a specific message id by using 'lid:eid'")
         public String startMessageId = "earliest";
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+        @Parameter(
+                names = {"-q", "--receiver-queue-size"},
+                description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = {"-n",
-                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
-                + "it will keep consuming")
+        @Parameter(
+                names = {"-n", "--num-messages"},
+                description = "Number of messages to consume in total. If <= 0, " + "it will keep consuming")
         public long numMessages = 0;
 
-        @Parameter(names = {
-                "--use-tls" }, description = "Use TLS encryption on the connection")
+        @Parameter(
+                names = {"--use-tls"},
+                description = "Use TLS encryption on the connection")
         public boolean useTls;
 
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
+        @Parameter(
+                names = {"-time", "--test-duration"},
+                description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
         @Override
@@ -92,13 +99,15 @@ public class PerformanceReader {
                 useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
             }
         }
+
         @Override
         public void validate() throws Exception {
             super.validate();
-            if (startMessageId != "earliest" && startMessageId != "latest"
-                    && (startMessageId.split(":")).length != 2) {
-                String errMsg = String.format("invalid start message ID '%s', must be either either 'earliest', "
-                        + "'latest' or a specific message id by using 'lid:eid'", startMessageId);
+            if (startMessageId != "earliest" && startMessageId != "latest" && (startMessageId.split(":")).length != 2) {
+                String errMsg = String.format(
+                        "invalid start message ID '%s', must be either either 'earliest', "
+                                + "'latest' or a specific message id by using 'lid:eid'",
+                        startMessageId);
                 throw new Exception(errMsg);
             }
         }
@@ -123,7 +132,8 @@ public class PerformanceReader {
             totalBytesReceived.add(msg.getData().length);
 
             if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
-                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
+                log.info(
+                        "------------- DONE (reached the maximum number: [{}] of consumption) --------------",
                         arguments.numMessages);
                 PerfClientUtils.exit(0);
             }
@@ -139,8 +149,8 @@ public class PerformanceReader {
             }
         };
 
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .enableTls(arguments.useTls);
+        ClientBuilder clientBuilder =
+                PerfClientUtils.createClientBuilderFromArguments(arguments).enableTls(arguments.useTls);
 
         PulsarClient pulsarClient = clientBuilder.build();
 
@@ -156,7 +166,8 @@ public class PerformanceReader {
             startMessageId = new MessageIdImpl(Long.parseLong(parts[0]), Long.parseLong(parts[1]), -1);
         }
 
-        ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader() //
+        ReaderBuilder<byte[]> readerBuilder = pulsarClient
+                .newReader() //
                 .readerListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
                 .startMessageId(startMessageId);
@@ -181,8 +192,10 @@ public class PerformanceReader {
             TimerTask timoutTask = new TimerTask() {
                 @Override
                 public void run() {
-                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
-                            + "--------------", arguments.testTime);
+                    log.info(
+                            "------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
+                                    + "--------------",
+                            arguments.testTime);
                     PerfClientUtils.exit(0);
                 }
             };
@@ -211,10 +224,15 @@ public class PerformanceReader {
                     "Read throughput: {} msg --- {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} "
                             + "- 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
-                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
-                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
-                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+                    dec.format(rate),
+                    dec.format(throughput),
+                    dec.format(reportHistogram.getMean()),
+                    reportHistogram.getValueAtPercentile(50),
+                    reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99),
+                    reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99),
+                    reportHistogram.getMaxValue());
 
             reportHistogram.reset();
             oldTime = now;
@@ -240,10 +258,14 @@ public class PerformanceReader {
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
                         + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
-                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
-                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
-                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
+                dec.format(reportHistogram.getMean()),
+                reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95),
+                reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9),
+                reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999),
+                reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceReader.class);

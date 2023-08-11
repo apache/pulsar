@@ -165,7 +165,6 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             log.debug("Setting column value to null, statement: {}, index: {}", statement.toString(), index);
         }
         statement.setNull(index, type);
-
     }
 
     private static void setColumnValue(PreparedStatement statement, int index, Object value) throws Exception {
@@ -198,8 +197,8 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             return null;
         }
         if (fn.isContainerNode()) {
-            throw new IllegalArgumentException("Container nodes are not supported, the JSON must contains only "
-                    + "first level fields.");
+            throw new IllegalArgumentException(
+                    "Container nodes are not supported, the JSON must contains only " + "first level fields.");
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
         } else if (fn.isFloatingPointNumber()) {
@@ -217,9 +216,8 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
         }
     }
 
-    private static void fillKeyValueSchemaData(org.apache.pulsar.client.api.Schema<GenericObject> schema,
-                                        GenericObject record,
-                                        Map<String, Object> data) {
+    private static void fillKeyValueSchemaData(
+            org.apache.pulsar.client.api.Schema<GenericObject> schema, GenericObject record, Map<String, Object> data) {
         if (record == null) {
             return;
         }
@@ -242,9 +240,8 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                 }
                 break;
             default:
-                throw new IllegalArgumentException("unexpected schema type: "
-                        + schema.getSchemaInfo().getType()
-                        + " with KeyValueSchema");
+                throw new IllegalArgumentException(
+                        "unexpected schema type: " + schema.getSchemaInfo().getType() + " with KeyValueSchema");
         }
     }
 
@@ -283,4 +280,3 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
         }
     }
 }
-

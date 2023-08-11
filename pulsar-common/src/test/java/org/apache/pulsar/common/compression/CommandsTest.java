@@ -26,9 +26,9 @@ import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.Base64;
-import io.netty.util.ReferenceCountUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -55,7 +55,7 @@ public class CommandsTest {
         clientCommand.retain();
         ByteBuf receivedBuf = ByteBufPair.coalesce(clientCommand);
         System.err.println(ByteBufUtil.prettyHexDump(receivedBuf));
-        receivedBuf.skipBytes(4); //skip [total-size]
+        receivedBuf.skipBytes(4); // skip [total-size]
         int cmdSize = (int) receivedBuf.readUnsignedInt();
         receivedBuf.readerIndex(8 + cmdSize);
         int startMessagePos = receivedBuf.readerIndex();
@@ -63,7 +63,6 @@ public class CommandsTest {
         /*** 1. verify checksum and metadataParsing ***/
         boolean hasChecksum = Commands.hasChecksum(receivedBuf);
         int checksum = Commands.readChecksum(receivedBuf);
-
 
         // verify checksum is present
         assertTrue(hasChecksum);
@@ -78,7 +77,6 @@ public class CommandsTest {
         metadata = Commands.parseMessageMetadata(receivedBuf);
         // verify metadata parsing
         assertEquals(metadata.getProducerName(), producerName);
-
     }
 
     private int computeChecksum(MessageMetadata msgMetadata, ByteBuf compressedPayload) throws IOException {
@@ -104,8 +102,8 @@ public class CommandsTest {
                 .setPartitionKey(partitionedKey)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata2,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        ByteBuf byteBuf = serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata2, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
         byte[] bytes = Commands.peekStickyKey(byteBuf, "topic-1", "sub-1");
         String key = new String(bytes);
         Assert.assertEquals(partitionedKey, key);
@@ -118,10 +116,11 @@ public class CommandsTest {
                 .setPartitionKey(partitionedKey2)
                 .setPartitionKeyB64Encoded(true)
                 .setPublishTime(System.currentTimeMillis());
-        ByteBuf byteBuf2 = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        ByteBuf byteBuf2 = serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
         byte[] bytes2 = Commands.peekStickyKey(byteBuf2, "topic-2", "sub-2");
-        String key2 = Base64.getEncoder().encodeToString(bytes2);;
+        String key2 = Base64.getEncoder().encodeToString(bytes2);
+        ;
         Assert.assertEquals(partitionedKey2, key2);
         ReferenceCountUtil.safeRelease(byteBuf2);
     }

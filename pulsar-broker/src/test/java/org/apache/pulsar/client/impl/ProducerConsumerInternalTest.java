@@ -55,13 +55,23 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         final String subscriptionName = "subscription1";
         admin.topics().createNonPartitionedTopic(topicName);
 
-        final ConsumerImpl consumer = (ConsumerImpl) pulsarClient.newConsumer().topic(topicName.toString())
-                .subscriptionType(SubscriptionType.Exclusive).subscriptionName(subscriptionName).subscribe();
+        final ConsumerImpl consumer = (ConsumerImpl) pulsarClient
+                .newConsumer()
+                .topic(topicName.toString())
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subscriptionName)
+                .subscribe();
 
         ClientCnx clientCnx = consumer.getClientCnx();
         ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService()
-                .getTopic(topicName,false).join().get().getSubscription(subscriptionName)
-                .getDispatcher().getConsumers().get(0).cnx();
+                .getTopic(topicName, false)
+                .join()
+                .get()
+                .getSubscription(subscriptionName)
+                .getDispatcher()
+                .getConsumers()
+                .get(0)
+                .cnx();
 
         // Make a disconnect to trigger broker remove the consumer which related this connection.
         // Make the second subscribe runs after the broker removing the old consumer, then it will receive

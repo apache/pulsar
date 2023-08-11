@@ -38,8 +38,7 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
-        conf.setAuthenticationProviders(
-                Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
+        conf.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         conf.setAuthorizationEnabled(true);
     }
 
@@ -55,7 +54,10 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
+        Response r = client.target(this.pulsar.getWebServiceAddress())
+                .path("/metrics")
+                .request()
+                .get();
         Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     }
 
@@ -64,7 +66,10 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
+        Response r = client.target(this.pulsar.getWebServiceAddress())
+                .path("/metrics")
+                .request()
+                .get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
     }
 }

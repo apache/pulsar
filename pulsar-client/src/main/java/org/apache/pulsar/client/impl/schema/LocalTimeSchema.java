@@ -28,53 +28,54 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class LocalTimeSchema extends AbstractSchema<LocalTime> {
 
-   private static final LocalTimeSchema INSTANCE;
-   private static final SchemaInfo SCHEMA_INFO;
+    private static final LocalTimeSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
 
-   static {
-       SCHEMA_INFO = SchemaInfoImpl.builder()
-             .name("LocalTime")
-             .type(SchemaType.LOCAL_TIME)
-             .schema(new byte[0]).build();
-       INSTANCE = new LocalTimeSchema();
-   }
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("LocalTime")
+                .type(SchemaType.LOCAL_TIME)
+                .schema(new byte[0])
+                .build();
+        INSTANCE = new LocalTimeSchema();
+    }
 
-   public static LocalTimeSchema of() {
-      return INSTANCE;
-   }
+    public static LocalTimeSchema of() {
+        return INSTANCE;
+    }
 
-   @Override
-   public byte[] encode(LocalTime message) {
-      if (null == message) {
-         return null;
-      }
+    @Override
+    public byte[] encode(LocalTime message) {
+        if (null == message) {
+            return null;
+        }
 
-      Long nanoOfDay = message.toNanoOfDay();
-      return LongSchema.of().encode(nanoOfDay);
-   }
+        Long nanoOfDay = message.toNanoOfDay();
+        return LongSchema.of().encode(nanoOfDay);
+    }
 
-   @Override
-   public LocalTime decode(byte[] bytes) {
-      if (null == bytes) {
-         return null;
-      }
+    @Override
+    public LocalTime decode(byte[] bytes) {
+        if (null == bytes) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(bytes);
-      return LocalTime.ofNanoOfDay(decode);
-   }
+        Long decode = LongSchema.of().decode(bytes);
+        return LocalTime.ofNanoOfDay(decode);
+    }
 
-   @Override
-   public LocalTime decode(ByteBuf byteBuf) {
-      if (null == byteBuf) {
-         return null;
-      }
+    @Override
+    public LocalTime decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(byteBuf);
-      return LocalTime.ofNanoOfDay(decode);
-   }
+        Long decode = LongSchema.of().decode(byteBuf);
+        return LocalTime.ofNanoOfDay(decode);
+    }
 
-   @Override
-   public SchemaInfo getSchemaInfo() {
-      return SCHEMA_INFO;
-   }
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        return SCHEMA_INFO;
+    }
 }

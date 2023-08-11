@@ -44,8 +44,10 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
     protected final SchemaReader<T> providerSchemaReader;
     protected SchemaInfoProvider schemaInfoProvider;
 
-    LoadingCache<BytesSchemaVersion, SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaReader<T>>() {
+    LoadingCache<BytesSchemaVersion, SchemaReader<T>> readerCache = CacheBuilder.newBuilder()
+            .maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build(new CacheLoader<BytesSchemaVersion, SchemaReader<T>>() {
                 @Override
                 public SchemaReader<T> load(BytesSchemaVersion schemaVersion) {
                     return loadReader(schemaVersion);
@@ -69,11 +71,15 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
     @Override
     public T read(InputStream inputStream, byte[] schemaVersion) {
         try {
-            return schemaVersion == null ? read(inputStream) :
-                    getSchemaReader(schemaVersion).read(inputStream);
+            return schemaVersion == null
+                    ? read(inputStream)
+                    : getSchemaReader(schemaVersion).read(inputStream);
         } catch (ExecutionException e) {
-            LOG.error("Can't get generic schema for topic {} schema version {}",
-                    schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
+            LOG.error(
+                    "Can't get generic schema for topic {} schema version {}",
+                    schemaInfoProvider.getTopicName(),
+                    Hex.encodeHexString(schemaVersion),
+                    e);
             throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());
         }
     }
@@ -85,14 +91,18 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
     @Override
     public T read(byte[] bytes, byte[] schemaVersion) {
         try {
-            return schemaVersion == null ? read(bytes) :
-                    getSchemaReader(schemaVersion).read(bytes);
+            return schemaVersion == null
+                    ? read(bytes)
+                    : getSchemaReader(schemaVersion).read(bytes);
         } catch (ExecutionException | AvroTypeException e) {
             if (e instanceof AvroTypeException) {
                 throw new SchemaSerializationException(e);
             }
-            LOG.error("Can't get generic schema for topic {} schema version {}",
-                    schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
+            LOG.error(
+                    "Can't get generic schema for topic {} schema version {}",
+                    schemaInfoProvider.getTopicName(),
+                    Hex.encodeHexString(schemaVersion),
+                    e);
             throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());
         }
     }
@@ -119,14 +129,11 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new SerializationException(
-                    "Interrupted at fetching schema info for " + SchemaUtils.getStringSchemaVersion(schemaVersion),
-                    e
-            );
+                    "Interrupted at fetching schema info for " + SchemaUtils.getStringSchemaVersion(schemaVersion), e);
         } catch (ExecutionException e) {
             throw new SerializationException(
                     "Failed at fetching schema info for " + SchemaUtils.getStringSchemaVersion(schemaVersion),
-                    e.getCause()
-            );
+                    e.getCause());
         }
     }
 

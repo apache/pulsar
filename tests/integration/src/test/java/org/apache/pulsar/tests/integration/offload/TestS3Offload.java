@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.offload;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.S3Container;
@@ -37,9 +36,7 @@ public class TestS3Offload extends TestBaseOffload {
         super.beforeStartCluster();
 
         log.info("s3 container init");
-        s3Container = new S3Container(
-                pulsarCluster.getClusterName(),
-                S3Container.NAME)
+        s3Container = new S3Container(pulsarCluster.getClusterName(), S3Container.NAME)
                 .withNetwork(pulsarCluster.getNetwork())
                 .withNetworkAliases(S3Container.NAME);
         s3Container.start();
@@ -53,22 +50,23 @@ public class TestS3Offload extends TestBaseOffload {
         }
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeViaCLI(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testPublishOffloadAndConsumeViaCLI(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testPublishOffloadAndConsumeViaCLI(serviceUrl.get(), adminUrl.get());
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeViaThreshold(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testPublishOffloadAndConsumeViaThreshold(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testPublishOffloadAndConsumeViaThreshold(serviceUrl.get(), adminUrl.get());
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testPublishOffloadAndConsumeDeletionLag(serviceUrl.get(), adminUrl.get());
-
     }
-
 
     @Override
     protected Map<String, String> getEnv() {
@@ -81,6 +79,4 @@ public class TestS3Offload extends TestBaseOffload {
 
         return result;
     }
-
-
 }

@@ -37,8 +37,8 @@ public class BrokerMessageDeduplicationTest {
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration configuration = new ServiceConfiguration();
         doReturn(configuration).when(pulsarService).getConfiguration();
-        MessageDeduplication deduplication = spy(new MessageDeduplication(pulsarService,
-                mock(PersistentTopic.class), mock(ManagedLedger.class)));
+        MessageDeduplication deduplication =
+                spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class)));
         doReturn(true).when(deduplication).isEnabled();
         Topic.PublishContext context = mock(Topic.PublishContext.class);
         doReturn(true).when(context).isMarkerMessage();
@@ -51,11 +51,11 @@ public class BrokerMessageDeduplicationTest {
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration configuration = new ServiceConfiguration();
         doReturn(configuration).when(pulsarService).getConfiguration();
-        MessageDeduplication deduplication = spy(new MessageDeduplication(pulsarService,
-                mock(PersistentTopic.class), mock(ManagedLedger.class)));
+        MessageDeduplication deduplication =
+                spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class)));
         doReturn(true).when(deduplication).isEnabled();
         Topic.PublishContext context = mock(Topic.PublishContext.class);
-         // marker message don't record message persisted.
+        // marker message don't record message persisted.
         doReturn(true).when(context).isMarkerMessage();
         deduplication.recordMessagePersisted(context, null);
 
@@ -68,6 +68,4 @@ public class BrokerMessageDeduplicationTest {
             assertTrue(npe instanceof NullPointerException);
         }
     }
-
-
 }

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.common.naming;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertTrue;
 import com.google.common.hash.Hashing;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,10 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.testng.annotations.Test;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.doReturn;
-import static org.testng.Assert.assertTrue;
 
 public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
 
@@ -62,7 +62,6 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
             }
         }
 
-
         for (int i = 6; i < 13; i++) {
             String topicName = "persistent://test-tenant1/test-namespace1/test" + i;
             for (int j = 0; j < 20; j++) {
@@ -90,24 +89,29 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(mockTopics))
-                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+                .when(mockNamespaceService)
+                .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
         NamespaceBundleFactory mockNamespaceBundleFactory = mock(NamespaceBundleFactory.class);
-        doReturn(mockNamespaceBundleFactory)
-                .when(mockNamespaceBundle).getNamespaceBundleFactory();
+        doReturn(mockNamespaceBundleFactory).when(mockNamespaceBundle).getNamespaceBundleFactory();
         mockTopics.forEach((topic) -> {
             long hashValue = Hashing.crc32().hashString(topic, UTF_8).padToLong();
-            doReturn(hashValue)
-                    .when(mockNamespaceBundleFactory).getLongHashCode(topic);
+            doReturn(hashValue).when(mockNamespaceBundleFactory).getLongHashCode(topic);
             hashList.add(hashValue);
-            hashAndMsgMap.put(hashValue, topicStatsMap.get(topic).msgRateIn
-                    + topicStatsMap.get(topic).msgRateOut);
-            hashAndThroughput.put(hashValue, topicStatsMap.get(topic).msgThroughputIn
-                    + topicStatsMap.get(topic).msgThroughputOut);
+            hashAndMsgMap.put(hashValue, topicStatsMap.get(topic).msgRateIn + topicStatsMap.get(topic).msgRateOut);
+            hashAndThroughput.put(
+                    hashValue, topicStatsMap.get(topic).msgThroughputIn + topicStatsMap.get(topic).msgThroughputOut);
         });
 
-        List<Long> splitPositions = algorithm.getSplitBoundary(new FlowOrQpsEquallyDivideBundleSplitOption(mockNamespaceService, mockNamespaceBundle,
-                null, topicStatsMap, loadBalancerNamespaceBundleMaxMsgRate,
-                loadBalancerNamespaceBundleMaxBandwidthMbytes, flowOrQpsDifferenceThresholdPercentage)).join();
+        List<Long> splitPositions = algorithm
+                .getSplitBoundary(new FlowOrQpsEquallyDivideBundleSplitOption(
+                        mockNamespaceService,
+                        mockNamespaceBundle,
+                        null,
+                        topicStatsMap,
+                        loadBalancerNamespaceBundleMaxMsgRate,
+                        loadBalancerNamespaceBundleMaxBandwidthMbytes,
+                        flowOrQpsDifferenceThresholdPercentage))
+                .join();
 
         Collections.sort(hashList);
         int i = 0;
@@ -124,7 +128,6 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
             assertTrue(bundleThroughputTmp < loadBalancerNamespaceBundleMaxBandwidthMbytes * 1024 * 1024);
         }
     }
-
 
     @Test
     public void testFirstPositionIsOverLoad() {
@@ -173,18 +176,24 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(mockTopics))
-                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+                .when(mockNamespaceService)
+                .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
         NamespaceBundleFactory mockNamespaceBundleFactory = mock(NamespaceBundleFactory.class);
-        doReturn(mockNamespaceBundleFactory)
-                .when(mockNamespaceBundle).getNamespaceBundleFactory();
+        doReturn(mockNamespaceBundleFactory).when(mockNamespaceBundle).getNamespaceBundleFactory();
         mockTopics.forEach((topic) -> {
             long hash = Hashing.crc32().hashString(topic, UTF_8).padToLong();
-            doReturn(hash)
-                    .when(mockNamespaceBundleFactory).getLongHashCode(topic);
+            doReturn(hash).when(mockNamespaceBundleFactory).getLongHashCode(topic);
         });
-        List<Long> splitPositions = algorithm.getSplitBoundary(new FlowOrQpsEquallyDivideBundleSplitOption(mockNamespaceService, mockNamespaceBundle,
-                null, topicStatsMap, loadBalancerNamespaceBundleMaxMsgRate,
-                loadBalancerNamespaceBundleMaxBandwidthMbytes, flowOrQpsDifferenceThresholdPercentage)).join();
+        List<Long> splitPositions = algorithm
+                .getSplitBoundary(new FlowOrQpsEquallyDivideBundleSplitOption(
+                        mockNamespaceService,
+                        mockNamespaceBundle,
+                        null,
+                        topicStatsMap,
+                        loadBalancerNamespaceBundleMaxMsgRate,
+                        loadBalancerNamespaceBundleMaxBandwidthMbytes,
+                        flowOrQpsDifferenceThresholdPercentage))
+                .join();
 
         long splitStart = topicHashList.get(0);
         long splitEnd = topicHashList.get(1);

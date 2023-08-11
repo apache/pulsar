@@ -75,17 +75,19 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
     private String serviceAccountTokenAudience;
 
     @Override
-    public void initialize(CoreV1Api coreClient, byte[] caBytes,
-                           java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc,
-                           Map<String, Object> config) {
+    public void initialize(
+            CoreV1Api coreClient,
+            byte[] caBytes,
+            java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc,
+            Map<String, Object> config) {
         setNamespaceProviderFunc(namespaceCustomizerFunc);
         Object certSecretName = config.get(BROKER_CLIENT_TRUST_CERTS_SECRET_NAME);
         if (certSecretName instanceof String) {
             brokerTrustCertsSecretName = (String) certSecretName;
         } else if (certSecretName != null) {
             // Throw exception because user set this configuration, but it isn't valid.
-            throw new IllegalArgumentException("Invalid value for " + BROKER_CLIENT_TRUST_CERTS_SECRET_NAME
-                    + ". Expected a string.");
+            throw new IllegalArgumentException(
+                    "Invalid value for " + BROKER_CLIENT_TRUST_CERTS_SECRET_NAME + ". Expected a string.");
         }
         Object tokenExpirationSeconds = config.get(SERVICE_ACCOUNT_TOKEN_EXPIRATION_SECONDS);
         if (tokenExpirationSeconds instanceof Long) {
@@ -94,29 +96,29 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
             try {
                 serviceAccountTokenExpirationSeconds = Long.parseLong((String) tokenExpirationSeconds);
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("Invalid value for " + SERVICE_ACCOUNT_TOKEN_EXPIRATION_SECONDS
-                        + ". Expected a long.");
+                throw new IllegalArgumentException(
+                        "Invalid value for " + SERVICE_ACCOUNT_TOKEN_EXPIRATION_SECONDS + ". Expected a long.");
             }
         } else if (tokenExpirationSeconds != null) {
             // Throw exception because user set this configuration, but it isn't valid.
-            throw new IllegalArgumentException("Invalid value for " + SERVICE_ACCOUNT_TOKEN_EXPIRATION_SECONDS
-                    + ". Expected a long.");
+            throw new IllegalArgumentException(
+                    "Invalid value for " + SERVICE_ACCOUNT_TOKEN_EXPIRATION_SECONDS + ". Expected a long.");
         }
         Object tokenAudience = config.get(SERVICE_ACCOUNT_TOKEN_AUDIENCE);
         if (tokenAudience instanceof String) {
             serviceAccountTokenAudience = (String) tokenAudience;
         } else if (tokenAudience != null) {
-            throw new IllegalArgumentException("Invalid value for " + SERVICE_ACCOUNT_TOKEN_AUDIENCE
-                    + ". Expected a string.");
+            throw new IllegalArgumentException(
+                    "Invalid value for " + SERVICE_ACCOUNT_TOKEN_AUDIENCE + ". Expected a string.");
         }
     }
 
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig,
-                                              Optional<FunctionAuthData> functionAuthData) {
+    public void configureAuthenticationConfig(
+            AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
         authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        authConfig.setClientAuthenticationParameters(Paths.get(DEFAULT_MOUNT_DIR, FUNCTION_AUTH_TOKEN)
-                .toUri().toString());
+        authConfig.setClientAuthenticationParameters(
+                Paths.get(DEFAULT_MOUNT_DIR, FUNCTION_AUTH_TOKEN).toUri().toString());
         if (StringUtil.isNotBlank(brokerTrustCertsSecretName)) {
             authConfig.setTlsTrustCertsFilePath(DEFAULT_CERT_PATH);
         }
@@ -126,9 +128,8 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
      * No need to cache anything. Kubernetes generates the token used for authentication.
      */
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
-                                                    AuthenticationDataSource authenticationDataSource)
-            throws Exception {
+    public Optional<FunctionAuthData> cacheAuthData(
+            Function.FunctionDetails funcDetails, AuthenticationDataSource authenticationDataSource) throws Exception {
         return Optional.empty();
     }
 
@@ -136,9 +137,10 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
      * No need to update anything. Kubernetes updates the token used for authentication.
      */
     @Override
-    public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
-                                                     Optional<FunctionAuthData> existingFunctionAuthData,
-                                                     AuthenticationDataSource authenticationDataSource)
+    public Optional<FunctionAuthData> updateAuthData(
+            Function.FunctionDetails funcDetails,
+            Optional<FunctionAuthData> existingFunctionAuthData,
+            AuthenticationDataSource authenticationDataSource)
             throws Exception {
         return Optional.empty();
     }
@@ -148,13 +150,10 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
      */
     @Override
     public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
-            throws Exception {
-
-    }
+            throws Exception {}
 
     @Override
-    public void initialize(CoreV1Api coreClient) {
-    }
+    public void initialize(CoreV1Api coreClient) {}
 
     @Override
     public void configureAuthDataStatefulSet(V1StatefulSet statefulSet, Optional<FunctionAuthData> functionAuthData) {
@@ -170,15 +169,12 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
     private V1Volume createServiceAccountVolume() {
         V1ProjectedVolumeSource projectedVolumeSource = new V1ProjectedVolumeSource();
         V1VolumeProjection volumeProjection = new V1VolumeProjection();
-        volumeProjection.serviceAccountToken(
-                new V1ServiceAccountTokenProjection()
-                        .audience(serviceAccountTokenAudience)
-                        .expirationSeconds(serviceAccountTokenExpirationSeconds)
-                        .path(FUNCTION_AUTH_TOKEN));
+        volumeProjection.serviceAccountToken(new V1ServiceAccountTokenProjection()
+                .audience(serviceAccountTokenAudience)
+                .expirationSeconds(serviceAccountTokenExpirationSeconds)
+                .path(FUNCTION_AUTH_TOKEN));
         projectedVolumeSource.addSourcesItem(volumeProjection);
-        return new V1Volume()
-                .name(SERVICE_ACCOUNT_VOLUME_NAME)
-                .projected(projectedVolumeSource);
+        return new V1Volume().name(SERVICE_ACCOUNT_VOLUME_NAME).projected(projectedVolumeSource);
     }
 
     private V1Volume createTrustCertVolume() {
@@ -186,23 +182,19 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
                 .name(TRUST_CERT_VOLUME_NAME)
                 .secret(new V1SecretVolumeSource()
                         .secretName(brokerTrustCertsSecretName)
-                        .addItemsItem(new V1KeyToPath()
-                                .key(FUNCTION_CA_CERT)
-                                .path(FUNCTION_CA_CERT)));
+                        .addItemsItem(new V1KeyToPath().key(FUNCTION_CA_CERT).path(FUNCTION_CA_CERT)));
     }
 
     private void addVolumeMountsToContainer(V1Container container) {
-        container.addVolumeMountsItem(
-                new V1VolumeMount()
-                        .name(SERVICE_ACCOUNT_VOLUME_NAME)
-                        .mountPath(DEFAULT_MOUNT_DIR)
-                        .readOnly(true));
+        container.addVolumeMountsItem(new V1VolumeMount()
+                .name(SERVICE_ACCOUNT_VOLUME_NAME)
+                .mountPath(DEFAULT_MOUNT_DIR)
+                .readOnly(true));
         if (StringUtil.isNotBlank(brokerTrustCertsSecretName)) {
-            container.addVolumeMountsItem(
-                    new V1VolumeMount()
-                            .name(TRUST_CERT_VOLUME_NAME)
-                            .mountPath(DEFAULT_MOUNT_DIR)
-                            .readOnly(true));
+            container.addVolumeMountsItem(new V1VolumeMount()
+                    .name(TRUST_CERT_VOLUME_NAME)
+                    .mountPath(DEFAULT_MOUNT_DIR)
+                    .readOnly(true));
         }
     }
 }

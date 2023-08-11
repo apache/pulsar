@@ -52,15 +52,16 @@ public class SystemTopicTxnBufferSnapshotService<T> {
         private final CompletableFuture<SystemTopicClient.Writer<T>> future;
         private final SystemTopicTxnBufferSnapshotService<T> snapshotService;
 
-        public ReferenceCountedWriter(NamespaceName namespaceName,
-                                      CompletableFuture<SystemTopicClient.Writer<T>> future,
-                                      SystemTopicTxnBufferSnapshotService<T> snapshotService) {
+        public ReferenceCountedWriter(
+                NamespaceName namespaceName,
+                CompletableFuture<SystemTopicClient.Writer<T>> future,
+                SystemTopicTxnBufferSnapshotService<T> snapshotService) {
             this.referenceCount = new AtomicLong(1);
             this.namespaceName = namespaceName;
             this.snapshotService = snapshotService;
             this.future = future;
             this.future.exceptionally(t -> {
-                        log.error("[{}] Failed to create TB snapshot writer.", namespaceName, t);
+                log.error("[{}] Failed to create TB snapshot writer.", namespaceName, t);
                 snapshotService.refCountedWriterMap.remove(namespaceName, this);
                 return null;
             });
@@ -78,7 +79,8 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             if (this.referenceCount.decrementAndGet() == 0) {
                 snapshotService.refCountedWriterMap.remove(namespaceName, this);
                 future.thenAccept(writer -> {
-                    final String topicName = writer.getSystemTopicClient().getTopicName().toString();
+                    final String topicName =
+                            writer.getSystemTopicClient().getTopicName().toString();
                     writer.closeAsync().exceptionally(t -> {
                         if (t != null) {
                             log.error("[{}] Failed to close TB snapshot writer.", topicName, t);
@@ -92,11 +94,9 @@ public class SystemTopicTxnBufferSnapshotService<T> {
                 });
             }
         }
-
     }
 
-    public SystemTopicTxnBufferSnapshotService(PulsarClient client, EventType systemTopicType,
-                                               Class<T> schemaType) {
+    public SystemTopicTxnBufferSnapshotService(PulsarClient client, EventType systemTopicType, Class<T> schemaType) {
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.systemTopicType = systemTopicType;
         this.schemaType = schemaType;
@@ -105,7 +105,8 @@ public class SystemTopicTxnBufferSnapshotService<T> {
     }
 
     public CompletableFuture<SystemTopicClient.Reader<T>> createReader(TopicName topicName) {
-        return getTransactionBufferSystemTopicClient(topicName.getNamespaceObject()).newReaderAsync();
+        return getTransactionBufferSystemTopicClient(topicName.getNamespaceObject())
+                .newReaderAsync();
     }
 
     public void removeClient(TopicName topicName, SystemTopicClientBase<T> transactionBufferSystemTopicClient) {
@@ -120,24 +121,27 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             if (v != null && v.retain()) {
                 return v;
             } else {
-                return new ReferenceCountedWriter<>(namespaceName,
-                        getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync(), this);
+                return new ReferenceCountedWriter<>(
+                        namespaceName,
+                        getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync(),
+                        this);
             }
         });
     }
 
     private SystemTopicClient<T> getTransactionBufferSystemTopicClient(NamespaceName namespaceName) {
-        TopicName systemTopicName = NamespaceEventsSystemTopicFactory
-                .getSystemTopicName(namespaceName, systemTopicType);
+        TopicName systemTopicName =
+                NamespaceEventsSystemTopicFactory.getSystemTopicName(namespaceName, systemTopicType);
         if (systemTopicName == null) {
             throw new RuntimeException(new PulsarClientException.InvalidTopicNameException(
-                    "Can't get the TB system topic client for namespace " + namespaceName
-                            + " with type " + systemTopicType + "."));
+                    "Can't get the TB system topic client for namespace " + namespaceName + " with type "
+                            + systemTopicType + "."));
         }
 
-        return clients.computeIfAbsent(namespaceName,
-                (v) -> namespaceEventsSystemTopicFactory
-                        .createTransactionBufferSystemTopicClient(systemTopicName, this, schemaType));
+        return clients.computeIfAbsent(
+                namespaceName,
+                (v) -> namespaceEventsSystemTopicFactory.createTransactionBufferSystemTopicClient(
+                        systemTopicName, this, schemaType));
     }
 
     public void close() throws Exception {
@@ -145,5 +149,4 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             entry.getValue().close();
         }
     }
-
 }

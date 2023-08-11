@@ -41,11 +41,10 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     private static TransactionBufferClientStats instance;
 
-    private TransactionBufferClientStatsImpl(boolean exposeTopicLevelMetrics,
-                                             TransactionBufferHandler handler) {
+    private TransactionBufferClientStatsImpl(boolean exposeTopicLevelMetrics, TransactionBufferHandler handler) {
         this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
-        String[] labelNames = exposeTopicLevelMetrics
-                ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
+        String[] labelNames =
+                exposeTopicLevelMetrics ? new String[] {"namespace", "topic"} : new String[] {"namespace"};
 
         this.abortFailed = Counter.build("pulsar_txn_tb_client_abort_failed", "-")
                 .labelNames(labelNames)
@@ -53,10 +52,8 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         this.commitFailed = Counter.build("pulsar_txn_tb_client_commit_failed", "-")
                 .labelNames(labelNames)
                 .register();
-        this.abortLatency =
-                this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
-        this.commitLatency =
-                this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
+        this.abortLatency = this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
+        this.commitLatency = this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
 
         this.pendingRequests = Gauge.build("pulsar_txn_tb_client_pending_requests", "-")
                 .register()
@@ -69,16 +66,15 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     }
 
     private Summary buildSummary(String name, String help, String[] labelNames) {
-        Summary.Builder builder = Summary.build(name, help)
-                .labelNames(labelNames);
+        Summary.Builder builder = Summary.build(name, help).labelNames(labelNames);
         for (double quantile : QUANTILES) {
             builder.quantile(quantile, 0.01D);
         }
         return builder.register();
     }
 
-    public static synchronized TransactionBufferClientStats getInstance(boolean exposeTopicLevelMetrics,
-                                                                        TransactionBufferHandler handler) {
+    public static synchronized TransactionBufferClientStats getInstance(
+            boolean exposeTopicLevelMetrics, TransactionBufferHandler handler) {
         if (null == instance) {
             instance = new TransactionBufferClientStatsImpl(exposeTopicLevelMetrics, handler);
         }
@@ -110,9 +106,10 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         try {
             TopicName topicName = TopicName.get(topic);
             return exposeTopicLevelMetrics
-                    ? new String[]{topicName.getNamespace(), topic} : new String[]{topicName.getNamespace()};
+                    ? new String[] {topicName.getNamespace(), topic}
+                    : new String[] {topicName.getNamespace()};
         } catch (Throwable t) {
-            return exposeTopicLevelMetrics ? new String[]{"unknown", "unknown"} : new String[]{"unknown"};
+            return exposeTopicLevelMetrics ? new String[] {"unknown", "unknown"} : new String[] {"unknown"};
         }
     }
 

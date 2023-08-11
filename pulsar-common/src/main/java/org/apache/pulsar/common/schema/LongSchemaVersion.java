@@ -65,8 +65,6 @@ public class LongSchemaVersion implements SchemaVersion {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("version", version)
-            .toString();
+        return MoreObjects.toStringHelper(this).add("version", version).toString();
     }
 }

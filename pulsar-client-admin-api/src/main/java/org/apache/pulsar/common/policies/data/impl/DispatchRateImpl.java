@@ -42,8 +42,8 @@ public final class DispatchRateImpl implements DispatchRate {
 
     public static DispatchRateImpl normalize(DispatchRateImpl dispatchRate) {
         if (dispatchRate != null
-            && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
-            || dispatchRate.getDispatchThrottlingRateInByte() > 0)) {
+                && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
+                        || dispatchRate.getDispatchThrottlingRateInByte() > 0)) {
             return dispatchRate;
         } else {
             return null;
@@ -56,7 +56,6 @@ public final class DispatchRateImpl implements DispatchRate {
         private long dispatchThrottlingRateInByte = -1;
         private boolean relativeToPublishRate = false; /* throttles dispatch relatively publish-rate */
         private int ratePeriodInSecond = 1; /* by default dispatch-rate will be calculate per 1 second */
-
 
         public DispatchRateImplBuilder dispatchThrottlingRateInMsg(int dispatchThrottlingRateInMsg) {
             this.dispatchThrottlingRateInMsg = dispatchThrottlingRateInMsg;
@@ -79,8 +78,11 @@ public final class DispatchRateImpl implements DispatchRate {
         }
 
         public DispatchRateImpl build() {
-            return new DispatchRateImpl(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte,
-                    relativeToPublishRate, ratePeriodInSecond);
+            return new DispatchRateImpl(
+                    dispatchThrottlingRateInMsg,
+                    dispatchThrottlingRateInByte,
+                    relativeToPublishRate,
+                    ratePeriodInSecond);
         }
     }
 }

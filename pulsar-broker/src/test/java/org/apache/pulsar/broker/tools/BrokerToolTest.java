@@ -43,7 +43,7 @@ public class BrokerToolTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            BrokerTool.run(new String[]{"gen-doc"});
+            BrokerTool.run(new String[] {"gen-doc"});
 
             String message = baoStream.toString();
 

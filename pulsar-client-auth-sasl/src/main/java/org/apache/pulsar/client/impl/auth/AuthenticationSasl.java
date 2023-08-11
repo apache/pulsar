@@ -81,8 +81,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     private String loginContextName;
     private String serverType = null;
 
-    public AuthenticationSasl() {
-    }
+    public AuthenticationSasl() {}
 
     @Override
     public String getAuthMethodName() {
@@ -93,8 +92,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     public AuthenticationDataProvider getAuthData(String serverHostname) throws PulsarClientException {
         // reuse this to return a DataProvider which contains a SASL client
         try {
-            PulsarSaslClient saslClient = new PulsarSaslClient(serverHostname, serverType,
-                    jaasCredentialsContainer.getSubject());
+            PulsarSaslClient saslClient =
+                    new PulsarSaslClient(serverHostname, serverType, jaasCredentialsContainer.getSubject());
             return new SaslAuthenticationDataProvider(saslClient);
         } catch (Throwable t) {
             log.error("Failed create sasl client", t);
@@ -105,8 +104,9 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     @Override
     public void configure(String encodedAuthParamString) {
         if (isBlank(encodedAuthParamString)) {
-            log.info("authParams for SASL is be empty, will use default JAAS client section name: {}",
-                JAAS_DEFAULT_CLIENT_SECTION_NAME);
+            log.info(
+                    "authParams for SASL is be empty, will use default JAAS client section name: {}",
+                    JAAS_DEFAULT_CLIENT_SECTION_NAME);
         }
 
         try {
@@ -121,7 +121,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     public void configure(Map<String, String> authParams) {
         try {
             setAuthParams(authParams);
-        }  catch (IOException e) {
+        } catch (IOException e) {
             throw new IllegalArgumentException("Failed to parse SASL authParams", e);
         }
     }
@@ -131,10 +131,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
         this.configuration = authParams;
 
         // read section from config files of kerberos
-        this.loginContextName = authParams
-            .getOrDefault(JAAS_CLIENT_SECTION_NAME, JAAS_DEFAULT_CLIENT_SECTION_NAME);
-        this.serverType = authParams
-            .getOrDefault(SASL_SERVER_TYPE, SASL_BROKER_PROTOCOL);
+        this.loginContextName = authParams.getOrDefault(JAAS_CLIENT_SECTION_NAME, JAAS_DEFAULT_CLIENT_SECTION_NAME);
+        this.serverType = authParams.getOrDefault(SASL_SERVER_TYPE, SASL_BROKER_PROTOCOL);
 
         // init the static jaasCredentialsContainer that shares amongst client.
         if (!initializedJAAS) {
@@ -143,9 +141,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                     log.info("JAAS loginContext is: {}.", loginContextName);
                     try {
                         jaasCredentialsContainer = new JAASCredentialsContainer(
-                            loginContextName,
-                            new ClientCallbackHandler(),
-                            configuration);
+                                loginContextName, new ClientCallbackHandler(), configuration);
                         initializedJAAS = true;
                     } catch (LoginException e) {
                         log.error("JAAS login in client failed", e);
@@ -174,13 +170,13 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     // role token exists but expired return true
     private boolean isRoleTokenExpired(Map<String, String> responseHeaders) {
         if ((saslRoleToken != null)
-            && (responseHeaders != null)
-            // header type match
-            && (responseHeaders.get(SASL_HEADER_TYPE) != null && responseHeaders.get(SASL_HEADER_TYPE)
-                    .equalsIgnoreCase(SASL_TYPE_VALUE))
-            // header state expired
-            && (responseHeaders.get(SASL_HEADER_STATE) != null && responseHeaders.get(SASL_HEADER_STATE)
-                    .equalsIgnoreCase(SASL_AUTH_ROLE_TOKEN_EXPIRED))) {
+                && (responseHeaders != null)
+                // header type match
+                && (responseHeaders.get(SASL_HEADER_TYPE) != null
+                        && responseHeaders.get(SASL_HEADER_TYPE).equalsIgnoreCase(SASL_TYPE_VALUE))
+                // header state expired
+                && (responseHeaders.get(SASL_HEADER_STATE) != null
+                        && responseHeaders.get(SASL_HEADER_STATE).equalsIgnoreCase(SASL_AUTH_ROLE_TOKEN_EXPIRED))) {
             return true;
         } else {
             return false;
@@ -188,14 +184,10 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     }
 
     @SneakyThrows(Exception.class)
-    private Builder newRequestBuilder(WebTarget target,
-                                      AuthenticationDataProvider authData,
-                                      Map<String, String> previousResHeaders) {
+    private Builder newRequestBuilder(
+            WebTarget target, AuthenticationDataProvider authData, Map<String, String> previousResHeaders) {
         Builder builder = target.request(MediaType.APPLICATION_JSON);
-        Set<Entry<String, String>>  headers = newRequestHeader(
-            target.getUri().toString(),
-            authData,
-            previousResHeaders);
+        Set<Entry<String, String>> headers = newRequestHeader(target.getUri().toString(), authData, previousResHeaders);
 
         headers.forEach(entry -> {
             builder.header(entry.getKey(), entry.getValue());
@@ -205,16 +197,14 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
     // set header according to previous response
     @Override
-    public Set<Entry<String, String>> newRequestHeader(String hostName,
-                                                       AuthenticationDataProvider authData,
-                                                       Map<String, String> previousRespHeaders) throws Exception {
+    public Set<Entry<String, String>> newRequestHeader(
+            String hostName, AuthenticationDataProvider authData, Map<String, String> previousRespHeaders)
+            throws Exception {
 
         Map<String, String> headers = new HashMap<>();
 
         if (authData.hasDataForHttp()) {
-            authData.getHttpHeaders().forEach(header ->
-                headers.put(header.getKey(), header.getValue())
-            );
+            authData.getHttpHeaders().forEach(header -> headers.put(header.getKey(), header.getValue()));
         }
 
         // role token expired in last check. remove role token, new sasl client, restart auth.
@@ -243,8 +233,9 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                 }
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("request builder add token. NOT complete. state: {}",
-                        previousRespHeaders.get(SASL_HEADER_STATE));
+                    log.debug(
+                            "request builder add token. NOT complete. state: {}",
+                            previousRespHeaders.get(SASL_HEADER_STATE));
                 }
                 headers.put(SASL_HEADER_STATE, SASL_STATE_NEGOTIATE);
             }
@@ -259,19 +250,15 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
             // first time init
             headers.put(SASL_HEADER_STATE, SASL_STATE_CLIENT_INIT);
             AuthData initData = authData.authenticate(AuthData.INIT_AUTH_DATA);
-            headers.put(SASL_AUTH_TOKEN,
-                Base64.getEncoder().encodeToString(initData.getBytes()));
+            headers.put(SASL_AUTH_TOKEN, Base64.getEncoder().encodeToString(initData.getBytes()));
         } else {
-            AuthData brokerData = AuthData.of(
-                Base64.getDecoder().decode(
-                    previousRespHeaders.get(SASL_AUTH_TOKEN)));
+            AuthData brokerData = AuthData.of(Base64.getDecoder().decode(previousRespHeaders.get(SASL_AUTH_TOKEN)));
             AuthData clientData = authData.authenticate(brokerData);
 
             headers.put(SASL_STATE_SERVER, previousRespHeaders.get(SASL_STATE_SERVER));
             headers.put(SASL_HEADER_TYPE, SASL_TYPE_VALUE);
             headers.put(SASL_HEADER_STATE, SASL_STATE_NEGOTIATE);
-            headers.put(SASL_AUTH_TOKEN,
-                Base64.getEncoder().encodeToString(clientData.getBytes()));
+            headers.put(SASL_AUTH_TOKEN, Base64.getEncoder().encodeToString(clientData.getBytes()));
         }
 
         return headers.entrySet();
@@ -296,10 +283,11 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     }
 
     @Override
-    public void authenticationStage(String requestUrl,
-                                    AuthenticationDataProvider authData,
-                                    Map<String, String> previousResHeaders,
-                                    CompletableFuture<Map<String, String>> authFuture) {
+    public void authenticationStage(
+            String requestUrl,
+            AuthenticationDataProvider authData,
+            Map<String, String> previousResHeaders,
+            CompletableFuture<Map<String, String>> authFuture) {
         // a new request for sasl auth
         Builder builder = newRequestBuilder(client.target(requestUrl), authData, previousResHeaders);
         builder.async().get(new InvocationCallback<Response>() {
@@ -313,8 +301,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
                 if (response.getStatus() != HttpURLConnection.HTTP_OK) {
                     log.warn("HTTP get request failed: {}", response.getStatusInfo());
-                    authFuture.completeExceptionally(new PulsarClientException("Sasl Auth request failed: "
-                            + response.getStatus()));
+                    authFuture.completeExceptionally(
+                            new PulsarClientException("Sasl Auth request failed: " + response.getStatus()));
                     return;
                 } else {
                     if (response.getHeaderString(SASL_AUTH_ROLE_TOKEN) != null) {

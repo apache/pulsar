@@ -23,7 +23,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 
-
 public interface AbortedTxnProcessor {
 
     enum SnapshotType {
@@ -55,7 +54,6 @@ public interface AbortedTxnProcessor {
      * Recover transaction buffer by transaction buffer snapshot.
      * @return a Position (startReadCursorPosition) determiner where to start to recover in the original topic.
      */
-
     CompletableFuture<PositionImpl> recoverFromSnapshot();
 
     /**
@@ -78,5 +76,4 @@ public interface AbortedTxnProcessor {
     TransactionBufferStats generateSnapshotStats(boolean segmentStats);
 
     CompletableFuture<Void> closeAsync();
-
 }

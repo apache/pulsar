@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-api")
 public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
@@ -49,7 +48,8 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
         final String topic = "persistent://my-property/my-ns/redeliveryCount";
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -58,9 +58,8 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
 
         producer.send("Hello Pulsar".getBytes());
 
@@ -86,7 +85,8 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
         admin.topics().createPartitionedTopic(topic, 3);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -95,9 +95,8 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
 
         producer.send("Hello Pulsar".getBytes());
 
@@ -122,19 +121,22 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
         String topic = "persistent://my-property/my-ns/testRedeliveryCountWhenConsumerDisconnected";
 
-        Consumer<String> consumer0 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer0 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
-        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer1 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxMessages(5)
@@ -174,6 +176,5 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         for (int i = 0; i < receivedMessagesForConsumer0.size(); i++) {
             Assert.assertEquals(consumer1.receive().getRedeliveryCount(), 0);
         }
-
     }
 }

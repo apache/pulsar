@@ -18,10 +18,23 @@
  */
 package org.apache.pulsar.io.kafka.source;
 
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.fail;
 import com.google.common.collect.ImmutableMap;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
-import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -34,29 +47,14 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.expectThrows;
-import static org.testng.Assert.fail;
-
-
 public class KafkaAbstractSourceTest {
 
     private static class DummySource extends KafkaAbstractSource<String> {
 
         @Override
         public KafkaRecord<String> buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-            return new KafkaRecord<>(consumerRecord,
+            return new KafkaRecord<>(
+                    consumerRecord,
                     new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
                     Schema.STRING,
                     Collections.emptyMap());
@@ -68,7 +66,7 @@ public class KafkaAbstractSourceTest {
         KafkaAbstractSource<String> source = new DummySource();
         SourceContext ctx = mock(SourceContext.class);
         Map<String, Object> config = new HashMap<>();
-        Assert.ThrowingRunnable openAndClose = ()->{
+        Assert.ThrowingRunnable openAndClose = () -> {
             try {
                 source.open(config, ctx);
                 fail();
@@ -149,7 +147,9 @@ public class KafkaAbstractSourceTest {
         assertEquals(config.getTopic(), "test");
         assertEquals(config.getSecurityProtocol(), SecurityProtocol.SASL_PLAINTEXT.name);
         assertEquals(config.getSaslMechanism(), "PLAIN");
-        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
+        assertEquals(
+                config.getSaslJaasConfig(),
+                "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
         assertEquals(config.getSslEndpointIdentificationAlgorithm(), "");
         assertEquals(config.getSslTruststoreLocation(), "/etc/cert.pem");
         assertEquals(config.getSslTruststorePassword(), "cert_pwd");
@@ -166,7 +166,8 @@ public class KafkaAbstractSourceTest {
         kafkaSourceConfigField.set(source, kafkaSourceConfig);
 
         Consumer<Object, Object> consumer = mock(Consumer.class);
-        Mockito.doThrow(new RuntimeException("Subscribe exception")).when(consumer)
+        Mockito.doThrow(new RuntimeException("Subscribe exception"))
+                .when(consumer)
                 .subscribe(Mockito.anyCollection());
 
         Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
@@ -187,8 +188,7 @@ public class KafkaAbstractSourceTest {
         kafkaSourceConfigField.set(source, kafkaSourceConfig);
 
         Consumer<Object, Object> consumer = mock(Consumer.class);
-        Mockito.doThrow(new RuntimeException("Pool exception")).when(consumer)
-                .poll(Mockito.any(Duration.class));
+        Mockito.doThrow(new RuntimeException("Pool exception")).when(consumer).poll(Mockito.any(Duration.class));
 
         Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
         consumerField.setAccessible(true);

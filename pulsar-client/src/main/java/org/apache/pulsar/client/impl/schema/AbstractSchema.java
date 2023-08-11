@@ -39,7 +39,8 @@ public abstract class AbstractSchema<T> implements Schema<T> {
      */
     void validate(ByteBuf byteBuf) {
         throw new SchemaSerializationException("This method is not supported");
-    };
+    }
+    ;
 
     /**
      * Decode a byteBuf into an object using the schema definition and deserializer implementation

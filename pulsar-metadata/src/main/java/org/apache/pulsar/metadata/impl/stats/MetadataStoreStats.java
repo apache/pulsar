@@ -23,7 +23,7 @@ import io.prometheus.client.Histogram;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MetadataStoreStats implements AutoCloseable {
-    private static final double[] BUCKETS = new double[]{1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
+    private static final double[] BUCKETS = new double[] {1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
     private static final String OPS_TYPE_LABEL_NAME = "type";
     private static final String METADATA_STORE_LABEL_NAME = "name";
     private static final String STATUS = "status";
@@ -36,14 +36,12 @@ public final class MetadataStoreStats implements AutoCloseable {
 
     protected static final String PREFIX = "pulsar_metadata_store_";
 
-    private static final Histogram OPS_LATENCY = Histogram
-            .build(PREFIX + "ops_latency", "-")
+    private static final Histogram OPS_LATENCY = Histogram.build(PREFIX + "ops_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
             .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME, STATUS)
             .register();
-    private static final Counter PUT_BYTES = Counter
-            .build(PREFIX + "put", "-")
+    private static final Counter PUT_BYTES = Counter.build(PREFIX + "put", "-")
             .unit("bytes")
             .labelNames(METADATA_STORE_LABEL_NAME)
             .register();

@@ -43,80 +43,93 @@ public class OffloaderObjectsScannerUtils {
     public interface ScannerResultSink {
 
         void object(Map<String, Object> data) throws Exception;
+
         void finished(int total, int errors, int unknown) throws Exception;
     }
 
-    static void scanOffloadedLedgers(LedgerOffloader managedLedgerOffloader,
-                                                              String localClusterName,
-                                                              ManagedLedgerFactory managedLedgerFactory,
-                                                              ScannerResultSink sink) throws Exception {
+    static void scanOffloadedLedgers(
+            LedgerOffloader managedLedgerOffloader,
+            String localClusterName,
+            ManagedLedgerFactory managedLedgerFactory,
+            ScannerResultSink sink)
+            throws Exception {
         AtomicInteger totalCount = new AtomicInteger();
         AtomicInteger totalErrors = new AtomicInteger();
         AtomicInteger totalUnknown = new AtomicInteger();
-        managedLedgerOffloader.scanLedgers((md -> {
-            log.info("Found ledger {}", md);
-            Map<String, Object> objectInfo = new HashMap<>();
-            objectInfo.put("ledger", md.getLedgerId());
-            objectInfo.put("name", md.getName());
-            objectInfo.put("uri", md.getUri());
-            objectInfo.put("uuid", md.getUuid());
-            objectInfo.put("size", md.getSize());
-            objectInfo.put("lastModified", md.getLastModified());
-            objectInfo.put("userMetadata", md.getUserMetadata());
+        managedLedgerOffloader.scanLedgers(
+                (md -> {
+                    log.info("Found ledger {}", md);
+                    Map<String, Object> objectInfo = new HashMap<>();
+                    objectInfo.put("ledger", md.getLedgerId());
+                    objectInfo.put("name", md.getName());
+                    objectInfo.put("uri", md.getUri());
+                    objectInfo.put("uuid", md.getUuid());
+                    objectInfo.put("size", md.getSize());
+                    objectInfo.put("lastModified", md.getLastModified());
+                    objectInfo.put("userMetadata", md.getUserMetadata());
 
-            String status = STATUS_UNKNOWN;
+                    String status = STATUS_UNKNOWN;
 
-            if (md.getUserMetadata() != null) {
-                // non case sensitive
-                TreeMap<String, String> userMetadata = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-                userMetadata.putAll(md.getUserMetadata());
-                String clusterName = userMetadata.get(LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME);
-                if (localClusterName.equals(clusterName)) {
-                    String managedLedgerName = userMetadata.get("managedledgername");
-                    if (managedLedgerName != null) {
-                        objectInfo.put("managedLedgerName", managedLedgerName);
-                        try {
-                            status = checkLedgerShouldBeOnTieredStorage(md.getLedgerId(), md.getUuid(),
-                                    managedLedgerName, objectInfo, managedLedgerFactory);
-                        } catch (InterruptedException err) {
-                            Thread.currentThread().interrupt();
-                            throw new RuntimeException(err);
-                        } catch (ManagedLedgerException err) {
-                            log.error("Error while checking managed ledger {}", managedLedgerName);
-                            throw new RuntimeException(err);
+                    if (md.getUserMetadata() != null) {
+                        // non case sensitive
+                        TreeMap<String, String> userMetadata = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+                        userMetadata.putAll(md.getUserMetadata());
+                        String clusterName = userMetadata.get(LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME);
+                        if (localClusterName.equals(clusterName)) {
+                            String managedLedgerName = userMetadata.get("managedledgername");
+                            if (managedLedgerName != null) {
+                                objectInfo.put("managedLedgerName", managedLedgerName);
+                                try {
+                                    status = checkLedgerShouldBeOnTieredStorage(
+                                            md.getLedgerId(),
+                                            md.getUuid(),
+                                            managedLedgerName,
+                                            objectInfo,
+                                            managedLedgerFactory);
+                                } catch (InterruptedException err) {
+                                    Thread.currentThread().interrupt();
+                                    throw new RuntimeException(err);
+                                } catch (ManagedLedgerException err) {
+                                    log.error("Error while checking managed ledger {}", managedLedgerName);
+                                    throw new RuntimeException(err);
+                                }
+                            }
                         }
                     }
-                }
-            }
-            totalCount.incrementAndGet();
-            objectInfo.put("status", status);
-            switch (status) {
-                case STATUS_OK:
-                    break;
-                case STATUS_UNKNOWN:
-                    totalUnknown.incrementAndGet();
-                    break;
-                default:
-                    totalErrors.incrementAndGet();
-                    break;
-            }
+                    totalCount.incrementAndGet();
+                    objectInfo.put("status", status);
+                    switch (status) {
+                        case STATUS_OK:
+                            break;
+                        case STATUS_UNKNOWN:
+                            totalUnknown.incrementAndGet();
+                            break;
+                        default:
+                            totalErrors.incrementAndGet();
+                            break;
+                    }
 
-            sink.object(objectInfo);
-            return true;
-        }), managedLedgerOffloader.getOffloadDriverMetadata());
+                    sink.object(objectInfo);
+                    return true;
+                }),
+                managedLedgerOffloader.getOffloadDriverMetadata());
 
         sink.finished(totalCount.get(), totalErrors.get(), totalUnknown.get());
     }
 
-    private static String checkLedgerShouldBeOnTieredStorage(long ledgerId, String uuid,
+    private static String checkLedgerShouldBeOnTieredStorage(
+            long ledgerId,
+            String uuid,
             String managedLedgerName,
             Map<String, Object> data,
             ManagedLedgerFactory managedLedgerFactory)
-        throws InterruptedException, ManagedLedgerException  {
+            throws InterruptedException, ManagedLedgerException {
         try {
             ManagedLedgerInfo managedLedgerInfo = managedLedgerFactory.getManagedLedgerInfo(managedLedgerName);
-            ManagedLedgerInfo.LedgerInfo ledgerInfo = managedLedgerInfo
-                    .ledgers.stream().filter(l -> l.ledgerId == ledgerId).findAny().orElse(null);
+            ManagedLedgerInfo.LedgerInfo ledgerInfo = managedLedgerInfo.ledgers.stream()
+                    .filter(l -> l.ledgerId == ledgerId)
+                    .findAny()
+                    .orElse(null);
             if (ledgerInfo == null) {
                 log.info("Managed ledger {} does not contain ledger {}", managedLedgerName, ledgerId);
                 return STATUS_NOT_FOUND;
@@ -133,11 +146,10 @@ public class OffloaderObjectsScannerUtils {
                 return STATUS_BAD_UUID;
             }
             return "OK";
-        }  catch (ManagedLedgerException.ManagedLedgerNotFoundException
+        } catch (ManagedLedgerException.ManagedLedgerNotFoundException
                 | ManagedLedgerException.MetadataNotFoundException notFound) {
             log.info("Managed ledger {} does not exist (maybe the topic has been deleted)", managedLedgerName);
             return STATUS_NOT_FOUND;
         }
     }
-
 }

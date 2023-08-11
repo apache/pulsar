@@ -42,21 +42,25 @@ public class BookKeeperTestClient extends BookKeeper {
 
     public BookKeeperTestClient(ClientConfiguration conf, TestStatsProvider statsProvider)
             throws IOException, InterruptedException, BKException {
-        super(conf, null, null, new UnpooledByteBufAllocator(false),
+        super(
+                conf,
+                null,
+                null,
+                new UnpooledByteBufAllocator(false),
                 statsProvider == null ? NullStatsLogger.INSTANCE : statsProvider.getStatsLogger(""),
-                null, null, null);
+                null,
+                null,
+                null);
         this.statsProvider = statsProvider;
     }
 
     public BookKeeperTestClient(ClientConfiguration conf, ZooKeeper zkc)
             throws IOException, InterruptedException, BKException {
-        super(conf, zkc, null, new UnpooledByteBufAllocator(false),
-                NullStatsLogger.INSTANCE, null, null, null);
+        super(conf, zkc, null, new UnpooledByteBufAllocator(false), NullStatsLogger.INSTANCE, null, null, null);
         this.statsProvider = statsProvider;
     }
 
-    public BookKeeperTestClient(ClientConfiguration conf)
-            throws InterruptedException, BKException, IOException {
+    public BookKeeperTestClient(ClientConfiguration conf) throws InterruptedException, BKException, IOException {
         this(conf, (TestStatsProvider) null);
     }
 
@@ -72,13 +76,11 @@ public class BookKeeperTestClient extends BookKeeper {
         return bookieClient;
     }
 
-    public Future<?> waitForReadOnlyBookie(BookieId b)
-            throws Exception {
+    public Future<?> waitForReadOnlyBookie(BookieId b) throws Exception {
         return waitForBookieInSet(b, false);
     }
 
-    public Future<?> waitForWritableBookie(BookieId b)
-            throws Exception {
+    public Future<?> waitForWritableBookie(BookieId b) throws Exception {
         return waitForBookieInSet(b, true);
     }
 
@@ -87,10 +89,8 @@ public class BookKeeperTestClient extends BookKeeper {
      * or the read only set of bookies. Also ensure that it doesn't exist
      * in the other set before completing.
      */
-    private Future<?> waitForBookieInSet(BookieId b,
-                                         boolean writable) throws Exception {
-        log.info("Wait for {} to become {}",
-                b, writable ? "writable" : "readonly");
+    private Future<?> waitForBookieInSet(BookieId b, boolean writable) throws Exception {
+        log.info("Wait for {} to become {}", b, writable ? "writable" : "readonly");
 
         CompletableFuture<Void> readOnlyFuture = new CompletableFuture<>();
         CompletableFuture<Void> writableFuture = new CompletableFuture<>();
@@ -113,7 +113,8 @@ public class BookKeeperTestClient extends BookKeeper {
 
         if (writable) {
             return writableFuture
-                    .thenCompose(ignored -> getMetadataClientDriver().getRegistrationClient().getReadOnlyBookies())
+                    .thenCompose(ignored ->
+                            getMetadataClientDriver().getRegistrationClient().getReadOnlyBookies())
                     .thenCompose(readonlyBookies -> {
                         if (readonlyBookies.getValue().contains(b)) {
                             // if the bookie still shows up at readonly path, wait for it to disappear
@@ -124,7 +125,8 @@ public class BookKeeperTestClient extends BookKeeper {
                     });
         } else {
             return readOnlyFuture
-                    .thenCompose(ignored -> getMetadataClientDriver().getRegistrationClient().getWritableBookies())
+                    .thenCompose(ignored ->
+                            getMetadataClientDriver().getRegistrationClient().getWritableBookies())
                     .thenCompose(writableBookies -> {
                         if (writableBookies.getValue().contains(b)) {
                             // if the bookie still shows up at writable path, wait for it to disappear
@@ -150,4 +152,3 @@ public class BookKeeperTestClient extends BookKeeper {
         return statsProvider;
     }
 }
-

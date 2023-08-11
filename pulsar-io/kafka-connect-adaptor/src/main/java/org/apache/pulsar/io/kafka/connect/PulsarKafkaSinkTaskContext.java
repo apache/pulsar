@@ -57,10 +57,11 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private final ConcurrentHashMap<TopicPartition, Long> currentOffsets = new ConcurrentHashMap<>();
 
-    public PulsarKafkaSinkTaskContext(Map<String, String> config,
-                                      SinkContext ctx,
-                                      Consumer<Collection<TopicPartition>> onPartitionChange,
-                                      Function<String, String> desanitizeTopicName) {
+    public PulsarKafkaSinkTaskContext(
+            Map<String, String> config,
+            SinkContext ctx,
+            Consumer<Collection<TopicPartition>> onPartitionChange,
+            Function<String, String> desanitizeTopicName) {
         this.config = config;
         this.ctx = ctx;
 
@@ -100,7 +101,8 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
                 if (result != null && result.size() != 0) {
                     Optional<ByteBuffer> val = result.entrySet().stream()
                             .filter(entry -> entry.getKey().equals(key))
-                            .findFirst().map(entry -> entry.getValue());
+                            .findFirst()
+                            .map(entry -> entry.getValue());
                     if (val.isPresent()) {
                         long received = val.get().getLong();
                         if (log.isDebugEnabled()) {
@@ -126,8 +128,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
         Map<TopicPartition, OffsetAndMetadata> snapshot = Maps.newHashMapWithExpectedSize(currentOffsets.size());
         currentOffsets.forEach((topicPartition, offset) -> {
             if (offset > 0) {
-                snapshot.put(topicPartition,
-                        new OffsetAndMetadata(offset, Optional.empty(), null));
+                snapshot.put(topicPartition, new OffsetAndMetadata(offset, Optional.empty(), null));
             }
         });
         return snapshot;
@@ -135,7 +136,6 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private ByteBuffer topicPartitionAsKey(TopicPartition topicPartition) {
         return ByteBuffer.wrap((topicNamespace + "/" + topicPartition.toString()).getBytes(StandardCharsets.UTF_8));
-
     }
 
     private void fillOffsetMap(Map<ByteBuffer, ByteBuffer> offsetMap, TopicPartition topicPartition, long l) {
@@ -148,14 +148,21 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private void seekAndUpdateOffset(TopicPartition topicPartition, long offset) {
         try {
-            ctx.seek(desanitizeTopicName.apply(topicPartition.topic()),
+            ctx.seek(
+                    desanitizeTopicName.apply(topicPartition.topic()),
                     topicPartition.partition(),
                     MessageIdUtils.getMessageId(offset));
         } catch (PulsarClientException e) {
-            log.error("Failed to seek topic {} partition {} offset {}",
-                    topicPartition.topic(), topicPartition.partition(), offset, e);
-            throw new RuntimeException("Failed to seek topic " + topicPartition.topic() + " partition "
-                    + topicPartition.partition() + " offset " + offset, e);
+            log.error(
+                    "Failed to seek topic {} partition {} offset {}",
+                    topicPartition.topic(),
+                    topicPartition.partition(),
+                    offset,
+                    e);
+            throw new RuntimeException(
+                    "Failed to seek topic " + topicPartition.topic() + " partition " + topicPartition.partition()
+                            + " offset " + offset,
+                    e);
         }
         if (!currentOffsets.containsKey(topicPartition)) {
             runRepartition.set(true);
@@ -206,7 +213,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     @Override
     public void pause(TopicPartition... topicPartitions) {
-        for (TopicPartition tp: topicPartitions) {
+        for (TopicPartition tp : topicPartitions) {
             try {
                 ctx.pause(desanitizeTopicName.apply(tp.topic()), tp.partition());
             } catch (PulsarClientException e) {
@@ -218,7 +225,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     @Override
     public void resume(TopicPartition... topicPartitions) {
-        for (TopicPartition tp: topicPartitions) {
+        for (TopicPartition tp : topicPartitions) {
             try {
                 ctx.resume(desanitizeTopicName.apply(tp.topic()), tp.partition());
             } catch (PulsarClientException e) {

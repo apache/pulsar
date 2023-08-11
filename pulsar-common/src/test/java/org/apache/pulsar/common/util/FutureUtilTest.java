@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.common.util;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
@@ -35,11 +40,6 @@ import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 public class FutureUtilTest {
 
@@ -50,10 +50,12 @@ public class FutureUtilTest {
         assertEquals(timeoutException.getMessage(), "hello world");
         StringWriter stringWriter = new StringWriter();
         timeoutException.printStackTrace(new PrintWriter(stringWriter, true));
-        assertEquals(stringWriter.toString(),
+        assertEquals(
+                stringWriter.toString(),
                 "org.apache.pulsar.common.util.FutureUtil$LowOverheadTimeoutException: "
-                + "hello world" + System.lineSeparator()
-                + "\tat org.apache.pulsar.common.util.FutureUtilTest.test(...)(Unknown Source)" + System.lineSeparator());
+                        + "hello world" + System.lineSeparator()
+                        + "\tat org.apache.pulsar.common.util.FutureUtilTest.test(...)(Unknown Source)"
+                        + System.lineSeparator());
     }
 
     @Test
@@ -89,8 +91,8 @@ public class FutureUtilTest {
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         Exception e = new Exception();
         try {
-            CompletableFuture<Void> future = FutureUtil.createFutureWithTimeout(Duration.ofMillis(1), executor,
-                    () -> e);
+            CompletableFuture<Void> future =
+                    FutureUtil.createFutureWithTimeout(Duration.ofMillis(1), executor, () -> e);
             future.get();
             fail("Should have failed.");
         } catch (InterruptedException interruptedException) {
@@ -120,11 +122,10 @@ public class FutureUtilTest {
             future2Exception.add(FutureUtil.unwrapCompletionException(ex));
             return null;
         });
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    assertEquals(future2Exception.size(), 1);
-                    assertTrue(future2Exception.get(0) instanceof IllegalStateException);
-                });
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(future2Exception.size(), 1);
+            assertTrue(future2Exception.get(0) instanceof IllegalStateException);
+        });
         final List<Throwable> future3Exception = Lists.newArrayList();
         CompletableFuture.completedFuture(null)
                 .thenAccept(__ -> {
@@ -134,11 +135,10 @@ public class FutureUtilTest {
                     future3Exception.add(FutureUtil.unwrapCompletionException(ex));
                     return null;
                 });
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    assertEquals(future3Exception.size(), 1);
-                    assertTrue(future3Exception.get(0) instanceof IllegalStateException);
-                });
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(future3Exception.size(), 1);
+            assertTrue(future3Exception.get(0) instanceof IllegalStateException);
+        });
     }
 
     @Test
@@ -151,7 +151,8 @@ public class FutureUtilTest {
         f2.complete("2");
         f3.complete("3");
         f4.complete("4");
-        CompletableFuture<Optional<Object>> ret = FutureUtil.waitForAny(Lists.newArrayList(f1, f2, f3, f4), p -> p.equals("3"));
+        CompletableFuture<Optional<Object>> ret =
+                FutureUtil.waitForAny(Lists.newArrayList(f1, f2, f3, f4), p -> p.equals("3"));
         assertEquals(ret.join().get(), "3");
         // test not matched predicate result
         CompletableFuture<String> f5 = new CompletableFuture<>();
@@ -191,9 +192,11 @@ public class FutureUtilTest {
         final List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (int i = 0; i < concurrentNum; i++) {
             int finalI = i;
-            futures.add(sequencer.sequential(() -> CompletableFuture.runAsync(() -> {
-                list.add(finalI);
-            }, executor)));
+            futures.add(sequencer.sequential(() -> CompletableFuture.runAsync(
+                    () -> {
+                        list.add(finalI);
+                    },
+                    executor)));
         }
         FutureUtil.waitForAll(futures).join();
         for (int i = 0; i < list.size(); i++) {
@@ -205,12 +208,14 @@ public class FutureUtilTest {
         final List<CompletableFuture<Void>> futures2 = new ArrayList<>();
         for (int i = 0; i < concurrentNum; i++) {
             int finalI = i;
-            futures2.add(sequencer.sequential(() -> CompletableFuture.runAsync(() -> {
-                if (finalI == 2) {
-                    throw new IllegalStateException();
-                }
-                list2.add(finalI);
-            }, executor)));
+            futures2.add(sequencer.sequential(() -> CompletableFuture.runAsync(
+                    () -> {
+                        if (finalI == 2) {
+                            throw new IllegalStateException();
+                        }
+                        list2.add(finalI);
+                    },
+                    executor)));
         }
         try {
             FutureUtil.waitForAll(futures2).join();
@@ -230,12 +235,14 @@ public class FutureUtilTest {
         final List<CompletableFuture<Void>> futures3 = new ArrayList<>();
         for (int i = 0; i < concurrentNum; i++) {
             int finalI = i;
-            futures3.add(sequencer2.sequential(() -> CompletableFuture.runAsync(() -> {
-                if (finalI == 2) {
-                    throw new IllegalStateException();
-                }
-                list3.add(finalI);
-            }, executor)));
+            futures3.add(sequencer2.sequential(() -> CompletableFuture.runAsync(
+                    () -> {
+                        if (finalI == 2) {
+                            throw new IllegalStateException();
+                        }
+                        list3.add(finalI);
+                    },
+                    executor)));
         }
         try {
             FutureUtil.waitForAll(futures3).join();

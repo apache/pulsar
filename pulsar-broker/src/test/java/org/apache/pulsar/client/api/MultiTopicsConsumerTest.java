@@ -23,10 +23,9 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -78,7 +77,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
 
     @Override
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-       clientBuilder.ioThreads(4).connectionsPerBroker(4);
+        clientBuilder.ioThreads(4).connectionsPerBroker(4);
     }
 
     // test that reproduces the issue https://github.com/apache/pulsar/issues/12024
@@ -87,15 +86,17 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     public void testMultiTopicsConsumerCloses() throws Exception {
         String topicNameBase = "persistent://my-property/my-ns/my-topic-consumer-closes-";
 
-        ClientConfigurationData conf = ((ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString()))
+        ClientConfigurationData conf = ((ClientBuilderImpl)
+                        PulsarClient.builder().serviceUrl(lookupUrl.toString()))
                 .getClientConfigurationData();
 
         @Cleanup
         PulsarClientImpl client = new PulsarClientImpl(conf) {
             {
-                ScheduledExecutorService internalExecutorService =
-                        (ScheduledExecutorService) super.getScheduledExecutorProvider().getExecutor();
-                internalExecutorServiceDelegate = mock(ScheduledExecutorService.class,
+                ScheduledExecutorService internalExecutorService = (ScheduledExecutorService)
+                        super.getScheduledExecutorProvider().getExecutor();
+                internalExecutorServiceDelegate = mock(
+                        ScheduledExecutorService.class,
                         // a spy isn't used since that doesn't work for private classes, instead
                         // the mock delegatesTo an existing instance. A delegate is sufficient for verifying
                         // method calls on the interface.
@@ -123,8 +124,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                 .enableBatching(false)
                 .create();
 
-        Consumer<byte[]> consumer = client
-                .newConsumer()
+        Consumer<byte[]> consumer = client.newConsumer()
                 .topics(Lists.newArrayList(topicNameBase + "1", topicNameBase + "2", topicNameBase + "3"))
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .receiverQueueSize(1)
@@ -140,8 +140,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         Thread.sleep(1000L);
 
         // then verify that no scheduling operation has happened
-        verify(internalExecutorServiceDelegate, times(0))
-                .schedule(any(Runnable.class), anyLong(), any());
+        verify(internalExecutorServiceDelegate, times(0)).schedule(any(Runnable.class), anyLong(), any());
     }
 
     // test that reproduces the issue that PR https://github.com/apache/pulsar/pull/12456 fixes
@@ -149,7 +148,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     @Test
     public void testShouldMaintainOrderForIndividualTopicInMultiTopicsConsumer()
             throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException,
-            TimeoutException {
+                    TimeoutException {
         String topicName = newTopicName();
         int numPartitions = 2;
         int numMessages = 100000;
@@ -158,7 +157,8 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         Producer<Long>[] producers = new Producer[numPartitions];
 
         for (int i = 0; i < numPartitions; i++) {
-            producers[i] = pulsarClient.newProducer(Schema.INT64)
+            producers[i] = pulsarClient
+                    .newProducer(Schema.INT64)
                     // produce to each partition directly so that order can be maintained in sending
                     .topic(topicName + "-partition-" + i)
                     .enableBatching(true)
@@ -185,9 +185,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         long sequenceNumber = 1L;
         for (int i = 0; i < numMessages; i++) {
             for (Producer<Long> producer : producers) {
-                producer.newMessage()
-                        .value(sequenceNumber)
-                        .sendAsync();
+                producer.newMessage().value(sequenceNumber).sendAsync();
             }
             sequenceNumber++;
         }
@@ -211,15 +209,15 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testBatchReceiveAckTimeout()
-            throws PulsarAdminException, PulsarClientException {
+    public void testBatchReceiveAckTimeout() throws PulsarAdminException, PulsarClientException {
         String topicName = newTopicName();
         int numPartitions = 2;
         int numMessages = 100000;
         admin.topics().createPartitionedTopic(topicName, numPartitions);
 
         @Cleanup
-        Producer<Long> producer = pulsarClient.newProducer(Schema.INT64)
+        Producer<Long> producer = pulsarClient
+                .newProducer(Schema.INT64)
                 .topic(topicName)
                 .enableBatching(false)
                 .blockIfQueueFull(true)
@@ -230,15 +228,15 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                 .newConsumer(Schema.INT64)
                 .topic(topicName)
                 .receiverQueueSize(numMessages)
-                .batchReceivePolicy(
-                        BatchReceivePolicy.builder().maxNumMessages(1).timeout(2, TimeUnit.SECONDS).build()
-                ).ackTimeout(1000, TimeUnit.MILLISECONDS)
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                        .maxNumMessages(1)
+                        .timeout(2, TimeUnit.SECONDS)
+                        .build())
+                .ackTimeout(1000, TimeUnit.MILLISECONDS)
                 .subscriptionName(methodName)
                 .subscribe();
 
-        producer.newMessage()
-                .value(1l)
-                .send();
+        producer.newMessage().value(1l).send();
 
         // first batch receive
         Assert.assertEquals(consumer.batchReceive().size(), 1);
@@ -253,14 +251,18 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         final var topic1 = newTopicName();
         final var topic2 = newTopicName();
 
-        @Cleanup final var singleTopicConsumer = pulsarClient.newConsumer()
+        @Cleanup
+        final var singleTopicConsumer = pulsarClient
+                .newConsumer()
                 .topic(topic1)
                 .subscriptionName("sub-1")
                 .isAckReceiptEnabled(true)
                 .subscribe();
         assertTrue(singleTopicConsumer instanceof ConsumerImpl);
 
-        @Cleanup final var multiTopicsConsumer = pulsarClient.newConsumer()
+        @Cleanup
+        final var multiTopicsConsumer = pulsarClient
+                .newConsumer()
                 .topics(List.of(topic1, topic2))
                 .subscriptionName("sub-2")
                 .isAckReceiptEnabled(true)
@@ -269,17 +271,19 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
 
         @Cleanup final var producer = pulsarClient.newProducer().topic(topic1).create();
         final var nonTopicMessageIds = new ArrayList<MessageId>();
-        nonTopicMessageIds.add(producer.send(new byte[]{ 0x00 }));
+        nonTopicMessageIds.add(producer.send(new byte[] {0x00}));
         nonTopicMessageIds.add(singleTopicConsumer.receive().getMessageId());
 
         // Multi-topics consumers can only acknowledge TopicMessageId, otherwise NotAllowedException will be thrown
         for (var msgId : nonTopicMessageIds) {
             assertFalse(msgId instanceof TopicMessageId);
-            Assert.assertThrows(PulsarClientException.NotAllowedException.class,
-                    () -> multiTopicsConsumer.acknowledge(msgId));
-            Assert.assertThrows(PulsarClientException.NotAllowedException.class,
+            Assert.assertThrows(
+                    PulsarClientException.NotAllowedException.class, () -> multiTopicsConsumer.acknowledge(msgId));
+            Assert.assertThrows(
+                    PulsarClientException.NotAllowedException.class,
                     () -> multiTopicsConsumer.acknowledge(Collections.singletonList(msgId)));
-            Assert.assertThrows(PulsarClientException.NotAllowedException.class,
+            Assert.assertThrows(
+                    PulsarClientException.NotAllowedException.class,
                     () -> multiTopicsConsumer.acknowledgeCumulative(msgId));
         }
 
@@ -292,7 +296,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
 
     @DataProvider
     public static Object[][] messageIdFromProducer() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(timeOut = 30000, dataProvider = "messageIdFromProducer")
@@ -301,18 +305,25 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         final var numPartitions = 3;
         admin.topics().createPartitionedTopic(topic, numPartitions);
 
-        @Cleanup final var producer = pulsarClient.newProducer(Schema.INT32)
+        @Cleanup
+        final var producer = pulsarClient
+                .newProducer(Schema.INT32)
                 .topic(topic)
                 .messageRouter(new MessageRouter() {
                     int index = 0;
+
                     @Override
                     public int choosePartition(Message<?> msg, TopicMetadata metadata) {
                         return index++ % metadata.numPartitions();
                     }
                 })
                 .create();
-        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic)
-                .subscriptionName("sub").subscribe();
+        @Cleanup
+        final var consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         final var msgIds = new HashMap<String, List<MessageId>>();
@@ -321,11 +332,14 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessages; i++) {
             var msgId = (MessageIdImpl) producer.send(i);
             if (messageIdFromProducer) {
-                msgIds.computeIfAbsent(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + msgId.getPartitionIndex(),
-                        __ -> new ArrayList<>()).add(msgId);
+                msgIds.computeIfAbsent(
+                                topic + TopicName.PARTITIONED_TOPIC_SUFFIX + msgId.getPartitionIndex(),
+                                __ -> new ArrayList<>())
+                        .add(msgId);
             } else {
                 var topicMessageId = (TopicMessageId) consumer.receive().getMessageId();
-                msgIds.computeIfAbsent(topicMessageId.getOwnerTopic(), __ -> new ArrayList<>()).add(topicMessageId);
+                msgIds.computeIfAbsent(topicMessageId.getOwnerTopic(), __ -> new ArrayList<>())
+                        .add(topicMessageId);
             }
         }
 
@@ -347,11 +361,14 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         var topicMsgIds = new HashMap<String, List<TopicMessageId>>();
         for (int i = 0; i < ((numMessagesPerPartition / 2 - 1) * numPartitions); i++) {
             TopicMessageId topicMessageId = (TopicMessageId) consumer.receive().getMessageId();
-            topicMsgIds.computeIfAbsent(topicMessageId.getOwnerTopic(), __ -> new ArrayList<>()).add(topicMessageId);
+            topicMsgIds
+                    .computeIfAbsent(topicMessageId.getOwnerTopic(), __ -> new ArrayList<>())
+                    .add(topicMessageId);
         }
         assertEquals(topicMsgIds.keySet(), partitions);
         for (var partition : partitions) {
-            assertEquals(topicMsgIds.get(partition),
+            assertEquals(
+                    topicMsgIds.get(partition),
                     msgIds.get(partition).subList(numMessagesPerPartition / 2 + 1, numMessagesPerPartition));
         }
         consumer.close();
@@ -366,8 +383,11 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             admin.topics().createNonPartitionedTopic(topic + "-" + i);
         }
         @Cleanup
-        final var consumer = pulsarClient.newConsumer(Schema.INT32).topicsPattern(topic + ".*")
-                .subscriptionName("sub").subscribe();
+        final var consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topicsPattern(topic + ".*")
+                .subscriptionName("sub")
+                .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         assertTrue(consumer.isConnected());
     }

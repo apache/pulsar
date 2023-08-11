@@ -152,8 +152,7 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
      */
     public interface ByteArrayComparator extends Comparator<byte[]>, Serializable {
 
-        int compare(byte[] buffer1, int offset1, int length1,
-                    byte[] buffer2, int offset2, int length2);
+        int compare(byte[] buffer1, int offset1, int length1, byte[] buffer2, int offset2, int length2);
     }
 
     private static class LexicographicByteArrayComparator implements ByteArrayComparator {
@@ -165,13 +164,11 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
             return compare(buffer1, 0, buffer1.length, buffer2, 0, buffer2.length);
         }
 
-        public int compare(final byte[] buffer1, int offset1, int length1,
-                           final byte[] buffer2, int offset2, int length2) {
+        public int compare(
+                final byte[] buffer1, int offset1, int length1, final byte[] buffer2, int offset2, int length2) {
 
             // short circuit equal case
-            if (buffer1 == buffer2
-                && offset1 == offset2
-                && length1 == length2) {
+            if (buffer1 == buffer2 && offset1 == offset2 && length1 == length2) {
                 return 0;
             }
 

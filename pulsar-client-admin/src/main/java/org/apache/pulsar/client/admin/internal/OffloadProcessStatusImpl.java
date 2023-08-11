@@ -35,8 +35,7 @@ public class OffloadProcessStatusImpl extends LongRunningProcessStatus implement
         firstUnoffloadedMessage = (MessageIdImpl) MessageId.earliest;
     }
 
-    public OffloadProcessStatusImpl(Status status, String lastError,
-                                 MessageId firstUnoffloadedMessage) {
+    public OffloadProcessStatusImpl(Status status, String lastError, MessageId firstUnoffloadedMessage) {
         this.status = status;
         this.lastError = lastError;
         this.firstUnoffloadedMessage = (MessageIdImpl) firstUnoffloadedMessage;

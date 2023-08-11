@@ -48,11 +48,12 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
 
     private String ledgersRootPath;
 
-
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.ledgersRootPath = "/ledgers-" + UUID.randomUUID();
-        this.store1 = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
-        this.store2 = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        this.store1 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
+        this.store2 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -118,5 +119,4 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         assertTrue(latch.await(10, TimeUnit.SECONDS));
         assertEquals(lam2.getCurrentAuditor(), BookieId.parse("bookie-2:3181"));
     }
-
 }

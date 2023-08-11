@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.apache.pulsar.client.api.SubscriptionType.Shared;
-import static org.apache.pulsar.client.api.SubscriptionType.Key_Shared;
-import static org.apache.pulsar.client.api.SubscriptionType.Failover;
 import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
+import static org.apache.pulsar.client.api.SubscriptionType.Failover;
+import static org.apache.pulsar.client.api.SubscriptionType.Key_Shared;
+import static org.apache.pulsar.client.api.SubscriptionType.Shared;
 import static org.testng.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,59 +69,62 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
     }
 
     @DataProvider(name = "unloadCases")
-    public Object[][] unloadCases (){
+    public Object[][] unloadCases() {
         // [msgCount, enabledBatch, maxMsgPerBatch, subType, ackMsgCount]
-        return new Object[][]{
-                {100, false, 1, Exclusive, 0},
-                {100, false, 1, Failover, 0},
-                {100, false, 1, Shared, 0},
-                {100, false, 1, Key_Shared, 0},
-                {100, true, 5, Exclusive, 0},
-                {100, true, 5, Failover, 0},
-                {100, true, 5, Shared, 0},
-                {100, true, 5, Key_Shared, 0},
-                {100, false, 1, Exclusive, 50},
-                {100, false, 1, Failover, 50},
-                {100, false, 1, Shared, 50},
-                {100, false, 1, Key_Shared, 50},
-                {100, true, 5, Exclusive, 50},
-                {100, true, 5, Failover, 50},
-                {100, true, 5, Shared, 50},
-                {100, true, 5, Key_Shared, 50},
+        return new Object[][] {
+            {100, false, 1, Exclusive, 0},
+            {100, false, 1, Failover, 0},
+            {100, false, 1, Shared, 0},
+            {100, false, 1, Key_Shared, 0},
+            {100, true, 5, Exclusive, 0},
+            {100, true, 5, Failover, 0},
+            {100, true, 5, Shared, 0},
+            {100, true, 5, Key_Shared, 0},
+            {100, false, 1, Exclusive, 50},
+            {100, false, 1, Failover, 50},
+            {100, false, 1, Shared, 50},
+            {100, false, 1, Key_Shared, 50},
+            {100, true, 5, Exclusive, 50},
+            {100, true, 5, Failover, 50},
+            {100, true, 5, Shared, 50},
+            {100, true, 5, Key_Shared, 50},
         };
     }
 
     @Test(dataProvider = "unloadCases")
-    public void testSingleConsumer(int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType,
-                                   int ackMsgCount) throws Exception {
+    public void testSingleConsumer(
+            int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType, int ackMsgCount)
+            throws Exception {
         final String topicName = "persistent://my-property/my-ns/tp-" + UUID.randomUUID();
         final String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName, subType);
         ProducerAndMessageIds producerAndMessageIds =
                 createProducerAndSendMessages(topicName, msgCount, enabledBatch, maxMsgPerBatch);
-        log.info("send message-ids:{}-{}", producerAndMessageIds.messageIds.size(),
+        log.info(
+                "send message-ids:{}-{}",
+                producerAndMessageIds.messageIds.size(),
                 toString(producerAndMessageIds.messageIds));
 
         // Receive all messages and ack some.
         MessagesEntry messagesEntry = receiveAllMessages(consumer);
         assertEquals(messagesEntry.messageSet.size(), msgCount);
-        if (ackMsgCount > 0){
+        if (ackMsgCount > 0) {
             LinkedHashSet<MessageId> ackedMessageIds = new LinkedHashSet<>();
             Iterator<MessageId> messageIdIterator = messagesEntry.messageIdSet.iterator();
-            for (int i = ackMsgCount; i > 0; i--){
+            for (int i = ackMsgCount; i > 0; i--) {
                 ackedMessageIds.add(messageIdIterator.next());
             }
             consumer.acknowledge(ackedMessageIds.stream().toList());
             log.info("ack message-ids: {}", toString(ackedMessageIds.stream().toList()));
         }
 
-
         // Unload subscriber.
         PersistentTopic persistentTopic = getPersistentTopic(topicName);
         persistentTopic.unloadSubscription(subName);
         // Receive all messages for the second time.
         MessagesEntry messagesEntryForTheSecondTime = receiveAllMessages(consumer);
-        log.info("received message-ids for the second time: {}",
+        log.info(
+                "received message-ids for the second time: {}",
                 toString(messagesEntryForTheSecondTime.messageIdSet.stream().toList()));
         assertEquals(messagesEntryForTheSecondTime.messageSet.size(), msgCount - ackMsgCount);
 
@@ -132,9 +135,10 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "unloadCases")
-    public void testMultiConsumer(int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType,
-                                  int ackMsgCount) throws Exception {
-        if (subType == Exclusive){
+    public void testMultiConsumer(
+            int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType, int ackMsgCount)
+            throws Exception {
+        if (subType == Exclusive) {
             return;
         }
         final String topicName = "persistent://my-property/my-ns/tp-" + UUID.randomUUID();
@@ -143,7 +147,9 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         Consumer<String> consumer2 = createConsumer(topicName, subName, subType);
         ProducerAndMessageIds producerAndMessageIds =
                 createProducerAndSendMessages(topicName, msgCount, enabledBatch, maxMsgPerBatch);
-        log.info("send message-ids:{}-{}", producerAndMessageIds.messageIds.size(),
+        log.info(
+                "send message-ids:{}-{}",
+                producerAndMessageIds.messageIds.size(),
                 toString(producerAndMessageIds.messageIds));
 
         // Receive all messages and ack some.
@@ -153,13 +159,13 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         allMessages.addAll(messagesEntry1.messageSet);
         allMessages.addAll(messagesEntry2.messageSet);
         assertEquals(allMessages.size(), msgCount);
-        if (ackMsgCount > 0){
+        if (ackMsgCount > 0) {
             LinkedHashSet<MessageId> allMessageIds = new LinkedHashSet<>();
             LinkedHashSet<MessageId> ackedMessageIds = new LinkedHashSet<>();
             allMessageIds.addAll(messagesEntry1.messageIdSet);
             allMessageIds.addAll(messagesEntry2.messageIdSet);
             Iterator<MessageId> messageIdIterator = allMessageIds.iterator();
-            for (int i = ackMsgCount; i > 0; i--){
+            for (int i = ackMsgCount; i > 0; i--) {
                 ackedMessageIds.add(messageIdIterator.next());
             }
             consumer1.acknowledge(ackedMessageIds.stream().toList());
@@ -179,7 +185,8 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         LinkedHashSet<MessageId> allMessageIdsForTheSecondTime = new LinkedHashSet<>();
         allMessageIdsForTheSecondTime.addAll(messagesEntry1.messageIdSet);
         allMessageIdsForTheSecondTime.addAll(messagesEntry2.messageIdSet);
-        log.info("received message-ids for the second time: {}",
+        log.info(
+                "received message-ids for the second time: {}",
                 toString(allMessageIdsForTheSecondTime.stream().toList()));
         assertEquals(allMessagesForTheSecondTime.size(), msgCount - ackMsgCount);
 
@@ -190,9 +197,9 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         admin.topics().delete(topicName);
     }
 
-    private static String toString(List<MessageId> messageIds){
+    private static String toString(List<MessageId> messageIds) {
         List<String> messageIdStrings = new ArrayList<>(messageIds.size());
-        for (MessageId messageId : messageIds){
+        for (MessageId messageId : messageIds) {
             MessageIdImpl messageIdImpl;
             if (messageId instanceof TopicMessageIdImpl) {
                 TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
@@ -201,9 +208,10 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
                 messageIdImpl = (MessageIdImpl) messageId;
             }
             StringBuilder stringBuilder = new StringBuilder(String.valueOf(messageIdImpl.getEntryId()));
-            if (messageIdImpl instanceof BatchMessageIdImpl){
+            if (messageIdImpl instanceof BatchMessageIdImpl) {
                 BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageIdImpl;
-                stringBuilder.append("_")
+                stringBuilder
+                        .append("_")
                         .append(batchMessageId.getBatchIndex())
                         .append("/")
                         .append(batchMessageId.getBatchSize());
@@ -214,30 +222,36 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
     }
 
     private PersistentTopic getPersistentTopic(String topicName) {
-        return (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        return (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topicName, false).join().get();
     }
 
-    private ProducerAndMessageIds createProducerAndSendMessages(String topicName, int msgCount, boolean enabledBatch,
-                                                           int maxMsgPerBatch) throws Exception {
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+    private ProducerAndMessageIds createProducerAndSendMessages(
+            String topicName, int msgCount, boolean enabledBatch, int maxMsgPerBatch) throws Exception {
+        final Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(enabledBatch)
                 .batchingMaxMessages(maxMsgPerBatch)
                 .create();
         ArrayList<CompletableFuture<MessageId>> messageIds = new ArrayList<>();
         for (int i = 0; i < msgCount; i++) {
-            messageIds.add(producer.newMessage().key(String.valueOf(i % 10)).value(String.valueOf(i)).sendAsync());
+            messageIds.add(producer.newMessage()
+                    .key(String.valueOf(i % 10))
+                    .value(String.valueOf(i))
+                    .sendAsync());
         }
         FutureUtil.waitForAll(messageIds).join();
-        return new ProducerAndMessageIds(producer,
-                messageIds.stream().map(CompletableFuture::join).collect(Collectors.toList()));
+        return new ProducerAndMessageIds(
+                producer, messageIds.stream().map(CompletableFuture::join).collect(Collectors.toList()));
     }
 
     private record ProducerAndMessageIds(Producer<String> producer, List<MessageId> messageIds) {}
 
     private Consumer<String> createConsumer(String topicName, String subName, SubscriptionType subType)
             throws Exception {
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(subType)
@@ -251,7 +265,7 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         final Set<MessageId> messageIdSet = Collections.synchronizedSet(new LinkedHashSet<>());
         while (true) {
             Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
-            if (msg == null){
+            if (msg == null) {
                 break;
             }
             messageIdSet.add(msg.getMessageId());
@@ -261,5 +275,4 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
     }
 
     private record MessagesEntry(Set<String> messageSet, Set<MessageId> messageIdSet) {}
-
 }

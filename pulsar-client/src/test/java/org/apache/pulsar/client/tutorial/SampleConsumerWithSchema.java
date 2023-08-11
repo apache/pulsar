@@ -29,12 +29,16 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 public class SampleConsumerWithSchema {
     public static void main(String[] args) throws PulsarClientException, JsonProcessingException {
 
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
+        PulsarClient pulsarClient =
+                PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
-        Consumer<JsonPojo> consumer = pulsarClient.newConsumer(JSONSchema.of
-                (SchemaDefinition.<JsonPojo>builder().withPojo(JsonPojo.class).build())) //
+        Consumer<JsonPojo> consumer = pulsarClient
+                .newConsumer(JSONSchema.of(SchemaDefinition.<JsonPojo>builder()
+                        .withPojo(JsonPojo.class)
+                        .build())) //
                 .topic("persistent://my-property/use/my-ns/my-topic") //
-                .subscriptionName("my-subscription-name").subscribe();
+                .subscriptionName("my-subscription-name")
+                .subscribe();
 
         Message<JsonPojo> msg = null;
 

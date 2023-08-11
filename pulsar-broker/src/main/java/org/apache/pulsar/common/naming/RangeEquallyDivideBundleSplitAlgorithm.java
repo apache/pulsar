@@ -30,7 +30,7 @@ public class RangeEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSp
     @Override
     public CompletableFuture<List<Long>> getSplitBoundary(BundleSplitOption bundleSplitOption) {
         NamespaceBundle bundle = bundleSplitOption.getBundle();
-        return CompletableFuture.completedFuture(Collections.singletonList(bundle.getLowerEndpoint()
-                + (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2));
+        return CompletableFuture.completedFuture(Collections.singletonList(
+                bundle.getLowerEndpoint() + (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2));
     }
 }

@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Map;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.Map;
 
 public class PulsarClientConfigurationOverrideTest {
     @Test
@@ -40,8 +39,8 @@ public class PulsarClientConfigurationOverrideTest {
 
         // Ensure the results match expectations
         Assert.assertEquals(result.size(), 1, "The filtered map should have one entry.");
-        Assert.assertNull(result.get("brokerClient_keepAliveIntervalSeconds"),
-                "The mapped prop should not be in the result.");
+        Assert.assertNull(
+                result.get("brokerClient_keepAliveIntervalSeconds"), "The mapped prop should not be in the result.");
         Assert.assertEquals(result.get("keepAliveIntervalSeconds"), "25", "The original value is overridden.");
 
         // Create sample ClientBuilder

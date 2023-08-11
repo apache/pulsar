@@ -34,37 +34,28 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 public final class Resources {
 
-    private Resources() {
-    }
+    private Resources() {}
 
     public static Set<Class<?>> getApiV2Resources() {
-        return new HashSet<>(
-                Arrays.asList(
-                        FunctionsApiV2Resource.class,
-                        WorkerApiV2Resource.class,
-                        WorkerStatsApiV2Resource.class,
-                        MultiPartFeature.class
-                ));
+        return new HashSet<>(Arrays.asList(
+                FunctionsApiV2Resource.class,
+                WorkerApiV2Resource.class,
+                WorkerStatsApiV2Resource.class,
+                MultiPartFeature.class));
     }
 
     public static Set<Class<?>> getApiV3Resources() {
-        return new HashSet<>(
-                Arrays.asList(
-                        MultiPartFeature.class,
-                        SourcesApiV3Resource.class,
-                        SourceApiV3Resource.class,
-                        SinksApiV3Resource.class,
-                        SinkApiV3Resource.class,
-                        FunctionsApiV3Resource.class
-                ));
+        return new HashSet<>(Arrays.asList(
+                MultiPartFeature.class,
+                SourcesApiV3Resource.class,
+                SourceApiV3Resource.class,
+                SinksApiV3Resource.class,
+                SinkApiV3Resource.class,
+                FunctionsApiV3Resource.class));
     }
 
     public static Set<Class<?>> getRootResources() {
-        return new HashSet<>(
-                Arrays.asList(
-                        ConfigurationResource.class,
-                        FunctionsMetricsResource.class,
-                        WorkerReadinessResource.class
-                ));
+        return new HashSet<>(Arrays.asList(
+                ConfigurationResource.class, FunctionsMetricsResource.class, WorkerReadinessResource.class));
     }
 }

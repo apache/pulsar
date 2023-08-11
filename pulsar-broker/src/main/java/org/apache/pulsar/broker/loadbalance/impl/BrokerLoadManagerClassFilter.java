@@ -29,9 +29,8 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 public class BrokerLoadManagerClassFilter implements BrokerFilter {
 
     @Override
-    public void filter(Set<String> brokers, BundleData bundleToAssign,
-                       LoadData loadData,
-                       ServiceConfiguration conf) throws BrokerFilterException {
+    public void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
+            throws BrokerFilterException {
         loadData.getBrokerData().forEach((key, value) -> {
             // The load manager class name can be null if the cluster has old version of broker.
             if (!Objects.equals(value.getLocalData().getLoadManagerClassName(), conf.getLoadManagerClassName())) {

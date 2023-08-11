@@ -76,8 +76,7 @@ public class OffloadPoliciesTest {
                 offloadThresholdInBytes,
                 offloadThresholdInSeconds,
                 offloadDeletionLagInMillis,
-                OffloadedReadPriority.TIERED_STORAGE_FIRST
-        );
+                OffloadedReadPriority.TIERED_STORAGE_FIRST);
 
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
@@ -85,10 +84,9 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endPoint);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadMaxBlockSizeInBytes(), maxBlockSizeInBytes);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadReadBufferSizeInBytes(), readBufferSizeInBytes);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                offloadThresholdInBytes);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                Long.valueOf(offloadDeletionLagInMillis));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
+        Assert.assertEquals(
+                offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), Long.valueOf(offloadDeletionLagInMillis));
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
     }
 
@@ -123,8 +121,7 @@ public class OffloadPoliciesTest {
                 offloadThresholdInBytes,
                 offloadThresholdInSeconds,
                 offloadDeletionLagInMillis,
-                readPriority
-        );
+                readPriority);
 
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadRegion(), region);
@@ -172,10 +169,10 @@ public class OffloadPoliciesTest {
         properties.setProperty("s3ManagedLedgerOffloadRegion", s3ManagedLedgerOffloadRegion);
         properties.setProperty("s3ManagedLedgerOffloadBucket", s3ManagedLedgerOffloadBucket);
         properties.setProperty("s3ManagedLedgerOffloadServiceEndpoint", s3ManagedLedgerOffloadServiceEndpoint);
-        properties.setProperty("s3ManagedLedgerOffloadMaxBlockSizeInBytes",
-                "" + s3ManagedLedgerOffloadMaxBlockSizeInBytes);
-        properties.setProperty("s3ManagedLedgerOffloadReadBufferSizeInBytes",
-                "" + s3ManagedLedgerOffloadReadBufferSizeInBytes);
+        properties.setProperty(
+                "s3ManagedLedgerOffloadMaxBlockSizeInBytes", "" + s3ManagedLedgerOffloadMaxBlockSizeInBytes);
+        properties.setProperty(
+                "s3ManagedLedgerOffloadReadBufferSizeInBytes", "" + s3ManagedLedgerOffloadReadBufferSizeInBytes);
         properties.setProperty("s3ManagedLedgerOffloadRole", s3ManagedLedgerOffloadRole);
         properties.setProperty("s3ManagedLedgerOffloadRoleSessionName", s3ManagedLedgerOffloadRoleSessionName);
 
@@ -184,12 +181,12 @@ public class OffloadPoliciesTest {
 
         properties.setProperty("gcsManagedLedgerOffloadRegion", gcsManagedLedgerOffloadRegion);
         properties.setProperty("gcsManagedLedgerOffloadBucket", gcsManagedLedgerOffloadBucket);
-        properties.setProperty("gcsManagedLedgerOffloadMaxBlockSizeInBytes",
-                "" + gcsManagedLedgerOffloadMaxBlockSizeInBytes);
-        properties.setProperty("gcsManagedLedgerOffloadReadBufferSizeInBytes",
-                "" + gcsManagedLedgerOffloadReadBufferSizeInBytes);
-        properties.setProperty("gcsManagedLedgerOffloadServiceAccountKeyFile",
-                gcsManagedLedgerOffloadServiceAccountKeyFile);
+        properties.setProperty(
+                "gcsManagedLedgerOffloadMaxBlockSizeInBytes", "" + gcsManagedLedgerOffloadMaxBlockSizeInBytes);
+        properties.setProperty(
+                "gcsManagedLedgerOffloadReadBufferSizeInBytes", "" + gcsManagedLedgerOffloadReadBufferSizeInBytes);
+        properties.setProperty(
+                "gcsManagedLedgerOffloadServiceAccountKeyFile", gcsManagedLedgerOffloadServiceAccountKeyFile);
 
         properties.setProperty("fileSystemProfilePath", fileSystemProfilePath);
         properties.setProperty("fileSystemURI", fileSystemURI);
@@ -199,34 +196,40 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloadersDirectory);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
+        Assert.assertEquals(
+                offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
 
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), s3ManagedLedgerOffloadRegion);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), s3ManagedLedgerOffloadBucket);
-        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(),
-                s3ManagedLedgerOffloadServiceEndpoint);
-        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadMaxBlockSizeInBytes(),
+        Assert.assertEquals(
+                offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), s3ManagedLedgerOffloadServiceEndpoint);
+        Assert.assertEquals(
+                offloadPolicies.getS3ManagedLedgerOffloadMaxBlockSizeInBytes(),
                 s3ManagedLedgerOffloadMaxBlockSizeInBytes);
-        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadReadBufferSizeInBytes(),
+        Assert.assertEquals(
+                offloadPolicies.getS3ManagedLedgerOffloadReadBufferSizeInBytes(),
                 s3ManagedLedgerOffloadReadBufferSizeInBytes);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRole(), s3ManagedLedgerOffloadRole);
-        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRoleSessionName(),
-                s3ManagedLedgerOffloadRoleSessionName);
-        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialId(),
-                s3ManagedLedgerOffloadCredentialId);
-        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialSecret(),
-                s3ManagedLedgerOffloadCredentialSecret);
+        Assert.assertEquals(
+                offloadPolicies.getS3ManagedLedgerOffloadRoleSessionName(), s3ManagedLedgerOffloadRoleSessionName);
+        Assert.assertEquals(
+                offloadPolicies.getS3ManagedLedgerOffloadCredentialId(), s3ManagedLedgerOffloadCredentialId);
+        Assert.assertEquals(
+                offloadPolicies.getS3ManagedLedgerOffloadCredentialSecret(), s3ManagedLedgerOffloadCredentialSecret);
 
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadRegion(), gcsManagedLedgerOffloadRegion);
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadBucket(), gcsManagedLedgerOffloadBucket);
-        Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadMaxBlockSizeInBytes(),
+        Assert.assertEquals(
+                offloadPolicies.getGcsManagedLedgerOffloadMaxBlockSizeInBytes(),
                 gcsManagedLedgerOffloadMaxBlockSizeInBytes);
-        Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadReadBufferSizeInBytes(),
+        Assert.assertEquals(
+                offloadPolicies.getGcsManagedLedgerOffloadReadBufferSizeInBytes(),
                 gcsManagedLedgerOffloadReadBufferSizeInBytes);
-        Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadServiceAccountKeyFile(),
+        Assert.assertEquals(
+                offloadPolicies.getGcsManagedLedgerOffloadServiceAccountKeyFile(),
                 gcsManagedLedgerOffloadServiceAccountKeyFile);
 
         Assert.assertEquals(offloadPolicies.getFileSystemProfilePath(), fileSystemProfilePath);
@@ -248,9 +251,10 @@ public class OffloadPoliciesTest {
         properties.setProperty("managedLedgerOffloadDeletionLagInMillis", "" + (offloadDeletionLagInMillis + 10));
 
         offloadPolicies = OffloadPoliciesImpl.create(properties);
-        Assert.assertEquals(Long.valueOf(offloadThresholdInBytes + 10),
-                offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
-        Assert.assertEquals(offloadDeletionLagInMillis + 10,
+        Assert.assertEquals(
+                Long.valueOf(offloadThresholdInBytes + 10), offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+        Assert.assertEquals(
+                offloadDeletionLagInMillis + 10,
                 offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().longValue());
 
         properties = new Properties();
@@ -260,9 +264,10 @@ public class OffloadPoliciesTest {
         properties.setProperty("managedLedgerOffloadDeletionLagMs", "" + offloadDeletionLagInMillis + 30);
 
         offloadPolicies = OffloadPoliciesImpl.create(properties);
-        Assert.assertEquals(Long.valueOf(offloadThresholdInBytes + 20),
-                offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
-        Assert.assertEquals(offloadDeletionLagInMillis + 20,
+        Assert.assertEquals(
+                Long.valueOf(offloadThresholdInBytes + 20), offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+        Assert.assertEquals(
+                offloadDeletionLagInMillis + 20,
                 offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().longValue());
     }
 
@@ -323,11 +328,11 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), nsDeletionLag);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), brokerOffloadMaxThreads);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
+        Assert.assertEquals(
+                offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
                 Integer.valueOf(OffloadPoliciesImpl.DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS));
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
-
 
     @Test
     public void brokerPropertyCompatibleTest() {
@@ -340,12 +345,12 @@ public class OffloadPoliciesTest {
         brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold);
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag);
         brokerProperties.setProperty("managedLedgerDataReadPriority", "" + brokerReadPriority);
-        OffloadPoliciesImpl offloadPolicies =
-          OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
+        Assert.assertEquals(
+                offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
 
         // 2. compatibleWithBrokerConfigFile test
         brokerProperties = new Properties();
@@ -356,8 +361,8 @@ public class OffloadPoliciesTest {
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
-
+        Assert.assertEquals(
+                offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
 
         brokerProperties = new Properties();
         // 2.1 offload properties name in OffloadPoliciesImpl
@@ -365,14 +370,16 @@ public class OffloadPoliciesTest {
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagInMillis", "" + (brokerDeletionLag));
         brokerProperties.setProperty("managedLedgerOffloadedReadPriority", "" + (brokerReadPriority));
         // 2.2 offload properties name in conf file
-        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold + 30);
+        brokerProperties.setProperty(
+                "managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold + 30);
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag + 30);
         brokerProperties.setProperty("managedLedgerDataReadPriority", "" + "tiered-storage-first");
         offloadPolicies = OffloadPoliciesImpl.create(brokerProperties);
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
+        Assert.assertEquals(
+                offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
     }
 
     @Test
@@ -407,7 +414,9 @@ public class OffloadPoliciesTest {
 
         private Class<?> getClass(String name) {
             String file = name.replace('.', File.separatorChar) + ".class";
-            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
+            Path targetPath = Paths.get(
+                            getClass().getClassLoader().getResource(".").getPath())
+                    .getParent();
             file = Paths.get(targetPath.toString(), "classes", file).toString();
             byte[] byteArr = null;
             try {

@@ -45,7 +45,7 @@ public class JavaSerDe implements SerDe<Object> {
     @Override
     public byte[] serialize(Object resultValue) {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             ObjectOutput out = new ObjectOutputStream(bos)) {
+                ObjectOutput out = new ObjectOutputStream(bos)) {
             out.writeObject(resultValue);
             out.flush();
             return bos.toByteArray();
@@ -59,7 +59,7 @@ public class JavaSerDe implements SerDe<Object> {
     public Object deserialize(byte[] data) {
         Object obj = null;
         try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
-             ObjectInputStream ois = new ObjectInputStream(bis)) {
+                ObjectInputStream ois = new ObjectInputStream(bis)) {
             obj = ois.readObject();
         } catch (Exception ex) {
             log.info("Exception during deserialization", ex);

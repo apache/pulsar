@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies.data;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
 public class PolicyHierarchyValueTest {
     @Test
     public void testPolicyValue() {

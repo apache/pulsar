@@ -24,15 +24,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
-import org.apache.pulsar.common.lookup.GetTopicsResult;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class PatternMultiTopicsConsumerImplTest {
 
@@ -40,14 +39,12 @@ public class PatternMultiTopicsConsumerImplTest {
 
     private Consumer<String> mockTopicsHashSetter;
 
-
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         mockListener = mock(PatternMultiTopicsConsumerImpl.TopicsChangedListener.class);
         when(mockListener.onTopicsAdded(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(mockListener.onTopicsRemoved(any())).thenReturn(CompletableFuture.completedFuture(null));
         mockTopicsHashSetter = mock(Consumer.class);
-
     }
 
     @Test
@@ -55,16 +52,18 @@ public class PatternMultiTopicsConsumerImplTest {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 Pattern.compile("tenant/my-ns/name-.*"),
                 mockTopicsHashSetter,
-                new GetTopicsResult(Arrays.asList(
-                        "persistent://tenant/my-ns/name-1",
-                        "persistent://tenant/my-ns/name-2",
-                        "persistent://tenant/my-ns/non-matching"),
-                        null, false, true),
+                new GetTopicsResult(
+                        Arrays.asList(
+                                "persistent://tenant/my-ns/name-1",
+                                "persistent://tenant/my-ns/name-2",
+                                "persistent://tenant/my-ns/non-matching"),
+                        null,
+                        false,
+                        true),
                 mockListener,
                 Collections.emptyList());
-        verify(mockListener).onTopicsAdded(Sets.newHashSet(
-                "persistent://tenant/my-ns/name-1",
-                "persistent://tenant/my-ns/name-2"));
+        verify(mockListener)
+                .onTopicsAdded(Sets.newHashSet("persistent://tenant/my-ns/name-1", "persistent://tenant/my-ns/name-2"));
         verify(mockListener).onTopicsRemoved(Collections.emptySet());
         verify(mockTopicsHashSetter).accept(null);
     }
@@ -74,16 +73,18 @@ public class PatternMultiTopicsConsumerImplTest {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 Pattern.compile("tenant/my-ns/name-.*"),
                 mockTopicsHashSetter,
-                new GetTopicsResult(Arrays.asList(
-                        "persistent://tenant/my-ns/name-0",
-                        "persistent://tenant/my-ns/name-1",
-                        "persistent://tenant/my-ns/name-2"),
-                        "TOPICS_HASH", true, true),
+                new GetTopicsResult(
+                        Arrays.asList(
+                                "persistent://tenant/my-ns/name-0",
+                                "persistent://tenant/my-ns/name-1",
+                                "persistent://tenant/my-ns/name-2"),
+                        "TOPICS_HASH",
+                        true,
+                        true),
                 mockListener,
                 Arrays.asList("persistent://tenant/my-ns/name-0"));
-        verify(mockListener).onTopicsAdded(Sets.newHashSet(
-                "persistent://tenant/my-ns/name-1",
-                "persistent://tenant/my-ns/name-2"));
+        verify(mockListener)
+                .onTopicsAdded(Sets.newHashSet("persistent://tenant/my-ns/name-1", "persistent://tenant/my-ns/name-2"));
         verify(mockListener).onTopicsRemoved(Collections.emptySet());
         verify(mockTopicsHashSetter).accept("TOPICS_HASH");
     }
@@ -93,11 +94,14 @@ public class PatternMultiTopicsConsumerImplTest {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 Pattern.compile("tenant/my-ns/name-.*"),
                 mockTopicsHashSetter,
-                new GetTopicsResult(Arrays.asList(
-                        "persistent://tenant/my-ns/name-0",
-                        "persistent://tenant/my-ns/name-1",
-                        "persistent://tenant/my-ns/name-2"),
-                        "TOPICS_HASH", true, false),
+                new GetTopicsResult(
+                        Arrays.asList(
+                                "persistent://tenant/my-ns/name-0",
+                                "persistent://tenant/my-ns/name-1",
+                                "persistent://tenant/my-ns/name-2"),
+                        "TOPICS_HASH",
+                        true,
+                        false),
                 mockListener,
                 Arrays.asList("persistent://tenant/my-ns/name-0"));
         verify(mockListener, never()).onTopicsAdded(any());

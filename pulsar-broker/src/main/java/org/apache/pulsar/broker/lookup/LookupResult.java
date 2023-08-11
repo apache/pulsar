@@ -29,7 +29,8 @@ import org.apache.pulsar.common.lookup.data.LookupData;
  */
 public class LookupResult {
     public enum Type {
-        BrokerUrl, RedirectUrl
+        BrokerUrl,
+        RedirectUrl
     }
 
     private final Type type;
@@ -39,21 +40,32 @@ public class LookupResult {
     public LookupResult(NamespaceEphemeralData namespaceEphemeralData) {
         this.type = Type.BrokerUrl;
         this.authoritativeRedirect = false;
-        this.lookupData = new LookupData(namespaceEphemeralData.getNativeUrl(),
-                namespaceEphemeralData.getNativeUrlTls(), namespaceEphemeralData.getHttpUrl(),
+        this.lookupData = new LookupData(
+                namespaceEphemeralData.getNativeUrl(),
+                namespaceEphemeralData.getNativeUrlTls(),
+                namespaceEphemeralData.getHttpUrl(),
                 namespaceEphemeralData.getHttpUrlTls());
     }
 
-    public LookupResult(String httpUrl, String httpUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+    public LookupResult(
+            String httpUrl,
+            String httpUrlTls,
+            String brokerServiceUrl,
+            String brokerServiceUrlTls,
             boolean authoritativeRedirect) {
         this.type = Type.RedirectUrl; // type = redirect => as current broker is
-                                      // not owner and prepares LookupResult
-                                      // with other broker's urls
+        // not owner and prepares LookupResult
+        // with other broker's urls
         this.authoritativeRedirect = authoritativeRedirect;
         this.lookupData = new LookupData(brokerServiceUrl, brokerServiceUrlTls, httpUrl, httpUrlTls);
     }
 
-    public LookupResult(String httpUrl, String httpUrlTls, String nativeUrl, String nativeUrlTls, Type type,
+    public LookupResult(
+            String httpUrl,
+            String httpUrlTls,
+            String nativeUrl,
+            String nativeUrlTls,
+            Type type,
             boolean authoritativeRedirect) {
         this.type = type;
         this.authoritativeRedirect = authoritativeRedirect;
@@ -63,8 +75,8 @@ public class LookupResult {
     public LookupResult(NamespaceEphemeralData namespaceEphemeralData, String nativeUrl, String nativeUrlTls) {
         this.type = Type.BrokerUrl;
         this.authoritativeRedirect = false;
-        this.lookupData = new LookupData(nativeUrl, nativeUrlTls, namespaceEphemeralData.getHttpUrl(),
-                namespaceEphemeralData.getHttpUrlTls());
+        this.lookupData = new LookupData(
+                nativeUrl, nativeUrlTls, namespaceEphemeralData.getHttpUrl(), namespaceEphemeralData.getHttpUrlTls());
     }
 
     public boolean isBrokerUrl() {
@@ -87,5 +99,4 @@ public class LookupResult {
     public String toString() {
         return "LookupResult [type=" + type + ", lookupData=" + lookupData + "]";
     }
-
 }

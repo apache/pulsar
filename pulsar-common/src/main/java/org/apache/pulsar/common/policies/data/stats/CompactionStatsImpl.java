@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data.stats;
 
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.CompactionStats;
+
 /**
  * Statistics about compaction.
  */

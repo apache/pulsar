@@ -48,8 +48,8 @@ public class FastThreadLocalStateCleanerTest {
             return new MagicNumberWrapper(42);
         }
     };
-    final FastThreadLocalStateCleaner cleaner = new FastThreadLocalStateCleaner(object ->
-            object.getClass() == MagicNumberWrapper.class);
+    final FastThreadLocalStateCleaner cleaner =
+            new FastThreadLocalStateCleaner(object -> object.getClass() == MagicNumberWrapper.class);
 
     @Test
     public void testThreadLocalStateCleanupInCurrentThread() {
@@ -124,5 +124,4 @@ public class FastThreadLocalStateCleanerTest {
         assertEquals(valueAfterReset.get().intValue(), 42);
         assertTrue(cleanedThreads.contains(thread));
     }
-
 }

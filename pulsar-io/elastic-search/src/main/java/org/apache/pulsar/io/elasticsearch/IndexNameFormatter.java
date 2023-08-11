@@ -84,8 +84,8 @@ public class IndexNameFormatter {
         if (this.dateTimeFormatters.isEmpty()) {
             return this.indexNameFormat;
         }
-        Instant eventTime = Instant.ofEpochMilli(record.getEventTime()
-                .orElseThrow(() -> new IllegalStateException("No event time in record")));
+        Instant eventTime = Instant.ofEpochMilli(
+                record.getEventTime().orElseThrow(() -> new IllegalStateException("No event time in record")));
         StringBuilder builder = new StringBuilder(this.segments.get(0));
 
         for (int i = 0; i < dateTimeFormatters.size(); i++) {

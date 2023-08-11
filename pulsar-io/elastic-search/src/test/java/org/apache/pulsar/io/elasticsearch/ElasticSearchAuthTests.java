@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -27,21 +35,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
-
 @Slf4j
 public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
     public static final String ELASTICPWD = "elastic";
 
     static ElasticsearchContainer container;
+
     public ElasticSearchAuthTests(String elasticImageName) {
         super(elasticImageName);
     }
@@ -65,7 +64,6 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         if (container != null) {
             container.close();
         }
-
     }
 
     @Test
@@ -79,7 +77,7 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setMaxRetries(1);
         config.setBulkEnabled(true);
         // ensure auth is needed
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             expectThrows(ElasticSearchConnectionException.class, () -> {
                 client.createIndexIfNeeded(indexName);
             });
@@ -87,7 +85,7 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
 
         config.setPassword(ELASTICPWD);
 
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             ensureCalls(client, indexName);
         }
     }
@@ -103,10 +101,9 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setMaxRetries(1);
         config.setBulkEnabled(true);
 
-
         config.setPassword(ELASTICPWD);
         String token;
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             token = createAuthToken(client, "elastic", ELASTICPWD);
         }
 
@@ -114,14 +111,14 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setPassword(null);
 
         // ensure auth is needed
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             expectThrows(ElasticSearchConnectionException.class, () -> {
                 client.createIndexIfNeeded(indexName);
             });
         }
 
         config.setToken(token);
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             ensureCalls(client, indexName);
         }
     }
@@ -139,7 +136,7 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
 
         config.setPassword(ELASTICPWD);
         String apiKey;
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             apiKey = createApiKey(client);
         }
 
@@ -147,14 +144,14 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setPassword(null);
 
         // ensure auth is needed
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             expectThrows(ElasticSearchConnectionException.class, () -> {
                 client.createIndexIfNeeded(indexName);
             });
         }
 
         config.setApiKey(apiKey);
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             ensureCalls(client, indexName);
         }
     }
@@ -172,5 +169,4 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         client.flush();
         assertEquals(ackCount.get(), 4);
     }
-
 }

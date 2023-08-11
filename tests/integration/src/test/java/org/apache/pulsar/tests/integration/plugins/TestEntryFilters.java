@@ -19,6 +19,8 @@
 package org.apache.pulsar.tests.integration.plugins;
 
 import static org.testng.Assert.assertNotNull;
+import java.util.Collections;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -30,8 +32,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
 import org.testng.annotations.Test;
-import java.util.Collections;
-import java.util.function.Supplier;
 
 public class TestEntryFilters extends TopicMessagingBase {
 
@@ -50,9 +50,8 @@ public class TestEntryFilters extends TopicMessagingBase {
 
         final String topicName = getNonPartitionedTopic("filtered-topic", true);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
 
         String evenPattern = "^[a-z]+-\\d*[02468]$";
 
@@ -74,25 +73,22 @@ public class TestEntryFilters extends TopicMessagingBase {
 
         try (Consumer<String> consumer = createConsumer(client, topicName, evenPattern)) {
             receiveMessagesCheckOrderAndDuplicate(Collections.singletonList(consumer), messagesToSend / 2);
-
         }
-        try(Consumer<String> consumer = createConsumer(client, topicName, null)) {
+        try (Consumer<String> consumer = createConsumer(client, topicName, null)) {
             receiveMessagesCheckOrderAndDuplicate(Collections.singletonList(consumer), messagesToSend);
-
         }
     }
 
-    private Consumer<String> createConsumer(
-            PulsarClient client, String topicName, String filterPattern) throws Exception {
+    private Consumer<String> createConsumer(PulsarClient client, String topicName, String filterPattern)
+            throws Exception {
         ConsumerBuilder<String> builder = client.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(randomName(8))
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
         if (filterPattern != null) {
-                builder.subscriptionProperties(Collections.singletonMap("entry_filter_pattern", filterPattern));
+            builder.subscriptionProperties(Collections.singletonMap("entry_filter_pattern", filterPattern));
         }
         return builder.subscribe();
     }
-
 }

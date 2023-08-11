@@ -24,7 +24,6 @@ import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 
-
 /**
  * Management Bean for a {@link LedgerOffloader}.
  */
@@ -50,9 +49,11 @@ public interface LedgerOffloaderStats extends AutoCloseable {
 
     void recordDeleteOffloadOps(String topic, boolean succeed);
 
-
-    static LedgerOffloaderStats create(boolean exposeManagedLedgerStats, boolean exposeTopicLevelMetrics,
-                                       ScheduledExecutorService scheduler, int interval) {
+    static LedgerOffloaderStats create(
+            boolean exposeManagedLedgerStats,
+            boolean exposeTopicLevelMetrics,
+            ScheduledExecutorService scheduler,
+            int interval) {
         if (!exposeManagedLedgerStats) {
             return LedgerOffloaderStatsDisable.INSTANCE;
         }

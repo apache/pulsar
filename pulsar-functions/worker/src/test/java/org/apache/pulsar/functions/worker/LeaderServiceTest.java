@@ -65,9 +65,9 @@ public class LeaderServiceTest {
         this.workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setWorkerPort(1234);
@@ -93,12 +93,11 @@ public class LeaderServiceTest {
         listenerHolder = new AtomicReference<>();
         when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class)))
                 .thenAnswer(invocationOnMock -> {
+                    ConsumerEventListener listener = invocationOnMock.getArgument(0);
+                    listenerHolder.set(listener);
 
-            ConsumerEventListener listener = invocationOnMock.getArgument(0);
-            listenerHolder.set(listener);
-
-            return mockConsumerBuilder;
-        });
+                    return mockConsumerBuilder;
+                });
 
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
@@ -119,8 +118,15 @@ public class LeaderServiceTest {
 
         membershipManager = mock(MembershipManager.class);
 
-        leaderService = spy(new LeaderService(workerService, mockClient, functionAssignmentTailer, schedulerManager,
-                functionRuntimeManager, functionMetadataManager, membershipManager, ErrorNotifier.getDefaultImpl()));
+        leaderService = spy(new LeaderService(
+                workerService,
+                mockClient,
+                functionAssignmentTailer,
+                schedulerManager,
+                functionRuntimeManager,
+                functionMetadataManager,
+                membershipManager,
+                ErrorNotifier.getDefaultImpl()));
         leaderService.start();
     }
 
@@ -252,5 +258,4 @@ public class LeaderServiceTest {
         verify(schedulerManager, times(0)).close();
         verify(functionMetadataManager, times(0)).giveupLeadership();
     }
-
 }

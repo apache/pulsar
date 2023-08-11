@@ -71,20 +71,20 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         Objects.requireNonNull(kafkaSourceConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
         Objects.requireNonNull(kafkaSourceConfig.getGroupId(), "Kafka consumer group id is not set");
         if (kafkaSourceConfig.getFetchMinBytes() <= 0) {
-            throw new IllegalArgumentException("Invalid Kafka Consumer fetchMinBytes : "
-                + kafkaSourceConfig.getFetchMinBytes());
+            throw new IllegalArgumentException(
+                    "Invalid Kafka Consumer fetchMinBytes : " + kafkaSourceConfig.getFetchMinBytes());
         }
         if (kafkaSourceConfig.isAutoCommitEnabled() && kafkaSourceConfig.getAutoCommitIntervalMs() <= 0) {
-            throw new IllegalArgumentException("Invalid Kafka Consumer autoCommitIntervalMs : "
-                + kafkaSourceConfig.getAutoCommitIntervalMs());
+            throw new IllegalArgumentException(
+                    "Invalid Kafka Consumer autoCommitIntervalMs : " + kafkaSourceConfig.getAutoCommitIntervalMs());
         }
         if (kafkaSourceConfig.getSessionTimeoutMs() <= 0) {
-            throw new IllegalArgumentException("Invalid Kafka Consumer sessionTimeoutMs : "
-                + kafkaSourceConfig.getSessionTimeoutMs());
+            throw new IllegalArgumentException(
+                    "Invalid Kafka Consumer sessionTimeoutMs : " + kafkaSourceConfig.getSessionTimeoutMs());
         }
         if (kafkaSourceConfig.getHeartbeatIntervalMs() <= 0) {
-            throw new IllegalArgumentException("Invalid Kafka Consumer heartbeatIntervalMs : "
-                    + kafkaSourceConfig.getHeartbeatIntervalMs());
+            throw new IllegalArgumentException(
+                    "Invalid Kafka Consumer heartbeatIntervalMs : " + kafkaSourceConfig.getHeartbeatIntervalMs());
         }
 
         Properties props = new Properties();
@@ -105,7 +105,8 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             props.put(SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, kafkaSourceConfig.getSslEnabledProtocols());
         }
         if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslEndpointIdentificationAlgorithm())) {
-            props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
+            props.put(
+                    SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
                     kafkaSourceConfig.getSslEndpointIdentificationAlgorithm());
         }
         if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslTruststoreLocation())) {
@@ -116,12 +117,13 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-                String.valueOf(kafkaSourceConfig.isAutoCommitEnabled()));
-        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, String.valueOf(kafkaSourceConfig.isAutoCommitEnabled()));
+        props.put(
+                ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
                 String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, String.valueOf(kafkaSourceConfig.getSessionTimeoutMs()));
-        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG,
+        props.put(
+                ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG,
                 String.valueOf(kafkaSourceConfig.getHeartbeatIntervalMs()));
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kafkaSourceConfig.getAutoOffsetReset());
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
@@ -200,7 +202,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         properties.put(HEADER_KAFKA_TOPIC_KEY, consumerRecord.topic());
         properties.put(HEADER_KAFKA_PTN_KEY, Integer.toString(consumerRecord.partition()));
         properties.put(HEADER_KAFKA_OFFSET_KEY, Long.toString(consumerRecord.offset()));
-        for (Header header: consumerRecord.headers()) {
+        for (Header header : consumerRecord.headers()) {
             properties.put(header.key(), Encoders.BASE64.encode(header.value()));
         }
         return properties;
@@ -216,13 +218,13 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<?, ?> record, V value, Schema<V> schema,
-                           Map<String, String> properties) {
+        public KafkaRecord(ConsumerRecord<?, ?> record, V value, Schema<V> schema, Map<String, String> properties) {
             this.record = record;
             this.value = value;
             this.schema = schema;
             this.properties = properties;
         }
+
         @Override
         public Optional<String> getPartitionId() {
             return Optional.of(Integer.toString(record.partition()));
@@ -259,7 +261,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
 
         @Override
-        public Map<String, String> getProperties(){
+        public Map<String, String> getProperties() {
             return properties;
         }
     }
@@ -269,9 +271,12 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         private final Schema<K> keySchema;
         private final Schema<W> valueSchema;
 
-        public KeyValueKafkaRecord(ConsumerRecord<?, ?> record, KeyValue<K, W> value,
-                                   Schema<K> keySchema, Schema<W> valueSchema,
-                                   Map<String, String> properties) {
+        public KeyValueKafkaRecord(
+                ConsumerRecord<?, ?> record,
+                KeyValue<K, W> value,
+                Schema<K> keySchema,
+                Schema<W> valueSchema,
+                Map<String, String> properties) {
             super(record, value, null, properties);
             this.keySchema = keySchema;
             this.valueSchema = valueSchema;

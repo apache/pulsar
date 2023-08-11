@@ -86,9 +86,8 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
         proxyConfig.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                                    new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -117,8 +116,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducer() throws Exception {
-        @Cleanup
-        PulsarClient client = newClient();
+        @Cleanup PulsarClient client = newClient();
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                 .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())

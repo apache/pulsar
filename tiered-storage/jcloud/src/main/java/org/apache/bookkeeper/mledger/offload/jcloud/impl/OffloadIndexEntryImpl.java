@@ -62,8 +62,6 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
 
     @Override
     public String toString() {
-        return String.format("[eid:%d, part:%d, offset:%d, doffset:%d]",
-                entryId, partId, offset, getDataOffset());
+        return String.format("[eid:%d, part:%d, offset:%d, doffset:%d]", entryId, partId, offset, getDataOffset());
     }
 }
-

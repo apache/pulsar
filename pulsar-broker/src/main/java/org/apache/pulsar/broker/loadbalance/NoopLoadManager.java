@@ -58,12 +58,15 @@ public class NoopLoadManager implements LoadManager {
     @Override
     public void start() throws PulsarServerException {
         lookupServiceAddress = pulsar.getLookupServiceAddress();
-        localResourceUnit = new SimpleResourceUnit(String.format("http://%s", lookupServiceAddress),
-                new PulsarResourceDescription());
+        localResourceUnit = new SimpleResourceUnit(
+                String.format("http://%s", lookupServiceAddress), new PulsarResourceDescription());
 
-        LocalBrokerData localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(),
+        LocalBrokerData localData = new LocalBrokerData(
+                pulsar.getSafeWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
+                pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(),
+                pulsar.getAdvertisedListeners());
         localData.setProtocols(pulsar.getProtocolDataToAdvertise());
         localData.setLoadManagerClassName(this.pulsar.getConfig().getLoadManagerClassName());
         String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;

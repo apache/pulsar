@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.web.RestException;
@@ -114,7 +113,8 @@ public class AdminResourceTest extends BrokerTestBase {
             resource.validatePartitionedTopicName(tenant, namespace, topic);
             fail("Should fail validation on invalid partitioned topic");
         } catch (RestException re) {
-            assertEquals(Status.PRECONDITION_FAILED.getStatusCode(), re.getResponse().getStatus());
+            assertEquals(
+                    Status.PRECONDITION_FAILED.getStatusCode(), re.getResponse().getStatus());
         }
     }
 
@@ -144,7 +144,9 @@ public class AdminResourceTest extends BrokerTestBase {
             fail("Should fail validation on non-partitioned topic");
         } catch (Exception re) {
             assertTrue(re.getCause() instanceof RestException);
-            assertEquals(Status.CONFLICT.getStatusCode(), ((RestException) re.getCause()).getResponse().getStatus());
+            assertEquals(
+                    Status.CONFLICT.getStatusCode(),
+                    ((RestException) re.getCause()).getResponse().getStatus());
         }
     }
 }

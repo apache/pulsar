@@ -38,4 +38,3 @@ public class CustomBaseSerde implements SerDe<CustomBaseObject> {
         return buffer.array();
     }
 }
-

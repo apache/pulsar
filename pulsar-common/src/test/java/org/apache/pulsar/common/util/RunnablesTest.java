@@ -25,7 +25,8 @@ public class RunnablesTest {
     @Test
     public void shouldCatchAndLogException() {
         Runnables.catchingAndLoggingThrowables(() -> {
-            throw new RuntimeException();
-        }).run();
+                    throw new RuntimeException();
+                })
+                .run();
     }
 }

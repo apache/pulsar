@@ -51,8 +51,8 @@ public class FileSystemPackagesStorageTest {
         this.storagePath = Files.createTempDirectory("package-storage-test");
         log.info("Test using storage path: {}", storagePath);
 
-        PackagesStorageProvider provider = PackagesStorageProvider
-            .newProvider(FileSystemPackagesStorageProvider.class.getName());
+        PackagesStorageProvider provider =
+                PackagesStorageProvider.newProvider(FileSystemPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
         configuration.setProperty("STORAGE_PATH", storagePath.toString());
         storage = provider.getStorage(configuration);
@@ -158,9 +158,8 @@ public class FileSystemPackagesStorageTest {
         storage.deleteAsync(testPath).get();
 
         // list again and not file under the path
-        paths= storage.listAsync("").get();
+        paths = storage.listAsync("").get();
         assertEquals(paths.size(), 0);
-
 
         // delete non-existent path
         try {
@@ -176,10 +175,10 @@ public class FileSystemPackagesStorageTest {
         Boolean exist = storage.existAsync("test-path").get();
         org.testng.Assert.assertFalse(exist);
 
-        storage.writeAsync("test-path", new ByteArrayInputStream("test".getBytes())).get();
+        storage.writeAsync("test-path", new ByteArrayInputStream("test".getBytes()))
+                .get();
 
         exist = storage.existAsync("test-path").get();
         assertTrue(exist);
     }
-
 }

@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.apache.pulsar.client.api.ProxyProtocol;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import java.io.File;
 import java.nio.file.Files;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -67,10 +65,10 @@ public class TestCmdClusters {
         Assert.assertEquals(testClusterData, CmdUtils.loadConfig(file.getAbsolutePath(), ClusterData.class));
 
         // test create cluster
-        cmdClusters.run(new String[]{"create", "test_cluster", "--cluster-config-file", file.getAbsolutePath()});
+        cmdClusters.run(new String[] {"create", "test_cluster", "--cluster-config-file", file.getAbsolutePath()});
         verify(clusters).createCluster(eq("test_cluster"), eq(expectedClusterData));
 
-        cmdClusters.run(new String[]{"update", "test_cluster", "--cluster-config-file", file.getAbsolutePath()});
+        cmdClusters.run(new String[] {"update", "test_cluster", "--cluster-config-file", file.getAbsolutePath()});
         verify(clusters).updateCluster(eq("test_cluster"), eq(expectedClusterData));
     }
 

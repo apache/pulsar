@@ -52,10 +52,16 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = {"-v", "--version"}, description = "version", required = false)
+        @Parameter(
+                names = {"-v", "--version"},
+                description = "version",
+                required = false)
         private Long version;
 
-        @Parameter(names = {"-a", "--all-version"}, description = "all version", required = false)
+        @Parameter(
+                names = {"-a", "--all-version"},
+                description = "all version",
+                required = false)
         private boolean all = false;
 
         @Override
@@ -82,10 +88,11 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-f",
-                "--force" }, description = "whether to delete schema completely. If true, delete "
-                + "all resources (including metastore and ledger), otherwise only do a mark deletion"
-                + " and not remove any resources indeed")
+        @Parameter(
+                names = {"-f", "--force"},
+                description = "whether to delete schema completely. If true, delete "
+                        + "all resources (including metastore and ledger), otherwise only do a mark deletion"
+                        + " and not remove any resources indeed")
         private boolean force = false;
 
         @Override
@@ -100,7 +107,10 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-f", "--filename" }, description = "filename", required = true)
+        @Parameter(
+                names = {"-f", "--filename"},
+                description = "filename",
+                required = true)
         private String schemaFileName;
 
         @Override
@@ -112,8 +122,10 @@ public class CmdSchemas extends CmdBase {
                 final StringBuilder sb = new StringBuilder();
                 sb.append("Schema file ").append(schemaPath).append(" is not found.");
                 if (!schemaPath.isAbsolute()) {
-                    sb.append(" Relative path ").append(schemaPath)
-                            .append(" is resolved to ").append(schemaPath.toAbsolutePath())
+                    sb.append(" Relative path ")
+                            .append(schemaPath)
+                            .append(" is resolved to ")
+                            .append(schemaPath.toAbsolutePath())
                             .append(". Try to use absolute path if the relative one resolved wrongly.");
                 }
                 throw new FileNotFoundException(sb.toString());
@@ -128,41 +140,52 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-j", "--jar" }, description = "jar filepath", required = true)
+        @Parameter(
+                names = {"-j", "--jar"},
+                description = "jar filepath",
+                required = true)
         private String jarFilePath;
 
-        @Parameter(names = { "-t", "--type" }, description = "type avro or json", required = true)
+        @Parameter(
+                names = {"-t", "--type"},
+                description = "type avro or json",
+                required = true)
         private String type;
 
-        @Parameter(names = { "-c", "--classname" }, description = "class name of pojo", required = true)
+        @Parameter(
+                names = {"-c", "--classname"},
+                description = "class name of pojo",
+                required = true)
         private String className;
 
-        @Parameter(names = {"-a", "--always-allow-null"}, arity = 1,
-                   description = "set schema whether always allow null or not")
+        @Parameter(
+                names = {"-a", "--always-allow-null"},
+                arity = 1,
+                description = "set schema whether always allow null or not")
         private boolean alwaysAllowNull = true;
 
-        @Parameter(names = { "-n", "--dry-run"},
-                   description = "dost not apply to schema registry, just prints the post schema payload")
+        @Parameter(
+                names = {"-n", "--dry-run"},
+                description = "dost not apply to schema registry, just prints the post schema payload")
         private boolean dryRun = false;
 
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
 
-            File file  = new File(jarFilePath);
-            ClassLoader cl = new URLClassLoader(new URL[]{ file.toURI().toURL() });
+            File file = new File(jarFilePath);
+            ClassLoader cl = new URLClassLoader(new URL[] {file.toURI().toURL()});
             Class cls = cl.loadClass(className);
 
             PostSchemaPayload input = new PostSchemaPayload();
-            SchemaDefinition<Object> schemaDefinition =
-                    SchemaDefinition.builder()
-                                    .withPojo(cls)
-                                    .withAlwaysAllowNull(alwaysAllowNull)
-                                    .build();
+            SchemaDefinition<Object> schemaDefinition = SchemaDefinition.builder()
+                    .withPojo(cls)
+                    .withAlwaysAllowNull(alwaysAllowNull)
+                    .build();
             if (type.equalsIgnoreCase("avro")) {
                 input.setType("AVRO");
                 input.setSchema(SchemaExtractor.getAvroSchemaInfo(schemaDefinition));
-            } else if (type.equalsIgnoreCase("json")){
+            } else if (type.equalsIgnoreCase("json")) {
                 input.setType("JSON");
                 input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
             } else {
@@ -171,8 +194,7 @@ public class CmdSchemas extends CmdBase {
             input.setProperties(schemaDefinition.getProperties());
             if (dryRun) {
                 System.out.println(topic);
-                System.out.println(MAPPER.writerWithDefaultPrettyPrinter()
-                                         .writeValueAsString(input));
+                System.out.println(MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(input));
             } else {
                 getAdmin().schemas().createSchema(topic, input);
             }
@@ -184,7 +206,10 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-f", "--filename" }, description = "filename", required = true)
+        @Parameter(
+                names = {"-f", "--filename"},
+                description = "filename",
+                required = true)
         private String schemaFileName;
 
         @Override
@@ -194,5 +219,4 @@ public class CmdSchemas extends CmdBase {
             getAdmin().schemas().testCompatibility(topic, input);
         }
     }
-
 }

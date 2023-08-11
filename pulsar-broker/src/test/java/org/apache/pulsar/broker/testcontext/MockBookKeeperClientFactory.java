@@ -39,19 +39,24 @@ class MockBookKeeperClientFactory implements BookKeeperClientFactory {
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties) {
+    public BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties) {
         // Always return the same instance (so that we don't loose the mock BK content on broker restart
         return mockBookKeeper;
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) {
+    public BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties,
+            StatsLogger statsLogger) {
         // Always return the same instance (so that we don't loose the mock BK content on broker restart
         return mockBookKeeper;
     }

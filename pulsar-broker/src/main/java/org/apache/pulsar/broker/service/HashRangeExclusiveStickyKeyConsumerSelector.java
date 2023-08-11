@@ -66,10 +66,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     private synchronized void internalAddConsumer(Consumer consumer)
             throws BrokerServiceException.ConsumerAssignException {
-        Consumer conflictingConsumer = findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
+        Consumer conflictingConsumer =
+                findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
         if (conflictingConsumer != null) {
-            throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
-                    + conflictingConsumer);
+            throw new BrokerServiceException.ConsumerAssignException(
+                    "Range conflict with consumer " + conflictingConsumer);
         }
         for (IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
             rangeMap.put(intRange.getStart(), consumer);
@@ -86,7 +87,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         Map<Consumer, List<Range>> result = new HashMap<>();
         Map.Entry<Integer, Consumer> prev = null;
-        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+        for (Map.Entry<Integer, Consumer> entry : rangeMap.entrySet()) {
             if (prev == null) {
                 prev = entry;
             } else {
@@ -155,7 +156,9 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
                 return ceilingEntry.getValue();
             }
 
-            if (ceilingEntry != null && floorEntry != null && ceilingEntry.getValue().equals(floorEntry.getValue())) {
+            if (ceilingEntry != null
+                    && floorEntry != null
+                    && ceilingEntry.getValue().equals(floorEntry.getValue())) {
                 KeySharedMeta keySharedMeta = ceilingEntry.getValue().getKeySharedMeta();
                 for (IntRange range : keySharedMeta.getHashRangesList()) {
                     int start = Math.max(intRange.getStart(), range.getStart());
@@ -172,5 +175,4 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     Map<Integer, Consumer> getRangeConsumer() {
         return Collections.unmodifiableMap(rangeMap);
     }
-
 }

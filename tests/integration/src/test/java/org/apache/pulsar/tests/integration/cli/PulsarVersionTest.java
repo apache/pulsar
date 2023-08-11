@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertTrue;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertTrue;
 
 /**
  * Pulsar version test class.
@@ -67,12 +65,11 @@ public class PulsarVersionTest extends TestRetrySupport {
         assertTrue(adminVersionShortOption.getStdout().contains(version));
         ContainerExecResult adminVersionLongOption = pulsarCluster.runAdminCommandOnAnyBroker("--version");
         assertTrue(adminVersionLongOption.getStdout().contains(version));
-        ContainerExecResult clientVersionShortOption = pulsarCluster.getAnyBroker().execCmd(
-                PulsarCluster.CLIENT_SCRIPT, "-v");
+        ContainerExecResult clientVersionShortOption =
+                pulsarCluster.getAnyBroker().execCmd(PulsarCluster.CLIENT_SCRIPT, "-v");
         assertTrue(clientVersionShortOption.getStdout().contains(version));
-        ContainerExecResult clientVersionLongOption = pulsarCluster.getAnyBroker().execCmd(
-                PulsarCluster.CLIENT_SCRIPT, "--version");
+        ContainerExecResult clientVersionLongOption =
+                pulsarCluster.getAnyBroker().execCmd(PulsarCluster.CLIENT_SCRIPT, "--version");
         assertTrue(clientVersionLongOption.getStdout().contains(version));
     }
-
 }

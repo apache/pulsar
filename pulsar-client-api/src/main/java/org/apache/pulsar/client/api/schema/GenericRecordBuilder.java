@@ -68,5 +68,4 @@ public interface GenericRecordBuilder {
      * @return a generic record.
      */
     GenericRecord build();
-
 }

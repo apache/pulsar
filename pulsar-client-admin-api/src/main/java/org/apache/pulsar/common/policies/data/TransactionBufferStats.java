@@ -40,9 +40,9 @@ public class TransactionBufferStats {
      */
     public long ongoingTxnSize;
 
-    //Start timestamp of  transaction buffer recovery. 0L means no startup.
+    // Start timestamp of  transaction buffer recovery. 0L means no startup.
     public long recoverStartTime;
-    //End timestamp of transaction buffer recovery. 0L means no startup.
+    // End timestamp of transaction buffer recovery. 0L means no startup.
     public long recoverEndTime;
 
     // The total number of aborted transactions.

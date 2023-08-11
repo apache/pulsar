@@ -146,27 +146,36 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String topicName2 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
         String topicName3 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
         // Use another connection
-        @Cleanup
-        PulsarClient client2 = newPulsarClient(lookupUrl.toString(), 0);
+        @Cleanup PulsarClient client2 = newPulsarClient(lookupUrl.toString(), 0);
 
-        Producer<byte[]> producer = pulsarClient.newProducer().producerName("my-pub").enableBatching(false)
-                .topic(topicName).create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().producerName("my-pub-2").enableBatching(false)
-                .topic(topicName2).create();
-        Producer<byte[]> producer3 = client2.newProducer().producerName("my-pub-2").enableBatching(false)
-                .topic(topicName3).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .producerName("my-pub")
+                .enableBatching(false)
+                .topic(topicName)
+                .create();
+        Producer<byte[]> producer2 = pulsarClient
+                .newProducer()
+                .producerName("my-pub-2")
+                .enableBatching(false)
+                .topic(topicName2)
+                .create();
+        Producer<byte[]> producer3 = client2.newProducer()
+                .producerName("my-pub-2")
+                .enableBatching(false)
+                .topic(topicName3)
+                .create();
         producer.sendAsync(new byte[11]);
 
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topicName, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topicName, false).get().get();
         Field field = AbstractTopic.class.getDeclaredField("publishRateLimitedTimes");
         field.setAccessible(true);
         Awaitility.await().untilAsserted(() -> {
             long value = (long) field.get(persistentTopic);
             assertEquals(value, 1);
         });
-        @Cleanup
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        @Cleanup ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
@@ -180,9 +189,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     assertEquals(item.value, 1);
                     return;
                 } else if (item.tags.get("topic").equals(topicName3)) {
-                    //When using precise rate limiting, we only trigger the rate limiting of the topic,
+                    // When using precise rate limiting, we only trigger the rate limiting of the topic,
                     // so if the topic is not using the same connection, the rate limiting times will be 0
-                    //When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
+                    // When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
                     // and all connections will be limited at this time.
                     if (preciseRateLimit) {
                         assertEquals(item.value, 0);
@@ -201,8 +210,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             assertEquals(value, 0);
         });
 
-        @Cleanup
-        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        @Cleanup ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
         String metricsStr2 = statsOut2.toString();
         Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
@@ -233,8 +241,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID());
         }
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        @Cleanup
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        @Cleanup ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
@@ -263,15 +270,18 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         admin.namespaces().createNamespace(ns1, 1);
         String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
         String topicName = baseTopic1 + UUID.randomUUID();
-        Producer producer = pulsarClient.newProducer().producerName("my-pub")
-                .topic(topicName).create();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topicName, false).get().get();
-        org.apache.pulsar.broker.service.Producer producerInServer = persistentTopic.getProducers().get("my-pub");
+        Producer producer = pulsarClient
+                .newProducer()
+                .producerName("my-pub")
+                .topic(topicName)
+                .create();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        org.apache.pulsar.broker.service.Producer producerInServer =
+                persistentTopic.getProducers().get("my-pub");
         producerInServer.getStats().msgRateIn = 10;
         producerInServer.getStats().msgThroughputIn = 100;
-        @Cleanup
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        @Cleanup ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, true, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
@@ -288,15 +298,23 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerTopicStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
-        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+        Consumer<byte[]> c2 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
@@ -386,15 +404,23 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerBrokerStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
-        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+        Consumer<byte[]> c2 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
@@ -482,9 +508,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
      */
     @Test
     public void testPerTopicStatsReconnect() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
@@ -509,7 +539,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             p1.send(message.getBytes());
         }
 
-        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+        Consumer<byte[]> c2 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
@@ -559,7 +590,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @DataProvider(name = "cacheEnable")
     public static Object[][] cacheEnable() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @Test(dataProvider = "cacheEnable")
@@ -579,12 +610,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String topic = "persistent://" + ns + "/testStorageReadCacheMissesRate" + UUID.randomUUID();
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().enableBatching(false).topic(topic).create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().enableBatching(false).topic(topic).create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("test")
-                .subscribe();
+        Consumer<byte[]> consumer =
+                pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe();
         byte[] msg = new byte[2 * 1024 * 1024];
         new Random().nextBytes(msg);
         producer.send(msg);
@@ -593,8 +623,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         producer.send(msg);
         consumer.receive();
 
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) persistentTopic.getManagedLedger());
         managedLedger.getMbean().refreshStats(1, TimeUnit.SECONDS);
 
@@ -684,10 +714,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Producer<byte[]> p2 = pulsarClient.newProducer().topic(topic2).create();
         final String subName = "test";
         for (String topic : topicList) {
-            pulsarClient.newConsumer()
+            pulsarClient
+                    .newConsumer()
                     .topic(topic)
                     .subscriptionName(subName)
-                    .subscribe().close();
+                    .subscribe()
+                    .close();
         }
 
         final int messages = 10;
@@ -702,12 +734,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
         // Let the message expire
         for (String topic : topicList) {
-            PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+            PersistentTopic persistentTopic = (PersistentTopic)
+                    pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
             persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().updateBrokerValue(-1);
         }
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
-        //wait for checkMessageExpiry
+        // wait for checkMessageExpiry
         PersistentSubscription sub = (PersistentSubscription)
                 pulsar.getBrokerService().getTopicIfExists(topic1).get().get().getSubscription(subName);
         PersistentSubscription sub2 = (PersistentSubscription)
@@ -727,12 +760,15 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("topic"), topic1);
         assertEquals(cm.get(1).tags.get("namespace"), ns);
 
-        //check value
+        // check value
         Field field = PersistentSubscription.class.getDeclaredField("lastExpireTimestamp");
         field.setAccessible(true);
         for (int i = 0; i < topicList.size(); i++) {
             PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
-                    .getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
+                    .getTopicIfExists(topicList.get(i))
+                    .get()
+                    .get()
+                    .getSubscription(subName);
             assertEquals((long) field.get(subscription), (long) cm.get(i).value);
         }
 
@@ -742,7 +778,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("namespace"), ns);
         assertEquals(cm.get(1).tags.get("topic"), topic1);
         assertEquals(cm.get(1).tags.get("namespace"), ns);
-        //check value
+        // check value
         field = PersistentSubscription.class.getDeclaredField("expiryMonitor");
         field.setAccessible(true);
         NumberFormat nf = NumberFormat.getNumberInstance();
@@ -750,9 +786,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         nf.setRoundingMode(RoundingMode.DOWN);
         for (int i = 0; i < topicList.size(); i++) {
             PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
-                    .getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
+                    .getTopicIfExists(topicList.get(i))
+                    .get()
+                    .get()
+                    .getSubscription(subName);
             PersistentMessageExpiryMonitor monitor = (PersistentMessageExpiryMonitor) field.get(subscription);
-            assertEquals(Double.valueOf(nf.format(monitor.getMessageExpiryRate())).doubleValue(), cm.get(i).value);
+            assertEquals(
+                    Double.valueOf(nf.format(monitor.getMessageExpiryRate())).doubleValue(), cm.get(i).value);
         }
 
         cm = (List<Metric>) metrics.get("pulsar_subscription_total_msg_expired");
@@ -761,18 +801,21 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("namespace"), ns);
         assertEquals(cm.get(1).tags.get("topic"), topic1);
         assertEquals(cm.get(1).tags.get("namespace"), ns);
-        //check value
+        // check value
         for (int i = 0; i < topicList.size(); i++) {
             assertEquals(messages, (long) cm.get(i).value);
         }
-
     }
 
     @Test
     public void testBundlesMetrics() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
@@ -789,11 +832,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // Mock another broker to make split task work.
         String mockedBroker = "/loadbalance/brokers/127.0.0.1:0";
-        mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.emptyList(), CreateMode.EPHEMERAL);
+        mockZooKeeper.create(mockedBroker, new byte[] {0}, Collections.emptyList(), CreateMode.EPHEMERAL);
 
         pulsar.getBrokerService().updateRates();
-        Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
-        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
+        ModularLoadManagerWrapper loadManager =
+                (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
         loadManager.getLoadManager().updateLocalBrokerData();
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -822,10 +868,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testNonPersistentSubMetrics() throws Exception {
-        Producer<byte[]> p1 =
-                pulsarClient.newProducer().topic("non-persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("non-persistent://my-property/use/my-ns/my-topic1")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("non-persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
@@ -862,15 +911,23 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerNamespaceStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
-        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+        Consumer<byte[]> c2 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
@@ -933,17 +990,25 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerProducerStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
-                .producerName("producer1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2")
-                .producerName("producer2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .producerName("producer1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .producerName("producer2")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("Test")
                 .subscribe();
 
-        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+        Consumer<byte[]> c2 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
                 .subscriptionName("Test")
                 .subscribe();
@@ -1003,15 +1068,23 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerConsumerStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
 
-        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+        Consumer<byte[]> c1 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
-        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+        Consumer<byte[]> c2 = pulsarClient
+                .newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
@@ -1087,16 +1160,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
-     finds a TYPE definition for the same metric more than once, it errors out:
-     https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/prometheus/common/expfmt/text_parse.go#L499-L502
-     This can happen when including topic metrics, since the same metric is reported multiple times with different labels. For example:
-
-     # TYPE pulsar_subscriptions_count gauge
-     pulsar_subscriptions_count{cluster="standalone"} 0
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/metadata"} 1.0
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/coordinate"} 1.0
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/assignments"} 1.0
-
+     * finds a TYPE definition for the same metric more than once, it errors out:
+     * https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/prometheus/common/expfmt/text_parse.go#L499-L502
+     * This can happen when including topic metrics, since the same metric is reported multiple times with different labels. For example:
+     *
+     * # TYPE pulsar_subscriptions_count gauge
+     * pulsar_subscriptions_count{cluster="standalone"} 0
+     * pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/metadata"} 1.0
+     * pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/coordinate"} 1.0
+     * pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/assignments"} 1.0
+     *
      **/
     // Running the test twice to make sure types are present when generated multiple times
     @Test(invocationCount = 2)
@@ -1108,8 +1181,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         setup();
 
         Set<String> allPrometheusSuffixString = allPrometheusSuffixEnums();
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1144,14 +1223,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 } else {
                     fail("Duplicate type definition found for TYPE definition " + metricName);
                     System.out.println(metricsStr);
-
                 }
                 // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
-                // "The TYPE line for a metric name must appear before the first sample is reported for that metric name."
+                // "The TYPE line for a metric name must appear before the first sample is reported for that metric
+                // name."
                 if (metricNames.containsKey(metricName)) {
                     System.out.println(metricsStr);
                     fail("TYPE definition for " + metricName + " appears after first sample");
-
                 }
             } else {
                 Matcher metricMatcher = metricNamePattern.matcher(line);
@@ -1167,8 +1245,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             if (!typeDefs.containsKey(metricName)) {
                 // This may be OK if this is a _sum or _count metric from a summary
                 boolean isNorm = false;
-                for (String suffix : allPrometheusSuffixString){
-                    if (metricName.endsWith(suffix)){
+                for (String suffix : allPrometheusSuffixString) {
+                    if (metricName.endsWith(suffix)) {
                         String summaryMetricName = metricName.substring(0, metricName.indexOf(suffix));
                         if (!typeDefs.containsKey(summaryMetricName)) {
                             fail("Metric " + metricName + " does not have a corresponding summary type definition");
@@ -1177,10 +1255,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                         break;
                     }
                 }
-                if (!isNorm){
+                if (!isNorm) {
                     fail("Metric " + metricName + " does not have a type definition");
                 }
-
             }
         }
 
@@ -1195,10 +1272,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     /***
      * this method will return ["_sum", "_info", "_bucket", "_count", "_total", "_created", "_gsum", "_gcount"]
      */
-    public static Set<String> allPrometheusSuffixEnums(){
+    public static Set<String> allPrometheusSuffixEnums() {
         HashSet<String> result = new HashSet<>();
         final String metricsName = "123";
-        for (Collector.Type type : Collector.Type.values()){
+        for (Collector.Type type : Collector.Type.values()) {
             Collector.MetricFamilySamples metricFamilySamples =
                     new Collector.MetricFamilySamples(metricsName, type, "", new ArrayList<>());
             result.addAll(Arrays.asList(metricFamilySamples.getNames()));
@@ -1209,11 +1286,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .collect(Collectors.toSet());
     }
 
-
     @Test
     public void testManagedLedgerCacheStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1226,9 +1308,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        metrics.entries().forEach(e ->
-                System.out.println(e.getKey() + ": " + e.getValue())
-        );
+        metrics.entries().forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
 
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_ml_cache_evictions");
         assertEquals(cm.size(), 1);
@@ -1244,10 +1324,22 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testManagedLedgerStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
-        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic1").create();
-        Producer<byte[]> p4 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
+        Producer<byte[]> p3 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns2/my-topic1")
+                .create();
+        Producer<byte[]> p4 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns2/my-topic2")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1262,9 +1354,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        metrics.entries().forEach(e ->
-                System.out.println(e.getKey() + ": " + e.getValue())
-        );
+        metrics.entries().forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
 
         Map<String, String> typeDefs = new HashMap<>();
         Map<String, String> metricNames = new HashMap<>();
@@ -1291,7 +1381,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     fail("Duplicate type definition found for TYPE definition " + metricName);
                 }
                 // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
-                // "The TYPE line for a metric name must appear before the first sample is reported for that metric name."
+                // "The TYPE line for a metric name must appear before the first sample is reported for that metric
+                // name."
                 if (metricNames.containsKey(metricName)) {
                     fail("TYPE definition for " + metricName + " appears after first sample");
                 }
@@ -1324,10 +1415,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test
     public void testManagedLedgerBookieClientStats() throws Exception {
         @Cleanup
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
 
         @Cleanup
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1340,33 +1437,28 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        metrics.entries().forEach(e ->
-                System.out.println(e.getKey() + ": " + e.getValue())
-        );
+        metrics.entries().forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
 
         List<Metric> cm = (List<Metric>) metrics.get(
-                keyNameBySubstrings(metrics,
-                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_threads"));
+                keyNameBySubstrings(metrics, "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_threads"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get(
-                keyNameBySubstrings(metrics,
-                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_task_execution_sum"));
+        cm = (List<Metric>) metrics.get(keyNameBySubstrings(
+                metrics, "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_task_execution_sum"));
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
         cm = (List<Metric>) metrics.get(
-                keyNameBySubstrings(metrics,
-                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_max_queue_size"));
+                keyNameBySubstrings(metrics, "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_max_queue_size"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
     }
 
     private static String keyNameBySubstrings(Multimap<String, Metric> metrics, String... substrings) {
-        for (String key: metrics.keys()) {
+        for (String key : metrics.keys()) {
             boolean found = true;
-            for (String s: substrings) {
+            for (String s : substrings) {
                 if (!key.contains(s)) {
                     found = false;
                     break;
@@ -1393,8 +1485,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.initialize(conf);
 
         try {
-            provider.authenticate(new AuthenticationDataSource() {
-            });
+            provider.authenticate(new AuthenticationDataSource() {});
             fail("Should have failed");
         } catch (AuthenticationException e) {
             // expected, no credential passed
@@ -1423,7 +1514,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         boolean haveSucceed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
-                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                    && Objects.equals(
+                            metric.tags.get("provider_name"),
+                            provider.getClass().getSimpleName())) {
                 haveSucceed = true;
             }
         }
@@ -1434,9 +1527,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         boolean haveFailed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
-                    && Objects.equals(metric.tags.get("reason"),
-                    AuthenticationProviderToken.ErrorCode.INVALID_AUTH_DATA.name())
-                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                    && Objects.equals(
+                            metric.tags.get("reason"), AuthenticationProviderToken.ErrorCode.INVALID_AUTH_DATA.name())
+                    && Objects.equals(
+                            metric.tags.get("provider_name"),
+                            provider.getClass().getSimpleName())) {
                 haveFailed = true;
             }
         }
@@ -1499,7 +1594,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setProperties(properties);
         provider.initialize(conf);
 
-        int[] tokenRemainTime = new int[]{3, 7, 40, 100, 400};
+        int[] tokenRemainTime = new int[] {3, 7, 40, 100, 400};
 
         for (int remainTime : tokenRemainTime) {
             Date expiredDate = new Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(remainTime));
@@ -1549,7 +1644,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testParsingWithPositiveInfinityValue() {
-        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} +Inf");
+        Multimap<String, Metric> metrics =
+                parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} +Inf");
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
@@ -1559,7 +1655,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testParsingWithNegativeInfinityValue() {
-        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} -Inf");
+        Multimap<String, Metric> metrics =
+                parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} -Inf");
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
@@ -1573,16 +1670,15 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
         final int messageSize = 10;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName(subName)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < messageSize; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -1619,9 +1715,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testBrokerConnection() throws Exception {
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -1650,13 +1744,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         pulsar.getConfiguration().setAuthenticationEnabled(true);
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .operationTimeout(1, TimeUnit.MILLISECONDS));
+        replacePulsarClient(
+                PulsarClient.builder().serviceUrl(lookupUrl.toString()).operationTimeout(1, TimeUnit.MILLISECONDS));
 
         try {
-            pulsarClient.newProducer()
-                    .topic(topicName)
-                    .create();
+            pulsarClient.newProducer().topic(topicName).create();
             fail();
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.AuthenticationException);
@@ -1693,8 +1785,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     void testParseMetrics() throws IOException {
-        String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
-                .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
+        String sampleMetrics = IOUtils.toString(
+                getClass().getClassLoader().getResourceAsStream("prometheus_metrics_sample.txt"),
+                StandardCharsets.UTF_8);
         parseMetrics(sampleMetrics);
     }
 
@@ -1702,7 +1795,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testCompaction() throws Exception {
         final String topicName = "persistent://my-namespace/use/my-ns/my-compaction1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -1733,14 +1827,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Random r = new Random(0);
         for (int j = 0; j < numMessages; j++) {
             int keyIndex = r.nextInt(maxKeys);
-            String key = "key"+keyIndex;
+            String key = "key" + keyIndex;
             byte[] data = ("my-message-" + key + "-" + j).getBytes();
-            producer.newMessage()
-                    .key(key)
-                    .value(data)
-                    .send();
+            producer.newMessage().key(key).value(data).send();
         }
-        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory) pulsar.getCompactionServiceFactory()).getCompactor();
         compactor.compact(topicName).get();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -1818,17 +1909,18 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         for (int i = 0; i < 3; i++) {
             admin.topics().createPartitionedTopic(baseTopic2 + UUID.randomUUID(), 3);
         }
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
                 .topicsPattern("persistent://" + ns1 + "/.*")
                 .subscriptionName("sub")
                 .subscribe();
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
                 .topicsPattern("persistent://" + ns2 + "/.*")
                 .subscriptionName("sub")
                 .subscribe();
-        @Cleanup
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true,  statsOut);
+        @Cleanup ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         Collection<Metric> metric = metrics.get("pulsar_consumers_count");
@@ -1855,8 +1947,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testMetricsGroupedByTypeDefinitions() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+        Producer<byte[]> p2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1894,7 +1992,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     metricName = metricName.substring(0, metricName.indexOf("_sum"));
                 } else if (metricName.endsWith("_total") && !currentMetric.get().endsWith("_total")) {
                     metricName = metricName.substring(0, metricName.indexOf("_total"));
-                } else if (metricName.endsWith("_created") && !currentMetric.get().endsWith("_created")) {
+                } else if (metricName.endsWith("_created")
+                        && !currentMetric.get().endsWith("_created")) {
                     metricName = metricName.substring(0, metricName.indexOf("_created"));
                 }
 
@@ -1902,7 +2001,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     System.out.println(metricsStr);
                     fail("Metric not grouped under its type definition: " + line);
                 }
-
             }
         });
 
@@ -1962,7 +2060,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         @Override
         public String toString() {
-            return MoreObjects.toStringHelper(this).add("tags", tags).add("value", value).toString();
+            return MoreObjects.toStringHelper(this)
+                    .add("tags", tags)
+                    .add("value", value)
+                    .toString();
         }
     }
 
@@ -1974,22 +2075,19 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
-        final Consumer<?> consumer = pulsarClient.newConsumer()
-                .subscriptionName("sub")
-                .topic(topic)
-                .subscribe();
-        @Cleanup
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false,
-                false, statsOut);
+        final Consumer<?> consumer =
+                pulsarClient.newConsumer().subscriptionName("sub").topic(topic).subscribe();
+        @Cleanup ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        final List<String> subCountLines = metricsStr.lines()
+        final List<String> subCountLines = metricsStr
+                .lines()
                 .filter(line -> line.startsWith("pulsar_subscriptions_count"))
                 .collect(Collectors.toList());
         System.out.println(subCountLines);
         assertEquals(subCountLines.size(), 1);
-        assertEquals(subCountLines.get(0),
+        assertEquals(
+                subCountLines.get(0),
                 "pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\",topic=\"persistent://prop/ns-abc1/\\\"mytopic\"} 1");
     }
-
 }

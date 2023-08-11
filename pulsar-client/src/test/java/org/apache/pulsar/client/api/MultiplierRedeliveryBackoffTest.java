@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff;
-import org.testng.annotations.Test;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link MultiplierRedeliveryBackoff}.
@@ -35,11 +35,10 @@ public class MultiplierRedeliveryBackoffTest {
         long minDelayMs = 1000;
         long maxDelayMs = 1000 * 60 * 10;
 
-        RedeliveryBackoff redeliveryBackoff = spy(
-                MultiplierRedeliveryBackoff.builder()
-                        .minDelayMs(minDelayMs)
-                        .maxDelayMs(maxDelayMs)
-                        .build());
+        RedeliveryBackoff redeliveryBackoff = spy(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(minDelayMs)
+                .maxDelayMs(maxDelayMs)
+                .build());
 
         assertEquals(redeliveryBackoff.next(-1), minDelayMs);
 
@@ -54,12 +53,11 @@ public class MultiplierRedeliveryBackoffTest {
         minDelayMs = 2000;
         maxDelayMs = 10000 * 60 * 10;
         int multiplier = 5;
-        redeliveryBackoff = spy(
-                MultiplierRedeliveryBackoff.builder()
-                        .minDelayMs(minDelayMs)
-                        .maxDelayMs(maxDelayMs)
-                        .multiplier(multiplier)
-                        .build());
+        redeliveryBackoff = spy(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(minDelayMs)
+                .maxDelayMs(maxDelayMs)
+                .multiplier(multiplier)
+                .build());
 
         assertEquals(redeliveryBackoff.next(-1), minDelayMs);
 

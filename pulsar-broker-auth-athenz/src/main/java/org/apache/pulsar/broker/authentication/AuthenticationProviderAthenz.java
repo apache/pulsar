@@ -125,9 +125,9 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
             if (!domainNameList.contains(token.getDomain())) {
                 errorCode = ErrorCode.DOMAIN_MISMATCH;
-                throw new AuthenticationException(
-                        String.format("Athenz RoleToken Domain mismatch, Expected: %s, Found: %s",
-                                domainNameList.toString(), token.getDomain()));
+                throw new AuthenticationException(String.format(
+                        "Athenz RoleToken Domain mismatch, Expected: %s, Found: %s",
+                        domainNameList.toString(), token.getDomain()));
             }
 
             // Synchronize for non-thread safe static calls inside athenz library
@@ -156,8 +156,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
 
     @VisibleForTesting
     int getAllowedOffset() {

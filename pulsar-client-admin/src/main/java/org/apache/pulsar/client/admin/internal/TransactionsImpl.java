@@ -59,14 +59,14 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<List<TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync() {
         WebTarget path = adminV3Transactions.path("coordinators");
-        return asyncGetRequest(path, new FutureCallback<List<TransactionCoordinatorInfo>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<TransactionCoordinatorInfo>>() {});
     }
 
     @Override
     public CompletableFuture<TransactionCoordinatorStats> getCoordinatorStatsByIdAsync(int coordinatorId) {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
         path = path.queryParam("coordinatorId", coordinatorId);
-        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorStats>() {});
     }
 
     @Override
@@ -77,7 +77,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<Map<Integer, TransactionCoordinatorStats>> getCoordinatorStatsAsync() {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
-        return asyncGetRequest(path, new FutureCallback<Map<Integer, TransactionCoordinatorStats>>(){});
+        return asyncGetRequest(path, new FutureCallback<Map<Integer, TransactionCoordinatorStats>>() {});
     }
 
     @Override
@@ -92,7 +92,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(topicName.getRestPath(false));
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        return asyncGetRequest(path, new FutureCallback<TransactionInBufferStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionInBufferStats>() {});
     }
 
     @Override
@@ -101,20 +101,19 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStatsAsync(TxnID txnID,
-                                                                                                String topic,
-                                                                                                String subName) {
+    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStatsAsync(
+            TxnID txnID, String topic, String subName) {
         WebTarget path = adminV3Transactions.path("transactionInPendingAckStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.path(subName);
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        return asyncGetRequest(path, new FutureCallback<TransactionInPendingAckStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionInPendingAckStats>() {});
     }
 
     @Override
-    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String topic,
-                                                                        String subName) throws PulsarAdminException {
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String topic, String subName)
+            throws PulsarAdminException {
         return sync(() -> getTransactionInPendingAckStatsAsync(txnID, topic, subName));
     }
 
@@ -123,7 +122,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         WebTarget path = adminV3Transactions.path("transactionMetadata");
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        return asyncGetRequest(path, new FutureCallback<TransactionMetadata>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionMetadata>() {});
     }
 
     @Override
@@ -132,31 +131,29 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
-                                                                                    boolean lowWaterMarks,
-                                                                                    boolean segmentStats) {
+    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(
+            String topic, boolean lowWaterMarks, boolean segmentStats) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.queryParam("lowWaterMarks", lowWaterMarks);
         path = path.queryParam("segmentStats", segmentStats);
-        return asyncGetRequest(path, new FutureCallback<TransactionBufferStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionBufferStats>() {});
     }
 
     @Override
-    public TransactionBufferStats getTransactionBufferStats(String topic,
-                                                            boolean lowWaterMarks,
-                                                            boolean segmentStats) throws PulsarAdminException {
+    public TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks, boolean segmentStats)
+            throws PulsarAdminException {
         return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks, segmentStats));
     }
 
     @Override
-    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName,
-                                                                                 boolean lowWaterMarks) {
+    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(
+            String topic, String subName, boolean lowWaterMarks) {
         WebTarget path = adminV3Transactions.path("pendingAckStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.path(subName);
         path = path.queryParam("lowWaterMarks", lowWaterMarks);
-        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckStats>() {});
     }
 
     @Override
@@ -173,72 +170,67 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         if (coordinatorId != null) {
             path = path.queryParam("coordinatorId", coordinatorId);
         }
-        return asyncGetRequest(path, new FutureCallback<Map<String, TransactionMetadata>>(){});
+        return asyncGetRequest(path, new FutureCallback<Map<String, TransactionMetadata>>() {});
     }
 
     @Override
-    public Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(Integer coordinatorId,
-                                                                               long timeout,
-                                                                               TimeUnit timeUnit)
-            throws PulsarAdminException {
+    public Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(
+            Integer coordinatorId, long timeout, TimeUnit timeUnit) throws PulsarAdminException {
         return sync(() -> getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit));
     }
 
     @Override
-    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsAsync(long timeout,
-                                                                                        TimeUnit timeUnit) {
+    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsAsync(
+            long timeout, TimeUnit timeUnit) {
         return getSlowTransactionsByCoordinatorIdAsync(null, timeout, timeUnit);
     }
 
     @Override
-    public Map<String, TransactionMetadata> getSlowTransactions(long timeout,
-                                                                TimeUnit timeUnit) throws PulsarAdminException {
+    public Map<String, TransactionMetadata> getSlowTransactions(long timeout, TimeUnit timeUnit)
+            throws PulsarAdminException {
         return sync(() -> getSlowTransactionsAsync(timeout, timeUnit));
     }
 
     @Override
-    public CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId,
-                                                                                                   boolean metadata) {
+    public CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(
+            int coordinatorId, boolean metadata) {
         WebTarget path = adminV3Transactions.path("coordinatorInternalStats");
         path = path.path(coordinatorId + "");
         path = path.queryParam("metadata", metadata);
-        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorInternalStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorInternalStats>() {});
     }
 
     @Override
-    public TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
-                                                                           boolean metadata)
+    public TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId, boolean metadata)
             throws PulsarAdminException {
         return sync(() -> getCoordinatorInternalStatsAsync(coordinatorId, metadata));
     }
 
     @Override
-    public CompletableFuture<TransactionPendingAckInternalStats> getPendingAckInternalStatsAsync(String topic,
-                                                                                                 String subName,
-                                                                                                 boolean metadata) {
+    public CompletableFuture<TransactionPendingAckInternalStats> getPendingAckInternalStatsAsync(
+            String topic, String subName, boolean metadata) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("pendingAckInternalStats");
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
         path = path.queryParam("metadata", metadata);
-        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckInternalStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckInternalStats>() {});
     }
 
     @Override
-    public TransactionPendingAckInternalStats getPendingAckInternalStats(String topic,
-                                                                         String subName,
-                                                                         boolean metadata) throws PulsarAdminException {
+    public TransactionPendingAckInternalStats getPendingAckInternalStats(String topic, String subName, boolean metadata)
+            throws PulsarAdminException {
         return sync(() -> getPendingAckInternalStatsAsync(topic, subName, metadata));
     }
 
     @Override
-    public CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(String topic,
-                                                                                                    boolean metadata) {
+    public CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(
+            String topic, boolean metadata) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("transactionBufferInternalStats");
         path = path.path(tn.getRestPath(false));
         path = path.queryParam("metadata", metadata);
-        return asyncGetRequest(path, new FutureCallback<TransactionBufferInternalStats>(){});
+        return asyncGetRequest(path, new FutureCallback<TransactionBufferInternalStats>() {});
     }
 
     @Override
@@ -249,7 +241,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public void scaleTransactionCoordinators(int replicas) throws PulsarAdminException {
-         sync(() -> scaleTransactionCoordinatorsAsync(replicas));
+        sync(() -> scaleTransactionCoordinatorsAsync(replicas));
     }
 
     @Override
@@ -261,11 +253,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic,
-                                                                                          String subName,
-                                                                                          Long ledgerId,
-                                                                                          Long entryId,
-                                                                                          Integer batchIndex) {
+    public CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(
+            String topic, String subName, Long ledgerId, Long entryId, Integer batchIndex) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("positionStatsInPendingAck");
         path = path.path(tn.getRestPath(false));
@@ -276,11 +265,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         return asyncGetRequest(path, new FutureCallback<PositionInPendingAckStats>() {});
     }
 
-
     @Override
-    public PositionInPendingAckStats getPositionStatsInPendingAck(String topic, String subName, Long ledgerId,
-                                                                  Long entryId, Integer batchIndex)
-            throws PulsarAdminException {
+    public PositionInPendingAckStats getPositionStatsInPendingAck(
+            String topic, String subName, Long ledgerId, Long entryId, Integer batchIndex) throws PulsarAdminException {
         return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
     }
 }

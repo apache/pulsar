@@ -34,8 +34,7 @@ public class ClientInitializationTest {
         Authentication auth = mock(Authentication.class);
 
         @Cleanup
-        PulsarClient pulsarClient =
-                PulsarClient.builder()
+        PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl("pulsar+ssl://my-host:6650")
                 .authentication(auth)
                 .build();

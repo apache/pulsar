@@ -54,9 +54,13 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private final String managedLedgerName;
     private final String topicName;
 
-    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId,
-                                          LedgerOffloaderStats offloaderStats,
-                                          String managedLedgerName) throws IOException {
+    private FileStoreBackedReadHandleImpl(
+            ExecutorService executor,
+            MapFile.Reader reader,
+            long ledgerId,
+            LedgerOffloaderStats offloaderStats,
+            String managedLedgerName)
+            throws IOException {
         this.ledgerId = ledgerId;
         this.executor = executor;
         this.reader = reader;
@@ -69,12 +73,11 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             key.set(FileSystemManagedLedgerOffloader.METADATA_KEY_INDEX);
             long startReadIndexTime = System.nanoTime();
             reader.get(key, value);
-            offloaderStats.recordReadOffloadIndexLatency(topicName,
-                    System.nanoTime() - startReadIndexTime, TimeUnit.NANOSECONDS);
+            offloaderStats.recordReadOffloadIndexLatency(
+                    topicName, System.nanoTime() - startReadIndexTime, TimeUnit.NANOSECONDS);
             this.ledgerMetadata = parseLedgerMetadata(ledgerId, value.copyBytes());
         } catch (IOException e) {
-            log.error("Fail to read LedgerMetadata for ledgerId {}",
-                    ledgerId);
+            log.error("Fail to read LedgerMetadata for ledgerId {}", ledgerId);
             throw new IOException("Fail to read LedgerMetadata for ledgerId " + key.get());
         }
     }
@@ -87,20 +90,19 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public LedgerMetadata getLedgerMetadata() {
         return ledgerMetadata;
-
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         executor.execute(() -> {
-                try {
-                    reader.close();
-                    promise.complete(null);
-                } catch (IOException t) {
-                    promise.completeExceptionally(t);
-                }
-            });
+            try {
+                reader.close();
+                promise.complete(null);
+            } catch (IOException t) {
+                promise.completeExceptionally(t);
+            }
+        });
         return promise;
     }
 
@@ -111,9 +113,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.execute(() -> {
-            if (firstEntry > lastEntry
-                    || firstEntry < 0
-                    || lastEntry > getLastAddConfirmed()) {
+            if (firstEntry > lastEntry || firstEntry < 0 || lastEntry > getLastAddConfirmed()) {
                 promise.completeExceptionally(new BKException.BKIncorrectParameterException());
                 return;
             }
@@ -128,8 +128,8 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 while (entriesToRead > 0) {
                     long startReadTime = System.nanoTime();
                     reader.next(key, value);
-                    this.offloaderStats.recordReadOffloadDataLatency(topicName,
-                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    this.offloaderStats.recordReadOffloadDataLatency(
+                            topicName, System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId == nextExpectedId) {
@@ -140,11 +140,14 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                         nextExpectedId++;
                         this.offloaderStats.recordReadOffloadBytes(topicName, length);
                     } else if (entryId > lastEntry) {
-                        log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                nextExpectedId, entryId, lastEntry);
+                        log.info(
+                                "Expected to read {}, but read {}, which is greater than last entry {}",
+                                nextExpectedId,
+                                entryId,
+                                lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
-            }
+                }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
                 this.offloaderStats.recordReadOffloadError(topicName);
@@ -186,16 +189,20 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     @Override
-    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId,
-                                                                                      long timeOutInMillis,
-                                                                                      boolean parallel) {
+    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
+            long entryId, long timeOutInMillis, boolean parallel) {
         CompletableFuture<LastConfirmedAndEntry> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;
     }
 
-    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId,
-                                  LedgerOffloaderStats offloaderStats, String managedLedgerName) throws IOException {
+    public static ReadHandle open(
+            ScheduledExecutorService executor,
+            MapFile.Reader reader,
+            long ledgerId,
+            LedgerOffloaderStats offloaderStats,
+            String managedLedgerName)
+            throws IOException {
         return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId, offloaderStats, managedLedgerName);
     }
 }

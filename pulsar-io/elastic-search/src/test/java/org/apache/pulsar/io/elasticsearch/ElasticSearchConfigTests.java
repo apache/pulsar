@@ -18,20 +18,17 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import org.apache.pulsar.io.core.SinkContext;
-import org.mockito.Mockito;
-import org.testng.annotations.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.expectThrows;
-
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 public class ElasticSearchConfigTests {
 
@@ -52,7 +49,7 @@ public class ElasticSearchConfigTests {
 
     @Test
     public final void loadFromMapTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myIndex");
         map.put("typeName", "doc");
@@ -118,7 +115,7 @@ public class ElasticSearchConfigTests {
 
     @Test
     public final void validValidateTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
         map.put("username", "racerX");
@@ -131,7 +128,7 @@ public class ElasticSearchConfigTests {
 
     @Test
     public final void zeroReplicasValidateTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
         map.put("username", "racerX");
@@ -142,20 +139,22 @@ public class ElasticSearchConfigTests {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "elasticSearchUrl cannot be null")
     public final void missingRequiredPropertiesTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("indexName", "toto");
 
         ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "indexNumberOfShards must be a strictly positive integer.")
     public final void invalidIndexNumberOfShards() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
         map.put("username", "racerX");
@@ -166,10 +165,11 @@ public class ElasticSearchConfigTests {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "indexNumberOfReplicas must be a positive integer.")
     public final void invalidIndexNumberOfReplicas() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
         map.put("username", "racerX");
@@ -180,10 +180,11 @@ public class ElasticSearchConfigTests {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Values for both Username & password are required.")
     public final void userCredentialsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
         map.put("username", "racerX");
@@ -192,10 +193,11 @@ public class ElasticSearchConfigTests {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Values for both Username & password are required.")
     public final void passwordCredentialsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
         map.put("password", "go-speedie-go");
@@ -206,7 +208,7 @@ public class ElasticSearchConfigTests {
 
     @Test
     public final void credentialsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
         map.put("username", "elastic");
@@ -246,40 +248,44 @@ public class ElasticSearchConfigTests {
         }
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "connectTimeoutInMs must be a positive integer.")
     public final void connectTimeoutInMsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("connectTimeoutInMs", -1);
         ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "connectionRequestTimeoutInMs must be a positive integer.")
     public final void connectionRequestTimeoutInMsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("connectionRequestTimeoutInMs", -1);
         ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "socketTimeoutInMs must be a positive integer.")
     public final void socketTimeoutInMsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("socketTimeoutInMs", -1);
         ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "bulkConcurrentRequests must be a positive integer.")
     public final void bulkConcurrentRequestsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("bulkConcurrentRequests", -1);
         ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
@@ -293,11 +299,11 @@ public class ElasticSearchConfigTests {
 
     @Test
     public final void sslConfigTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myindex");
 
-        Map<String, Object> sslMap = new HashMap<String, Object> ();
+        Map<String, Object> sslMap = new HashMap<String, Object>();
         sslMap.put("enabled", true);
         sslMap.put("truststorePath", "/ssl/truststore.jks");
         sslMap.put("truststorePassword", "toto");
@@ -326,7 +332,7 @@ public class ElasticSearchConfigTests {
         Mockito.when(contextWithSecrets.getSecret("username")).thenReturn("secretUser");
         Mockito.when(contextWithSecrets.getSecret("password")).thenReturn("$ecret123");
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myIndex");
         map.put("typeName", "doc");

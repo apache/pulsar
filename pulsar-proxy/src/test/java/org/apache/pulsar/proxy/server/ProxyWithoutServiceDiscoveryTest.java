@@ -19,15 +19,12 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -82,7 +79,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
 
         conf.setBrokerClientTlsEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        conf.setBrokerClientAuthenticationParameters(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+        conf.setBrokerClientAuthenticationParameters(String.format(
+                "tlsCertFile:%s,tlsKeyFile:%s",
                 getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
 
         Set<String> providers = new HashSet<>();
@@ -113,15 +111,15 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        proxyConfig.setBrokerClientAuthenticationParameters(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+        proxyConfig.setBrokerClientAuthenticationParameters(String.format(
+                "tlsCertFile:%s,tlsKeyFile:%s",
                 getTlsFileForClient("superproxy.cert"), getTlsFileForClient("superproxy.key-pk8")));
         proxyConfig.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
 
         proxyConfig.setAuthenticationProviders(providers);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                                    new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
 
         proxyService.start();
     }
@@ -157,20 +155,29 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         // create a client which connects to proxy over tls and pass authData
-        @Cleanup
-        PulsarClient proxyClient = createPulsarClient(authTls, proxyService.getServiceUrlTls());
+        @Cleanup PulsarClient proxyClient = createPulsarClient(authTls, proxyService.getServiceUrlTls());
 
-        admin.clusters().createCluster("without-service-discovery", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters()
+                .createCluster(
+                        "without-service-discovery",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
-        admin.tenants().createTenant("my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                Sets.newHashSet("without-service-discovery")));
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(
+                                Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("without-service-discovery")));
         admin.namespaces().createNamespace("my-property/without-service-discovery/my-ns");
 
-        Consumer<byte[]> consumer = proxyClient.newConsumer()
+        Consumer<byte[]> consumer = proxyClient
+                .newConsumer()
                 .topic("persistent://my-property/without-service-discovery/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
-                .topic("persistent://my-property/without-service-discovery/my-ns/my-topic1").create();
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+        Producer<byte[]> producer = proxyClient
+                .newProducer(Schema.BYTES)
+                .topic("persistent://my-property/without-service-discovery/my-ns/my-topic1")
+                .create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;
@@ -196,11 +203,17 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     }
 
     protected final PulsarClient createPulsarClient(Authentication auth, String lookupUrl) throws Exception {
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString()).tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-                .authentication(auth).build());
-        return PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
-                .enableTls(true).build();
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .authentication(auth)
+                .build());
+        return PulsarClient.builder()
+                .serviceUrl(lookupUrl)
+                .statsInterval(0, TimeUnit.SECONDS)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .authentication(auth)
+                .enableTls(true)
+                .build();
     }
-
 }

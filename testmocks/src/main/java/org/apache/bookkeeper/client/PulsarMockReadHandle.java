@@ -41,8 +41,8 @@ class PulsarMockReadHandle implements ReadHandle {
     private final LedgerMetadata metadata;
     private final List<LedgerEntryImpl> entries;
 
-    PulsarMockReadHandle(PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata,
-                         List<LedgerEntryImpl> entries) {
+    PulsarMockReadHandle(
+            PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata, List<LedgerEntryImpl> entries) {
         this.bk = bk;
         this.ledgerId = ledgerId;
         this.metadata = metadata;
@@ -52,16 +52,16 @@ class PulsarMockReadHandle implements ReadHandle {
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         return bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
-                List<LedgerEntry> seq = new ArrayList<>();
-                long entryId = firstEntry;
-                while (entryId <= lastEntry && entryId < entries.size()) {
-                    seq.add(entries.get((int) entryId++).duplicate());
-                }
-                log.debug("Entries read: {}", seq);
+            log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
+            List<LedgerEntry> seq = new ArrayList<>();
+            long entryId = firstEntry;
+            while (entryId <= lastEntry && entryId < entries.size()) {
+                seq.add(entries.get((int) entryId++).duplicate());
+            }
+            log.debug("Entries read: {}", seq);
 
-                return FutureUtils.value(LedgerEntriesImpl.create(seq));
-            });
+            return FutureUtils.value(LedgerEntriesImpl.create(seq));
+        });
     }
 
     @Override
@@ -104,9 +104,8 @@ class PulsarMockReadHandle implements ReadHandle {
     }
 
     @Override
-    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId,
-                                                                                      long timeOutInMillis,
-                                                                                      boolean parallel) {
+    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
+            long entryId, long timeOutInMillis, boolean parallel) {
         CompletableFuture<LastConfirmedAndEntry> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException("Long poll not implemented"));
         return promise;

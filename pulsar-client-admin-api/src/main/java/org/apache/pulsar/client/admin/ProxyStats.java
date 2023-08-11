@@ -29,7 +29,6 @@ public interface ProxyStats {
      * @return
      * @throws PulsarAdminException
      */
-
     String getConnections() throws PulsarAdminException;
 
     /**

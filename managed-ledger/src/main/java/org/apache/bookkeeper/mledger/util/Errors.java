@@ -36,5 +36,4 @@ public final class Errors {
     }
 
     private Errors() {}
-
 }

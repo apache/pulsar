@@ -55,19 +55,19 @@ public class EtcdSessionWatcher implements AutoCloseable {
 
     private long disconnectedAt = 0;
 
-    public EtcdSessionWatcher(Client client, long sessionTimeoutMillis,
-                              Consumer<SessionEvent> sessionListener) {
+    public EtcdSessionWatcher(Client client, long sessionTimeoutMillis, Consumer<SessionEvent> sessionListener) {
         this.client = client;
         this.monitorTimeoutMillis = sessionTimeoutMillis * 5 / 6;
         this.tickTimeMillis = sessionTimeoutMillis / 15;
         this.sessionListener = sessionListener;
 
-        this.scheduler = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-etcd-session-watcher"));
-        this.task =
-                scheduler.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
-                        tickTimeMillis,
-                        TimeUnit.MILLISECONDS);
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("metadata-store-etcd-session-watcher"));
+        this.task = scheduler.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(this::checkConnectionStatus),
+                tickTimeMillis,
+                tickTimeMillis,
+                TimeUnit.MILLISECONDS);
         this.currentStatus = SessionEvent.SessionReestablished;
     }
 
@@ -82,10 +82,12 @@ public class EtcdSessionWatcher implements AutoCloseable {
     private synchronized void checkConnectionStatus() {
         try {
             CompletableFuture<SessionEvent> future = new CompletableFuture<>();
-            client.getKVClient().get(ByteSequence.from("/".getBytes(StandardCharsets.UTF_8)))
+            client.getKVClient()
+                    .get(ByteSequence.from("/".getBytes(StandardCharsets.UTF_8)))
                     .thenRun(() -> {
                         future.complete(SessionEvent.Reconnected);
-                    }).exceptionally(ex -> {
+                    })
+                    .exceptionally(ex -> {
                         future.complete(SessionEvent.ConnectionLost);
                         return null;
                     });
@@ -127,14 +129,15 @@ public class EtcdSessionWatcher implements AutoCloseable {
                     disconnectedAt = System.nanoTime();
                 }
 
-                long timeRemainingMillis = monitorTimeoutMillis
-                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - disconnectedAt);
+                long timeRemainingMillis =
+                        monitorTimeoutMillis - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - disconnectedAt);
                 if (timeRemainingMillis <= 0 && currentStatus != SessionEvent.SessionLost) {
                     log.error("Etcd lease keep-alive timeout. Notifying session is lost.");
                     currentStatus = SessionEvent.SessionLost;
                     sessionListener.accept(currentStatus);
                 } else if (currentStatus != SessionEvent.SessionLost) {
-                    log.warn("Etcd client is disconnected. Waiting to reconnect, time remaining = {} seconds",
+                    log.warn(
+                            "Etcd client is disconnected. Waiting to reconnect, time remaining = {} seconds",
                             timeRemainingMillis / 1000.0);
                     if (currentStatus == SessionEvent.SessionReestablished) {
                         currentStatus = SessionEvent.ConnectionLost;

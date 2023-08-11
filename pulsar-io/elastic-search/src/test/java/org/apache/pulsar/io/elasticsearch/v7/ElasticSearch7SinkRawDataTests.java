@@ -26,4 +26,3 @@ public class ElasticSearch7SinkRawDataTests extends ElasticSearchSinkRawDataTest
         super(ELASTICSEARCH_7);
     }
 }
-

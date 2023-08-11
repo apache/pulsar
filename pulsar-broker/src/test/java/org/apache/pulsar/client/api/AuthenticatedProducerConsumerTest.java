@@ -22,6 +22,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -34,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.crypto.SecretKey;
 import javax.ws.rs.InternalServerErrorException;
-import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -69,7 +69,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
 
-
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -97,9 +96,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         conf.setBrokerClientTlsEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + getTlsFileForClient("admin.cert")
-                        + ",tlsKeyFile:" + getTlsFileForClient("admin.key-pk8"));
+        conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + getTlsFileForClient("admin.cert") + ",tlsKeyFile:"
+                + getTlsFileForClient("admin.key-pk8"));
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
@@ -120,8 +118,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     protected final void internalSetup(Authentication auth) throws Exception {
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .authentication(auth)
                 .build());
         String lookupUrl;
         // For http basic authentication test
@@ -130,8 +130,11 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         } else {
             lookupUrl = pulsar.getBrokerServiceUrlTls();
         }
-        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(lookupUrl)
+                .statsInterval(0, TimeUnit.SECONDS)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .authentication(auth)
                 .enableTls(true));
     }
 
@@ -143,14 +146,18 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batch")
     public Object[][] codecProvider() {
-        return new Object[][] { { 0 }, { 1000 } };
+        return new Object[][] {{0}, {1000}};
     }
 
     private void testSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true);
@@ -189,10 +196,17 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
 
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -207,10 +221,14 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
 
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property", new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -225,10 +243,14 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
 
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property", new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -247,29 +269,36 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test",
-                ClusterData.builder()
-                        .serviceUrl(brokerUrl.toString())
-                        .serviceUrlTls(brokerUrlTls.toString())
-                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
-                        .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
-                        .build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(brokerUrl.toString())
+                                .serviceUrlTls(brokerUrlTls.toString())
+                                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property", new TenantInfoImpl(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
         admin.close();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
-        admin.topics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",
-                EnumSet.allOf(AuthAction.class));
+        admin.topics()
+                .grantPermission(
+                        "persistent://my-property/my-ns/my-topic", "anonymousUser", EnumSet.allOf(AuthAction.class));
 
         // setup the client
-        replacePulsarClient(PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
-                .operationTimeout(1, TimeUnit.SECONDS));
+        replacePulsarClient(
+                PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).operationTimeout(1, TimeUnit.SECONDS));
 
-        pulsarClient.newConsumer().topic("persistent://my-property/my-ns/other-topic")
-                .subscriptionName("my-subscriber-name").subscribe();
+        pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/other-topic")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
@@ -325,14 +354,19 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", ClusterData.builder()
-                .serviceUrl(brokerUrl.toString())
-                .serviceUrlTls(brokerUrlTls.toString())
-                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
-                .build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(brokerUrl.toString())
+                                .serviceUrlTls(brokerUrlTls.toString())
+                                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         String namespace = "my-property/my-ns";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
@@ -364,8 +398,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         internalSetup(authTls);
 
         admin.clusters().createCluster("test", ClusterData.builder().build());
-        admin.tenants().createTenant("p1",
-                new TenantInfoImpl(Collections.emptySet(), new HashSet<>(admin.clusters().getClusters())));
+        admin.tenants()
+                .createTenant(
+                        "p1",
+                        new TenantInfoImpl(
+                                Collections.emptySet(),
+                                new HashSet<>(admin.clusters().getClusters())));
         admin.namespaces().createNamespace("p1/ns1");
 
         // test for non-partitioned topic
@@ -374,15 +412,25 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().grantPermission(topic, "test-user", EnumSet.of(AuthAction.consume));
 
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+            assertTrue(pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getPolicies(NamespaceName.get("p1/ns1"))
+                    .get()
+                    .auth_policies
+                    .getTopicAuthentication()
+                    .containsKey(topic));
         });
 
         admin.topics().delete(topic);
 
         Awaitility.await().untilAsserted(() -> {
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+            assertFalse(pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getPolicies(NamespaceName.get("p1/ns1"))
+                    .get()
+                    .auth_policies
+                    .getTopicAuthentication()
+                    .containsKey(topic));
         });
 
         // test for partitioned topic
@@ -390,22 +438,36 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         int numPartitions = 5;
 
         admin.topics().createPartitionedTopic(partitionedTopic, numPartitions);
-        admin.topics()
-                .grantPermission(partitionedTopic, "test-user", EnumSet.of(AuthAction.consume));
+        admin.topics().grantPermission(partitionedTopic, "test-user", EnumSet.of(AuthAction.consume));
 
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(partitionedTopic));
+            assertTrue(pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getPolicies(NamespaceName.get("p1/ns1"))
+                    .get()
+                    .auth_policies
+                    .getTopicAuthentication()
+                    .containsKey(partitionedTopic));
         });
 
         admin.topics().deletePartitionedTopic("persistent://p1/ns1/partitioned-topic");
         Awaitility.await().untilAsserted(() -> {
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(partitionedTopic));
+            assertFalse(pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getPolicies(NamespaceName.get("p1/ns1"))
+                    .get()
+                    .auth_policies
+                    .getTopicAuthentication()
+                    .containsKey(partitionedTopic));
             for (int i = 0; i < numPartitions; i++) {
-                assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                        .get().auth_policies.getTopicAuthentication()
-                        .containsKey(TopicName.get(partitionedTopic).getPartition(i).toString()));
+                assertFalse(pulsar.getPulsarResources()
+                        .getNamespaceResources()
+                        .getPolicies(NamespaceName.get("p1/ns1"))
+                        .get()
+                        .auth_policies
+                        .getTopicAuthentication()
+                        .containsKey(
+                                TopicName.get(partitionedTopic).getPartition(i).toString()));
             }
         });
 
@@ -423,13 +485,13 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         Supplier<String> webServiceAddressTls = () -> pulsar.getWebServiceAddressTls();
         Supplier<String> brokerServiceUrlTls = () -> pulsar.getBrokerServiceUrlTls();
 
-        return new Object[][]{
-                // Verify TLS transport encryption with TLS authentication
-                {webServiceAddressTls, tlsAuth},
-                {brokerServiceUrlTls, tlsAuth},
-                // Verify TLS transport encryption with token authentication
-                {webServiceAddressTls, tokenAuth},
-                {brokerServiceUrlTls, tokenAuth},
+        return new Object[][] {
+            // Verify TLS transport encryption with TLS authentication
+            {webServiceAddressTls, tlsAuth},
+            {brokerServiceUrlTls, tlsAuth},
+            // Verify TLS transport encryption with token authentication
+            {webServiceAddressTls, tokenAuth},
+            {brokerServiceUrlTls, tokenAuth},
         };
     }
 
@@ -438,13 +500,18 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic-1";
 
         internalSetup(new AuthenticationToken(ADMIN_TOKEN));
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants().createTenant("my-property", new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(url.get())
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(url.get())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .tlsKeyFilePath(getTlsFileForClient("admin.key-pk8"))
                 .tlsCertificateFilePath(getTlsFileForClient("admin.cert"))
@@ -467,34 +534,58 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         internalSetup(authTls);
 
         admin.clusters().createCluster("test", ClusterData.builder().build());
-        admin.tenants().createTenant("p1",
-                new TenantInfoImpl(Collections.emptySet(), new HashSet<>(admin.clusters().getClusters())));
+        admin.tenants()
+                .createTenant(
+                        "p1",
+                        new TenantInfoImpl(
+                                Collections.emptySet(),
+                                new HashSet<>(admin.clusters().getClusters())));
         admin.namespaces().createNamespace("p1/ns1");
 
         String topic = "persistent://p1/ns1/topic";
         admin.topics().createNonPartitionedTopic(topic);
-        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                .get().auth_policies.getTopicAuthentication().containsKey(topic));
+        assertFalse(pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPolicies(NamespaceName.get("p1/ns1"))
+                .get()
+                .auth_policies
+                .getTopicAuthentication()
+                .containsKey(topic));
 
         // grant permission
         admin.topics().grantPermission(topic, "test-user-1", EnumSet.of(AuthAction.consume));
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+            assertTrue(pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getPolicies(NamespaceName.get("p1/ns1"))
+                    .get()
+                    .auth_policies
+                    .getTopicAuthentication()
+                    .containsKey(topic));
         });
 
         // revoke permission
         admin.topics().revokePermissions(topic, "test-user-1");
         Awaitility.await().untilAsserted(() -> {
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+            assertFalse(pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getPolicies(NamespaceName.get("p1/ns1"))
+                    .get()
+                    .auth_policies
+                    .getTopicAuthentication()
+                    .containsKey(topic));
         });
 
         // grant permission again
         admin.topics().grantPermission(topic, "test-user-1", EnumSet.of(AuthAction.consume));
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+            assertTrue(pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getPolicies(NamespaceName.get("p1/ns1"))
+                    .get()
+                    .auth_policies
+                    .getTopicAuthentication()
+                    .containsKey(topic));
         });
     }
 }

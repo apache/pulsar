@@ -55,7 +55,8 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
     protected void pulsarResourcesSetup() throws PulsarAdminException {
         admin.tenants().createTenant("public", createDefaultTenantInfo());
         admin.namespaces()
-                .createNamespace("public/default", getPulsar().getConfiguration().getDefaultNumberOfNamespaceBundles());
+                .createNamespace(
+                        "public/default", getPulsar().getConfiguration().getDefaultNumberOfNamespaceBundles());
     }
 
     protected void additionalBrokersSetup() throws Exception {
@@ -69,10 +70,11 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
             additionalPulsarTestContexts.add(i, pulsarTestContext);
             PulsarService pulsarService = pulsarTestContext.getPulsarService();
             additionalBrokers.add(i, pulsarService);
-            PulsarAdminBuilder pulsarAdminBuilder =
-                    PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress() != null
-                            ? pulsarService.getWebServiceAddress()
-                            : pulsarService.getWebServiceAddressTls());
+            PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
+                    .serviceHttpUrl(
+                            pulsarService.getWebServiceAddress() != null
+                                    ? pulsarService.getWebServiceAddress()
+                                    : pulsarService.getWebServiceAddressTls());
             customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
             additionalBrokerAdmins.add(i, pulsarAdminBuilder.build());
             additionalBrokerClients.add(i, newPulsarClient(pulsarService.getBrokerServiceUrl(), 0));

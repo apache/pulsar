@@ -61,11 +61,10 @@ import org.apache.pulsar.io.core.annotations.IOType;
  *  This way there is a one-to-one mapping between Kafka key/value pair and the Pulsar data model.
  */
 @Connector(
-    name = "kafka",
-    type = IOType.SOURCE,
-    help = "Transfer data from Kafka to Pulsar.",
-    configClass = KafkaSourceConfig.class
-)
+        name = "kafka",
+        type = IOType.SOURCE,
+        help = "Transfer data from Kafka to Pulsar.",
+        configClass = KafkaSourceConfig.class)
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
@@ -80,13 +79,13 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         log.info("Created kafka consumer config : {}", props);
 
-        keySchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                props, true);
-        valueSchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                props, false);
+        keySchema = getSchemaFromDeserializerAndAdaptConfiguration(
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, props, true);
+        valueSchema = getSchemaFromDeserializerAndAdaptConfiguration(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, props, false);
 
-        boolean needsSchemaCache = keySchema == DeferredSchemaPlaceholder.INSTANCE
-                                    || valueSchema == DeferredSchemaPlaceholder.INSTANCE;
+        boolean needsSchemaCache =
+                keySchema == DeferredSchemaPlaceholder.INSTANCE || valueSchema == DeferredSchemaPlaceholder.INSTANCE;
 
         if (needsSchemaCache) {
             initSchemaCache(props);
@@ -120,7 +119,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             ByteBuffer value = extractSimpleValue(consumerRecord.value());
             Schema<ByteBuffer> currentKeySchema = getSchemaFromObject(consumerRecord.key(), keySchema);
             Schema<ByteBuffer> currentValueSchema = getSchemaFromObject(consumerRecord.value(), valueSchema);
-            return new KeyValueKafkaRecord<ByteBuffer, ByteBuffer>(consumerRecord,
+            return new KeyValueKafkaRecord<ByteBuffer, ByteBuffer>(
+                    consumerRecord,
                     new KeyValue<>(key, value),
                     currentKeySchema,
                     currentValueSchema,
@@ -128,11 +128,11 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
         } else {
             Object value = consumerRecord.value();
-            return new KafkaRecord<>(consumerRecord,
+            return new KafkaRecord<>(
+                    consumerRecord,
                     extractSimpleValue(value),
                     getSchemaFromObject(value, valueSchema),
                     copyKafkaHeaders(consumerRecord));
-
         }
     }
 
@@ -162,8 +162,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
     }
 
-    private static Schema<ByteBuffer> getSchemaFromDeserializerAndAdaptConfiguration(String key, Properties props,
-                                                                                     boolean isKey) {
+    private static Schema<ByteBuffer> getSchemaFromDeserializerAndAdaptConfiguration(
+            String key, Properties props, boolean isKey) {
         String kafkaDeserializerClass = props.getProperty(key);
         Objects.requireNonNull(kafkaDeserializerClass);
 
@@ -174,8 +174,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
         Schema<?> result;
         if (ByteArrayDeserializer.class.getName().equals(kafkaDeserializerClass)
-            || ByteBufferDeserializer.class.getName().equals(kafkaDeserializerClass)
-            || BytesDeserializer.class.getName().equals(kafkaDeserializerClass)) {
+                || ByteBufferDeserializer.class.getName().equals(kafkaDeserializerClass)
+                || BytesDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             result = Schema.BYTEBUFFER;
         } else if (StringDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             if (isKey) {
@@ -193,7 +193,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             result = Schema.INT64;
         } else if (ShortDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             result = Schema.INT16;
-        } else if (KafkaAvroDeserializer.class.getName().equals(kafkaDeserializerClass)){
+        } else if (KafkaAvroDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             // in this case we have to inject our custom deserializer
             // that extracts Avro schema information
             props.put(key, ExtractKafkaAvroSchemaDeserializer.class.getName());
@@ -218,7 +218,6 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         return produceKeyValue;
     }
 
-
     public static class ExtractKafkaAvroSchemaDeserializer implements Deserializer<BytesWithKafkaSchema> {
 
         @Override
@@ -238,16 +237,15 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
     }
 
-     static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
+    static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
         DeferredSchemaPlaceholder() {
-            super(SchemaInfoImpl
-                    .builder()
+            super(SchemaInfoImpl.builder()
                     .type(SchemaType.AVRO)
                     .properties(Collections.emptyMap())
                     .schema(new byte[0])
                     .build());
         }
+
         static final DeferredSchemaPlaceholder INSTANCE = new DeferredSchemaPlaceholder();
     }
-
 }

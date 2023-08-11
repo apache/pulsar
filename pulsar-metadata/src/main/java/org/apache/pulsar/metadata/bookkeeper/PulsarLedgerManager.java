@@ -63,8 +63,8 @@ public class PulsarLedgerManager implements LedgerManager {
     private final LegacyHierarchicalLedgerManager legacyLedgerManager;
     private final LongHierarchicalLedgerManager longLedgerManager;
 
-    private final ScheduledExecutorService scheduler = Executors
-            .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-bk-ledger-manager-scheduler"));
+    private final ScheduledExecutorService scheduler =
+            Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-bk-ledger-manager-scheduler"));
 
     // ledger metadata listeners
     protected final ConcurrentMap<Long, Set<BookkeeperInternalCallbacks.LedgerMetadataListener>> listeners =
@@ -118,11 +118,12 @@ public class PulsarLedgerManager implements LedgerManager {
     }
 
     @Override
-    public CompletableFuture<Versioned<LedgerMetadata>> createLedgerMetadata(long ledgerId,
-                                                                             LedgerMetadata inputMetadata) {
+    public CompletableFuture<Versioned<LedgerMetadata>> createLedgerMetadata(
+            long ledgerId, LedgerMetadata inputMetadata) {
         final LedgerMetadata metadata;
         if (inputMetadata.getMetadataFormatVersion() > LedgerMetadataSerDe.METADATA_FORMAT_VERSION_2) {
-            metadata = LedgerMetadataBuilder.from(inputMetadata).withId(ledgerId).build();
+            metadata =
+                    LedgerMetadataBuilder.from(inputMetadata).withId(ledgerId).build();
         } else {
             metadata = inputMetadata;
         }
@@ -136,17 +137,16 @@ public class PulsarLedgerManager implements LedgerManager {
 
         CompletableFuture<Versioned<LedgerMetadata>> promise = new CompletableFuture<>();
 
-        store.put(getLedgerPath(ledgerId), data, Optional.of(-1L))
-                .whenComplete((stat, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to create ledger {}: {}", ledgerId, ex.getMessage());
-                        promise.completeExceptionally(mapToBkException(ex));
-                        return;
-                    }
+        store.put(getLedgerPath(ledgerId), data, Optional.of(-1L)).whenComplete((stat, ex) -> {
+            if (ex != null) {
+                log.error("Failed to create ledger {}: {}", ledgerId, ex.getMessage());
+                promise.completeExceptionally(mapToBkException(ex));
+                return;
+            }
 
-                    Versioned<LedgerMetadata> result = new Versioned(metadata, new LongVersion(stat.getVersion()));
-                    promise.complete(result);
-                });
+            Versioned<LedgerMetadata> result = new Versioned(metadata, new LongVersion(stat.getVersion()));
+            promise.complete(result);
+        });
 
         return promise;
     }
@@ -167,30 +167,29 @@ public class PulsarLedgerManager implements LedgerManager {
         }
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        store.delete(getLedgerPath(ledgerId), existingVersion)
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to remove ledger metadata {}: {}", ledgerId, ex.getMessage());
-                        promise.completeExceptionally(mapToBkException(ex));
-                        return;
-                    }
+        store.delete(getLedgerPath(ledgerId), existingVersion).whenComplete((result, ex) -> {
+            if (ex != null) {
+                log.error("Failed to remove ledger metadata {}: {}", ledgerId, ex.getMessage());
+                promise.completeExceptionally(mapToBkException(ex));
+                return;
+            }
 
-                    promise.complete(result);
-                    // remove listener on ledgerId
-                    Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet = listeners.remove(ledgerId);
-                    if (null != listenerSet) {
-                        if (log.isDebugEnabled()) {
-                            log.debug(
-                                    "Remove registered ledger metadata listeners on ledger {} after ledger is deleted.",
-                                    ledgerId);
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("No ledger metadata listeners to remove from ledger {} when it's being deleted.",
-                                    ledgerId);
-                        }
-                    }
-                });
+            promise.complete(result);
+            // remove listener on ledgerId
+            Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet = listeners.remove(ledgerId);
+            if (null != listenerSet) {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "Remove registered ledger metadata listeners on ledger {} after ledger is deleted.",
+                            ledgerId);
+                }
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "No ledger metadata listeners to remove from ledger {} when it's being deleted.", ledgerId);
+                }
+            }
+        });
 
         return promise;
     }
@@ -213,7 +212,8 @@ public class PulsarLedgerManager implements LedgerManager {
                     LongVersion version = new LongVersion(stat.getVersion());
                     LedgerMetadata metadata = optRes.get().getValue();
                     promise.complete(new Versioned<>(metadata, version));
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     log.error("Could not read metadata for ledger: {}: {}", ledgerId, ex.getMessage());
                     promise.completeExceptionally(new BKException.ZKException(ex.getCause()));
                     return null;
@@ -222,8 +222,8 @@ public class PulsarLedgerManager implements LedgerManager {
     }
 
     @Override
-    public CompletableFuture<Versioned<LedgerMetadata>> writeLedgerMetadata(long ledgerId, LedgerMetadata metadata,
-                                                                            Version currentVersion) {
+    public CompletableFuture<Versioned<LedgerMetadata>> writeLedgerMetadata(
+            long ledgerId, LedgerMetadata metadata, Version currentVersion) {
 
         if (!(currentVersion instanceof LongVersion)) {
             return FutureUtil.failedFuture(new BKException.BKMetadataVersionException());
@@ -239,11 +239,11 @@ public class PulsarLedgerManager implements LedgerManager {
 
         CompletableFuture<Versioned<LedgerMetadata>> promise = new CompletableFuture<>();
 
-        store.put(getLedgerPath(ledgerId),
-                        data, Optional.of(zv.getLongVersion()))
+        store.put(getLedgerPath(ledgerId), data, Optional.of(zv.getLongVersion()))
                 .thenAccept(stat -> {
                     promise.complete(new Versioned<>(metadata, new LongVersion(stat.getVersion())));
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
                         promise.completeExceptionally(new BKException.BKMetadataVersionException());
                     } else {
@@ -256,8 +256,8 @@ public class PulsarLedgerManager implements LedgerManager {
     }
 
     @Override
-    public void registerLedgerMetadataListener(long ledgerId,
-                                               BookkeeperInternalCallbacks.LedgerMetadataListener listener) {
+    public void registerLedgerMetadataListener(
+            long ledgerId, BookkeeperInternalCallbacks.LedgerMetadataListener listener) {
         if (listener == null) {
             return;
         }
@@ -274,8 +274,8 @@ public class PulsarLedgerManager implements LedgerManager {
     }
 
     @Override
-    public void unregisterLedgerMetadataListener(long ledgerId,
-                                                 BookkeeperInternalCallbacks.LedgerMetadataListener listener) {
+    public void unregisterLedgerMetadataListener(
+            long ledgerId, BookkeeperInternalCallbacks.LedgerMetadataListener listener) {
         Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet = listeners.get(ledgerId);
         if (listenerSet == null) {
             return;
@@ -318,8 +318,7 @@ public class PulsarLedgerManager implements LedgerManager {
                 if (listenerSet != null) {
                     synchronized (listenerSet) {
                         if (log.isDebugEnabled()) {
-                            log.debug("Removed ledger metadata listeners on ledger {} : {}",
-                                    ledgerId, listenerSet);
+                            log.debug("Removed ledger metadata listeners on ledger {} : {}", ledgerId, listenerSet);
                         }
                         for (BookkeeperInternalCallbacks.LedgerMetadataListener l : listenerSet) {
                             l.onChanged(ledgerId, null);
@@ -328,8 +327,8 @@ public class PulsarLedgerManager implements LedgerManager {
                     }
                 } else {
                     if (log.isDebugEnabled()) {
-                        log.debug("No ledger metadata listeners to remove from ledger {} after it's deleted.",
-                                ledgerId);
+                        log.debug(
+                                "No ledger metadata listeners to remove from ledger {} after it's deleted.", ledgerId);
                     }
                 }
                 break;
@@ -345,18 +344,27 @@ public class PulsarLedgerManager implements LedgerManager {
     }
 
     @Override
-    public void asyncProcessLedgers(BookkeeperInternalCallbacks.Processor<Long> processor,
-                                    AsyncCallback.VoidCallback finalCb, Object context, int successRc, int failureRc) {
+    public void asyncProcessLedgers(
+            BookkeeperInternalCallbacks.Processor<Long> processor,
+            AsyncCallback.VoidCallback finalCb,
+            Object context,
+            int successRc,
+            int failureRc) {
         // Process the old 31-bit id ledgers first.
-        legacyLedgerManager.asyncProcessLedgers(processor, (rc, path, ctx) -> {
-            if (rc == failureRc) {
-                // If it fails, return the failure code to the callback
-                finalCb.processResult(rc, path, ctx);
-            } else {
-                // If it succeeds, proceed with our own recursive ledger processing for the 63-bit id ledgers
-                longLedgerManager.asyncProcessLedgers(processor, finalCb, context, successRc, failureRc);
-            }
-        }, context, successRc, failureRc);
+        legacyLedgerManager.asyncProcessLedgers(
+                processor,
+                (rc, path, ctx) -> {
+                    if (rc == failureRc) {
+                        // If it fails, return the failure code to the callback
+                        finalCb.processResult(rc, path, ctx);
+                    } else {
+                        // If it succeeds, proceed with our own recursive ledger processing for the 63-bit id ledgers
+                        longLedgerManager.asyncProcessLedgers(processor, finalCb, context, successRc, failureRc);
+                    }
+                },
+                context,
+                successRc,
+                failureRc);
     }
 
     @Override
@@ -389,7 +397,6 @@ public class PulsarLedgerManager implements LedgerManager {
         return StringUtils.stringToLongHierarchicalLedgerId(hierarchicalPath);
     }
 
-
     /**
      * ReadLedgerMetadataTask class.
      */
@@ -407,8 +414,7 @@ public class PulsarLedgerManager implements LedgerManager {
                 if (log.isDebugEnabled()) {
                     log.debug("Re-read ledger metadata for {}.", ledgerId);
                 }
-                readLedgerMetadata(ledgerId)
-                        .whenComplete((metadata, exception) -> handleMetadata(metadata, exception));
+                readLedgerMetadata(ledgerId).whenComplete((metadata, exception) -> handleMetadata(metadata, exception));
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("Ledger metadata listener for ledger {} is already removed.", ledgerId);
@@ -437,8 +443,10 @@ public class PulsarLedgerManager implements LedgerManager {
                 Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet = listeners.remove(ledgerId);
                 if (null != listenerSet) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Removed ledger metadata listener set on ledger {} as its ledger is deleted : {}",
-                                ledgerId, listenerSet.size());
+                        log.debug(
+                                "Removed ledger metadata listener set on ledger {} as its ledger is deleted : {}",
+                                ledgerId,
+                                listenerSet.size());
                     }
                     // notify `null` as indicator that a ledger is deleted
                     // make this behavior consistent with `NodeDeleted` watched event.
@@ -449,8 +457,10 @@ public class PulsarLedgerManager implements LedgerManager {
                     }
                 }
             } else {
-                log.warn("Failed on read ledger metadata of ledger {}: {}",
-                        ledgerId, BKException.getExceptionCode(exception));
+                log.warn(
+                        "Failed on read ledger metadata of ledger {}: {}",
+                        ledgerId,
+                        BKException.getExceptionCode(exception));
                 scheduler.schedule(this, 10, TimeUnit.SECONDS);
             }
         }

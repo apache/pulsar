@@ -60,10 +60,11 @@ public class InfluxDBSinkTest {
         private long timestamp;
         private Map<String, String> tags;
 
-        @org.apache.avro.reflect.AvroSchema("{\"type\": \"map\", \"values\": " +
-                "[\"string\", \"int\", \"bytes\", \"long\",\"float\", \"double\", \"boolean\"]}")
+        @org.apache.avro.reflect.AvroSchema("{\"type\": \"map\", \"values\": "
+                + "[\"string\", \"int\", \"bytes\", \"long\",\"float\", \"double\", \"boolean\"]}")
         private Map<String, Object> fields;
     }
+
     private Cpu cpu;
 
     InfluxDBSink influxSink;
@@ -113,8 +114,8 @@ public class InfluxDBSinkTest {
         // compare the String type
         assertEquals(record.getField("timestamp").toString(), timestamp + "");
 
-        assertEquals(((GenericRecord)record.getField("tags")).getField("host"), "server-1");
-        assertEquals(((GenericRecord)record.getField("fields")).getField("value"), 10);
+        assertEquals(((GenericRecord) record.getField("tags")).getField("host"), "server-1");
+        assertEquals(((GenericRecord) record.getField("fields")).getField("value"), 10);
     }
 
     @Test
@@ -132,8 +133,8 @@ public class InfluxDBSinkTest {
 
         assertEquals(record.getField("measurement"), "cpu");
         assertEquals(record.getField("timestamp"), timestamp);
-        assertEquals(((Map)record.getField("tags")).get(new Utf8("host")).toString(), "server-1");
-        assertEquals(((Map)record.getField("fields")).get(new Utf8("value")), 10);
+        assertEquals(((Map) record.getField("tags")).get(new Utf8("host")).toString(), "server-1");
+        assertEquals(((Map) record.getField("fields")).get(new Utf8("value")), 10);
     }
 
     @Test
@@ -168,8 +169,7 @@ public class InfluxDBSinkTest {
         Message<GenericRecord> message = mock(MessageImpl.class);
 
         GenericSchema<GenericRecord> genericSchema = GenericSchemaImpl.of(schema.getSchemaInfo());
-        when(message.getValue())
-                .thenReturn(genericSchema.decode(schema.encode(cpu)));
+        when(message.getValue()).thenReturn(genericSchema.decode(schema.encode(cpu)));
 
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
                 .message(message)
@@ -188,7 +188,9 @@ public class InfluxDBSinkTest {
         assertEquals(points.size(), 2);
         assertTrue(points.get(0).hasFields());
         assertEquals(points.get(0).getPrecision().getValue(), "ns");
-        assertEquals(points.get(0).toLineProtocol(), "cpu,host=server-1,region=us-west model=\"lenovo\",value=10i "+timestamp);
+        assertEquals(
+                points.get(0).toLineProtocol(),
+                "cpu,host=server-1,region=us-west model=\"lenovo\",value=10i " + timestamp);
 
         // test close
         influxSink.close();

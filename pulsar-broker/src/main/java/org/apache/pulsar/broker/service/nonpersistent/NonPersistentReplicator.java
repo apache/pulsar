@@ -48,9 +48,20 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
     private final NonPersistentReplicatorStatsImpl stats = new NonPersistentReplicatorStatsImpl();
 
-    public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
-            BrokerService brokerService, PulsarClientImpl replicationClient) throws PulsarServerException {
-        super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
+    public NonPersistentReplicator(
+            NonPersistentTopic topic,
+            String localCluster,
+            String remoteCluster,
+            BrokerService brokerService,
+            PulsarClientImpl replicationClient)
+            throws PulsarServerException {
+        super(
+                localCluster,
+                topic,
+                remoteCluster,
+                topic.getName(),
+                topic.getReplicatorPrefix(),
+                brokerService,
                 replicationClient);
 
         producerBuilder.blockIfQueueFull(false);
@@ -75,9 +86,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             backOff.reset();
         } else {
             log.info(
-                    "[{}] Replicator was stopped while creating the producer."
-                            + " Closing it. Replicator state: {}",
-                    replicatorId, STATE_UPDATER.get(this));
+                    "[{}] Replicator was stopped while creating the producer." + " Closing it. Replicator state: {}",
+                    replicatorId,
+                    STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
             closeProducerAsync();
             return;
@@ -93,8 +104,13 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             try {
                 msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
             } catch (Throwable t) {
-                log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
-                        entry.getPosition(), length, t.getMessage(), t);
+                log.error(
+                        "[{}] Failed to deserialize message at {} (buffer size: {}): {}",
+                        replicatorId,
+                        entry.getPosition(),
+                        length,
+                        t.getMessage(),
+                        t);
                 entry.release();
                 return;
             }
@@ -108,8 +124,12 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
             if (msg.hasReplicateTo() && !msg.getReplicateTo().contains(remoteCluster)) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Skipping message at {} / msg-id: {}: replicateTo {}", replicatorId,
-                            entry.getPosition(), msg.getMessageId(), msg.getReplicateTo());
+                    log.debug(
+                            "[{}] Skipping message at {} / msg-id: {}: replicateTo {}",
+                            replicatorId,
+                            entry.getPosition(),
+                            msg.getMessageId(),
+                            msg.getReplicateTo());
                 }
                 entry.release();
                 msg.recycle();
@@ -126,8 +146,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] dropping message because replicator producer is not started/writable",
-                        replicatorId);
+                log.debug("[{}] dropping message because replicator producer is not started/writable", replicatorId);
             }
             msgDrop.recordEvent();
             entry.release();
@@ -215,7 +234,6 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             protected ProducerSendCallback newObject(Handle<ProducerSendCallback> handle) {
                 return new ProducerSendCallback(handle);
             }
-
         };
 
         @Override

@@ -22,11 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.mockito.Mockito;
@@ -42,8 +40,8 @@ public class RoundRobinPartitionMessageRouterImplTest {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 0, false, 0);
+        RoundRobinPartitionMessageRouterImpl router =
+                new RoundRobinPartitionMessageRouterImpl(HashingScheme.JavaStringHash, 0, false, 0);
         for (int i = 0; i < 10; i++) {
             assertEquals(i % 5, router.choosePartition(msg, new TopicMetadataImpl(5)));
         }
@@ -79,8 +77,8 @@ public class RoundRobinPartitionMessageRouterImplTest {
             }
         };
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 0, true, 5, clock);
+        RoundRobinPartitionMessageRouterImpl router =
+                new RoundRobinPartitionMessageRouterImpl(HashingScheme.JavaStringHash, 0, true, 5, clock);
 
         // Since the batching time is 5millis, first 5 messages will go on partition 0 and next five would go on
         // partition 1
@@ -102,8 +100,8 @@ public class RoundRobinPartitionMessageRouterImplTest {
         Clock clock = mock(Clock.class);
         when(clock.millis()).thenReturn((long) Integer.MAX_VALUE);
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 3, true, 5, clock);
+        RoundRobinPartitionMessageRouterImpl router =
+                new RoundRobinPartitionMessageRouterImpl(HashingScheme.JavaStringHash, 3, true, 5, clock);
 
         int idx = router.choosePartition(msg, new TopicMetadataImpl(5));
         assertTrue(idx >= 0);
@@ -121,8 +119,8 @@ public class RoundRobinPartitionMessageRouterImplTest {
         when(msg2.hasKey()).thenReturn(true);
         when(msg2.getKey()).thenReturn(key2);
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 0, false, 0);
+        RoundRobinPartitionMessageRouterImpl router =
+                new RoundRobinPartitionMessageRouterImpl(HashingScheme.JavaStringHash, 0, false, 0);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         assertEquals(key1.hashCode() % 100, router.choosePartition(msg1, metadata));
@@ -136,8 +134,8 @@ public class RoundRobinPartitionMessageRouterImplTest {
 
         Clock clock = mock(Clock.class);
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 0, true, 10, clock);
+        RoundRobinPartitionMessageRouterImpl router =
+                new RoundRobinPartitionMessageRouterImpl(HashingScheme.JavaStringHash, 0, true, 10, clock);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         // time at `12345*` milliseconds

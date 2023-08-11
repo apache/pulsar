@@ -49,7 +49,7 @@ public class MessagePayloadTest {
     @Test
     public void testConvertCustomPayload() {
         final ByteBuffer buffer = ByteBuffer.allocate(3);
-        buffer.put(new byte[]{ 0x11, 0x22, 0x33 });
+        buffer.put(new byte[] {0x11, 0x22, 0x33});
         buffer.flip();
         buffer.get(); // skip 1st byte
 

@@ -70,13 +70,16 @@ public class MessageTTLTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/testttl";
         final String subscriptionName = "ttl-sub-1";
 
-        pulsarClient.newConsumer()
+        pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscribe()
                 .close();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
                 .enableBatching(false) // this makes the test easier and predictable
                 .create();
 
@@ -87,7 +90,8 @@ public class MessageTTLTest extends BrokerTestBase {
         }
         FutureUtil.waitForAll(sendFutureList).get();
         MessageIdImpl firstMessageId = (MessageIdImpl) sendFutureList.get(0).get();
-        MessageIdImpl lastMessageId = (MessageIdImpl) sendFutureList.get(sendFutureList.size() - 1).get();
+        MessageIdImpl lastMessageId =
+                (MessageIdImpl) sendFutureList.get(sendFutureList.size() - 1).get();
         producer.close();
         // unload a reload the topic
         // this action created a new ledger
@@ -99,20 +103,26 @@ public class MessageTTLTest extends BrokerTestBase {
         PersistentTopicInternalStats internalStatsBeforeExpire = admin.topics().getInternalStats(topicName);
         CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
         log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
-        assertEquals(statsBeforeExpire.markDeletePosition,
+        assertEquals(
+                statsBeforeExpire.markDeletePosition,
                 PositionImpl.get(firstMessageId.getLedgerId(), -1).toString());
 
-        Awaitility.await().timeout(30, TimeUnit.SECONDS)
-                .pollDelay(3, TimeUnit.SECONDS).untilAsserted(() -> {
-            this.runMessageExpiryCheck();
-            log.info("***** run message expiry now");
-            // verify that the markDeletePosition was moved forward, and exacly to the last message
-            PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
-            CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
-            log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
-            assertEquals(statsAfterExpire.markDeletePosition, PositionImpl.get(lastMessageId.getLedgerId(),
-                    lastMessageId.getEntryId() ).toString());
-        });
+        Awaitility.await()
+                .timeout(30, TimeUnit.SECONDS)
+                .pollDelay(3, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    this.runMessageExpiryCheck();
+                    log.info("***** run message expiry now");
+                    // verify that the markDeletePosition was moved forward, and exacly to the last message
+                    PersistentTopicInternalStats internalStatsAfterExpire =
+                            admin.topics().getInternalStats(topicName);
+                    CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
+                    log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
+                    assertEquals(
+                            statsAfterExpire.markDeletePosition,
+                            PositionImpl.get(lastMessageId.getLedgerId(), lastMessageId.getEntryId())
+                                    .toString());
+                });
     }
 
     @Test
@@ -122,7 +132,8 @@ public class MessageTTLTest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
         PersistentTopic topicRefMock = spy(topicRef);

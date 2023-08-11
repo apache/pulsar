@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpServer;
 import java.io.File;
@@ -46,7 +45,7 @@ public class FileServer implements AutoCloseable {
         // creates a default executor
         httpServer.setExecutor(null);
         httpServer.createContext(HEALTH_PATH, he -> {
-           he.sendResponseHeaders(204, 0);
+            he.sendResponseHeaders(204, 0);
         });
     }
 
@@ -77,21 +76,18 @@ public class FileServer implements AutoCloseable {
         // There has been a few flakiness issues where the server hasn't been available when
         // the system-under-test has started to download files
         // this assertion will call the "/health" endpoint and check that 204 status code is returned.
-        Awaitility.await()
-                .ignoreExceptions()
-                .untilAsserted(() -> {
-                    HttpURLConnection urlConnection = (HttpURLConnection) new URL(getUrl(HEALTH_PATH))
-                            .openConnection();
-                    urlConnection.setUseCaches(false);
-                    urlConnection.setConnectTimeout(5000);
-                    urlConnection.setReadTimeout(5000);
-                    try {
-                        urlConnection.connect();
-                        assertEquals(urlConnection.getResponseCode(), 204);
-                    } finally {
-                        urlConnection.disconnect();
-                    }
-                });
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            HttpURLConnection urlConnection = (HttpURLConnection) new URL(getUrl(HEALTH_PATH)).openConnection();
+            urlConnection.setUseCaches(false);
+            urlConnection.setConnectTimeout(5000);
+            urlConnection.setReadTimeout(5000);
+            try {
+                urlConnection.connect();
+                assertEquals(urlConnection.getResponseCode(), 204);
+            } finally {
+                urlConnection.disconnect();
+            }
+        });
     }
 
     public void stop() {

@@ -28,9 +28,10 @@ import org.apache.pulsar.common.stats.Rate;
 
 public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
-    public static final long[] ENTRY_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
-            200_000, 1000_000 };
-    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = { 128, 512, 1024, 2048, 4096, 16_384, 102_400, 1_048_576 };
+    public static final long[] ENTRY_LATENCY_BUCKETS_USEC = {
+        500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 1000_000
+    };
+    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = {128, 512, 1024, 2048, 4096, 16_384, 102_400, 1_048_576};
 
     private final ManagedLedgerImpl managedLedger;
 
@@ -333,5 +334,4 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         result.cursorLedgerDeleteOp = cursorLedgerDeleteOp.longValue();
         return result;
     }
-
 }

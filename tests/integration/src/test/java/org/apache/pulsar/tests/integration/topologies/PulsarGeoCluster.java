@@ -49,9 +49,8 @@ public class PulsarGeoCluster {
         this.clusterSpecs = clusterSpecs;
         this.clusters = new PulsarCluster[clusterSpecs.length];
 
-        this.csContainer = new CSContainer("geo-cluster")
-                .withNetwork(Network.newNetwork())
-                .withNetworkAliases(CSContainer.NAME);
+        this.csContainer =
+                new CSContainer("geo-cluster").withNetwork(Network.newNetwork()).withNetworkAliases(CSContainer.NAME);
 
         for (int i = 0; i < this.clusters.length; i++) {
             clusters[i] = PulsarCluster.forSpec(this.clusterSpecs[i], this.csContainer);
@@ -78,5 +77,4 @@ public class PulsarGeoCluster {
         this.csContainer.stop();
         log.info("Successfully stopped configuration store container.");
     }
-
 }

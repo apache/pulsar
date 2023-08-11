@@ -29,5 +29,4 @@ import org.apache.pulsar.broker.admin.impl.SourcesBase;
 @Api(value = "/sources", description = "Sources admin apis", tags = "sources")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Sources extends SourcesBase {
-}
+public class Sources extends SourcesBase {}

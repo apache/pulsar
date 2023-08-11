@@ -82,10 +82,9 @@ public class TieredStorageConfiguration {
 
     public static TieredStorageConfiguration create(Properties props) throws IOException {
         Map<String, String> map = new HashMap<String, String>();
-        map.putAll(props.entrySet()
-                .stream()
-                .collect(Collectors.toMap(e -> e.getKey().toString(),
-                                          e -> e.getValue().toString())));
+        map.putAll(props.entrySet().stream()
+                .collect(Collectors.toMap(
+                        e -> e.getKey().toString(), e -> e.getValue().toString())));
 
         return new TieredStorageConfiguration(map);
     }
@@ -96,8 +95,10 @@ public class TieredStorageConfiguration {
 
     @Getter
     private final Map<String, String> configProperties;
+
     @Getter
     private Supplier<Credentials> credentials;
+
     private JCloudBlobStoreProvider provider;
 
     public TieredStorageConfiguration(Map<String, String> configProperties) {
@@ -109,7 +110,7 @@ public class TieredStorageConfiguration {
     }
 
     public List<String> getKeys(String property) {
-        List<String> keys = new ArrayList<String> ();
+        List<String> keys = new ArrayList<String>();
 
         String bc = getBackwardCompatibleKey(property);
         if (StringUtils.isNotBlank(bc)) {
@@ -125,8 +126,7 @@ public class TieredStorageConfiguration {
 
     private String getKeyName(String property) {
         StringBuilder sb = new StringBuilder();
-        sb.append(OFFLOADER_PROPERTY_PREFIX)
-          .append(StringUtils.capitalize(property));
+        sb.append(OFFLOADER_PROPERTY_PREFIX).append(StringUtils.capitalize(property));
 
         return sb.toString();
     }
@@ -134,14 +134,16 @@ public class TieredStorageConfiguration {
     private String getBackwardCompatibleKey(String property) {
         switch (getProvider()) {
             case AWS_S3:
-                return new StringBuilder().append("s3ManagedLedgerOffload")
-                                          .append(StringUtils.capitalize(property))
-                                          .toString();
+                return new StringBuilder()
+                        .append("s3ManagedLedgerOffload")
+                        .append(StringUtils.capitalize(property))
+                        .toString();
 
             case GOOGLE_CLOUD_STORAGE:
-                return new StringBuilder().append("gcsManagedLedgerOffload")
-                                          .append(StringUtils.capitalize(property))
-                                          .toString();
+                return new StringBuilder()
+                        .append("gcsManagedLedgerOffload")
+                        .append(StringUtils.capitalize(property))
+                        .toString();
 
             default:
                 return null;
@@ -304,10 +306,9 @@ public class TieredStorageConfiguration {
     public Map<String, String> getOffloadDriverMetadata() {
         return ImmutableMap.of(
                 BLOB_STORE_PROVIDER_KEY, (getProvider() != null) ? getProvider().toString() : "",
-                METADATA_FIELD_BUCKET,  (getBucket() != null) ?  getBucket() : "",
+                METADATA_FIELD_BUCKET, (getBucket() != null) ? getBucket() : "",
                 METADATA_FIELD_REGION, (getRegion() != null) ? getRegion() : "",
-                METADATA_FIELD_ENDPOINT, (getServiceEndpoint() != null) ? getServiceEndpoint() : ""
-             );
+                METADATA_FIELD_ENDPOINT, (getServiceEndpoint() != null) ? getServiceEndpoint() : "");
     }
 
     protected Properties getOverrides() {
@@ -331,16 +332,20 @@ public class TieredStorageConfiguration {
 
         // load more jclouds properties into the overrides
         System.getProperties().entrySet().stream()
-            .filter(p -> p.getKey().toString().startsWith("jclouds"))
-            .forEach(jcloudsProp -> {
-                overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
-            });
+                .filter(p -> p.getKey().toString().startsWith("jclouds"))
+                .forEach(jcloudsProp -> {
+                    overrides.setProperty(
+                            jcloudsProp.getKey().toString(),
+                            jcloudsProp.getValue().toString());
+                });
 
         System.getenv().entrySet().stream()
-            .filter(p -> p.getKey().toString().startsWith("jclouds"))
-            .forEach(jcloudsProp -> {
-                overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
-            });
+                .filter(p -> p.getKey().toString().startsWith("jclouds"))
+                .forEach(jcloudsProp -> {
+                    overrides.setProperty(
+                            jcloudsProp.getKey().toString(),
+                            jcloudsProp.getValue().toString());
+                });
 
         log.info("getOverrides: {}", overrides.toString());
         return overrides;

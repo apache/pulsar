@@ -33,9 +33,10 @@ public class IntSchema extends AbstractSchema<Integer> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("INT32")
-            .type(SchemaType.INT32)
-            .schema(new byte[0]).build();
+                .name("INT32")
+                .type(SchemaType.INT32)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new IntSchema();
     }
 
@@ -63,10 +64,7 @@ public class IntSchema extends AbstractSchema<Integer> {
             return null;
         } else {
             return new byte[] {
-                (byte) (message >>> 24),
-                (byte) (message >>> 16),
-                (byte) (message >>> 8),
-                message.byteValue()
+                (byte) (message >>> 24), (byte) (message >>> 16), (byte) (message >>> 8), message.byteValue()
             };
         }
     }

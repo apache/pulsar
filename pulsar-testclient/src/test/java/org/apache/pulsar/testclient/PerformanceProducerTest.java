@@ -61,7 +61,12 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
             }
         });
         // Setup namespaces
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(testTenant, tenantInfo);
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
@@ -73,7 +78,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         int exitCode = lastExitCode.get();
         if (exitCode != 0) {
-            fail("Unexpected JVM exit code "+exitCode);
+            fail("Unexpected JVM exit code " + exitCode);
         }
     }
 
@@ -89,10 +94,18 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 e.printStackTrace();
             }
         });
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub-1")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub-1")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
 
         thread.start();
 
@@ -114,7 +127,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
             count2++;
             consumer2.acknowledge(message);
         }
-        //in key_share mode, only one consumer can get msg
+        // in key_share mode, only one consumer can get msg
         Assert.assertTrue(count1 == 0 || count2 == 0);
 
         consumer1.close();
@@ -124,7 +137,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
             Thread.sleep(1000);
         }
 
-        //use msg key generator,so every consumer can get msg
+        // use msg key generator,so every consumer can get msg
         String newArgString = "%s -r 10 -u %s -m 500 -mk autoIncrement";
         String topic2 = testTopic + UUID.randomUUID();
         String newArgs = String.format(newArgString, topic2, pulsar.getBrokerServiceUrl());
@@ -136,30 +149,36 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
             }
         });
 
-        Consumer<byte[]> newConsumer1 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        Consumer<byte[]> newConsumer2 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+        Consumer<byte[]> newConsumer1 = pulsarClient
+                .newConsumer()
+                .topic(topic2)
+                .subscriptionName("sub-2")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        Consumer<byte[]> newConsumer2 = pulsarClient
+                .newConsumer()
+                .topic(topic2)
+                .subscriptionName("sub-2")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
 
         thread2.start();
 
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
-                    if (message != null) {
-                        newConsumer1.acknowledge(message);
-                    }
-                    assertNotNull(message);
-                });
+        Awaitility.await().untilAsserted(() -> {
+            Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                newConsumer1.acknowledge(message);
+            }
+            assertNotNull(message);
+        });
 
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
-                    if (message != null) {
-                        newConsumer2.acknowledge(message);
-                    }
-                    assertNotNull(message);
-                });
+        Awaitility.await().untilAsserted(() -> {
+            Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                newConsumer2.acknowledge(message);
+            }
+            assertNotNull(message);
+        });
 
         thread2.interrupt();
         newConsumer1.close();
@@ -169,9 +188,9 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 20000)
     public void testBatchingDisabled() throws Exception {
         PerformanceProducer.Arguments arguments = new PerformanceProducer.Arguments();
-        
+
         int producerId = 0;
-        
+
         String topic = testTopic + UUID.randomUUID();
         arguments.topics = List.of(topic);
         arguments.msgRate = 10;
@@ -182,8 +201,9 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
                 .enableTransaction(arguments.isEnableTransaction);
         PulsarClient client = clientBuilder.build();
-        
-        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
+
+        ProducerBuilderImpl<byte[]> builder =
+                (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
         Assert.assertFalse(builder.getConf().isBatchingEnabled());
     }
 
@@ -206,13 +226,15 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNotExistIMessageFormatter() {
-        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
+        IMessageFormatter msgFormatter =
+                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
         Assert.assertNull(msgFormatter);
     }
 
     @Test
     public void testDefaultIMessageFormatter() {
-        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
+        IMessageFormatter msgFormatter =
+                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
         Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
     }
 
@@ -221,20 +243,24 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String argString = "%s -r 10 -u %s -au %s -m 5 -o 10000";
         String topic = testTopic + UUID.randomUUID().toString();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
         new Thread(() -> {
-            try {
-                PerformanceProducer.main(args.split(" "));
-            } catch (Exception e) {
-                log.error("Failed to start perf producer");
-            }
-        }).start();
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
-                    assertNotNull(message);
-                });
+                    try {
+                        PerformanceProducer.main(args.split(" "));
+                    } catch (Exception e) {
+                        log.error("Failed to start perf producer");
+                    }
+                })
+                .start();
+        Awaitility.await().untilAsserted(() -> {
+            Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
+            assertNotNull(message);
+        });
         consumer.close();
     }
 

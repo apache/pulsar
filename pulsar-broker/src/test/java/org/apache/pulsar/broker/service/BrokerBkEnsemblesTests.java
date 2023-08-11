@@ -22,7 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStr
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -31,10 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -102,7 +99,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         // (1) create topic
         // publish and ack messages so, cursor can create cursor-ledger and update metadata
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
                 .subscribe();
         Producer<byte[]> producer = client.newProducer().topic(topic1).create();
         for (int i = 0; i < 10; i++) {
@@ -115,8 +114,10 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
             consumer.acknowledge(msg);
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
-        ManagedCursorImpl cursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        ManagedCursorImpl cursor = (ManagedCursorImpl)
+                topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor.getState().equals("Open"), 5, 100);
 
         // (2) validate cursor ledger is created and znode is present
@@ -132,13 +133,16 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
-        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field
-                .get(factory);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field.get(factory);
         ledgers.clear();
 
         // (4) Recreate topic
         // publish and ack messages so, cursor can create cursor-ledger and update metadata
-        consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
+        consumer = client.newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
         producer = client.newProducer().topic(topic1).create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -150,8 +154,10 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         }
 
         // (5) Broker should create new cursor-ledger and remove old cursor-ledger
-        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
-        final ManagedCursorImpl cursor1 = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
+        topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        final ManagedCursorImpl cursor1 = (ManagedCursorImpl)
+                topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor1.getState().equals("Open"), 5, 100);
         long newCursorLedgerId = cursor1.getCursorLedger();
         Assert.assertNotEquals(newCursorLedgerId, -1);
@@ -205,12 +211,17 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         final String topic1 = "persistent://" + ns1 + "/my-topic-" + System.currentTimeMillis();
 
         // Create subscription
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
-                .receiverQueueSize(5).subscribe();
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(5)
+                .subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ml.getCursors().iterator().next();
         Field configField = ManagedCursorImpl.class.getDeclaredField("config");
         configField.setAccessible(true);
         // Create multiple data-ledger
@@ -257,14 +268,17 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
-        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field
-                .get(factory);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field.get(factory);
         ledgers.clear();
 
         // (3) consumer will fail to consume any message as first data-ledger is non-recoverable
         Message<byte[]> msg = null;
         // start consuming message
-        consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
+        consumer = client.newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
         msg = consumer.receive(1, TimeUnit.SECONDS);
         Assert.assertNull(msg);
         consumer.close();
@@ -275,7 +289,10 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         retryStrategically((test) -> config.isAutoSkipNonRecoverableData(), 5, 100);
 
         // (5) consumer will be able to consume 20 messages from last non-deleted ledger
-        consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
+        consumer = client.newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
         for (int i = 0; i < entriesPerLedger; i++) {
             msg = consumer.receive();
             System.out.println(i);
@@ -303,8 +320,11 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         final String tenant = "prop";
         try {
-            admin.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
-                    Sets.newHashSet(config.getClusterName())));
+            admin.tenants()
+                    .createTenant(
+                            tenant,
+                            new TenantInfoImpl(
+                                    Sets.newHashSet("role1", "role2"), Sets.newHashSet(config.getClusterName())));
         } catch (Exception e) {
 
         }
@@ -318,12 +338,17 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         final String topic1 = "persistent://" + ns1 + "/my-topic-" + System.currentTimeMillis();
 
         // Create subscription
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
-                .receiverQueueSize(5).subscribe();
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(5)
+                .subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ml.getCursors().iterator().next();
         Field configField = ManagedCursorImpl.class.getDeclaredField("config");
         configField.setAccessible(true);
         // Create multiple data-ledger
@@ -387,7 +412,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
                     .exceptionally(e -> null)
                     .get();
             assertEquals(null, meta, "ledger should be deleted " + firstLedgerToDelete);
-            });
+        });
 
         // Should not throw, deleting absent ledger must be a noop
         // unless PulsarManager returned a wrong error which
@@ -440,12 +465,14 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         }
 
-        final String topic1 = "persistent://"+ns1+"/`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-30e04524";
+        final String topic1 = "persistent://" + ns1 + "/`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-30e04524";
         final String subName1 = "c1";
         final byte[] content = "test".getBytes();
 
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
-        org.apache.pulsar.client.api.Producer<byte[]> producer = client.newProducer().topic(topic1).create();
+        Consumer<byte[]> consumer =
+                client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer =
+                client.newProducer().topic(topic1).create();
 
         producer.send(content);
         Message<byte[]> msg = consumer.receive();
@@ -453,7 +480,6 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         consumer.close();
         producer.close();
     }
-
 
     @Test
     public void testDeleteTopicWithMissingData() throws Exception {
@@ -471,12 +497,12 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topic)
-                .subscriptionName("test").subscribe();
+                .subscriptionName("test")
+                .subscribe();
 
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+        Producer<String> producer =
+                client.newProducer(Schema.STRING).topic(topic).create();
 
         producer.send("Hello");
 
@@ -503,5 +529,4 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // Topic will not be there after
         assertEquals(pulsar.getBrokerService().getTopicIfExists(topic).join(), Optional.empty());
     }
-
 }

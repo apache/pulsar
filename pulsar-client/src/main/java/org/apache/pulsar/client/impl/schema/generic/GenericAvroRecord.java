@@ -34,10 +34,11 @@ public class GenericAvroRecord extends VersionedGenericRecord {
     private final org.apache.avro.Schema schema;
     private final org.apache.avro.generic.GenericRecord record;
 
-    public GenericAvroRecord(byte[] schemaVersion,
-                      org.apache.avro.Schema schema,
-                      List<Field> fields,
-                      org.apache.avro.generic.GenericRecord record) {
+    public GenericAvroRecord(
+            byte[] schemaVersion,
+            org.apache.avro.Schema schema,
+            List<Field> fields,
+            org.apache.avro.generic.GenericRecord record) {
         super(schemaVersion, fields);
         this.schema = schema;
         this.record = record;
@@ -49,13 +50,11 @@ public class GenericAvroRecord extends VersionedGenericRecord {
         if (value instanceof Utf8) {
             return ((Utf8) value).toString();
         } else if (value instanceof org.apache.avro.generic.GenericRecord) {
-            org.apache.avro.generic.GenericRecord avroRecord =
-                (org.apache.avro.generic.GenericRecord) value;
+            org.apache.avro.generic.GenericRecord avroRecord = (org.apache.avro.generic.GenericRecord) value;
             org.apache.avro.Schema recordSchema = avroRecord.getSchema();
-            List<Field> fields = recordSchema.getFields()
-                .stream()
-                .map(f -> new Field(f.name(), f.pos()))
-                .collect(Collectors.toList());
+            List<Field> fields = recordSchema.getFields().stream()
+                    .map(f -> new Field(f.name(), f.pos()))
+                    .collect(Collectors.toList());
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } else {
             return value;

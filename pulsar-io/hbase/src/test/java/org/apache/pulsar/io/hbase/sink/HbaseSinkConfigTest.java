@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.testng.annotations.Test;
 
 /**
  * HbaseSinkConfig test
@@ -77,7 +75,6 @@ public class HbaseSinkConfigTest {
         assertEquals("pulsar_hbase", config.getTableName());
         assertEquals("rowKey", config.getRowKeyName());
         assertEquals("info", config.getFamilyName());
-
     }
 
     @Test
@@ -97,7 +94,8 @@ public class HbaseSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
+    @Test(
+            expectedExceptions = NullPointerException.class,
             expectedExceptionsMessageRegExp = "hbase tableName property not set.")
     public final void missingValidValidateTableNameTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
@@ -129,7 +127,8 @@ public class HbaseSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public final void invalidBatchTimeMsTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
@@ -142,7 +141,7 @@ public class HbaseSinkConfigTest {
         List<String> qualifierNames = new ArrayList<>();
         qualifierNames.add("qualifierName");
         map.put("qualifierNames", qualifierNames);
-        map.put("batchTimeMs",-10);
+        map.put("batchTimeMs", -10);
 
         HbaseSinkConfig config = HbaseSinkConfig.load(map);
         config.validate();

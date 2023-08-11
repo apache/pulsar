@@ -43,12 +43,15 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName,
-                    producer.getProducerName(), numMessagesInBatch);
+            log.debug(
+                    "[{}] [{}] add message to batch, num messages in batch so far is {}",
+                    topicName,
+                    producer.getProducerName(),
+                    numMessagesInBatch);
         }
         String key = getKey(msg);
-        final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
-                __ -> new BatchMessageContainerImpl(producer));
+        final BatchMessageContainerImpl batchMessageContainer =
+                batches.computeIfAbsent(key, __ -> new BatchMessageContainerImpl(producer));
         batchMessageContainer.add(msg, callback);
         // The `add` method fails iff the container is empty, i.e. the `msg` is the first message to add, while `msg`
         // was failed to add. In this case, `clear` method will be called and the batch container is empty and there is
@@ -88,7 +91,9 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     @Override
     public int getBatchAllocatedSizeBytes() {
-        return batches.values().stream().mapToInt(AbstractBatchMessageContainer::getBatchAllocatedSizeBytes).sum();
+        return batches.values().stream()
+                .mapToInt(AbstractBatchMessageContainer::getBatchAllocatedSizeBytes)
+                .sum();
     }
 
     @Override
@@ -107,15 +112,16 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             batches.values().forEach(batchMessageContainer -> {
                 batchMessageContainer.setLowestSequenceId(batchMessageContainer.getHighestSequenceId());
             });
-            return batches.values().stream().sorted((o1, o2) ->
-                    (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId())
-            ).map(batchMessageContainer -> {
-                try {
-                    return batchMessageContainer.createOpSendMsg();
-                } catch (IOException e) {
-                    throw new IllegalStateException(e);
-                }
-            }).collect(Collectors.toList());
+            return batches.values().stream()
+                    .sorted((o1, o2) -> (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId()))
+                    .map(batchMessageContainer -> {
+                        try {
+                            return batchMessageContainer.createOpSendMsg();
+                        } catch (IOException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    })
+                    .collect(Collectors.toList());
         } catch (IllegalStateException e) {
             if (e.getCause() instanceof IOException) {
                 throw (IOException) e.getCause();
@@ -140,5 +146,4 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageKeyBasedContainer.class);
-
 }

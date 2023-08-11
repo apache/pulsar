@@ -48,9 +48,8 @@ public class OffloaderUtils {
      * @return the offloader class name
      * @throws IOException when fail to retrieve the pulsar offloader class
      */
-    static Pair<NarClassLoader, LedgerOffloaderFactory> getOffloaderFactory(String narPath,
-                                                                            String narExtractionDirectory)
-            throws IOException {
+    static Pair<NarClassLoader, LedgerOffloaderFactory> getOffloaderFactory(
+            String narPath, String narExtractionDirectory) throws IOException {
         // need to load offloader NAR to the classloader that also loaded LedgerOffloaderFactory in case
         // LedgerOffloaderFactory is loaded by a classloader that is not the default classloader
         // as is the case for the pulsar presto plugin
@@ -61,31 +60,34 @@ public class OffloaderUtils {
                 .build();
         String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
-        OffloaderDefinition conf = ObjectMapperFactory.getYamlMapper().getObjectMapper()
-            .readValue(configStr, OffloaderDefinition.class);
+        OffloaderDefinition conf =
+                ObjectMapperFactory.getYamlMapper().getObjectMapper().readValue(configStr, OffloaderDefinition.class);
         if (StringUtils.isEmpty(conf.getOffloaderFactoryClass())) {
-            throw new IOException(
-                String.format("The '%s' offloader does not provide an offloader factory implementation",
-                    conf.getName()));
+            throw new IOException(String.format(
+                    "The '%s' offloader does not provide an offloader factory implementation", conf.getName()));
         }
 
         try {
             // Try to load offloader factory class and check it implements Offloader interface
             Class factoryClass = ncl.loadClass(conf.getOffloaderFactoryClass());
             CompletableFuture<LedgerOffloaderFactory> loadFuture = new CompletableFuture<>();
-            Thread loadingThread = new Thread(() -> {
-                Thread.currentThread().setContextClassLoader(ncl);
-                try {
-                    Object offloader = factoryClass.getDeclaredConstructor().newInstance();
-                    if (!(offloader instanceof LedgerOffloaderFactory)) {
-                        throw new IOException("Class " + conf.getOffloaderFactoryClass() + " does not implement "
-                                + "interface " + LedgerOffloaderFactory.class.getName());
-                    }
-                    loadFuture.complete((LedgerOffloaderFactory) offloader);
-                } catch (Throwable t) {
-                    loadFuture.completeExceptionally(t);
-                }
-            }, "load-factory-" + factoryClass);
+            Thread loadingThread = new Thread(
+                    () -> {
+                        Thread.currentThread().setContextClassLoader(ncl);
+                        try {
+                            Object offloader =
+                                    factoryClass.getDeclaredConstructor().newInstance();
+                            if (!(offloader instanceof LedgerOffloaderFactory)) {
+                                throw new IOException(
+                                        "Class " + conf.getOffloaderFactoryClass() + " does not implement "
+                                                + "interface " + LedgerOffloaderFactory.class.getName());
+                            }
+                            loadFuture.complete((LedgerOffloaderFactory) offloader);
+                        } catch (Throwable t) {
+                            loadFuture.completeExceptionally(t);
+                        }
+                    },
+                    "load-factory-" + factoryClass);
             try {
                 loadingThread.start();
                 return Pair.of(ncl, loadFuture.get());
@@ -98,8 +100,7 @@ public class OffloaderUtils {
         return null;
     }
 
-    private static void rethrowIOException(Throwable cause)
-            throws IOException {
+    private static void rethrowIOException(Throwable cause) throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;
         } else if (cause instanceof RuntimeException) {
@@ -144,8 +145,8 @@ public class OffloaderUtils {
 
                     if (!StringUtils.isEmpty(definition.getOffloaderFactoryClass())) {
                         // Validate offloader factory class to be present and of the right type
-                        Pair<NarClassLoader,  LedgerOffloaderFactory> offloaderFactoryPair =
-                            getOffloaderFactory(archive.toString(), narExtractionDirectory);
+                        Pair<NarClassLoader, LedgerOffloaderFactory> offloaderFactoryPair =
+                                getOffloaderFactory(archive.toString(), narExtractionDirectory);
                         if (null != offloaderFactoryPair) {
                             offloaders.getOffloaders().add(offloaderFactoryPair);
                         }
@@ -158,6 +159,4 @@ public class OffloaderUtils {
         log.info("Found and loaded {} offloaders", offloaders.getOffloaders().size());
         return offloaders;
     }
-
-
 }

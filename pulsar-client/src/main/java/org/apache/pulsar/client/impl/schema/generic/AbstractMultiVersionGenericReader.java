@@ -33,11 +33,11 @@ public abstract class AbstractMultiVersionGenericReader extends AbstractMultiVer
     // allows decoding the messages using the schema associated with the messages.
     protected final boolean useProvidedSchemaAsReaderSchema;
 
-    protected AbstractMultiVersionGenericReader(boolean useProvidedSchemaAsReaderSchema,
-                                                SchemaReader<GenericRecord> providerSchemaReader,
-                                                Schema readerSchema) {
+    protected AbstractMultiVersionGenericReader(
+            boolean useProvidedSchemaAsReaderSchema,
+            SchemaReader<GenericRecord> providerSchemaReader,
+            Schema readerSchema) {
         super(providerSchemaReader, readerSchema);
         this.useProvidedSchemaAsReaderSchema = useProvidedSchemaAsReaderSchema;
     }
-
 }

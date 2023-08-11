@@ -57,16 +57,15 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
         int messageSize = msg.getDataBuffer().readableBytes();
-        return (
-            (maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= ClientCnx.getMaxMessageSize())
-            || (maxBytesInBatch > 0 && (messageSize + currentBatchSizeBytes) <= maxBytesInBatch)
-        ) && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch);
+        return ((maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= ClientCnx.getMaxMessageSize())
+                        || (maxBytesInBatch > 0 && (messageSize + currentBatchSizeBytes) <= maxBytesInBatch))
+                && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch);
     }
 
     protected boolean isBatchFull() {
         return (maxBytesInBatch > 0 && currentBatchSizeBytes >= maxBytesInBatch)
-            || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= ClientCnx.getMaxMessageSize())
-            || (maxNumMessagesInBatch > 0 && numMessagesInBatch >= maxNumMessagesInBatch);
+                || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= ClientCnx.getMaxMessageSize())
+                || (maxNumMessagesInBatch > 0 && numMessagesInBatch >= maxNumMessagesInBatch);
     }
 
     @Override
@@ -107,8 +106,8 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     public void setProducer(ProducerImpl<?> producer) {
         this.producer = producer;
         this.topicName = producer.getTopic();
-        this.compressionType = CompressionCodecProvider
-                .convertToWireProtocol(producer.getConfiguration().getCompressionType());
+        this.compressionType = CompressionCodecProvider.convertToWireProtocol(
+                producer.getConfiguration().getCompressionType());
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
         this.maxNumMessagesInBatch = producer.getConfiguration().getBatchingMaxMessages();
         this.maxBytesInBatch = producer.getConfiguration().getBatchingMaxBytes();
@@ -116,7 +115,8 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
 
     @Override
     public boolean hasSameTxn(MessageImpl<?> msg) {
-        if (!msg.getMessageBuilder().hasTxnidMostBits() || !msg.getMessageBuilder().hasTxnidLeastBits()) {
+        if (!msg.getMessageBuilder().hasTxnidMostBits()
+                || !msg.getMessageBuilder().hasTxnidLeastBits()) {
             return true;
         }
         if (currentTxnidMostBits == -1 || currentTxnidLeastBits == -1) {

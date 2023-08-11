@@ -42,11 +42,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(
-            name = "topicNames",
-            required = true,
-            value = "Topic name"
-    )
+    @ApiModelProperty(name = "topicNames", required = true, value = "Topic name")
     private Set<String> topicNames = new HashSet<>();
 
     @JsonIgnore
@@ -63,38 +59,22 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
                     + "application calls `Receive`.\n"
                     + "\n"
                     + "A value higher than the default value increases consumer throughput, though at the expense of "
-                    + "more memory utilization."
-    )
+                    + "more memory utilization.")
     private int receiverQueueSize = 1000;
 
-    @ApiModelProperty(
-            name = "readerListener",
-            value = "A listener that is called for message received."
-    )
+    @ApiModelProperty(name = "readerListener", value = "A listener that is called for message received.")
     private ReaderListener<T> readerListener;
 
-    @ApiModelProperty(
-            name = "readerName",
-            value = "Reader name"
-    )
+    @ApiModelProperty(name = "readerName", value = "Reader name")
     private String readerName = null;
 
-    @ApiModelProperty(
-            name = "subscriptionRolePrefix",
-            value = "Prefix of subscription role."
-    )
+    @ApiModelProperty(name = "subscriptionRolePrefix", value = "Prefix of subscription role.")
     private String subscriptionRolePrefix = null;
 
-    @ApiModelProperty(
-            name = "subscriptionName",
-            value = "Subscription name"
-    )
+    @ApiModelProperty(name = "subscriptionName", value = "Subscription name")
     private String subscriptionName = null;
 
-    @ApiModelProperty(
-            name = "cryptoKeyReader",
-            value = "Interface that abstracts the access to a key store."
-    )
+    @ApiModelProperty(name = "cryptoKeyReader", value = "Interface that abstracts the access to a key store.")
     private CryptoKeyReader cryptoKeyReader = null;
 
     @ApiModelProperty(
@@ -111,8 +91,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
                     + " batch.\n"
                     + "\n"
                     + "Delivered encrypted message contains {@link EncryptionContext} which contains encryption and "
-                    + "compression information in it using which application can decrypt consumed message payload."
-    )
+                    + "compression information in it using which application can decrypt consumed message payload.")
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     @JsonIgnore
@@ -131,8 +110,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
                     + "active consumer (for example, failure or exclusive subscriptions).\n"
                     + "\n"
                     + "Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions "
-                    + "leads to a subscription call throwing a `PulsarClientException`."
-    )
+                    + "leads to a subscription call throwing a `PulsarClientException`.")
     private boolean readCompacted = false;
 
     @ApiModelProperty(
@@ -140,8 +118,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
             value = "If set to true, the first message to be returned is the one specified by `messageId`.\n"
                     + "\n"
                     + "If set to false, the first message to be returned is the one next to the message specified by "
-                    + "`messageId`."
-    )
+                    + "`messageId`.")
     private boolean resetIncludeHead = false;
 
     private transient List<Range> keyHashRanges;
@@ -174,7 +151,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     @JsonIgnore
     public void setTopicName(String topicNames) {
-        //Compatible with a single topic
+        // Compatible with a single topic
         this.topicNames.clear();
         this.topicNames.add(topicNames);
     }

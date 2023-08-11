@@ -119,9 +119,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         doReturn(eventLoopGroup).when(brokerMock).executor();
         doAnswer(invocation -> {
-            orderedExecutor.execute(((Runnable)invocation.getArguments()[0]));
-            return null;
-        }).when(eventLoopGroup).execute(any(Runnable.class));
+                    orderedExecutor.execute(((Runnable) invocation.getArguments()[0]));
+                    return null;
+                })
+                .when(eventLoopGroup)
+                .execute(any(Runnable.class));
 
         topicMock = mock(PersistentTopic.class);
         doReturn(brokerMock).when(topicMock).getBrokerService();
@@ -137,19 +139,23 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn("consumer1").when(consumerMock).consumerName();
         doReturn(1000).when(consumerMock).getAvailablePermits();
         doReturn(true).when(consumerMock).isWritable();
-        doReturn(channelMock).when(consumerMock).sendMessages(
-                anyList(),
-                any(EntryBatchSizes.class),
-                any(EntryBatchIndexesAcks.class),
-                anyInt(),
-                anyLong(),
-                anyLong(),
-                any(RedeliveryTracker.class)
-        );
+        doReturn(channelMock)
+                .when(consumerMock)
+                .sendMessages(
+                        anyList(),
+                        any(EntryBatchSizes.class),
+                        any(EntryBatchIndexesAcks.class),
+                        anyInt(),
+                        anyLong(),
+                        anyLong(),
+                        any(RedeliveryTracker.class));
 
         subscriptionMock = mock(PersistentSubscription.class);
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, configMock,
+                topicMock,
+                cursorMock,
+                subscriptionMock,
+                configMock,
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
     }
 
@@ -180,7 +186,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
 
         List<Entry> entries = new ArrayList<>();
-        ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
+        ByteBuf markerMessage =
+                Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
         entries.add(EntryImpl.create(1, 1, markerMessage));
         entries.add(EntryImpl.create(1, 2, createMessage("message1", 1)));
         entries.add(EntryImpl.create(1, 3, createMessage("message2", 2)));
@@ -189,22 +196,23 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         entries.add(EntryImpl.create(1, 6, createMessage("message5", 5)));
 
         try {
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(
+                    entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
 
         Awaitility.await().untilAsserted(() -> {
             ArgumentCaptor<Integer> totalMessagesCaptor = ArgumentCaptor.forClass(Integer.class);
-            verify(consumerMock, times(1)).sendMessages(
-                    anyList(),
-                    any(EntryBatchSizes.class),
-                    any(EntryBatchIndexesAcks.class),
-                    totalMessagesCaptor.capture(),
-                    anyLong(),
-                    anyLong(),
-                    any(RedeliveryTracker.class)
-            );
+            verify(consumerMock, times(1))
+                    .sendMessages(
+                            anyList(),
+                            any(EntryBatchSizes.class),
+                            any(EntryBatchIndexesAcks.class),
+                            totalMessagesCaptor.capture(),
+                            anyLong(),
+                            anyLong(),
+                            any(RedeliveryTracker.class));
 
             List<Integer> allTotalMessagesCaptor = totalMessagesCaptor.getAllValues();
             Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 5);
@@ -214,12 +222,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     @Test(timeOut = 10000)
     public void testSendMessage() {
         KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
-        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, configMock, keySharedMeta);
+        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher =
+                new PersistentStickyKeyDispatcherMultipleConsumers(
+                        topicMock, cursorMock, subscriptionMock, configMock, keySharedMeta);
         try {
-            keySharedMeta.addHashRange()
-                    .setStart(0)
-                    .setEnd(9);
+            keySharedMeta.addHashRange().setStart(0).setEnd(9);
 
             Consumer consumerMock = mock(Consumer.class);
             doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
@@ -234,8 +241,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
 
         try {
-            //Should success,see issue #8960
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            // Should success,see issue #8960
+            persistentDispatcher.readEntriesComplete(
+                    entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
@@ -253,17 +261,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
 
         try {
-            Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
+            Field totalAvailablePermitsField =
+                    PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
             totalAvailablePermitsField.setAccessible(true);
             totalAvailablePermitsField.set(persistentDispatcher, 1000);
 
             doAnswer(invocationOnMock -> {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
-                return null;
-            }).when(cursorMock).asyncReadEntriesOrWait(
-                    anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+                        ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
+                                .readEntriesComplete(
+                                        readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+                        return null;
+                    })
+                    .when(cursorMock)
+                    .asyncReadEntriesOrWait(
+                            anyInt(),
+                            anyLong(),
+                            any(PersistentStickyKeyDispatcherMultipleConsumers.class),
+                            eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal),
+                            any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }
@@ -272,19 +287,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         try {
             doReturn("consumer2").when(slowConsumerMock).consumerName();
             // Change slowConsumer availablePermits to 0 and back to normal
-            when(slowConsumerMock.getAvailablePermits())
-                    .thenReturn(0)
-                    .thenReturn(1);
+            when(slowConsumerMock.getAvailablePermits()).thenReturn(0).thenReturn(1);
             doReturn(true).when(slowConsumerMock).isWritable();
-            doReturn(slowChannelMock).when(slowConsumerMock).sendMessages(
-                    anyList(),
-                    any(EntryBatchSizes.class),
-                    any(EntryBatchIndexesAcks.class),
-                    anyInt(),
-                    anyLong(),
-                    anyLong(),
-                    any(RedeliveryTracker.class)
-            );
+            doReturn(slowChannelMock)
+                    .when(slowConsumerMock)
+                    .sendMessages(
+                            anyList(),
+                            any(EntryBatchSizes.class),
+                            any(EntryBatchIndexesAcks.class),
+                            anyInt(),
+                            anyLong(),
+                            anyLong(),
+                            any(RedeliveryTracker.class));
 
             persistentDispatcher.addConsumer(consumerMock);
             persistentDispatcher.addConsumer(slowConsumerMock);
@@ -297,37 +311,37 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Change slowConsumer availablePermits to 1
         // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers internally
         // and then stop to dispatch to slowConsumer
-        if (persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal,
-                redeliverEntries, true)) {
+        if (persistentDispatcher.sendMessagesToConsumers(
+                PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal, redeliverEntries, true)) {
             persistentDispatcher.readMoreEntriesAsync();
         }
 
         Awaitility.await().untilAsserted(() -> {
-            verify(consumerMock, times(1)).sendMessages(
-                    argThat(arg -> {
-                        assertEquals(arg.size(), 1);
-                        Entry entry = arg.get(0);
-                        assertEquals(entry.getLedgerId(), 1);
-                        assertEquals(entry.getEntryId(), 3);
-                        return true;
-                    }),
-                    any(EntryBatchSizes.class),
-                    any(EntryBatchIndexesAcks.class),
-                    anyInt(),
-                    anyLong(),
-                    anyLong(),
-                    any(RedeliveryTracker.class)
-            );
+            verify(consumerMock, times(1))
+                    .sendMessages(
+                            argThat(arg -> {
+                                assertEquals(arg.size(), 1);
+                                Entry entry = arg.get(0);
+                                assertEquals(entry.getLedgerId(), 1);
+                                assertEquals(entry.getEntryId(), 3);
+                                return true;
+                            }),
+                            any(EntryBatchSizes.class),
+                            any(EntryBatchIndexesAcks.class),
+                            anyInt(),
+                            anyLong(),
+                            anyLong(),
+                            any(RedeliveryTracker.class));
         });
-        verify(slowConsumerMock, times(0)).sendMessages(
-                anyList(),
-                any(EntryBatchSizes.class),
-                any(EntryBatchIndexesAcks.class),
-                anyInt(),
-                anyLong(),
-                anyLong(),
-                any(RedeliveryTracker.class)
-        );
+        verify(slowConsumerMock, times(0))
+                .sendMessages(
+                        anyList(),
+                        any(EntryBatchSizes.class),
+                        any(EntryBatchIndexesAcks.class),
+                        anyInt(),
+                        anyLong(),
+                        anyLong(),
+                        any(RedeliveryTracker.class));
     }
 
     @Test(timeOut = 30000)
@@ -341,8 +355,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         expectedEntriesToConsumer2.add(PositionImpl.get(1, 2));
         expectedEntriesToConsumer2.add(PositionImpl.get(1, 3));
 
-        final AtomicInteger remainingEntriesNum = new AtomicInteger(
-                expectedEntriesToConsumer1.size() + expectedEntriesToConsumer2.size());
+        final AtomicInteger remainingEntriesNum =
+                new AtomicInteger(expectedEntriesToConsumer1.size() + expectedEntriesToConsumer2.size());
 
         // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
         final List<Entry> allEntries = new ArrayList<>();
@@ -362,77 +376,112 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         when(consumer1.getAvailablePermits()).thenReturn(0).thenReturn(10);
         doReturn(true).when(consumer1).isWritable();
         doAnswer(invocationOnMock -> {
-            @SuppressWarnings("unchecked")
-            List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
-            for (Entry entry : entries) {
-                remainingEntriesNum.decrementAndGet();
-                actualEntriesToConsumer1.add(entry.getPosition());
-            }
-            return channelMock;
-        }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+                    @SuppressWarnings("unchecked")
+                    List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
+                    for (Entry entry : entries) {
+                        remainingEntriesNum.decrementAndGet();
+                        actualEntriesToConsumer1.add(entry.getPosition());
+                    }
+                    return channelMock;
+                })
+                .when(consumer1)
+                .sendMessages(
+                        anyList(),
+                        any(EntryBatchSizes.class),
+                        any(EntryBatchIndexesAcks.class),
+                        anyInt(),
+                        anyLong(),
+                        anyLong(),
+                        any(RedeliveryTracker.class));
 
         final Consumer consumer2 = mock(Consumer.class);
         doReturn("consumer2").when(consumer2).consumerName();
         when(consumer2.getAvailablePermits()).thenReturn(10);
         doReturn(true).when(consumer2).isWritable();
         doAnswer(invocationOnMock -> {
-            @SuppressWarnings("unchecked")
-            List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
-            for (Entry entry : entries) {
-                remainingEntriesNum.decrementAndGet();
-                actualEntriesToConsumer2.add(entry.getPosition());
-            }
-            return channelMock;
-        }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+                    @SuppressWarnings("unchecked")
+                    List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
+                    for (Entry entry : entries) {
+                        remainingEntriesNum.decrementAndGet();
+                        actualEntriesToConsumer2.add(entry.getPosition());
+                    }
+                    return channelMock;
+                })
+                .when(consumer2)
+                .sendMessages(
+                        anyList(),
+                        any(EntryBatchSizes.class),
+                        any(EntryBatchIndexesAcks.class),
+                        anyInt(),
+                        anyLong(),
+                        anyLong(),
+                        any(RedeliveryTracker.class));
 
         persistentDispatcher.addConsumer(consumer1);
         persistentDispatcher.addConsumer(consumer2);
 
-        final Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class
-                .getDeclaredField("totalAvailablePermits");
+        final Field totalAvailablePermitsField =
+                PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
         totalAvailablePermitsField.setAccessible(true);
         totalAvailablePermitsField.set(persistentDispatcher, 1000);
 
-        final Field redeliveryMessagesField = PersistentDispatcherMultipleConsumers.class
-                .getDeclaredField("redeliveryMessages");
+        final Field redeliveryMessagesField =
+                PersistentDispatcherMultipleConsumers.class.getDeclaredField("redeliveryMessages");
         redeliveryMessagesField.setAccessible(true);
-        MessageRedeliveryController redeliveryMessages = (MessageRedeliveryController) redeliveryMessagesField
-                .get(persistentDispatcher);
-        redeliveryMessages.add(allEntries.get(0).getLedgerId(), allEntries.get(0).getEntryId(),
+        MessageRedeliveryController redeliveryMessages =
+                (MessageRedeliveryController) redeliveryMessagesField.get(persistentDispatcher);
+        redeliveryMessages.add(
+                allEntries.get(0).getLedgerId(),
+                allEntries.get(0).getEntryId(),
                 getStickyKeyHash(allEntries.get(0))); // message1
-        redeliveryMessages.add(allEntries.get(1).getLedgerId(), allEntries.get(1).getEntryId(),
+        redeliveryMessages.add(
+                allEntries.get(1).getLedgerId(),
+                allEntries.get(1).getEntryId(),
                 getStickyKeyHash(allEntries.get(1))); // message2
 
         // Mock Cursor#asyncReplayEntries
         doAnswer(invocationOnMock -> {
-            @SuppressWarnings("unchecked")
-            Set<Position> positions = (Set<Position>) invocationOnMock.getArgument(0);
-            List<Entry> entries = allEntries.stream().filter(entry -> positions.contains(entry.getPosition()))
-                    .collect(Collectors.toList());
-            if (!entries.isEmpty()) {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(1))
-                        .readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay);
-            }
-            return Collections.emptySet();
-        }).when(cursorMock).asyncReplayEntries(anySet(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay), anyBoolean());
+                    @SuppressWarnings("unchecked")
+                    Set<Position> positions = (Set<Position>) invocationOnMock.getArgument(0);
+                    List<Entry> entries = allEntries.stream()
+                            .filter(entry -> positions.contains(entry.getPosition()))
+                            .collect(Collectors.toList());
+                    if (!entries.isEmpty()) {
+                        ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(1))
+                                .readEntriesComplete(
+                                        entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay);
+                    }
+                    return Collections.emptySet();
+                })
+                .when(cursorMock)
+                .asyncReplayEntries(
+                        anySet(),
+                        any(PersistentStickyKeyDispatcherMultipleConsumers.class),
+                        eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay),
+                        anyBoolean());
 
         // Mock Cursor#asyncReadEntriesOrWait
         AtomicBoolean asyncReadEntriesOrWaitCalled = new AtomicBoolean();
         doAnswer(invocationOnMock -> {
-            if (asyncReadEntriesOrWaitCalled.compareAndSet(false, true)) {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
-            } else {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(Collections.emptyList(), PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
-            }
-            return null;
-        }).when(cursorMock).asyncReadEntriesOrWait(anyInt(), anyLong(),
-                any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+                    if (asyncReadEntriesOrWaitCalled.compareAndSet(false, true)) {
+                        ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
+                                .readEntriesComplete(
+                                        readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+                    } else {
+                        ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
+                                .readEntriesComplete(
+                                        Collections.emptyList(),
+                                        PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+                    }
+                    return null;
+                })
+                .when(cursorMock)
+                .asyncReadEntriesOrWait(
+                        anyInt(),
+                        anyLong(),
+                        any(PersistentStickyKeyDispatcherMultipleConsumers.class),
+                        eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal),
+                        any());
 
         // (1) Run sendMessagesToConsumers
         // (2) Attempts to send message1 to consumer1 but skipped because availablePermits is 0
@@ -440,8 +489,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // (4) Run readMoreEntries internally
         // (5) Run sendMessagesToConsumers internally
         // (6) Attempts to send message3 to consumer2 but skipped because redeliveryMessages contains message2
-        persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay,
-                redeliverEntries, true);
+        persistentDispatcher.sendMessagesToConsumers(
+                PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay, redeliverEntries, true);
         while (remainingEntriesNum.get() > 0) {
             // (7) Run readMoreEntries and resend message1 to consumer1 and message2-3 to consumer2
             persistentDispatcher.readMoreEntries();
@@ -464,7 +513,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
     private int getStickyKeyHash(Entry entry) {

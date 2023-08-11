@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.io.kafka.sink;
 
+import static org.testng.Assert.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -31,17 +40,6 @@ import org.apache.pulsar.io.kafka.KafkaSinkConfig;
 import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-
-import static org.testng.Assert.*;
 
 public class KafkaAbstractSinkTest {
     private static class DummySink extends KafkaAbstractSink<String, byte[]> {
@@ -57,7 +55,8 @@ public class KafkaAbstractSinkTest {
         void run() throws Throwable;
     }
 
-    private static <T extends Exception> void expectThrows(Class<T> expectedType, String expectedMessage, ThrowingRunnable runnable) {
+    private static <T extends Exception> void expectThrows(
+            Class<T> expectedType, String expectedMessage, ThrowingRunnable runnable) {
         try {
             runnable.run();
             Assert.fail();
@@ -67,7 +66,8 @@ public class KafkaAbstractSinkTest {
                 assertEquals(expectedMessage, ex.getMessage());
                 return;
             }
-            throw new AssertionError("Unexpected exception type, expected " + expectedType.getSimpleName() + " but got " + e);
+            throw new AssertionError(
+                    "Unexpected exception type, expected " + expectedType.getSimpleName() + " but got " + e);
         }
         throw new AssertionError("Expected exception");
     }
@@ -88,9 +88,7 @@ public class KafkaAbstractSinkTest {
             }
 
             @Override
-            public void recordMetric(String metricName, double value) {
-
-            }
+            public void recordMetric(String metricName, double value) {}
 
             @Override
             public Collection<String> getInputTopics() {
@@ -123,12 +121,12 @@ public class KafkaAbstractSinkTest {
             }
 
             @Override
-            public String getSecret(String key) { return null; }
+            public String getSecret(String key) {
+                return null;
+            }
 
             @Override
-            public void incrCounter(String key, long amount) {
-
-            }
+            public void incrCounter(String key, long amount) {}
 
             @Override
             public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
@@ -146,9 +144,7 @@ public class KafkaAbstractSinkTest {
             }
 
             @Override
-            public void putState(String key, ByteBuffer value) {
-
-            }
+            public void putState(String key, ByteBuffer value) {}
 
             @Override
             public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
@@ -164,15 +160,13 @@ public class KafkaAbstractSinkTest {
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
             }
-            
+
             @Override
-            public void deleteState(String key) {
-            	
-            }
-            
+            public void deleteState(String key) {}
+
             @Override
             public CompletableFuture<Void> deleteStateAsync(String key) {
-            	return null;
+                return null;
             }
 
             @Override
@@ -180,7 +174,7 @@ public class KafkaAbstractSinkTest {
                 return null;
             }
         };
-        ThrowingRunnable openAndClose = ()->{
+        ThrowingRunnable openAndClose = () -> {
             try {
                 sink.open(config, sc);
                 fail();
@@ -201,7 +195,10 @@ public class KafkaAbstractSinkTest {
         expectThrows(IllegalArgumentException.class, "Invalid Kafka Producer maxRequestSize : -1", openAndClose);
         config.put("maxRequestSize", "1048576");
         config.put("acks", "none");
-        expectThrows(ConfigException.class, "Invalid value none for configuration acks: String must be one of: all, -1, 0, 1", openAndClose);
+        expectThrows(
+                ConfigException.class,
+                "Invalid value none for configuration acks: String must be one of: all, -1, 0, 1",
+                openAndClose);
         config.put("acks", "1");
         sink.open(config, sc);
         sink.close();
@@ -239,7 +236,9 @@ public class KafkaAbstractSinkTest {
         assertEquals(config.getMaxRequestSize(), 1048576L);
         assertEquals(config.getSecurityProtocol(), SecurityProtocol.SASL_PLAINTEXT.name);
         assertEquals(config.getSaslMechanism(), "PLAIN");
-        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
+        assertEquals(
+                config.getSaslJaasConfig(),
+                "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
         assertEquals(config.getSslEndpointIdentificationAlgorithm(), "");
         assertEquals(config.getSslTruststoreLocation(), "/etc/cert.pem");
         assertEquals(config.getSslTruststorePassword(), "cert_pwd");
@@ -249,5 +248,4 @@ public class KafkaAbstractSinkTest {
         ClassLoader classLoader = getClass().getClassLoader();
         return new File(classLoader.getResource(name).getFile());
     }
-
 }

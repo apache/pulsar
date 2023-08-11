@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.schema.proto.Test.TestMessage;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
 
 public class GenericProtobufNativeSchemaTest {
 
@@ -37,14 +36,18 @@ public class GenericProtobufNativeSchemaTest {
     @BeforeMethod
     public void init() {
         clazzBasedProtobufNativeSchema = ProtobufNativeSchema.of(SchemaDefinition.<TestMessage>builder()
-                .withPojo(TestMessage.class).build());
-        genericProtobufNativeSchema = (GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(clazzBasedProtobufNativeSchema.getSchemaInfo());
-
+                .withPojo(TestMessage.class)
+                .build());
+        genericProtobufNativeSchema = (GenericProtobufNativeSchema)
+                GenericProtobufNativeSchema.of(clazzBasedProtobufNativeSchema.getSchemaInfo());
     }
 
     @Test
     public void testGenericReaderByClazzBasedWriterSchema() {
-        message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
+        message = TestMessage.newBuilder()
+                .setStringField(STRING_FIELD_VLUE)
+                .setDoubleField(DOUBLE_FIELD_VLUE)
+                .build();
         byte[] clazzBasedProtobufBytes = clazzBasedProtobufNativeSchema.encode(message);
         GenericRecord genericRecord = genericProtobufNativeSchema.decode(clazzBasedProtobufBytes);
         assertEquals(genericRecord.getField("stringField"), STRING_FIELD_VLUE);
@@ -53,7 +56,11 @@ public class GenericProtobufNativeSchemaTest {
 
     @Test
     public void testClazzBasedReaderByClazzGenericWriterSchema() {
-        genericmessage = genericProtobufNativeSchema.newRecordBuilder().set("stringField", STRING_FIELD_VLUE).set("doubleField", DOUBLE_FIELD_VLUE).build();
+        genericmessage = genericProtobufNativeSchema
+                .newRecordBuilder()
+                .set("stringField", STRING_FIELD_VLUE)
+                .set("doubleField", DOUBLE_FIELD_VLUE)
+                .build();
         byte[] messageBytes = genericProtobufNativeSchema.encode(genericmessage);
         message = clazzBasedProtobufNativeSchema.decode(messageBytes);
         assertEquals(message.getStringField(), STRING_FIELD_VLUE);
@@ -62,5 +69,4 @@ public class GenericProtobufNativeSchemaTest {
 
     private static final String STRING_FIELD_VLUE = "stringFieldValue";
     private static final double DOUBLE_FIELD_VLUE = 0.2D;
-
 }

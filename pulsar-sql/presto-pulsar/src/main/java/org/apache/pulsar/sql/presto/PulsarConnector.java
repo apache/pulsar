@@ -51,8 +51,7 @@ public class PulsarConnector implements Connector {
             PulsarMetadata metadata,
             PulsarSplitManager splitManager,
             PulsarRecordSetProvider recordSetProvider,
-            PulsarConnectorConfig pulsarConnectorConfig
-    ) {
+            PulsarConnectorConfig pulsarConnectorConfig) {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");

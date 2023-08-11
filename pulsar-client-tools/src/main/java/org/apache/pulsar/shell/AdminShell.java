@@ -66,7 +66,6 @@ public class AdminShell extends PulsarAdminTool implements ShellCommandsProvider
         initJCommander();
     }
 
-
     @Override
     public boolean runCommand(String[] args) throws Exception {
         return run(args);

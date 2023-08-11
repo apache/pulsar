@@ -35,8 +35,8 @@ import org.slf4j.LoggerFactory;
 public class PulsarCompactorSubscription extends PersistentSubscription {
     private final CompactedTopic compactedTopic;
 
-    public PulsarCompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
-                                       String subscriptionName, ManagedCursor cursor) {
+    public PulsarCompactorSubscription(
+            PersistentTopic topic, CompactedTopic compactedTopic, String subscriptionName, ManagedCursor cursor) {
         super(topic, subscriptionName, cursor, false);
         checkArgument(subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION));
         this.compactedTopic = compactedTopic;
@@ -47,10 +47,12 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
         Map<String, Long> properties = cursor.getProperties();
         if (properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY)) {
             long compactedLedgerId = properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
-            compactedTopic.newCompactedLedger(cursor.getMarkDeletedPosition(), compactedLedgerId)
+            compactedTopic
+                    .newCompactedLedger(cursor.getMarkDeletedPosition(), compactedLedgerId)
                     .thenAccept(previousContext -> {
                         if (previousContext != null) {
-                            compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
+                            compactedTopic.deleteCompactedLedger(
+                                    previousContext.getLedger().getId());
                         }
                     });
         }
@@ -77,27 +79,39 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
         // And we can only delete the previous ledger after the mark delete succeed, otherwise we will loss the
         // compacted data if mark delete failed.
         compactedTopic.newCompactedLedger(position, compactedLedgerId).thenAccept(previousContext -> {
-            cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
-                @Override
-                public void markDeleteComplete(Object ctx) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Mark deleted messages until position on compactor subscription {}",
-                                topicName, subName, position);
-                    }
-                    if (previousContext != null) {
-                        compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
-                    }
-                }
+            cursor.asyncMarkDelete(
+                    position,
+                    properties,
+                    new MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "[{}][{}] Mark deleted messages until position on compactor subscription {}",
+                                        topicName,
+                                        subName,
+                                        position);
+                            }
+                            if (previousContext != null) {
+                                compactedTopic.deleteCompactedLedger(
+                                        previousContext.getLedger().getId());
+                            }
+                        }
 
-                @Override
-                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                    // TODO: cut consumer connection on markDeleteFailed
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Failed to mark delete for position on compactor subscription {}",
-                                topicName, subName, ctx, exception);
-                    }
-                }
-            }, null);
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                            // TODO: cut consumer connection on markDeleteFailed
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "[{}][{}] Failed to mark delete for position on compactor subscription {}",
+                                        topicName,
+                                        subName,
+                                        ctx,
+                                        exception);
+                            }
+                        }
+                    },
+                    null);
         });
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {

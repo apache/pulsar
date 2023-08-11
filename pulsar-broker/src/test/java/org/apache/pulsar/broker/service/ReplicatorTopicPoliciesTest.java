@@ -38,8 +38,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -86,23 +86,29 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         backlogQuota.setLimitTime(2);
         // local
         admin1.topicPolicies().setBacklogQuota(topic, backlogQuota);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies().getBacklogQuotaMap(topic).size(), 0));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies().getBacklogQuotaMap(topic).size(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies().getBacklogQuotaMap(topic).size(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies().getBacklogQuotaMap(topic).size(), 0));
         // global
         admin1.topicPolicies(true).setBacklogQuota(topic, backlogQuota);
 
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(admin2.topicPolicies(true).getBacklogQuotaMap(topic).containsValue(backlogQuota)));
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(admin3.topicPolicies(true).getBacklogQuotaMap(topic).containsValue(backlogQuota)));
-        //remove BacklogQuota
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(
+                        admin2.topicPolicies(true).getBacklogQuotaMap(topic).containsValue(backlogQuota)));
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(
+                        admin3.topicPolicies(true).getBacklogQuotaMap(topic).containsValue(backlogQuota)));
+        // remove BacklogQuota
         admin1.topicPolicies(true).removeBacklogQuota(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getBacklogQuotaMap(topic).size(), 0));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getBacklogQuotaMap(topic).size(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getBacklogQuotaMap(topic).size(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getBacklogQuotaMap(topic).size(), 0));
     }
 
     @Test
@@ -112,22 +118,24 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setMessageTTL(topic, 10);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getMessageTTL(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getMessageTTL(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getMessageTTL(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getMessageTTL(topic)));
         // global
         admin1.topicPolicies(true).setMessageTTL(topic, 10);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getMessageTTL(topic).intValue(), 10));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getMessageTTL(topic).intValue(), 10));
-        //remove message ttl
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getMessageTTL(topic).intValue(), 10));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getMessageTTL(topic).intValue(), 10));
+        // remove message ttl
         admin1.topicPolicies(true).removeMessageTTL(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getMessageTTL(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getMessageTTL(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getMessageTTL(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getMessageTTL(topic)));
     }
 
     @Test
@@ -149,7 +157,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
         // remove global topic policy
         admin1.topicPolicies(true).removeSubscribeRate(topic);
-        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getSubscribeRate(topic)));
+        untilRemoteClustersAsserted(
+                admin -> assertNull(admin.topicPolicies(true).getSubscribeRate(topic)));
     }
 
     @Test
@@ -169,7 +178,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
         // remove global topic policy
         admin1.topicPolicies(true).removeMaxMessageSize(topic);
-        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getMaxMessageSize(topic)));
+        untilRemoteClustersAsserted(
+                admin -> assertNull(admin.topicPolicies(true).getMaxMessageSize(topic)));
     }
 
     @Test
@@ -191,7 +201,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
         // remove global topic policy
         admin1.topicPolicies(true).removePublishRate(topic);
-        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getPublishRate(topic)));
+        untilRemoteClustersAsserted(
+                admin -> assertNull(admin.topicPolicies(true).getPublishRate(topic)));
     }
 
     @Test
@@ -201,15 +212,13 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setDeduplicationSnapshotInterval(topic, 100);
-        untilRemoteClustersAsserted(
-                admin -> assertNull(admin.topicPolicies().getDeduplicationSnapshotInterval(topic)));
+        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies().getDeduplicationSnapshotInterval(topic)));
         // global
         admin1.topicPolicies(true).setDeduplicationSnapshotInterval(topic, 100);
 
         // get global topic policy
-        untilRemoteClustersAsserted(
-                admin -> assertEquals(admin.topicPolicies(true).getDeduplicationSnapshotInterval(topic),
-                        Integer.valueOf(100)));
+        untilRemoteClustersAsserted(admin ->
+                assertEquals(admin.topicPolicies(true).getDeduplicationSnapshotInterval(topic), Integer.valueOf(100)));
 
         // remove global topic policy
         admin1.topicPolicies(true).removeDeduplicationSnapshotInterval(topic);
@@ -226,7 +235,6 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         void apply(I input) throws Throwable;
     }
 
-
     @Test
     public void testReplicatePersistentPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
@@ -236,23 +244,21 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         PersistencePolicies policies = new PersistencePolicies(5, 3, 2, 1000);
         // local
         admin1.topicPolicies().setPersistence(topic, policies);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getPersistence(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getPersistence(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getPersistence(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getPersistence(topic)));
         // global
         admin1.topicPolicies(true).setPersistence(topic, policies);
 
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getPersistence(topic), policies));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getPersistence(topic), policies));
-        //remove PersistencePolicies
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin2.topicPolicies(true).getPersistence(topic), policies));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin3.topicPolicies(true).getPersistence(topic), policies));
+        // remove PersistencePolicies
         admin1.topicPolicies(true).removePersistence(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getPersistence(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getPersistence(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getPersistence(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getPersistence(topic)));
     }
 
     @Test
@@ -262,22 +268,22 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setDeduplicationStatus(topic, true);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getDeduplicationStatus(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getDeduplicationStatus(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getDeduplicationStatus(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getDeduplicationStatus(topic)));
         // global
         admin1.topicPolicies(true).setDeduplicationStatus(topic, true);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertTrue(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertTrue(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertTrue(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertTrue(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
         // remove subscription types policies
         admin1.topicPolicies(true).removeDeduplicationStatus(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
     }
 
     @Test
@@ -287,23 +293,25 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setMaxProducers(topic, 100);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getMaxProducers(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getMaxProducers(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getMaxProducers(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getMaxProducers(topic)));
         // global
         admin1.topicPolicies(true).setMaxProducers(topic, 100);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getMaxProducers(topic).intValue(), 100));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getMaxProducers(topic).intValue(), 100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getMaxProducers(topic).intValue(), 100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getMaxProducers(topic).intValue(), 100));
 
         // remove max producer policies
         admin1.topicPolicies(true).removeMaxProducers(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getMaxProducers(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getMaxProducers(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getMaxProducers(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getMaxProducers(topic)));
     }
 
     @Test
@@ -314,27 +322,41 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setMaxConsumersPerSubscription(topic, 100);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getMaxConsumersPerSubscription(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getMaxConsumersPerSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getMaxConsumersPerSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getMaxConsumersPerSubscription(topic)));
         // global
         admin1.topicPolicies(true).setMaxConsumersPerSubscription(topic, 100);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getMaxConsumersPerSubscription(topic).intValue(), 100));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getMaxConsumersPerSubscription(topic).intValue(), 100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true)
+                                .getMaxConsumersPerSubscription(topic)
+                                .intValue(),
+                        100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true)
+                                .getMaxConsumersPerSubscription(topic)
+                                .intValue(),
+                        100));
 
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin1.topicPolicies(true).getMaxConsumersPerSubscription(topic).intValue(), 100);
+            assertEquals(
+                    admin1.topicPolicies(true)
+                            .getMaxConsumersPerSubscription(topic)
+                            .intValue(),
+                    100);
         });
 
-        //remove max consumer per sub
+        // remove max consumer per sub
         admin1.topicPolicies(true).removeMaxConsumersPerSubscription(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
     }
 
     @Test
@@ -344,22 +366,32 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, 100);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getMaxUnackedMessagesOnConsumer(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getMaxUnackedMessagesOnConsumer(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getMaxUnackedMessagesOnConsumer(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getMaxUnackedMessagesOnConsumer(topic)));
         // global
         admin1.topicPolicies(true).setMaxUnackedMessagesOnConsumer(topic, 100);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic).intValue(), 100));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic).intValue(), 100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true)
+                                .getMaxUnackedMessagesOnConsumer(topic)
+                                .intValue(),
+                        100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true)
+                                .getMaxUnackedMessagesOnConsumer(topic)
+                                .intValue(),
+                        100));
         // remove max unacked msgs per consumers
         admin1.topicPolicies(true).removeMaxUnackedMessagesOnConsumer(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic)));
     }
 
     @Test
@@ -372,29 +404,30 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
         // local
         admin1.topicPolicies().setRetention(persistentTopicName, retentionPolicies);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getRetention(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getRetention(persistentTopicName)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getRetention(persistentTopicName)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getRetention(persistentTopicName)));
         // global
         admin1.topicPolicies(true).setRetention(persistentTopicName, retentionPolicies);
 
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin2.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin3.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies));
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(admin1.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies);
         });
 
-        //remove retention
+        // remove retention
         admin1.topicPolicies(true).removeRetention(persistentTopicName);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getRetention(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getRetention(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
     }
+
     @Test
     public void testReplicateSubscriptionTypesPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
@@ -404,25 +437,28 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         subscriptionTypes.add(SubscriptionType.Shared);
         // local
         admin1.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypes);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getSubscriptionTypesEnabled(topic), null));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getSubscriptionTypesEnabled(topic), null));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getSubscriptionTypesEnabled(topic), null));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getSubscriptionTypesEnabled(topic), null));
 
         // global
         admin1.topicPolicies(true).setSubscriptionTypesEnabled(topic, subscriptionTypes);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
         // remove subscription types policies
         admin1.topicPolicies(true).removeSubscriptionTypesEnabled(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
     }
-
 
     @Test
     public void testReplicateMaxConsumers() throws Exception {
@@ -431,22 +467,24 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setMaxConsumers(topic, 100);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getMaxConsumers(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getMaxConsumers(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getMaxConsumers(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getMaxConsumers(topic)));
         // global
         admin1.topicPolicies(true).setMaxConsumers(topic, 100);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getMaxConsumers(topic).intValue(), 100));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getMaxConsumers(topic).intValue(), 100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getMaxConsumers(topic).intValue(), 100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getMaxConsumers(topic).intValue(), 100));
         // remove max consumers
         admin1.topicPolicies(true).removeMaxConsumers(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getMaxConsumers(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getMaxConsumers(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getMaxConsumers(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getMaxConsumers(topic)));
     }
 
     @Test
@@ -464,25 +502,25 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 .build();
         // local
         admin1.topicPolicies().setDispatchRate(persistentTopicName, dispatchRate);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getDispatchRate(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getDispatchRate(persistentTopicName)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getDispatchRate(persistentTopicName)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getDispatchRate(persistentTopicName)));
         // global
         admin1.topicPolicies(true).setDispatchRate(persistentTopicName, dispatchRate);
 
         // get dispatchRate
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getDispatchRate(persistentTopicName), dispatchRate));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin2.topicPolicies(true).getDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(admin3.topicPolicies(true).getDispatchRate(persistentTopicName), dispatchRate));
 
-        //remove dispatchRate
+        // remove dispatchRate
         admin1.topicPolicies(true).removeDispatchRate(persistentTopicName);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getDispatchRate(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getDispatchRate(persistentTopicName)));
     }
 
     @Test
@@ -490,25 +528,28 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
         init(namespace, topic);
-        DelayedDeliveryPolicies policies = DelayedDeliveryPolicies.builder().active(true).tickTime(10000L).build();
+        DelayedDeliveryPolicies policies =
+                DelayedDeliveryPolicies.builder().active(true).tickTime(10000L).build();
         // local
         admin1.topicPolicies().setDelayedDeliveryPolicy(topic, policies);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getDelayedDeliveryPolicy(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getDelayedDeliveryPolicy(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin2.topicPolicies().getDelayedDeliveryPolicy(topic)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin3.topicPolicies().getDelayedDeliveryPolicy(topic)));
         // global
         admin1.topicPolicies(true).setDelayedDeliveryPolicy(topic, policies);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(
+                        () -> assertEquals(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(
+                        () -> assertEquals(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
         // remove delayed delivery
         admin1.topicPolicies(true).removeDelayedDeliveryPolicy(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
     }
 
     @Test
@@ -522,24 +563,28 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true);
         // local
         admin1.topicPolicies().setInactiveTopicPolicies(persistentTopicName, inactiveTopicPolicies);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getInactiveTopicPolicies(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getInactiveTopicPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getInactiveTopicPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getInactiveTopicPolicies(persistentTopicName)));
         // global
         admin1.topicPolicies(true).setInactiveTopicPolicies(persistentTopicName, inactiveTopicPolicies);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true)
-                        .getInactiveTopicPolicies(persistentTopicName), inactiveTopicPolicies));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true)
-                        .getInactiveTopicPolicies(persistentTopicName), inactiveTopicPolicies));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName),
+                        inactiveTopicPolicies));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName),
+                        inactiveTopicPolicies));
         // remove InactiveTopicPolicies
         admin1.topicPolicies(true).removeInactiveTopicPolicies(persistentTopicName);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin2.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin3.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
     }
 
     @Test
@@ -557,26 +602,30 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 .build();
         // local
         admin1.topicPolicies().setSubscriptionDispatchRate(persistentTopicName, dispatchRate);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getSubscriptionDispatchRate(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getSubscriptionDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin2.topicPolicies().getSubscriptionDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin3.topicPolicies().getSubscriptionDispatchRate(persistentTopicName)));
         // global
         admin1.topicPolicies(true).setSubscriptionDispatchRate(persistentTopicName, dispatchRate);
         // get subscription dispatch rate
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true)
-                        .getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true)
-                        .getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
 
-        //remove subscription dispatch rate
+        // remove subscription dispatch rate
         admin1.topicPolicies(true).removeSubscriptionDispatchRate(persistentTopicName);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin2.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin3.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
     }
 
     @Test
@@ -594,26 +643,28 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 .build();
         // local
         admin1.topicPolicies().setReplicatorDispatchRate(persistentTopicName, dispatchRate);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getReplicatorDispatchRate(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getReplicatorDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getReplicatorDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getReplicatorDispatchRate(persistentTopicName)));
         // global
         admin1.topicPolicies(true).setReplicatorDispatchRate(persistentTopicName, dispatchRate);
         // get replicator dispatch rate
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true)
-                        .getReplicatorDispatchRate(persistentTopicName), dispatchRate));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true)
-                        .getReplicatorDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName), dispatchRate));
 
-        //remove replicator dispatch rate
+        // remove replicator dispatch rate
         admin1.topicPolicies(true).removeReplicatorDispatchRate(persistentTopicName);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin2.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin3.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName)));
     }
 
     @Test
@@ -623,22 +674,32 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, topic);
         // local
         admin1.topicPolicies().setMaxUnackedMessagesOnSubscription(topic, 100);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getMaxUnackedMessagesOnSubscription(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getMaxUnackedMessagesOnSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getMaxUnackedMessagesOnSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getMaxUnackedMessagesOnSubscription(topic)));
         // global
         admin1.topicPolicies(true).setMaxUnackedMessagesOnSubscription(topic, 100);
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic).intValue(), 100));
-        Awaitility.await().ignoreExceptions().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic).intValue(), 100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true)
+                                .getMaxUnackedMessagesOnSubscription(topic)
+                                .intValue(),
+                        100));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true)
+                                .getMaxUnackedMessagesOnSubscription(topic)
+                                .intValue(),
+                        100));
         // remove max unacked msgs per sub
         admin1.topicPolicies(true).removeMaxUnackedMessagesOnSubscription(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
     }
 
     @Test
@@ -649,26 +710,28 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, persistentTopicName);
         // local
         admin1.topicPolicies().setCompactionThreshold(persistentTopicName, 1);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getCompactionThreshold(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getCompactionThreshold(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getCompactionThreshold(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getCompactionThreshold(persistentTopicName)));
         // global
         admin1.topicPolicies(true).setCompactionThreshold(persistentTopicName, 1);
         // get compaction threshold
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true)
-                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true)
-                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
 
-        //remove compaction threshold
+        // remove compaction threshold
         admin1.topicPolicies(true).removeCompactionThreshold(persistentTopicName);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin2.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin3.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
     }
 
     @Test
@@ -684,12 +747,11 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         // global
         admin1.topicPolicies(true).setMaxSubscriptionsPerTopic(persistentTopicName, 1024);
 
-        //get max subscriptions per topic
-        untilRemoteClustersAsserted(
-                admin -> assertEquals(admin.topicPolicies(true).getMaxSubscriptionsPerTopic(persistentTopicName),
-                        Integer.valueOf(1024)));
+        // get max subscriptions per topic
+        untilRemoteClustersAsserted(admin -> assertEquals(
+                admin.topicPolicies(true).getMaxSubscriptionsPerTopic(persistentTopicName), Integer.valueOf(1024)));
 
-        //remove
+        // remove
         admin1.topicPolicies(true).removeMaxSubscriptionsPerTopic(persistentTopicName);
         untilRemoteClustersAsserted(
                 admin -> assertNull(admin.topicPolicies(true).getMaxSubscriptionsPerTopic(persistentTopicName)));
@@ -701,39 +763,53 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
 
         init(namespace, persistentTopicName);
-        OffloadPoliciesImpl offloadPolicies =
-                OffloadPoliciesImpl.create("s3", "region", "bucket", "endpoint", null, null, null, null,
-                8, 9, 10L, 10L, null, OffloadedReadPriority.BOOKKEEPER_FIRST);
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
+                "s3",
+                "region",
+                "bucket",
+                "endpoint",
+                null,
+                null,
+                null,
+                null,
+                8,
+                9,
+                10L,
+                10L,
+                null,
+                OffloadedReadPriority.BOOKKEEPER_FIRST);
         // local
         try {
             admin1.topicPolicies().setOffloadPolicies(persistentTopicName, offloadPolicies);
-        } catch (Exception exception){
+        } catch (Exception exception) {
             // driver not found exception.
             assertTrue(exception instanceof PulsarAdminException.ServerSideErrorException);
         }
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getOffloadPolicies(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getOffloadPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getOffloadPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getOffloadPolicies(persistentTopicName)));
         // global
-        try{
+        try {
             admin1.topicPolicies(true).setOffloadPolicies(persistentTopicName, offloadPolicies);
-        }catch (Exception exception){
+        } catch (Exception exception) {
             // driver not found exception.
             assertTrue(exception instanceof PulsarAdminException.ServerSideErrorException);
         }
         // get offload policies
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
 
-        //remove offload policies
+        // remove offload policies
         admin1.topicPolicies(true).removeOffloadPolicies(persistentTopicName);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
     }
 
     @Test
@@ -745,12 +821,14 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
         // set topic replica cluster policy as `r1 r2`
         admin1.topics().setReplicationClusters(persistentTopicName, Arrays.asList("r1", "r2"));
-        PersistentTopic topicRef =
-            (PersistentTopic) pulsar1.getBrokerService().getTopicReference(persistentTopicName + "-partition-0").get();
+        PersistentTopic topicRef = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopicReference(persistentTopicName + "-partition-0")
+                .get();
         assertNotNull(topicRef);
 
         Awaitility.await().untilAsserted(() -> {
-            List<String> replicaClusters = topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
+            List<String> replicaClusters =
+                    topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
             assertEquals(replicaClusters.size(), 1);
             assertEquals(replicaClusters.toString(), "[r2]");
         });
@@ -758,7 +836,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         // removing topic replica cluster policy, so namespace policy should take effect
         admin1.topics().removeReplicationClusters(persistentTopicName);
         Awaitility.await().untilAsserted(() -> {
-            List<String> replicaClusters = topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
+            List<String> replicaClusters =
+                    topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
             assertEquals(replicaClusters.size(), 2);
             assertEquals(replicaClusters.toString(), "[r2, r3]");
         });
@@ -770,26 +849,37 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
         init(namespace, topic);
 
-        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride
-                = AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build();
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = AutoSubscriptionCreationOverride.builder()
+                .allowAutoSubscriptionCreation(true)
+                .build();
         // local
         admin1.topicPolicies().setAutoSubscriptionCreation(topic, autoSubscriptionCreationOverride);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies().getAutoSubscriptionCreation(topic, false)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies().getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies().getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies().getAutoSubscriptionCreation(topic, false)));
         // global
         admin1.topicPolicies(true).setAutoSubscriptionCreation(topic, autoSubscriptionCreationOverride);
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(admin2.topicPolicies(true)
-                .getAutoSubscriptionCreation(topic, false).isAllowAutoSubscriptionCreation(), true));
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(admin3.topicPolicies(true)
-                .getAutoSubscriptionCreation(topic, false).isAllowAutoSubscriptionCreation(), true));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topicPolicies(true)
+                                .getAutoSubscriptionCreation(topic, false)
+                                .isAllowAutoSubscriptionCreation(),
+                        true));
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topicPolicies(true)
+                                .getAutoSubscriptionCreation(topic, false)
+                                .isAllowAutoSubscriptionCreation(),
+                        true));
         // remove auto subscription creation for a topic
         admin1.topicPolicies(true).removeAutoSubscriptionCreation(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin2.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin3.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin2.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin3.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
     }
 
     private void init(String namespace, String topic)
@@ -804,24 +894,25 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         admin1.topics().createPartitionedTopic(topic, 3);
         // List partitioned topics from R2
         Awaitility.await().untilAsserted(() -> assertNotNull(admin2.topics().getPartitionedTopicList(namespace)));
-        Awaitility.await().untilAsserted(() -> assertEquals(
-                admin2.topics().getPartitionedTopicList(namespace).get(0), topic));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin2.topics().getPartitionedTopicList(namespace).get(0), topic));
         assertEquals(admin1.topics().getList(namespace).size(), 3);
         // List partitioned topics from R3
         Awaitility.await().untilAsserted(() -> assertNotNull(admin3.topics().getPartitionedTopicList(namespace)));
-        Awaitility.await().untilAsserted(() -> assertEquals(
-                admin3.topics().getPartitionedTopicList(namespace).get(0), topic));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin3.topics().getPartitionedTopicList(namespace).get(0), topic));
 
         pulsar1.getClient().newProducer().topic(topic).create().close();
         pulsar2.getClient().newProducer().topic(topic).create().close();
         pulsar3.getClient().newProducer().topic(topic).create().close();
 
-        //init topic policies server
+        // init topic policies server
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
             assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
             assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
             assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
         });
     }
-
 }

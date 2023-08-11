@@ -28,13 +28,13 @@ public class SystemTopicNamesTest {
     @DataProvider(name = "topicPoliciesSystemTopicNames")
     public static Object[][] topicPoliciesSystemTopicNames() {
         return new Object[][] {
-                {"persistent://public/default/__change_events", true},
-                {"persistent://public/default/__change_events-partition-0", true},
-                {"persistent://random-tenant/random-ns/__change_events", true},
-                {"persistent://random-tenant/random-ns/__change_events-partition-1", true},
-                {"persistent://public/default/not_really__change_events", false},
-                {"persistent://public/default/__change_events-diff-suffix", false},
-                {"persistent://a/b/not_really__change_events", false},
+            {"persistent://public/default/__change_events", true},
+            {"persistent://public/default/__change_events-partition-0", true},
+            {"persistent://random-tenant/random-ns/__change_events", true},
+            {"persistent://random-tenant/random-ns/__change_events-partition-1", true},
+            {"persistent://public/default/not_really__change_events", false},
+            {"persistent://public/default/__change_events-diff-suffix", false},
+            {"persistent://a/b/not_really__change_events", false},
         };
     }
 

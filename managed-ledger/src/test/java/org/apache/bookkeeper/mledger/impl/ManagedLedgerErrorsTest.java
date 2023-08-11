@@ -64,10 +64,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         assertTrue(metadataStore.exists("/managed-ledgers/my_test_ledger/c1").join());
 
-        metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
-                op == FaultInjectionMetadataStore.OperationType.PUT
-                        && path.equals("/managed-ledgers/my_test_ledger/c1")
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException.BadVersionException("err"),
+                (op, path) -> op == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/my_test_ledger/c1"));
 
         try {
             c1.close();
@@ -90,10 +90,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ledger.openCursor("c1");
 
-        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
-                op == FaultInjectionMetadataStore.OperationType.DELETE
-                        && path.equals("/managed-ledgers/my_test_ledger/c1")
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException("error"),
+                (op, path) -> op == FaultInjectionMetadataStore.OperationType.DELETE
+                        && path.equals("/managed-ledgers/my_test_ledger/c1"));
 
         try {
             ledger.deleteCursor("c1");
@@ -135,15 +135,17 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         bkc.failNow(BKException.Code.NoSuchLedgerExistsException);
 
         final CountDownLatch latch = new CountDownLatch(1);
-        ledger.asyncClose(new CloseCallback() {
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                latch.countDown();
-            }
+        ledger.asyncClose(
+                new CloseCallback() {
+                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                        latch.countDown();
+                    }
 
-            public void closeComplete(Object ctx) {
-                fail("should have failed");
-            }
-        }, null);
+                    public void closeComplete(Object ctx) {
+                        fail("should have failed");
+                    }
+                },
+                null);
 
         latch.await();
     }
@@ -227,11 +229,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
-
-        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger")
-                        && op == FaultInjectionMetadataStore.OperationType.PUT
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException("error"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT);
 
         try {
             ledger = factory2.open("my_test_ledger");
@@ -254,10 +255,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
-        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger")
-                        && op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException("error"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger")
+                        && op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN);
 
         try {
             ledger = factory2.open("my_test_ledger");
@@ -281,10 +282,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
-        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger/c1")
-                        && op == FaultInjectionMetadataStore.OperationType.GET
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException("error"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger/c1")
+                        && op == FaultInjectionMetadataStore.OperationType.GET);
 
         try {
             ledger = factory2.open("my_test_ledger");
@@ -315,8 +316,8 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
     @Test
     public void digestError() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig().setDigestType(DigestType.CRC32));
+        ManagedLedger ledger =
+                factory.open("my_test_ledger", new ManagedLedgerConfig().setDigestType(DigestType.CRC32));
         ledger.openCursor("c1");
         ledger.addEntry("entry".getBytes());
 
@@ -336,30 +337,36 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
 
-        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger")
-                        && op == FaultInjectionMetadataStore.OperationType.PUT
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException("error"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT);
 
-        ledger.asyncAddEntry("entry".getBytes(), new AddEntryCallback() {
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                // not-ok
-            }
+        ledger.asyncAddEntry(
+                "entry".getBytes(),
+                new AddEntryCallback() {
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        // not-ok
+                    }
 
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                // ok
-            }
-        }, null);
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        // ok
+                    }
+                },
+                null);
 
-        ledger.asyncAddEntry("entry".getBytes(), new AddEntryCallback() {
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                promise.complete(null);
-            }
+        ledger.asyncAddEntry(
+                "entry".getBytes(),
+                new AddEntryCallback() {
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        promise.complete(null);
+                    }
 
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                promise.completeExceptionally(new Exception("should have failed"));
-            }
-        }, null);
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        promise.completeExceptionally(new Exception("should have failed"));
+                    }
+                },
+                null);
 
         promise.get();
     }
@@ -368,10 +375,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
     public void recoverAfterZnodeVersionError() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
-        metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger")
-                        && op == FaultInjectionMetadataStore.OperationType.PUT
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException.BadVersionException("err"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT);
 
         // First write will succeed
         ledger.addEntry("test".getBytes());
@@ -396,21 +403,20 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
     @Test
     public void recoverAfterZnodeVersionErrorWhileTrimming() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_trim",
-                new ManagedLedgerConfig()
-                        .setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger_trim", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
         ledger.addEntry("test".getBytes());
         ledger.addEntry("test".getBytes());
         ledger.addEntry("test".getBytes());
 
-        metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger_trim")
-                        && op == FaultInjectionMetadataStore.OperationType.PUT
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException.BadVersionException("err"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger_trim")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT);
 
         CompletableFuture<?> handle = new CompletableFuture<>();
         ledger.trimConsumedLedgersInBackground(handle);
-        assertThat(expectThrows(ExecutionException.class, () -> handle.get()).getCause(),
+        assertThat(
+                expectThrows(ExecutionException.class, () -> handle.get()).getCause(),
                 instanceOf(ManagedLedgerException.BadVersionException.class));
 
         assertEquals(ManagedLedgerImpl.State.Fenced, ((ManagedLedgerImpl) ledger).getState());
@@ -418,21 +424,25 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // if the task started after the ML moved to Fenced state, it must fail
         CompletableFuture<?> handleAlreadyFenced = new CompletableFuture<>();
         ledger.trimConsumedLedgersInBackground(handleAlreadyFenced);
-        assertThat(expectThrows(ExecutionException.class, () -> handleAlreadyFenced.get()).getCause(),
+        assertThat(
+                expectThrows(ExecutionException.class, () -> handleAlreadyFenced.get())
+                        .getCause(),
                 instanceOf(ManagedLedgerException.ManagedLedgerFencedException.class));
 
         try {
             ledger.addEntry("entry".getBytes());
             fail("should fail");
         } catch (ManagedLedgerFencedException e) {
-            assertEquals("Attempted to use a fenced managed ledger", e.getCause().getMessage());
+            assertEquals(
+                    "Attempted to use a fenced managed ledger", e.getCause().getMessage());
         }
 
         assertFalse(factory.ledgers.isEmpty());
         try {
             ledger.close();
         } catch (ManagedLedgerFencedException e) {
-            assertEquals("Attempted to use a fenced managed ledger", e.getCause().getMessage());
+            assertEquals(
+                    "Attempted to use a fenced managed ledger", e.getCause().getMessage());
         }
 
         // verify that the ManagedLedger has been unregistered even if it was fenced
@@ -441,20 +451,19 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
     @Test
     public void badVersionErrorDuringTruncateLedger() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_trim",
-                new ManagedLedgerConfig()
-                        .setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger_trim", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
         ledger.addEntry("test".getBytes());
         ledger.addEntry("test".getBytes());
         ledger.addEntry("test".getBytes());
 
-        metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger_trim")
-                        && op == FaultInjectionMetadataStore.OperationType.PUT
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException.BadVersionException("err"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger_trim")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT);
 
         CompletableFuture<?> handle = ledger.asyncTruncate();
-        assertThat(expectThrows(ExecutionException.class, () -> handle.get()).getCause(),
+        assertThat(
+                expectThrows(ExecutionException.class, () -> handle.get()).getCause(),
                 instanceOf(ManagedLedgerException.BadVersionException.class));
 
         assertEquals(ManagedLedgerImpl.State.Fenced, ((ManagedLedgerImpl) ledger).getState());
@@ -473,10 +482,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
 
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
-        metadataStore.failConditional(new MetadataStoreException("err"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger")
-                        && op == FaultInjectionMetadataStore.OperationType.PUT
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException("err"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT);
 
         try {
             ledger.addEntry("entry-2".getBytes());
@@ -536,7 +545,6 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
                 ex.set(exception);
                 counter.countDown();
             }
-
         };
         ledger.asyncAddEntry("entry-1".getBytes(), cb, null);
         ledger.asyncAddEntry("entry-2".getBytes(), cb, null);
@@ -546,11 +554,13 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         Awaitility.await().untilAsserted(() -> {
             try {
-                bkc.openLedger(firstLedger.getId(),
-                        BookKeeper.DigestType.fromApiDigestType(ledger.getConfig().getDigestType()),
+                bkc.openLedger(
+                        firstLedger.getId(),
+                        BookKeeper.DigestType.fromApiDigestType(
+                                ledger.getConfig().getDigestType()),
                         ledger.getConfig().getPassword());
                 fail("The expected behavior is that the first ledger will be deleted, but it still exists.");
-            } catch (Exception ledgerDeletedEx){
+            } catch (Exception ledgerDeletedEx) {
                 // Expected LedgerNotExistsEx: the first ledger will be deleted after add entry fail.
                 assertTrue(ledgerDeletedEx instanceof BKException.BKNoSuchLedgerExistsException);
             }
@@ -580,10 +590,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         Position position1 = ledger.addEntry("entry".getBytes());
         cursor.markDelete(position);
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
-        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
-                path.equals("/managed-ledgers/my_test_ledger/my-cursor")
-                        && op == FaultInjectionMetadataStore.OperationType.PUT
-        );
+        metadataStore.failConditional(
+                new MetadataStoreException("error"),
+                (op, path) -> path.equals("/managed-ledgers/my_test_ledger/my-cursor")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT);
 
         try {
             cursor.markDelete(position1);

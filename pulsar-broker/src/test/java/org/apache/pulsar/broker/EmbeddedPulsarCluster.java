@@ -30,7 +30,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 
-
 public class EmbeddedPulsarCluster implements AutoCloseable {
 
     private static final String CLUSTER_NAME = "embedded";
@@ -53,8 +52,9 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
     private final PulsarAdmin admin;
 
     @Builder
-    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl,
-                                  String dataDir, boolean clearOldData) throws Exception {
+    private EmbeddedPulsarCluster(
+            int numBrokers, int numBookies, String metadataStoreUrl, String dataDir, boolean clearOldData)
+            throws Exception {
         this.numBrokers = numBrokers;
         this.numBookies = numBookies;
         this.metadataStoreUrl = metadataStoreUrl;
@@ -74,13 +74,18 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         this.serviceUrl = brokers.stream().map(ps -> ps.getBrokerServiceUrl()).collect(Collectors.joining(","));
         this.adminUrl = brokers.stream().map(ps -> ps.getWebServiceAddress()).collect(Collectors.joining(","));
 
-        this.admin = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl)
-                .build();
+        this.admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build();
 
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().brokerServiceUrl(serviceUrl).build());
-        admin.tenants().createTenant("public",
-                TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER_NAME)).build());
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder().brokerServiceUrl(serviceUrl).build());
+        admin.tenants()
+                .createTenant(
+                        "public",
+                        TenantInfo.builder()
+                                .allowedClusters(Collections.singleton(CLUSTER_NAME))
+                                .build());
         admin.namespaces().createNamespace("public/default", Collections.singleton(CLUSTER_NAME));
     }
 

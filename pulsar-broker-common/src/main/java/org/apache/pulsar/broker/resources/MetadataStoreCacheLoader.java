@@ -44,8 +44,10 @@ public class MetadataStoreCacheLoader implements Closeable {
 
     private volatile List<LoadManagerReport> availableBrokers;
 
-    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
-            .name("pulsar-metadata-cache-loader-ordered-cache").build();
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
+            .numThreads(8)
+            .name("pulsar-metadata-cache-loader-ordered-cache")
+            .build();
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
@@ -63,24 +65,29 @@ public class MetadataStoreCacheLoader implements Closeable {
     public void init() throws Exception {
         loadReportResources.getStore().registerListener((n) -> {
             if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
-                loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT).thenApplyAsync((brokerNodes)->{
-                    updateBrokerList(brokerNodes).thenRun(() -> {
-                        log.info("Successfully updated broker info {}", brokerNodes);
-                    }).exceptionally(ex -> {
-                        log.warn("Error updating broker info after broker list changed", ex);
-                        return null;
-                    });
-                    return null;
-                }).exceptionally(ex -> {
-                    log.warn("Error updating broker info after broker list changed", ex);
-                    return null;
-                });
+                loadReportResources
+                        .getChildrenAsync(LOADBALANCE_BROKERS_ROOT)
+                        .thenApplyAsync((brokerNodes) -> {
+                            updateBrokerList(brokerNodes)
+                                    .thenRun(() -> {
+                                        log.info("Successfully updated broker info {}", brokerNodes);
+                                    })
+                                    .exceptionally(ex -> {
+                                        log.warn("Error updating broker info after broker list changed", ex);
+                                        return null;
+                                    });
+                            return null;
+                        })
+                        .exceptionally(ex -> {
+                            log.warn("Error updating broker info after broker list changed", ex);
+                            return null;
+                        });
             }
         });
 
         // Do initial fetch of brokers list
-        updateBrokerList(loadReportResources.getChildren(LOADBALANCE_BROKERS_ROOT)).get(operationTimeoutMs,
-                TimeUnit.SECONDS);
+        updateBrokerList(loadReportResources.getChildren(LOADBALANCE_BROKERS_ROOT))
+                .get(operationTimeoutMs, TimeUnit.SECONDS);
     }
 
     public List<LoadManagerReport> getAvailableBrokers() {
@@ -113,31 +120,32 @@ public class MetadataStoreCacheLoader implements Closeable {
             loadReportFutureList.add(loadReportResources.getAsync(LOADBALANCE_BROKERS_ROOT + '/' + broker));
         }
 
-        FutureUtil.waitForAll(loadReportFutureList).thenRun(() -> {
-            List<LoadManagerReport> newAvailableBrokers = new ArrayList<>(brokerNodes.size());
+        FutureUtil.waitForAll(loadReportFutureList)
+                .thenRun(() -> {
+                    List<LoadManagerReport> newAvailableBrokers = new ArrayList<>(brokerNodes.size());
 
-            for (CompletableFuture<Optional<LoadManagerReport>> loadReportFuture : loadReportFutureList) {
-                try {
-                    Optional<LoadManagerReport> loadReport = loadReportFuture.get();
-                    if (loadReport.isPresent()) {
-                        newAvailableBrokers.add(loadReport.get());
+                    for (CompletableFuture<Optional<LoadManagerReport>> loadReportFuture : loadReportFutureList) {
+                        try {
+                            Optional<LoadManagerReport> loadReport = loadReportFuture.get();
+                            if (loadReport.isPresent()) {
+                                newAvailableBrokers.add(loadReport.get());
+                            }
+                        } catch (Exception e) {
+                            future.completeExceptionally(e);
+                            return;
+                        }
                     }
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                    return;
-                }
-            }
 
-            availableBrokers = newAvailableBrokers;
-            future.complete(null);
-        }).exceptionally(ex -> {
-            future.completeExceptionally(ex);
-            return null;
-        });
+                    availableBrokers = newAvailableBrokers;
+                    future.complete(null);
+                })
+                .exceptionally(ex -> {
+                    future.completeExceptionally(ex);
+                    return null;
+                });
 
         return future;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MetadataStoreCacheLoader.class);
-
 }

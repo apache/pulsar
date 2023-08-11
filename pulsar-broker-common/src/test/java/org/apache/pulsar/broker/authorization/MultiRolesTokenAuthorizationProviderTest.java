@@ -24,14 +24,13 @@ import static org.testng.Assert.assertTrue;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import javax.crypto.SecretKey;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.Test;
-
-import javax.crypto.SecretKey;
-import java.util.concurrent.CompletableFuture;
 
 public class MultiRolesTokenAuthorizationProviderTest {
 
@@ -40,7 +39,10 @@ public class MultiRolesTokenAuthorizationProviderTest {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String userA = "user-a";
         String userB = "user-b";
-        String token = Jwts.builder().claim("sub", new String[]{userA, userB}).signWith(secretKey).compact();
+        String token = Jwts.builder()
+                .claim("sub", new String[] {userA, userB})
+                .signWith(secretKey)
+                .compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
 
@@ -61,25 +63,29 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
 
         assertTrue(provider.authorize(ads, role -> {
-            if (role.equals(userB)) {
-                return CompletableFuture.completedFuture(true); // only userB has permission
-            }
-            return CompletableFuture.completedFuture(false);
-        }).get());
+                    if (role.equals(userB)) {
+                        return CompletableFuture.completedFuture(true); // only userB has permission
+                    }
+                    return CompletableFuture.completedFuture(false);
+                })
+                .get());
 
         assertTrue(provider.authorize(ads, role -> {
-            return CompletableFuture.completedFuture(true); // all users has permission
-        }).get());
+                    return CompletableFuture.completedFuture(true); // all users has permission
+                })
+                .get());
 
         assertFalse(provider.authorize(ads, role -> {
-            return CompletableFuture.completedFuture(false); // all users has no permission
-        }).get());
+                    return CompletableFuture.completedFuture(false); // all users has no permission
+                })
+                .get());
     }
 
     @Test
     public void testMultiRolesAuthzWithEmptyRoles() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-        String token = Jwts.builder().claim("sub", new String[]{}).signWith(secretKey).compact();
+        String token =
+                Jwts.builder().claim("sub", new String[] {}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
 
@@ -99,7 +105,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
+        assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false))
+                .get());
     }
 
     @Test
@@ -127,11 +134,12 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
 
         assertTrue(provider.authorize(ads, role -> {
-            if (role.equals(testRole)) {
-                return CompletableFuture.completedFuture(true);
-            }
-            return CompletableFuture.completedFuture(false);
-        }).get());
+                    if (role.equals(testRole)) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return CompletableFuture.completedFuture(false);
+                })
+                .get());
     }
 
     @Test
@@ -156,7 +164,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
+        assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false))
+                .get());
     }
 
     @Test
@@ -164,7 +173,10 @@ public class MultiRolesTokenAuthorizationProviderTest {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String testRole = "test-role";
         String customRolesClaims = "role";
-        String token = Jwts.builder().claim(customRolesClaims, new String[]{testRole}).signWith(secretKey).compact();
+        String token = Jwts.builder()
+                .claim(customRolesClaims, new String[] {testRole})
+                .signWith(secretKey)
+                .compact();
 
         Properties properties = new Properties();
         properties.setProperty("tokenSettingPrefix", "prefix_");
@@ -192,10 +204,11 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
 
         assertTrue(provider.authorize(ads, role -> {
-            if (role.equals(testRole)) {
-                return CompletableFuture.completedFuture(true);
-            }
-            return CompletableFuture.completedFuture(false);
-        }).get());
+                    if (role.equals(testRole)) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return CompletableFuture.completedFuture(false);
+                })
+                .get());
     }
 }

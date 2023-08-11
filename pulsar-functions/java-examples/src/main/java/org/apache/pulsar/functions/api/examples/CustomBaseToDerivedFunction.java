@@ -28,8 +28,6 @@ public class CustomBaseToDerivedFunction implements Function<CustomBaseObject, C
 
     @Override
     public CustomDerivedObject process(CustomBaseObject input, Context context) {
-        return new CustomDerivedObject(input.getBaseValue() + 100,
-                (int) input.getBaseValue() + 50);
+        return new CustomDerivedObject(input.getBaseValue() + 100, (int) input.getBaseValue() + 50);
     }
 }
-

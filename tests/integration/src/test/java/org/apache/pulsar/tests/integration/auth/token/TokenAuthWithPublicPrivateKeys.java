@@ -19,12 +19,9 @@
 package org.apache.pulsar.tests.integration.auth.token;
 
 import com.google.common.io.Files;
-
 import java.io.File;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -42,38 +39,62 @@ public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBas
     @Override
     @SuppressWarnings("rawtypes")
     protected void createKeysAndTokens(PulsarContainer container) throws Exception {
-        container
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create-key-pair",
-                        "--output-private-key", PRIVATE_KEY_PATH_INSIDE_CONTAINER,
-                        "--output-public-key", PUBLIC_KEY_PATH_INSIDE_CONTAINER);
+        container.execCmd(
+                PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                "tokens",
+                "create-key-pair",
+                "--output-private-key",
+                PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                "--output-public-key",
+                PUBLIC_KEY_PATH_INSIDE_CONTAINER);
 
-        byte[] publicKeyBytes = DockerUtils
-                .runCommandWithRawOutput(container.getDockerClient(), container.getContainerId(),
-                        "/bin/cat", PUBLIC_KEY_PATH_INSIDE_CONTAINER)
+        byte[] publicKeyBytes = DockerUtils.runCommandWithRawOutput(
+                        container.getDockerClient(),
+                        container.getContainerId(),
+                        "/bin/cat",
+                        PUBLIC_KEY_PATH_INSIDE_CONTAINER)
                 .getStdout();
 
         publicKeyFile = File.createTempFile("public-", ".key", new File("/tmp"));
         Files.write(publicKeyBytes, publicKeyFile);
 
         clientAuthToken = container
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
-                        "--subject", REGULAR_USER_ROLE)
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--private-key",
+                        "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--subject",
+                        REGULAR_USER_ROLE)
+                .getStdout()
+                .trim();
         log.info("Created client token: {}", clientAuthToken);
 
         superUserAuthToken = container
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
-                        "--subject", SUPER_USER_ROLE)
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--private-key",
+                        "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--subject",
+                        SUPER_USER_ROLE)
+                .getStdout()
+                .trim();
         log.info("Created super-user token: {}", superUserAuthToken);
 
         proxyAuthToken = container
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
-                        "--subject", PROXY_ROLE)
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--private-key",
+                        "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--subject",
+                        PROXY_ROLE)
+                .getStdout()
+                .trim();
         log.info("Created proxy token: {}", proxyAuthToken);
     }
 
@@ -92,10 +113,17 @@ public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBas
     @Override
     protected String createClientTokenWithExpiry(long expiryTime, TimeUnit unit) throws Exception {
         return cmdContainer
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
-                        "--subject", REGULAR_USER_ROLE,
-                        "--expiry-time", unit.toSeconds(expiryTime) + "s")
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--private-key",
+                        "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--subject",
+                        REGULAR_USER_ROLE,
+                        "--expiry-time",
+                        unit.toSeconds(expiryTime) + "s")
+                .getStdout()
+                .trim();
     }
 }

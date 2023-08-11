@@ -52,16 +52,17 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         assertNotNull(topic);
         assertTrue(topic.getDispatchRateLimiter().isEmpty());
 
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg", "100");
-        Awaitility.await().untilAsserted(() ->
-            assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerTopicInMsg(), 100));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerTopicInMsg(), 100));
 
-        Awaitility.await().untilAsserted(() ->
-            assertTrue(topic.getDispatchRateLimiter().isPresent()));
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic.getDispatchRateLimiter().isPresent()));
         assertEquals(topic.getDispatchRateLimiter().get().getAvailableDispatchRateLimitOnMsg(), 100L);
     }
 
@@ -71,16 +72,17 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         assertNotNull(topic);
         assertTrue(topic.getDispatchRateLimiter().isEmpty());
 
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", "1000");
-        Awaitility.await().untilAsserted(() ->
-            assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerTopicInByte(), 1000L));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerTopicInByte(), 1000L));
 
-        Awaitility.await().untilAsserted(() ->
-            assertTrue(topic.getDispatchRateLimiter().isPresent()));
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic.getDispatchRateLimiter().isPresent()));
         assertEquals(topic.getDispatchRateLimiter().get().getAvailableDispatchRateLimitOnByte(), 1000L);
     }
 
@@ -90,15 +92,15 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         assertNotNull(topic);
         assertTrue(topic.getDispatchRateLimiter().isEmpty());
 
-        DispatchRate dispatchRate = DispatchRate
-            .builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(1000L)
-            .build();
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1000L)
+                .build();
         admin.namespaces().setDispatchRate("prop/ns-abc", dispatchRate);
 
         Awaitility.await().untilAsserted(() -> {
@@ -107,7 +109,8 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
             assertEquals(admin.namespaces().getDispatchRate("prop/ns-abc").getDispatchThrottlingRateInByte(), 1000L);
         });
 
-        Awaitility.await().untilAsserted(() -> assertTrue(topic.getDispatchRateLimiter().isPresent()));
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic.getDispatchRateLimiter().isPresent()));
         assertEquals(topic.getDispatchRateLimiter().get().getAvailableDispatchRateLimitOnMsg(), 100);
         assertEquals(topic.getDispatchRateLimiter().get().getAvailableDispatchRateLimitOnByte(), 1000L);
     }
@@ -118,15 +121,15 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         assertNotNull(topic);
         assertTrue(topic.getDispatchRateLimiter().isEmpty());
 
-        DispatchRate dispatchRate = DispatchRate
-            .builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(1000L)
-            .build();
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1000L)
+                .build();
         admin.topicPolicies().setDispatchRate(topicName, dispatchRate);
 
         Awaitility.await().untilAsserted(() -> {
@@ -135,7 +138,8 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
             assertEquals(admin.topicPolicies().getDispatchRate(topicName).getDispatchThrottlingRateInByte(), 1000L);
         });
 
-        Awaitility.await().untilAsserted(() ->  assertTrue(topic.getDispatchRateLimiter().isPresent()));
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic.getDispatchRateLimiter().isPresent()));
         assertEquals(topic.getDispatchRateLimiter().get().getAvailableDispatchRateLimitOnMsg(), 100);
         assertEquals(topic.getDispatchRateLimiter().get().getAvailableDispatchRateLimitOnByte(), 1000L);
     }

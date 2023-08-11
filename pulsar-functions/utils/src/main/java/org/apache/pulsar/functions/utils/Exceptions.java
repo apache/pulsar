@@ -27,8 +27,7 @@ import java.io.StringWriter;
  */
 public class Exceptions {
 
-    public static void rethrowIOException(Throwable cause)
-            throws IOException {
+    public static void rethrowIOException(Throwable cause) throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;
         } else if (cause instanceof RuntimeException) {
@@ -47,7 +46,7 @@ public class Exceptions {
         return sw.toString();
     }
 
-    public static boolean areExceptionsPresentInChain(Throwable error, Class ... types) {
+    public static boolean areExceptionsPresentInChain(Throwable error, Class... types) {
         while (error != null) {
             for (Class type : types) {
                 if (type.isInstance(error)) {
@@ -58,5 +57,4 @@ public class Exceptions {
         }
         return false;
     }
-
 }

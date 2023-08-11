@@ -34,10 +34,13 @@ public class FunctionApiResource implements Supplier<WorkerService> {
     public static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
     private WorkerService workerService;
+
     @Context
     protected ServletContext servletContext;
+
     @Context
     protected HttpServletRequest httpRequest;
+
     @Context
     protected UriInfo uri;
 

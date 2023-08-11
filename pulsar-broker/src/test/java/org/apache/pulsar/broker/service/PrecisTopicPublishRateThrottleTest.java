@@ -18,38 +18,38 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 @Test(groups = "broker")
-public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
+public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase {
 
     @Override
     protected void setup() throws Exception {
-        //No-op
+        // No-op
     }
 
     @Override
     protected void cleanup() throws Exception {
-        //No-op
+        // No-op
     }
 
     @Test
     public void testPrecisTopicPublishRateLimitingDisabled() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
+        PublishRate publishRate = new PublishRate(1, 10);
         // disable precis topic publish rate limiting
         conf.setPreciseTopicPublishRateLimiterEnable(false);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
-        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
@@ -79,13 +79,14 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Test
     public void testProducerBlockedByPrecisTopicPublishRateLimiting() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
+        PublishRate publishRate = new PublishRate(1, 10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
-        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
@@ -108,13 +109,14 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Test
     public void testPrecisTopicPublishRateLimitingProduceRefresh() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
+        PublishRate publishRate = new PublishRate(1, 10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
-        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
@@ -143,15 +145,16 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
     }
 
     @Test
-    public void testBrokerLevelPublishRateDynamicUpdate() throws Exception{
+    public void testBrokerLevelPublishRateDynamicUpdate() throws Exception {
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testMultiLevelPublishRate";
-        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topic)
-            .producerName("producer-name")
-            .create();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .producerName("producer-name")
+                .create();
 
         final int rateInMsg = 10;
         final long rateInByte = 20;
@@ -159,9 +162,9 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         // maxPublishRatePerTopicInMessages
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "" + rateInMsg);
         Awaitility.await()
-            .untilAsserted(() ->
-                Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
-                    "" + rateInMsg));
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
+                        "" + rateInMsg));
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
         PrecisePublishLimiter limiter = ((PrecisePublishLimiter) ((AbstractTopic) topicRef).topicPublishRateLimiter);
@@ -171,9 +174,9 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         // maxPublishRatePerTopicInBytes
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "" + rateInByte);
         Awaitility.await()
-            .untilAsserted(() ->
-                Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInBytes"),
-                    "" + rateInByte));
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInBytes"),
+                        "" + rateInByte));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.publishMaxByteRate, rateInByte));
         Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg);
 

@@ -23,8 +23,7 @@ import java.util.Random;
 import org.apache.commons.lang3.RandomStringUtils;
 
 public class DefaultMessageFormatter implements IMessageFormatter {
-    private final Random r  = new Random();
-
+    private final Random r = new Random();
 
     @Override
     public byte[] formatMessage(String producerName, long msgId, byte[] message) {
@@ -100,6 +99,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
 
         return String.valueOf((int) get_FloatValue(size));
     }
+
     private String getLongValue(float size) {
         if (size == 0) {
             return String.valueOf(r.nextLong());

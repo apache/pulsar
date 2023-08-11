@@ -61,7 +61,6 @@ public class MetadataTests {
         metadata.put(generateKey(2, 256), generateKey(2, 257));
         Assert.assertFalse(validateMetadata(metadata, 1024));
 
-
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 256));
@@ -82,7 +81,9 @@ public class MetadataTests {
     }
 
     private static String generateKey(int number, int length) {
-        return IntStream.generate(() -> number).limit(length).mapToObj(Integer::toString)
+        return IntStream.generate(() -> number)
+                .limit(length)
+                .mapToObj(Integer::toString)
                 .collect(Collectors.joining(""));
     }
 }

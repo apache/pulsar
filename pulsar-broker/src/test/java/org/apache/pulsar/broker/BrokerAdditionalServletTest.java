@@ -80,6 +80,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         AdditionalServletWithPulsarService brokerAdditionalServletWithPulsarService =
                 new AdditionalServletWithPulsarService() {
                     private PulsarService pulsarService;
+
                     @Override
                     public void setPulsarService(PulsarService pulsarService) {
                         this.pulsarService = pulsarService;
@@ -106,11 +107,12 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
                     }
                 };
 
-
         AdditionalServlets brokerAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
         map.put("broker-additional-servlet", new AdditionalServletWithClassLoader(brokerAdditionalServlet, null));
-        map.put("broker-additional-servlet-with-pulsar-service", new AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
+        map.put(
+                "broker-additional-servlet-with-pulsar-service",
+                new AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
         Mockito.when(brokerAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
@@ -129,7 +131,6 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(WithPulsarServiceParamValue, withPulsarServiceResponse);
     }
 
-
     private class OrdinaryServlet implements Servlet {
         @Override
         public void init(ServletConfig servletConfig) throws ServletException {
@@ -143,8 +144,8 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         }
 
         @Override
-        public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
-                IOException {
+        public void service(ServletRequest servletRequest, ServletResponse servletResponse)
+                throws ServletException, IOException {
             log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
             String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
@@ -165,7 +166,6 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-
     private class WithPulsarServiceServlet extends OrdinaryServlet {
         private final PulsarService pulsarService;
 
@@ -174,8 +174,8 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         }
 
         @Override
-        public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
-                IOException {
+        public void service(ServletRequest servletRequest, ServletResponse servletResponse)
+                throws ServletException, IOException {
             log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
             String value = pulsarService == null ? "null" : PulsarService.class.getName();
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
@@ -187,14 +187,10 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     String httpGet(String url) throws IOException {
         OkHttpClient client = new OkHttpClient();
-        okhttp3.Request request = new okhttp3.Request.Builder()
-                .get()
-                .url(url)
-                .build();
+        okhttp3.Request request = new okhttp3.Request.Builder().get().url(url).build();
 
         try (Response response = client.newCall(request).execute()) {
             return response.body().string();
         }
     }
-
 }

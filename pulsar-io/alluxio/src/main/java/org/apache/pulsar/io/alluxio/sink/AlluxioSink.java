@@ -121,7 +121,7 @@ public class AlluxioSink implements Sink<GenericObject> {
 
         lastRotationTime = System.currentTimeMillis();
         rotationRecordsNum = alluxioSinkConfig.getRotationRecords();
-        rotationInterval =  alluxioSinkConfig.getRotationInterval();
+        rotationInterval = alluxioSinkConfig.getRotationInterval();
     }
 
     @SuppressWarnings("checkstyle:fallthrough")
@@ -161,8 +161,10 @@ public class AlluxioSink implements Sink<GenericObject> {
                 alluxioState = AlluxioState.WRITE_STARTED;
                 break;
             default:
-                log.error("{} is not a valid state when writing record to alluxio temp dir {}.",
-                    alluxioState, tmpFileDirPath);
+                log.error(
+                        "{} is not a valid state when writing record to alluxio temp dir {}.",
+                        alluxioState,
+                        tmpFileDirPath);
                 break;
         }
     }
@@ -204,8 +206,7 @@ public class AlluxioSink implements Sink<GenericObject> {
     }
 
     private void createTmpFile() throws AlluxioException, IOException {
-        CreateFilePOptions.Builder optionsBuilder =
-                FileSystemOptions.createFileDefaults(configuration).toBuilder();
+        CreateFilePOptions.Builder optionsBuilder = FileSystemOptions.createFileDefaults(configuration).toBuilder();
         UUID id = UUID.randomUUID();
         String fileExtension = alluxioSinkConfig.getFileExtension();
         tmpFilePath = tmpFileDirPath + "/" + id.toString() + "_tmp" + fileExtension;
@@ -215,7 +216,7 @@ public class AlluxioSink implements Sink<GenericObject> {
                 writePType = WritePType.valueOf(alluxioSinkConfig.getWriteType().toUpperCase());
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Illegal write type when creating Alluxio files, valid values are: "
-                    + Arrays.asList(WriteType.values()));
+                        + Arrays.asList(WriteType.values()));
             }
             optionsBuilder.setWriteType(writePType);
         }
@@ -260,7 +261,7 @@ public class AlluxioSink implements Sink<GenericObject> {
     private static byte[] toByteArray(Object obj) throws IOException {
         byte[] bytes = null;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+                ObjectOutputStream oos = new ObjectOutputStream(baos)) {
             oos.writeObject(obj);
             oos.flush();
             bytes = baos.toByteArray();
@@ -315,9 +316,14 @@ public class AlluxioSink implements Sink<GenericObject> {
             }
             return new KeyValue<>(null, value);
         } else {
-            return new KeyValue<>(null, new String(record.getMessage()
-                    .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
-                    .getData(), StandardCharsets.UTF_8));
+            return new KeyValue<>(
+                    null,
+                    new String(
+                            record.getMessage()
+                                    .orElseThrow(() ->
+                                            new IllegalArgumentException("Record does not carry message information"))
+                                    .getData(),
+                            StandardCharsets.UTF_8));
         }
     }
 
@@ -327,7 +333,8 @@ public class AlluxioSink implements Sink<GenericObject> {
             JsonNode jsonNode = (JsonNode) ((GenericRecord) val).getNativeObject();
             return objectMapper.writeValueAsString(jsonNode);
         }
-        throw new UnsupportedOperationException("Unsupported value schemaType=" + schema.getSchemaInfo().getType());
+        throw new UnsupportedOperationException(
+                "Unsupported value schemaType=" + schema.getSchemaInfo().getType());
     }
 
     private enum AlluxioState {

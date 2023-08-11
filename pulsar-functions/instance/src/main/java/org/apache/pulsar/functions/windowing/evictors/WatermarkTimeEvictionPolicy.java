@@ -61,11 +61,11 @@ public class WatermarkTimeEvictionPolicy<T> extends TimeEvictionPolicy<T> {
     @Override
     public Action evict(Event<T> event) {
         if (evictionContext == null) {
-            //It is possible to get asked about eviction before we have a context, due to WindowManager
+            // It is possible to get asked about eviction before we have a context, due to WindowManager
             // .compactWindow.
-            //In this case we should hold on to all the events. When the first watermark is received,
+            // In this case we should hold on to all the events. When the first watermark is received,
             // the context will be set,
-            //and the events will be reevaluated for eviction
+            // and the events will be reevaluated for eviction
             return Action.STOP;
         }
 
@@ -84,5 +84,4 @@ public class WatermarkTimeEvictionPolicy<T> extends TimeEvictionPolicy<T> {
     public String toString() {
         return "WatermarkTimeEvictionPolicy{" + "lag=" + lag + "} " + super.toString();
     }
-
 }

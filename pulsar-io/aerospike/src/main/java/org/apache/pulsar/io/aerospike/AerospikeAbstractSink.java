@@ -92,7 +92,9 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> record) {
         KeyValue<K, V> keyValue = extractKeyValue(record);
-        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(),
+        Key key = new Key(
+                aerospikeSinkConfig.getKeyspace(),
+                aerospikeSinkConfig.getKeySet(),
                 keyValue.getKey().toString());
         Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(keyValue.getValue()));
         AWriteListener listener = null;
@@ -117,8 +119,10 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
             aeroSpikeHosts[i] = new Host(hostPort[0], Integer.parseInt(hostPort[1]));
         }
         ClientPolicy policy = new ClientPolicy();
-        if (aerospikeSinkConfig.getUserName() != null && !aerospikeSinkConfig.getUserName().isEmpty()
-            && aerospikeSinkConfig.getPassword() != null && !aerospikeSinkConfig.getPassword().isEmpty()) {
+        if (aerospikeSinkConfig.getUserName() != null
+                && !aerospikeSinkConfig.getUserName().isEmpty()
+                && aerospikeSinkConfig.getPassword() != null
+                && !aerospikeSinkConfig.getPassword().isEmpty()) {
             policy.user = aerospikeSinkConfig.getUserName();
             policy.password = aerospikeSinkConfig.getPassword();
         }

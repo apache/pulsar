@@ -118,9 +118,13 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         }
 
         // Test empty extra credentials parameters
-        doReturn(new HashMap<String, String>() {{
-            put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-        }}).when(identity).getExtraCredentials();
+        doReturn(new HashMap<String, String>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                    }
+                })
+                .when(identity)
+                .getExtraCredentials();
         try {
             pulsarAuth.checkTopicAuth(session, "test");
             Assert.fail(); // should fail
@@ -129,9 +133,13 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e.getMessage().contains("Please specify the auth-method and auth-params"));
         }
 
-        doReturn(new HashMap<String, String>() {{
-            put("auth-params", "test-token");
-        }}).when(identity).getExtraCredentials();
+        doReturn(new HashMap<String, String>() {
+                    {
+                        put("auth-params", "test-token");
+                    }
+                })
+                .when(identity)
+                .getExtraCredentials();
         try {
             pulsarAuth.checkTopicAuth(session, "test");
             Assert.fail(); // should fail
@@ -166,19 +174,23 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         doReturn("query-1").when(session).getQueryId();
         doReturn(identity).when(session).getIdentity();
 
-        doReturn(new HashMap<String, String>() {{
-            put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-            put("auth-params", passToken);
-        }}).when(identity).getExtraCredentials();
+        doReturn(new HashMap<String, String>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                        put("auth-params", passToken);
+                    }
+                })
+                .when(identity)
+                .getExtraCredentials();
 
         PulsarAuth pulsarAuth = new PulsarAuth(pulsarConnectorConfig);
 
         pulsarAuth.checkTopicAuth(session, topic); // should pass
 
         // authorizedQueryTopicPairs should contain the authorized query and topic.
+        Assert.assertTrue(pulsarAuth.authorizedQueryTopicsMap.containsKey(session.getQueryId()));
         Assert.assertTrue(
-                pulsarAuth.authorizedQueryTopicsMap.containsKey(session.getQueryId()));
-        Assert.assertTrue(pulsarAuth.authorizedQueryTopicsMap.get(session.getQueryId()).contains(topic));
+                pulsarAuth.authorizedQueryTopicsMap.get(session.getQueryId()).contains(topic));
 
         // Using the authorized query but not authorized topic should fail.
         // This part of the test case is for the case where a query accesses multiple topics but only some of them
@@ -186,7 +198,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         try {
             pulsarAuth.checkTopicAuth(session, otherTopic);
             Assert.fail(); // should fail
-        } catch (TrinoException e){
+        } catch (TrinoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("not authorized"));
         }
@@ -200,14 +212,18 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
 
         doReturn("query-2").when(session).getQueryId();
 
-        try{
-            doReturn(new HashMap<String, String>() {{
-                put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                put("auth-params", "invalid-token");
-            }}).when(identity).getExtraCredentials();
+        try {
+            doReturn(new HashMap<String, String>() {
+                        {
+                            put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                            put("auth-params", "invalid-token");
+                        }
+                    })
+                    .when(identity)
+                    .getExtraCredentials();
             pulsarAuth.checkTopicAuth(session, topic);
             Assert.fail(); // should fail
-        } catch (TrinoException e){
+        } catch (TrinoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("Failed to authenticate"));
         }
@@ -217,24 +233,32 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
 
         doReturn("query-3").when(session).getQueryId();
 
-        try{
-            doReturn(new HashMap<String, String>() {{
-                put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                put("auth-params", deniedToken);
-            }}).when(identity).getExtraCredentials();
+        try {
+            doReturn(new HashMap<String, String>() {
+                        {
+                            put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                            put("auth-params", deniedToken);
+                        }
+                    })
+                    .when(identity)
+                    .getExtraCredentials();
             pulsarAuth.checkTopicAuth(session, topic);
             Assert.fail(); // should fail
-        } catch (TrinoException e){
+        } catch (TrinoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("not authorized"));
         }
 
         pulsarAuth.cleanSession(session);
 
-        doReturn(new HashMap<String, String>() {{
-            put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-            put("auth-params", passToken);
-        }}).when(identity).getExtraCredentials();
+        doReturn(new HashMap<String, String>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                        put("auth-params", passToken);
+                    }
+                })
+                .when(identity)
+                .getExtraCredentials();
         pulsarAuth.checkTopicAuth(session, topic); // should pass for the partitioned topic case
 
         pulsarAuth.cleanSession(session);

@@ -34,8 +34,8 @@ public abstract class AbstractAwsConnector {
     public static final String ACCESS_KEY_NAME = "accessKey";
     public static final String SECRET_KEY_NAME = "secretKey";
 
-    public AwsCredentialProviderPlugin createCredentialProvider(String awsCredentialPluginName,
-                                                                   String awsCredentialPluginParam) {
+    public AwsCredentialProviderPlugin createCredentialProvider(
+            String awsCredentialPluginName, String awsCredentialPluginParam) {
         if (StringUtils.isNotBlank(awsCredentialPluginName)) {
             return createCredentialProviderWithPlugin(awsCredentialPluginName, awsCredentialPluginParam);
         } else {
@@ -75,14 +75,14 @@ public abstract class AbstractAwsConnector {
      * @return
      */
     public AwsCredentialProviderPlugin defaultCredentialProvider(String awsCredentialPluginParam) {
-        Map<String, String> credentialMap = new Gson().fromJson(awsCredentialPluginParam,
-                new TypeToken<Map<String, String>>() {
-                }.getType());
+        Map<String, String> credentialMap =
+                new Gson().fromJson(awsCredentialPluginParam, new TypeToken<Map<String, String>>() {}.getType());
         String accessKey = credentialMap.get(ACCESS_KEY_NAME);
         String secretKey = credentialMap.get(SECRET_KEY_NAME);
         if (!(StringUtils.isNotBlank(accessKey) && StringUtils.isNotBlank(secretKey))) {
-            throw new IllegalArgumentException(String.format("Default %s and %s must be present into json-map "
-                    + "if AwsCredentialProviderPlugin not provided", ACCESS_KEY_NAME, SECRET_KEY_NAME));
+            throw new IllegalArgumentException(String.format(
+                    "Default %s and %s must be present into json-map " + "if AwsCredentialProviderPlugin not provided",
+                    ACCESS_KEY_NAME, SECRET_KEY_NAME));
         }
         return new AwsCredentialProviderPlugin() {
             @Override
@@ -97,9 +97,7 @@ public abstract class AbstractAwsConnector {
             }
 
             @Override
-            public void close() throws IOException {
-
-            }
+            public void close() throws IOException {}
         };
     }
 
@@ -119,6 +117,7 @@ public abstract class AbstractAwsConnector {
                     }
                 };
             }
+
             @Override
             public void refresh() {
                 // no-op

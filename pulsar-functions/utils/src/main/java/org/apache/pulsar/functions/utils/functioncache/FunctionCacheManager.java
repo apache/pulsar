@@ -45,23 +45,16 @@ public interface FunctionCacheManager extends AutoCloseable {
      * @param requiredJarFiles collection of blob keys identifying the required jar files.
      * @param requiredClasspaths collection of classpaths that are added to the function code class loader.
      */
-    default void registerFunction(String fid,
-                                  List<String> requiredJarFiles,
-                                  List<URL> requiredClasspaths)
-        throws IOException {
-        registerFunctionInstance(fid, null, requiredJarFiles,
-            requiredClasspaths);
+    default void registerFunction(String fid, List<String> requiredJarFiles, List<URL> requiredClasspaths)
+            throws IOException {
+        registerFunctionInstance(fid, null, requiredJarFiles, requiredClasspaths);
     }
 
-    void registerFunctionInstance(String fid,
-                                  String eid,
-                                  List<String> requiredJarFiles,
-                                  List<URL> requiredClasspaths)
-        throws IOException;
+    void registerFunctionInstance(String fid, String eid, List<String> requiredJarFiles, List<URL> requiredClasspaths)
+            throws IOException;
 
-    void registerFunctionInstanceWithArchive(String fid, String eid,
-                                             String narArchive,
-                                             String narExtractionDirectory) throws IOException;
+    void registerFunctionInstanceWithArchive(String fid, String eid, String narArchive, String narExtractionDirectory)
+            throws IOException;
 
     /**
      * Unregisters a job from the function cache manager.
@@ -72,8 +65,7 @@ public interface FunctionCacheManager extends AutoCloseable {
         unregisterFunctionInstance(fid, null);
     }
 
-    void unregisterFunctionInstance(String fid,
-                                    String eid);
+    void unregisterFunctionInstance(String fid, String eid);
 
     /**
      * Close the cache manager to release created class loaders.

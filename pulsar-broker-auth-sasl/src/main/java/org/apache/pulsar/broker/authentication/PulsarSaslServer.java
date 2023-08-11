@@ -48,15 +48,13 @@ public class PulsarSaslServer {
     private final Subject serverSubject;
     private static final String GSSAPI = "GSSAPI";
 
-    public PulsarSaslServer(Subject subject, Pattern allowedIdsPattern)
-        throws IOException, LoginException {
+    public PulsarSaslServer(Subject subject, Pattern allowedIdsPattern) throws IOException, LoginException {
         this.serverSubject = subject;
         this.allowedIdsPattern = allowedIdsPattern;
         saslServer = createSaslServer(serverSubject);
     }
 
-    private SaslServer createSaslServer(final Subject subject)
-        throws IOException {
+    private SaslServer createSaslServer(final Subject subject) throws IOException {
         SaslServerCallbackHandler callbackHandler = new SaslServerCallbackHandler(allowedIdsPattern);
         if (subject.getPrincipals().size() > 0) {
             try {
@@ -71,8 +69,7 @@ public class PulsarSaslServer {
                 int indexOf = servicePrincipalNameAndHostname.indexOf("/");
 
                 // e.g. serviceHostnameAndKerbDomain := "myhost.foo.com@EXAMPLE.COM"
-                final String serviceHostnameAndKerbDomain = servicePrincipalNameAndHostname.substring(indexOf + 1
-                );
+                final String serviceHostnameAndKerbDomain = servicePrincipalNameAndHostname.substring(indexOf + 1);
                 int indexOfAt = serviceHostnameAndKerbDomain.indexOf("@");
 
                 // Handle Kerberos Service as well as User Principal Names
@@ -88,25 +85,27 @@ public class PulsarSaslServer {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("serviceHostname is '{}', servicePrincipalName is '{}', SASL mechanism(mech) is '{}'.",
-                        serviceHostname, servicePrincipalName, GSSAPI);
+                    log.debug(
+                            "serviceHostname is '{}', servicePrincipalName is '{}', SASL mechanism(mech) is '{}'.",
+                            serviceHostname,
+                            servicePrincipalName,
+                            GSSAPI);
                 }
 
                 try {
                     return Subject.doAs(subject, new PrivilegedExceptionAction<SaslServer>() {
-                            @Override
-                            public SaslServer run() {
-                                try {
-                                    SaslServer saslServer;
-                                    saslServer = Sasl.createSaslServer(GSSAPI, servicePrincipalName, serviceHostname,
-                                        null, callbackHandler);
-                                    return saslServer;
-                                } catch (SaslException e) {
-                                    throw new RuntimeException(e);
-                                }
+                        @Override
+                        public SaslServer run() {
+                            try {
+                                SaslServer saslServer;
+                                saslServer = Sasl.createSaslServer(
+                                        GSSAPI, servicePrincipalName, serviceHostname, null, callbackHandler);
+                                return saslServer;
+                            } catch (SaslException e) {
+                                throw new RuntimeException(e);
                             }
                         }
-                    );
+                    });
                 } catch (PrivilegedActionException e) {
                     throw new SaslException("error on GSSAPI boot", e.getCause());
                 }
@@ -167,20 +166,26 @@ public class PulsarSaslServer {
             String authorizationID = ac.getAuthorizationID();
             if (!authenticationID.equals(authorizationID)) {
                 ac.setAuthorized(false);
-                log.info("Forbidden access to client: authenticationID: {} is different from authorizationID: {}",
-                    authenticationID, authorizationID);
+                log.info(
+                        "Forbidden access to client: authenticationID: {} is different from authorizationID: {}",
+                        authenticationID,
+                        authorizationID);
                 return;
             }
             if (!allowedIdsPattern.matcher(authenticationID).matches()) {
                 ac.setAuthorized(false);
-                log.info("Forbidden access to client: authenticationID {}, is not allowed (see {} property).",
-                    authenticationID, SaslConstants.JAAS_CLIENT_ALLOWED_IDS);
+                log.info(
+                        "Forbidden access to client: authenticationID {}, is not allowed (see {} property).",
+                        authenticationID,
+                        SaslConstants.JAAS_CLIENT_ALLOWED_IDS);
                 return;
             }
 
             ac.setAuthorized(true);
-            log.info("Successfully authenticated client: authenticationID: {};  authorizationID: {}.",
-                authenticationID, authorizationID);
+            log.info(
+                    "Successfully authenticated client: authenticationID: {};  authorizationID: {}.",
+                    authenticationID,
+                    authorizationID);
         }
     }
 }

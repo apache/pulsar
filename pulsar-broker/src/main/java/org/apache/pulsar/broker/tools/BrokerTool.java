@@ -31,13 +31,13 @@ public class BrokerTool {
 
     public static int run(String[] args) {
         CliSpec.Builder<CliFlags> specBuilder = CliSpec.newBuilder()
-            .withName(NAME)
-            .withUsage(NAME + " [flags] [commands]")
-            .withDescription(NAME + " is used for operations on a specific broker")
-            .withFlags(new CliFlags())
-            .withConsole(System.out)
-            .addCommand(new LoadReportCommand())
-            .addCommand(new GenerateDocsCommand());
+                .withName(NAME)
+                .withUsage(NAME + " [flags] [commands]")
+                .withDescription(NAME + " is used for operations on a specific broker")
+                .withFlags(new CliFlags())
+                .withConsole(System.out)
+                .addCommand(new LoadReportCommand())
+                .addCommand(new GenerateDocsCommand());
 
         CliSpec<CliFlags> spec = specBuilder.build();
 

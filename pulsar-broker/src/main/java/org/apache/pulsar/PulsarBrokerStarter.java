@@ -78,29 +78,44 @@ public class PulsarBrokerStarter {
     @VisibleForTesting
     @Parameters(commandDescription = "Options")
     private static class StarterArguments {
-        @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
+        @Parameter(
+                names = {"-c", "--broker-conf"},
+                description = "Configuration file for Broker")
         private String brokerConfigFile = "conf/broker.conf";
 
-        @Parameter(names = {"-rb", "--run-bookie"}, description = "Run Bookie together with Broker")
+        @Parameter(
+                names = {"-rb", "--run-bookie"},
+                description = "Run Bookie together with Broker")
         private boolean runBookie = false;
 
-        @Parameter(names = {"-ra", "--run-bookie-autorecovery"},
+        @Parameter(
+                names = {"-ra", "--run-bookie-autorecovery"},
                 description = "Run Bookie Autorecovery together with broker")
         private boolean runBookieAutoRecovery = false;
 
-        @Parameter(names = {"-bc", "--bookie-conf"}, description = "Configuration file for Bookie")
+        @Parameter(
+                names = {"-bc", "--bookie-conf"},
+                description = "Configuration file for Bookie")
         private String bookieConfigFile = "conf/bookkeeper.conf";
 
-        @Parameter(names = {"-rfw", "--run-functions-worker"}, description = "Run functions worker with Broker")
+        @Parameter(
+                names = {"-rfw", "--run-functions-worker"},
+                description = "Run functions worker with Broker")
         private boolean runFunctionsWorker = false;
 
-        @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
+        @Parameter(
+                names = {"-fwc", "--functions-worker-conf"},
+                description = "Configuration file for Functions Worker")
         private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 
@@ -120,7 +135,7 @@ public class PulsarBrokerStarter {
 
         if (bookieConf.getMaxPendingReadRequestPerThread() < bookieConf.getRereplicationEntryBatchSize()) {
             throw new IllegalArgumentException(
-                "rereplicationEntryBatchSize should be smaller than " + "maxPendingReadRequestPerThread");
+                    "rereplicationEntryBatchSize should be smaller than " + "maxPendingReadRequestPerThread");
         }
         return bookieConf;
     }
@@ -165,7 +180,9 @@ public class PulsarBrokerStarter {
                 throw new IllegalArgumentException("Need to specify a configuration file for broker");
             } else {
                 final String filepath = Path.of(starterArguments.brokerConfigFile)
-                        .toAbsolutePath().normalize().toString();
+                        .toAbsolutePath()
+                        .normalize()
+                        .toString();
                 brokerConfig = loadConfig(filepath);
             }
 
@@ -181,8 +198,9 @@ public class PulsarBrokerStarter {
                                 + "Available algorithms are " + NamespaceBundleSplitAlgorithm.AVAILABLE_ALGORITHMS);
             }
 
-            if (!brokerConfig.getSupportedNamespaceBundleSplitAlgorithms().contains(
-                    brokerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
+            if (!brokerConfig
+                    .getSupportedNamespaceBundleSplitAlgorithms()
+                    .contains(brokerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
                 throw new IllegalArgumentException("Supported namespace bundle split algorithms "
                         + "must contains the default namespace bundle split algorithm");
             }
@@ -190,7 +208,9 @@ public class PulsarBrokerStarter {
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
                 final String filepath = Path.of(starterArguments.fnWorkerConfigFile)
-                        .toAbsolutePath().normalize().toString();
+                        .toAbsolutePath()
+                        .normalize()
+                        .toString();
                 workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(brokerConfig, filepath);
                 functionsWorkerService = WorkerServiceLoader.load(workerConfig);
             } else {
@@ -199,39 +219,37 @@ public class PulsarBrokerStarter {
             }
 
             // init pulsar service
-            pulsarService = new PulsarService(brokerConfig,
-                                              workerConfig,
-                                              Optional.ofNullable(functionsWorkerService),
-                                              (exitCode) -> {
-                                                  log.info("Halting broker process with code {}",
-                                                           exitCode);
-                                                  ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
-                                              });
+            pulsarService = new PulsarService(
+                    brokerConfig, workerConfig, Optional.ofNullable(functionsWorkerService), (exitCode) -> {
+                        log.info("Halting broker process with code {}", exitCode);
+                        ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
+                    });
 
             // if no argument to run bookie in cmd line, read from pulsar config
             if (!argsContains(args, "-rb") && !argsContains(args, "--run-bookie")) {
-                checkState(!starterArguments.runBookie,
-                        "runBookie should be false if has no argument specified");
+                checkState(!starterArguments.runBookie, "runBookie should be false if has no argument specified");
                 starterArguments.runBookie = brokerConfig.isEnableRunBookieTogether();
             }
             if (!argsContains(args, "-ra") && !argsContains(args, "--run-bookie-autorecovery")) {
-                checkState(!starterArguments.runBookieAutoRecovery,
+                checkState(
+                        !starterArguments.runBookieAutoRecovery,
                         "runBookieAutoRecovery should be false if has no argument specified");
                 starterArguments.runBookieAutoRecovery = brokerConfig.isEnableRunBookieAutoRecoveryTogether();
             }
 
             if ((starterArguments.runBookie || starterArguments.runBookieAutoRecovery)
-                && isBlank(starterArguments.bookieConfigFile)) {
+                    && isBlank(starterArguments.bookieConfigFile)) {
                 jcommander.usage();
                 throw new IllegalArgumentException("No configuration file for Bookie");
             }
 
             // init stats provider
             if (starterArguments.runBookie || starterArguments.runBookieAutoRecovery) {
-                checkState(isNotBlank(starterArguments.bookieConfigFile),
-                    "No configuration file for Bookie");
+                checkState(isNotBlank(starterArguments.bookieConfigFile), "No configuration file for Bookie");
                 final String filepath = Path.of(starterArguments.bookieConfigFile)
-                        .toAbsolutePath().normalize().toString();
+                        .toAbsolutePath()
+                        .normalize()
+                        .toString();
                 bookieConfig = readBookieConfFile(filepath);
                 Class<? extends StatsProvider> statsProviderClass = bookieConfig.getStatsProviderClass();
                 bookieStatsProvider = ReflectionUtils.newInstance(statsProviderClass);
@@ -244,8 +262,8 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie");
                 Objects.requireNonNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = org.apache.bookkeeper.server.Main
-                        .buildBookieServer(new BookieConfiguration(bookieConfig));
+                bookieServer =
+                        org.apache.bookkeeper.server.Main.buildBookieServer(new BookieConfiguration(bookieConfig));
             } else {
                 bookieServer = null;
             }
@@ -319,29 +337,32 @@ public class PulsarBrokerStarter {
         }
     }
 
-
     public static void main(String[] args) throws Exception {
-        DateFormat dateFormat = new SimpleDateFormat(
-            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
+        DateFormat dateFormat =
+                new SimpleDateFormat(FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s",
-                    dateFormat.format(new Date()), thread.getContextClassLoader(),
-                    thread.getName(), exception.getMessage()));
+            System.out.println(String.format(
+                    "%s [%s] error Uncaught exception in thread %s: %s",
+                    dateFormat.format(new Date()),
+                    thread.getContextClassLoader(),
+                    thread.getName(),
+                    exception.getMessage()));
             exception.printStackTrace(System.out);
         });
 
         BrokerStarter starter = new BrokerStarter(args);
-        Runtime.getRuntime().addShutdownHook(
-            new Thread(() -> {
-                try {
-                    starter.shutdown();
-                } catch (Throwable t) {
-                    log.error("Error while shutting down Pulsar service", t);
-                } finally {
-                    LogManager.shutdown();
-                }
-            }, "pulsar-service-shutdown")
-        );
+        Runtime.getRuntime()
+                .addShutdownHook(new Thread(
+                        () -> {
+                            try {
+                                starter.shutdown();
+                            } catch (Throwable t) {
+                                log.error("Error while shutting down Pulsar service", t);
+                            } finally {
+                                LogManager.shutdown();
+                            }
+                        },
+                        "pulsar-service-shutdown"));
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
             if (starter.brokerConfig.isSkipBrokerShutdownOnOOM()) {

@@ -102,14 +102,25 @@ public class LocalBrokerData implements LoadManagerReport {
     /**
      * Broker data constructor which takes in four URLs to satisfy the contract of ServiceLookupData.
      */
-    public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
+    public LocalBrokerData(
+            final String webServiceUrl,
+            final String webServiceUrlTls,
+            final String pulsarServiceUrl,
             final String pulsarServiceUrlTls) {
-        this(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
+        this(
+                webServiceUrl,
+                webServiceUrlTls,
+                pulsarServiceUrl,
+                pulsarServiceUrlTls,
                 Collections.unmodifiableMap(Collections.emptyMap()));
     }
 
-    public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
-                           final String pulsarServiceUrlTls, Map<String, AdvertisedListener> advertisedListeners) {
+    public LocalBrokerData(
+            final String webServiceUrl,
+            final String webServiceUrlTls,
+            final String pulsarServiceUrl,
+            final String pulsarServiceUrlTls,
+            Map<String, AdvertisedListener> advertisedListeners) {
         this.webServiceUrl = webServiceUrl;
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
@@ -159,8 +170,8 @@ public class LocalBrokerData implements LoadManagerReport {
      * @param bundleStats
      *            The bundle stats retrieved from the Pulsar client.
      */
-    public void update(final SystemResourceUsage systemResourceUsage,
-            final Map<String, NamespaceBundleStats> bundleStats) {
+    public void update(
+            final SystemResourceUsage systemResourceUsage, final Map<String, NamespaceBundleStats> bundleStats) {
         updateSystemResourceUsage(systemResourceUsage);
         updateBundleData(bundleStats);
         lastStats = bundleStats;
@@ -180,13 +191,21 @@ public class LocalBrokerData implements LoadManagerReport {
 
     // Set the cpu, memory, and direct memory to that of the new system resource usage data.
     private void updateSystemResourceUsage(final SystemResourceUsage systemResourceUsage) {
-        updateSystemResourceUsage(systemResourceUsage.cpu, systemResourceUsage.memory, systemResourceUsage.directMemory,
-                systemResourceUsage.bandwidthIn, systemResourceUsage.bandwidthOut);
+        updateSystemResourceUsage(
+                systemResourceUsage.cpu,
+                systemResourceUsage.memory,
+                systemResourceUsage.directMemory,
+                systemResourceUsage.bandwidthIn,
+                systemResourceUsage.bandwidthOut);
     }
 
     // Update resource usage given each individual usage.
-    private void updateSystemResourceUsage(final ResourceUsage cpu, final ResourceUsage memory,
-            final ResourceUsage directMemory, final ResourceUsage bandwidthIn, final ResourceUsage bandwidthOut) {
+    private void updateSystemResourceUsage(
+            final ResourceUsage cpu,
+            final ResourceUsage memory,
+            final ResourceUsage directMemory,
+            final ResourceUsage bandwidthIn,
+            final ResourceUsage bandwidthOut) {
         this.cpu = cpu;
         this.memory = memory;
         this.directMemory = directMemory;
@@ -242,31 +261,52 @@ public class LocalBrokerData implements LoadManagerReport {
 
     public double getMaxResourceUsage() {
         // does not consider memory because it is noisy by gc.
-        return max(cpu.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
-                bandwidthOut.percentUsage()) / 100;
+        return max(
+                        cpu.percentUsage(),
+                        directMemory.percentUsage(),
+                        bandwidthIn.percentUsage(),
+                        bandwidthOut.percentUsage())
+                / 100;
     }
 
     public String printResourceUsage() {
         return String.format(
                 Locale.ENGLISH,
                 "cpu: %.2f%%, memory: %.2f%%, directMemory: %.2f%%, bandwidthIn: %.2f%%, bandwidthOut: %.2f%%",
-                cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
+                cpu.percentUsage(),
+                memory.percentUsage(),
+                directMemory.percentUsage(),
+                bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage());
     }
+
     @Deprecated
-    public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
-                                                final double directMemoryWeight, final double bandwidthInWeight,
-                                                final double bandwidthOutWeight) {
-        return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
-                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
+    public double getMaxResourceUsageWithWeight(
+            final double cpuWeight,
+            final double memoryWeight,
+            final double directMemoryWeight,
+            final double bandwidthInWeight,
+            final double bandwidthOutWeight) {
+        return max(
+                        cpu.percentUsage() * cpuWeight,
+                        memory.percentUsage() * memoryWeight,
+                        directMemory.percentUsage() * directMemoryWeight,
+                        bandwidthIn.percentUsage() * bandwidthInWeight,
+                        bandwidthOut.percentUsage() * bandwidthOutWeight)
+                / 100;
     }
-    public double getMaxResourceUsageWithWeight(final double cpuWeight,
-                                                final double directMemoryWeight, final double bandwidthInWeight,
-                                                final double bandwidthOutWeight) {
-        return max(cpu.percentUsage() * cpuWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
-                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
+
+    public double getMaxResourceUsageWithWeight(
+            final double cpuWeight,
+            final double directMemoryWeight,
+            final double bandwidthInWeight,
+            final double bandwidthOutWeight) {
+        return max(
+                        cpu.percentUsage() * cpuWeight,
+                        directMemory.percentUsage() * directMemoryWeight,
+                        bandwidthIn.percentUsage() * bandwidthInWeight,
+                        bandwidthOut.percentUsage() * bandwidthOutWeight)
+                / 100;
     }
 
     public static double max(double... args) {
@@ -281,7 +321,7 @@ public class LocalBrokerData implements LoadManagerReport {
         return max;
     }
 
-    private static float max(float...args) {
+    private static float max(float... args) {
         float max = Float.NEGATIVE_INFINITY;
 
         for (float d : args) {

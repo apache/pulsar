@@ -102,7 +102,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
                     expiredFuture.complete(null);
                     result.complete(null);
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
                         // The lock is not there on release. We can anyway proceed
                         synchronized (ResourceLockImpl.this) {
@@ -136,21 +137,17 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     synchronized CompletableFuture<Void> acquire(T newValue) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        acquireWithNoRevalidation(newValue)
-                .thenRun(() -> result.complete(null))
-                .exceptionally(ex -> {
-                    if (ex.getCause() instanceof LockBusyException) {
-                        revalidate(newValue)
-                                .thenAccept(__ -> result.complete(null))
-                                .exceptionally(ex1 -> {
-                                   result.completeExceptionally(ex1);
-                                   return null;
-                                });
-                    } else {
-                        result.completeExceptionally(ex.getCause());
-                    }
+        acquireWithNoRevalidation(newValue).thenRun(() -> result.complete(null)).exceptionally(ex -> {
+            if (ex.getCause() instanceof LockBusyException) {
+                revalidate(newValue).thenAccept(__ -> result.complete(null)).exceptionally(ex1 -> {
+                    result.completeExceptionally(ex1);
                     return null;
                 });
+            } else {
+                result.completeExceptionally(ex.getCause());
+            }
+            return null;
+        });
 
         return result;
     }
@@ -177,15 +174,16 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
                     log.info("Acquired resource lock on {}", path);
                     result.complete(null);
-                }).exceptionally(ex -> {
-            if (ex.getCause() instanceof BadVersionException) {
-                result.completeExceptionally(
-                        new LockBusyException("Resource at " + path + " is already locked"));
-            } else {
-                result.completeExceptionally(ex.getCause());
-            }
-            return null;
-        });
+                })
+                .exceptionally(ex -> {
+                    if (ex.getCause() instanceof BadVersionException) {
+                        result.completeExceptionally(
+                                new LockBusyException("Resource at " + path + " is already locked"));
+                    } else {
+                        result.completeExceptionally(ex.getCause());
+                    }
+                    return null;
+                });
 
         return result;
     }
@@ -210,14 +208,17 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
      * This method is thread-safe and it will perform multiple re-validation operations in turn.
      */
     synchronized CompletableFuture<Void> silentRevalidateOnce() {
-        return sequencer.sequential(() -> revalidate(value))
+        return sequencer
+                .sequential(() -> revalidate(value))
                 .thenRun(() -> log.info("Successfully revalidated the lock on {}", path))
                 .exceptionally(ex -> {
                     synchronized (ResourceLockImpl.this) {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         if (realCause instanceof BadVersionException || realCause instanceof LockBusyException) {
-                            log.warn("Failed to revalidate the lock at {}. Marked as expired. {}",
-                                    path, realCause.getMessage());
+                            log.warn(
+                                    "Failed to revalidate the lock at {}. Marked as expired. {}",
+                                    path,
+                                    realCause.getMessage());
                             state = State.Released;
                             expiredFuture.complete(null);
                         } else {
@@ -225,7 +226,9 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             // Continue assuming we hold the lock, until we can revalidate it, either
                             // on Reconnected or SessionReestablished events.
                             revalidateAfterReconnection = true;
-                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
+                            log.warn(
+                                    "Failed to revalidate the lock at {}. Retrying later on reconnection {}",
+                                    path,
                                     realCause.getMessage());
                         }
                     }
@@ -236,79 +239,73 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private synchronized CompletableFuture<Void> revalidate(T newValue) {
         // Since the distributed lock has been expired, we don't need to revalidate it.
         if (state != State.Valid && state != State.Init) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("Lock was not in valid state: " + state));
+            return CompletableFuture.failedFuture(new IllegalStateException("Lock was not in valid state: " + state));
         }
         if (log.isDebugEnabled()) {
             log.debug("doRevalidate with newValue={}, version={}", newValue, version);
         }
-        return store.get(path)
-                .thenCompose(optGetResult -> {
-                    if (!optGetResult.isPresent()) {
-                        // The lock just disappeared, try to acquire it again
-                        // Reset the expectation on the version
-                        setVersion(-1L);
-                        return acquireWithNoRevalidation(newValue)
-                                .thenRun(() -> log.info("Successfully re-acquired missing lock at {}", path));
-                    }
+        return store.get(path).thenCompose(optGetResult -> {
+            if (!optGetResult.isPresent()) {
+                // The lock just disappeared, try to acquire it again
+                // Reset the expectation on the version
+                setVersion(-1L);
+                return acquireWithNoRevalidation(newValue)
+                        .thenRun(() -> log.info("Successfully re-acquired missing lock at {}", path));
+            }
 
-                    GetResult res = optGetResult.get();
-                    if (!res.getStat().isEphemeral()) {
-                        return FutureUtils.exception(
-                                new LockBusyException(
-                                        "Path " + path + " is already created as non-ephemeral"));
-                    }
+            GetResult res = optGetResult.get();
+            if (!res.getStat().isEphemeral()) {
+                return FutureUtils.exception(
+                        new LockBusyException("Path " + path + " is already created as non-ephemeral"));
+            }
 
-                    T existingValue;
-                    try {
-                        existingValue = serde.deserialize(path, res.getValue(), res.getStat());
-                    } catch (Throwable t) {
-                        return FutureUtils.exception(t);
-                    }
+            T existingValue;
+            try {
+                existingValue = serde.deserialize(path, res.getValue(), res.getStat());
+            } catch (Throwable t) {
+                return FutureUtils.exception(t);
+            }
 
-                    synchronized (ResourceLockImpl.this) {
-                        if (newValue.equals(existingValue)) {
-                            // The lock value is still the same, that means that we're the
-                            // logical "owners" of the lock.
+            synchronized (ResourceLockImpl.this) {
+                if (newValue.equals(existingValue)) {
+                    // The lock value is still the same, that means that we're the
+                    // logical "owners" of the lock.
 
-                            if (res.getStat().isCreatedBySelf()) {
-                                // If the new lock belongs to the same session, there's no
-                                // need to recreate it.
-                                version = res.getStat().getVersion();
-                                value = newValue;
-                                return CompletableFuture.completedFuture(null);
-                            } else {
-                                // The lock needs to get recreated since it belong to an earlier
-                                // session which maybe expiring soon
-                                log.info("Deleting stale lock at {}", path);
-                                return store.delete(path, Optional.of(res.getStat().getVersion()))
-                                        .thenRun(() ->
-                                            // Reset the expectation that the key is not there anymore
-                                            setVersion(-1L)
-                                        )
-                                        .thenCompose(__ -> acquireWithNoRevalidation(newValue))
-                                        .thenRun(() -> log.info("Successfully re-acquired stale lock at {}", path));
-                            }
-                        }
-
-                        // At this point we have an existing lock with a value different to what we
-                        // expect. If our session is the owner, we can recreate, otherwise the
-                        // lock has been acquired by someone else and we give up.
-
-                        if (!res.getStat().isCreatedBySelf()) {
-                            return FutureUtils.exception(
-                                    new LockBusyException("Resource at " + path + " is already locked"));
-                        }
-
+                    if (res.getStat().isCreatedBySelf()) {
+                        // If the new lock belongs to the same session, there's no
+                        // need to recreate it.
+                        version = res.getStat().getVersion();
+                        value = newValue;
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        // The lock needs to get recreated since it belong to an earlier
+                        // session which maybe expiring soon
+                        log.info("Deleting stale lock at {}", path);
                         return store.delete(path, Optional.of(res.getStat().getVersion()))
                                 .thenRun(() ->
-                                    // Reset the expectation that the key is not there anymore
-                                    setVersion(-1L)
-                                )
+                                        // Reset the expectation that the key is not there anymore
+                                        setVersion(-1L))
                                 .thenCompose(__ -> acquireWithNoRevalidation(newValue))
-                                .thenRun(() -> log.info("Successfully re-acquired lock at {}", path));
+                                .thenRun(() -> log.info("Successfully re-acquired stale lock at {}", path));
                     }
-                });
+                }
+
+                // At this point we have an existing lock with a value different to what we
+                // expect. If our session is the owner, we can recreate, otherwise the
+                // lock has been acquired by someone else and we give up.
+
+                if (!res.getStat().isCreatedBySelf()) {
+                    return FutureUtils.exception(new LockBusyException("Resource at " + path + " is already locked"));
+                }
+
+                return store.delete(path, Optional.of(res.getStat().getVersion()))
+                        .thenRun(() ->
+                                // Reset the expectation that the key is not there anymore
+                                setVersion(-1L))
+                        .thenCompose(__ -> acquireWithNoRevalidation(newValue))
+                        .thenRun(() -> log.info("Successfully re-acquired lock at {}", path));
+            }
+        });
     }
 
     private synchronized void setVersion(long version) {

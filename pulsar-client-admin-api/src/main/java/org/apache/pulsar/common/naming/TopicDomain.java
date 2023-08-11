@@ -22,7 +22,8 @@ package org.apache.pulsar.common.naming;
  * Enumeration showing if a topic is persistent.
  */
 public enum TopicDomain {
-    persistent("persistent"), non_persistent("non-persistent");
+    persistent("persistent"),
+    non_persistent("non-persistent");
 
     private String value;
 

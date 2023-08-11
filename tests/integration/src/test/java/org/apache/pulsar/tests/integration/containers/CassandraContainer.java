@@ -38,12 +38,12 @@ public class CassandraContainer<SelfT extends ChaosContainer<SelfT>> extends Cha
     protected void configure() {
         super.configure();
         this.withNetworkAliases(NAME)
-            .withExposedPorts(PORT)
-            .withCreateContainerCmdModifier(createContainerCmd -> {
-                createContainerCmd.withHostName(NAME);
-                createContainerCmd.withName(clusterName + "-" + NAME);
-            })
-            .waitingFor(new HostPortWaitStrategy());
+                .withExposedPorts(PORT)
+                .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(NAME);
+                    createContainerCmd.withName(clusterName + "-" + NAME);
+                })
+                .waitingFor(new HostPortWaitStrategy());
     }
 
     public int getCassandraPort() {

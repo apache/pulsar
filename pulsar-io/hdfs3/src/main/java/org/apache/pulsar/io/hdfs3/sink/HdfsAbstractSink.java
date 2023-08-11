@@ -50,44 +50,45 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
     private FSDataOutputStream hdfsStream;
 
     public abstract KeyValue<K, V> extractKeyValue(Record<V> record);
+
     protected abstract void createWriter() throws IOException;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-       hdfsSinkConfig = HdfsSinkConfig.load(config);
-       hdfsSinkConfig.validate();
-       connectorConfig = hdfsSinkConfig;
-       unackedRecords = new LinkedBlockingQueue<Record<V>> (hdfsSinkConfig.getMaxPendingRecords());
-       connectToHdfs();
-       createWriter();
-       launchSyncThread();
+        hdfsSinkConfig = HdfsSinkConfig.load(config);
+        hdfsSinkConfig.validate();
+        connectorConfig = hdfsSinkConfig;
+        unackedRecords = new LinkedBlockingQueue<Record<V>>(hdfsSinkConfig.getMaxPendingRecords());
+        connectToHdfs();
+        createWriter();
+        launchSyncThread();
     }
 
     @Override
     public void close() throws Exception {
-       syncThread.halt();
-       syncThread.join(0);
+        syncThread.halt();
+        syncThread.join(0);
     }
 
     protected final void connectToHdfs() throws IOException {
-       try {
-           HdfsResources resources = hdfsResources.get();
+        try {
+            HdfsResources resources = hdfsResources.get();
 
-           if (resources.getConfiguration() == null) {
-               resources = this.resetHDFSResources(hdfsSinkConfig);
-               hdfsResources.set(resources);
-           }
-       } catch (IOException ex) {
-          hdfsResources.set(new HdfsResources(null, null, null));
-          throw ex;
-       }
+            if (resources.getConfiguration() == null) {
+                resources = this.resetHDFSResources(hdfsSinkConfig);
+                hdfsResources.set(resources);
+            }
+        } catch (IOException ex) {
+            hdfsResources.set(new HdfsResources(null, null, null));
+            throw ex;
+        }
     }
 
     @SuppressWarnings("rawtypes")
     protected final FSDataOutputStreamBuilder getOutputStreamBuilder() throws IOException {
         Path path = getPath();
         FileSystem fs = getFileSystemAsUser(getConfiguration(), getUserGroupInformation());
-        FSDataOutputStreamBuilder builder = fs.exists(path) ? fs.appendFile(path) :  fs.createFile(path);
+        FSDataOutputStreamBuilder builder = fs.exists(path) ? fs.appendFile(path) : fs.createFile(path);
         return builder.recursive().permission(new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     }
 
@@ -107,7 +108,8 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
                 ext = getCompressionCodec().getDefaultExtension();
             }
 
-            path = new Path(FilenameUtils.concat(hdfsSinkConfig.getDirectory(),
+            path = new Path(FilenameUtils.concat(
+                    hdfsSinkConfig.getDirectory(),
                     hdfsSinkConfig.getFilenamePrefix() + "-" + System.currentTimeMillis() + ext));
         }
         return path;

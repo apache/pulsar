@@ -47,8 +47,7 @@ import software.amazon.kinesis.retrieval.polling.PollingConfig;
         name = "kinesis",
         type = IOType.SOURCE,
         help = "A source connector that copies messages from Kinesis to Pulsar",
-        configClass = KinesisSourceConfig.class
-    )
+        configClass = KinesisSourceConfig.class)
 @Slf4j
 public class KinesisSource extends AbstractAwsConnector implements Source<byte[]> {
     private LinkedBlockingQueue<KinesisRecord> queue;
@@ -60,7 +59,6 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
     private Thread schedulerThread;
     private Throwable threadEx;
 
-
     @Override
     public void close() throws Exception {
         scheduler.shutdown();
@@ -71,9 +69,9 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
         this.kinesisSourceConfig = IOConfigUtils.loadWithSecrets(config, KinesisSourceConfig.class, sourceContext);
 
         checkArgument(isNotBlank(kinesisSourceConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsEndpoint())
-                        || isNotBlank(kinesisSourceConfig.getAwsRegion()),
-                     "Either the aws-end-point or aws-region must be set");
+        checkArgument(
+                isNotBlank(kinesisSourceConfig.getAwsEndpoint()) || isNotBlank(kinesisSourceConfig.getAwsRegion()),
+                "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSourceConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
         if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
@@ -84,24 +82,23 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
         workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
 
         AwsCredentialProviderPlugin credentialsProvider = createCredentialProvider(
-                kinesisSourceConfig.getAwsCredentialPluginName(),
-                kinesisSourceConfig.getAwsCredentialPluginParam());
+                kinesisSourceConfig.getAwsCredentialPluginName(), kinesisSourceConfig.getAwsCredentialPluginParam());
 
         KinesisAsyncClient kClient = kinesisSourceConfig.buildKinesisAsyncClient(credentialsProvider);
         recordProcessorFactory = new KinesisRecordProcessorFactory(queue, kinesisSourceConfig);
-        configsBuilder = new ConfigsBuilder(kinesisSourceConfig.getAwsKinesisStreamName(),
-                                            kinesisSourceConfig.getApplicationName(),
-                                            kClient,
-                                            kinesisSourceConfig.buildDynamoAsyncClient(credentialsProvider),
-                                            kinesisSourceConfig.buildCloudwatchAsyncClient(credentialsProvider),
-                                            workerId,
-                                            recordProcessorFactory);
+        configsBuilder = new ConfigsBuilder(
+                kinesisSourceConfig.getAwsKinesisStreamName(),
+                kinesisSourceConfig.getApplicationName(),
+                kClient,
+                kinesisSourceConfig.buildDynamoAsyncClient(credentialsProvider),
+                kinesisSourceConfig.buildCloudwatchAsyncClient(credentialsProvider),
+                workerId,
+                recordProcessorFactory);
 
         RetrievalConfig retrievalConfig = configsBuilder.retrievalConfig();
         if (!kinesisSourceConfig.isUseEnhancedFanOut()) {
             retrievalConfig.retrievalSpecificConfig(
-                    new PollingConfig(kinesisSourceConfig.getAwsKinesisStreamName(),
-                                      kClient));
+                    new PollingConfig(kinesisSourceConfig.getAwsKinesisStreamName(), kClient));
         }
 
         retrievalConfig.initialPositionInStreamExtended(kinesisSourceConfig.getStreamStartPosition());
@@ -113,8 +110,7 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
                 configsBuilder.lifecycleConfig(),
                 configsBuilder.metricsConfig(),
                 configsBuilder.processorConfig(),
-                retrievalConfig
-        );
+                retrievalConfig);
         schedulerThread = new Thread(scheduler);
         schedulerThread.setDaemon(true);
         threadEx = null;
@@ -136,5 +132,4 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
             throw ex;
         }
     }
-
 }

@@ -38,9 +38,7 @@ public class TopicEventsDispatcher {
      */
     public void addTopicEventListener(TopicEventsListener... listeners) {
         Objects.requireNonNull(listeners);
-        Arrays.stream(listeners)
-                .filter(x -> x != null)
-                .forEach(topicEventListeners::add);
+        Arrays.stream(listeners).filter(x -> x != null).forEach(topicEventListeners::add);
     }
 
     /**
@@ -49,9 +47,7 @@ public class TopicEventsDispatcher {
      */
     public void removeTopicEventListener(TopicEventsListener... listeners) {
         Objects.requireNonNull(listeners);
-        Arrays.stream(listeners)
-                .filter(x -> x != null)
-                .forEach(topicEventListeners::remove);
+        Arrays.stream(listeners).filter(x -> x != null).forEach(topicEventListeners::remove);
     }
 
     /**
@@ -60,9 +56,7 @@ public class TopicEventsDispatcher {
      * @param event
      * @param stage
      */
-    public void notify(String topic,
-                       TopicEventsListener.TopicEvent event,
-                       TopicEventsListener.EventStage stage) {
+    public void notify(String topic, TopicEventsListener.TopicEvent event, TopicEventsListener.EventStage stage) {
         notify(topic, event, stage, null);
     }
 
@@ -73,12 +67,9 @@ public class TopicEventsDispatcher {
      * @param stage
      * @param t
      */
-    public void notify(String topic,
-                       TopicEventsListener.TopicEvent event,
-                       TopicEventsListener.EventStage stage,
-                       Throwable t) {
-        topicEventListeners
-                .forEach(listener -> notify(listener, topic, event, stage, t));
+    public void notify(
+            String topic, TopicEventsListener.TopicEvent event, TopicEventsListener.EventStage stage, Throwable t) {
+        topicEventListeners.forEach(listener -> notify(listener, topic, event, stage, t));
     }
 
     /**
@@ -89,10 +80,10 @@ public class TopicEventsDispatcher {
      * @param <T>
      * @return future of a new completion stage
      */
-    public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
-                                                       String topic,
-                                                       TopicEventsListener.TopicEvent event) {
-        return future.whenComplete((r, ex) -> notify(topic,
+    public <T> CompletableFuture<T> notifyOnCompletion(
+            CompletableFuture<T> future, String topic, TopicEventsListener.TopicEvent event) {
+        return future.whenComplete((r, ex) -> notify(
+                topic,
                 event,
                 ex == null ? TopicEventsListener.EventStage.SUCCESS : TopicEventsListener.EventStage.FAILURE,
                 ex));
@@ -106,22 +97,24 @@ public class TopicEventsDispatcher {
      * @param stage
      * @param t
      */
-    public static void notify(TopicEventsListener[] listeners,
-                              String topic,
-                              TopicEventsListener.TopicEvent event,
-                              TopicEventsListener.EventStage stage,
-                              Throwable t) {
+    public static void notify(
+            TopicEventsListener[] listeners,
+            String topic,
+            TopicEventsListener.TopicEvent event,
+            TopicEventsListener.EventStage stage,
+            Throwable t) {
         Objects.requireNonNull(listeners);
-        for (TopicEventsListener listener: listeners) {
+        for (TopicEventsListener listener : listeners) {
             notify(listener, topic, event, stage, t);
         }
     }
 
-    private static void notify(TopicEventsListener listener,
-                               String topic,
-                               TopicEventsListener.TopicEvent event,
-                               TopicEventsListener.EventStage stage,
-                               Throwable t) {
+    private static void notify(
+            TopicEventsListener listener,
+            String topic,
+            TopicEventsListener.TopicEvent event,
+            TopicEventsListener.EventStage stage,
+            Throwable t) {
         if (listener == null) {
             return;
         }
@@ -129,9 +122,13 @@ public class TopicEventsDispatcher {
         try {
             listener.handleEvent(topic, event, stage, t);
         } catch (Throwable ex) {
-            log.error("TopicEventsListener {} exception while handling {}_{} for topic {}",
-                    listener, event, stage, topic, ex);
+            log.error(
+                    "TopicEventsListener {} exception while handling {}_{} for topic {}",
+                    listener,
+                    event,
+                    stage,
+                    topic,
+                    ex);
         }
     }
-
 }

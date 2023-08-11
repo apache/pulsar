@@ -28,6 +28,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 public class BrokerLoadManagerClassFilter implements BrokerFilter {
 
     public static final String FILTER_NAME = "broker_load_manager_class_filter";
+
     @Override
     public String name() {
         return FILTER_NAME;
@@ -35,17 +36,15 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
 
     @Override
     public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(
-            Map<String, BrokerLookupData> brokers,
-            ServiceUnitId serviceUnit,
-            LoadManagerContext context) {
+            Map<String, BrokerLookupData> brokers, ServiceUnitId serviceUnit, LoadManagerContext context) {
         if (brokers.isEmpty()) {
             return CompletableFuture.completedFuture(brokers);
         }
         brokers.entrySet().removeIf(entry -> {
             BrokerLookupData v = entry.getValue();
             // The load manager class name can be null if the cluster has old version of broker.
-            return !Objects.equals(v.getLoadManagerClassName(),
-                    context.brokerConfiguration().getLoadManagerClassName());
+            return !Objects.equals(
+                    v.getLoadManagerClassName(), context.brokerConfiguration().getLoadManagerClassName());
         });
         return CompletableFuture.completedFuture(brokers);
     }

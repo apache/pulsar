@@ -31,6 +31,7 @@ public class UploadDownloadCommandGenerator {
         UPLOAD,
         DOWNLOAD,
     };
+
     private MODE mode;
     private String bkPath;
     private String localPath;
@@ -55,7 +56,8 @@ public class UploadDownloadCommandGenerator {
     }
 
     public String generateCommand() {
-        StringBuilder commandBuilder = new StringBuilder().append(PulsarCluster.ADMIN_SCRIPT).append(" functions ");
+        StringBuilder commandBuilder =
+                new StringBuilder().append(PulsarCluster.ADMIN_SCRIPT).append(" functions ");
         if (mode == MODE.UPLOAD) {
             commandBuilder.append(" upload ");
         } else {

@@ -77,7 +77,10 @@ public class TransactionTest extends TransactionTestBase {
     public void transferNormalTest(Supplier<String> serviceUrl) throws Exception {
         log.info("transfer normal test start.");
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl.get()).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .enableTransaction(true)
+                .serviceUrl(serviceUrl.get())
+                .build();
 
         final int transferCount = 20;
         final String transferTopic = "transfer-" + randomName(6);
@@ -93,7 +96,8 @@ public class TransactionTest extends TransactionTestBase {
         prepareTransferData(transferProducer, transferCount);
 
         @Cleanup
-        Consumer<TransferOperation> transferConsumer = pulsarClient.newConsumer(Schema.JSON(TransferOperation.class))
+        Consumer<TransferOperation> transferConsumer = pulsarClient
+                .newConsumer(Schema.JSON(TransferOperation.class))
                 .topic(transferTopic)
                 .subscriptionName("integration-test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -104,14 +108,16 @@ public class TransactionTest extends TransactionTestBase {
         log.info("transfer consumer create finished");
 
         @Cleanup
-        Producer<BalanceUpdate> balanceUpdateProducer = pulsarClient.newProducer(Schema.JSON(BalanceUpdate.class))
+        Producer<BalanceUpdate> balanceUpdateProducer = pulsarClient
+                .newProducer(Schema.JSON(BalanceUpdate.class))
                 .topic(balanceUpdateTopic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
         log.info("balance update producer create finished");
 
         @Cleanup
-        Consumer<BalanceUpdate> balanceUpdateConsumer = pulsarClient.newConsumer(Schema.JSON(BalanceUpdate.class))
+        Consumer<BalanceUpdate> balanceUpdateConsumer = pulsarClient
+                .newConsumer(Schema.JSON(BalanceUpdate.class))
                 .topic(balanceUpdateTopic)
                 .subscriptionName("integration-test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -126,15 +132,21 @@ public class TransactionTest extends TransactionTestBase {
             }
             TransferOperation transferOperation = message.getValue();
 
-            Transaction transaction = pulsarClient.newTransaction()
+            Transaction transaction = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(5, TimeUnit.MINUTES)
-                    .build().get();
+                    .build()
+                    .get();
 
-            balanceUpdateProducer.newMessage(transaction)
-                    .value(getBalanceUpdate(transferOperation, true)).sendAsync();
+            balanceUpdateProducer
+                    .newMessage(transaction)
+                    .value(getBalanceUpdate(transferOperation, true))
+                    .sendAsync();
 
-            balanceUpdateProducer.newMessage(transaction)
-                    .value(getBalanceUpdate(transferOperation, false)).sendAsync();
+            balanceUpdateProducer
+                    .newMessage(transaction)
+                    .value(getBalanceUpdate(transferOperation, false))
+                    .sendAsync();
 
             transferConsumer.acknowledgeAsync(message.getMessageId(), transaction);
 
@@ -158,5 +170,4 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(balanceSum, 0);
         log.info("transfer normal test finish.");
     }
-
 }

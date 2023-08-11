@@ -35,16 +35,16 @@ public class EntryFilterSupport {
 
     public EntryFilterSupport(Subscription subscription) {
         this.subscription = subscription;
-        if (subscription != null && subscription.getTopic() != null
+        if (subscription != null
+                && subscription.getTopic() != null
                 && !subscription.getTopic().isSystemTopic()) {
             final BrokerService brokerService = subscription.getTopic().getBrokerService();
-            final boolean allowOverrideEntryFilters = brokerService
-                    .pulsar().getConfiguration().isAllowOverrideEntryFilters();
+            final boolean allowOverrideEntryFilters =
+                    brokerService.pulsar().getConfiguration().isAllowOverrideEntryFilters();
             if (!allowOverrideEntryFilters) {
                 this.entryFilters = brokerService.getEntryFilterProvider().getBrokerEntryFilters();
             } else {
-                List<EntryFilter> topicEntryFilters =
-                        subscription.getTopic().getEntryFilters();
+                List<EntryFilter> topicEntryFilters = subscription.getTopic().getEntryFilters();
                 if (topicEntryFilters != null && !topicEntryFilters.isEmpty()) {
                     this.entryFilters = topicEntryFilters;
                 } else {
@@ -59,8 +59,7 @@ public class EntryFilterSupport {
         hasFilter = CollectionUtils.isNotEmpty(entryFilters);
     }
 
-    public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
-                                                       Consumer consumer) {
+    public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata, Consumer consumer) {
         if (hasFilter) {
             fillContext(filterContext, msgMetadata, subscription, consumer);
             return getFilterResult(filterContext, entry, entryFilters);
@@ -69,20 +68,18 @@ public class EntryFilterSupport {
         }
     }
 
-    private void fillContext(FilterContext context, MessageMetadata msgMetadata,
-                             Subscription subscription, Consumer consumer) {
+    private void fillContext(
+            FilterContext context, MessageMetadata msgMetadata, Subscription subscription, Consumer consumer) {
         context.reset();
         context.setMsgMetadata(msgMetadata);
         context.setSubscription(subscription);
         context.setConsumer(consumer);
     }
 
-
-    private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
-                                                            List<EntryFilter> entryFilters) {
+    private static EntryFilter.FilterResult getFilterResult(
+            FilterContext filterContext, Entry entry, List<EntryFilter> entryFilters) {
         for (EntryFilter entryFilter : entryFilters) {
-            EntryFilter.FilterResult filterResult =
-                    entryFilter.filterEntry(entry, filterContext);
+            EntryFilter.FilterResult filterResult = entryFilter.filterEntry(entry, filterContext);
             if (filterResult == null) {
                 filterResult = EntryFilter.FilterResult.ACCEPT;
             }

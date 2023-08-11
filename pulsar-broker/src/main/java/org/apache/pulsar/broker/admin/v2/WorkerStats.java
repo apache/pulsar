@@ -50,10 +50,11 @@ public class WorkerStats extends AdminResource {
             notes = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics",
             response = org.apache.pulsar.common.stats.Metrics.class,
             responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Don't have admin permission"),
+                @ApiResponse(code = 503, message = "Worker service is not running")
+            })
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<Metrics> getMetrics() throws Exception {
         return workers().getWorkerMetrics(authParams());
@@ -66,10 +67,11 @@ public class WorkerStats extends AdminResource {
             notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics",
             response = WorkerFunctionInstanceStats.class,
             responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Don't have admin permission"),
+                @ApiResponse(code = 503, message = "Worker service is not running")
+            })
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerFunctionInstanceStats> getStats() throws IOException {
         return workers().getFunctionsMetrics(authParams());

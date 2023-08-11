@@ -51,14 +51,13 @@ public class PackagesManagementImpl implements PackagesManagement {
     public CompletableFuture<PackageMetadata> getMeta(PackageName packageName) {
         CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
         String metadataPath = metadataPath(packageName);
-        checkMetadataNotExistsAndThrowException(packageName)
-            .whenComplete((ignore, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                    return;
-                }
-                try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-                    storage.readAsync(metadataPath, outputStream)
+        checkMetadataNotExistsAndThrowException(packageName).whenComplete((ignore, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+                return;
+            }
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                storage.readAsync(metadataPath, outputStream)
                         .thenCompose(aVoid -> metadataReadFromStream(outputStream))
                         .whenComplete((metadata, t) -> {
                             if (t != null) {
@@ -67,11 +66,11 @@ public class PackagesManagementImpl implements PackagesManagement {
                                 future.complete(metadata);
                             }
                         });
-                } catch (IOException e) {
-                    future.completeExceptionally(new PackagesManagementException(
+            } catch (IOException e) {
+                future.completeExceptionally(new PackagesManagementException(
                         String.format("Read package '%s' metadata failed", packageName.toString()), e));
-                }
-            });
+            }
+        });
         return future;
     }
 
@@ -79,28 +78,27 @@ public class PackagesManagementImpl implements PackagesManagement {
     public CompletableFuture<Void> updateMeta(PackageName packageName, PackageMetadata metadata) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         String metadataPath = metadataPath(packageName);
-        checkMetadataNotExistsAndThrowException(packageName)
-            .whenComplete((ignore, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                    return;
-                }
-                try (ByteArrayInputStream in = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
-                    storage.deleteAsync(metadataPath)
+        checkMetadataNotExistsAndThrowException(packageName).whenComplete((ignore, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+                return;
+            }
+            try (ByteArrayInputStream in = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+                storage.deleteAsync(metadataPath)
                         .thenCompose(aVoid -> storage.writeAsync(metadataPath, in))
                         .whenComplete((aVoid, t) -> {
                             if (t != null) {
                                 future.completeExceptionally(new PackagesManagementException(
-                                    String.format("Update package '%s' metadata failed", packageName), t));
+                                        String.format("Update package '%s' metadata failed", packageName), t));
                             } else {
                                 future.complete(null);
                             }
                         });
-                } catch (IOException e) {
-                    future.completeExceptionally(new PackagesManagementException(
+            } catch (IOException e) {
+                future.completeExceptionally(new PackagesManagementException(
                         String.format("Read package '%s' metadata failed", packageName), e));
-                }
-            });
+            }
+        });
         return future;
     }
 
@@ -108,18 +106,17 @@ public class PackagesManagementImpl implements PackagesManagement {
         CompletableFuture<Void> future = new CompletableFuture<>();
         String metadataPath = metadataPath(packageName);
         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
-            storage.writeAsync(metadataPath, inputStream)
-                .whenComplete((aVoid, t) -> {
-                    if (t != null) {
-                        future.completeExceptionally(new PackagesManagementException(
+            storage.writeAsync(metadataPath, inputStream).whenComplete((aVoid, t) -> {
+                if (t != null) {
+                    future.completeExceptionally(new PackagesManagementException(
                             String.format("Update package '%s' metadata failed", packageName.toString()), t));
-                    } else {
-                        future.complete(null);
-                    }
-                });
+                } else {
+                    future.complete(null);
+                }
+            });
         } catch (IOException e) {
             future.completeExceptionally(new PackagesManagementException(
-                String.format("Read package '%s' metadata failed", packageName.toString()), e));
+                    String.format("Read package '%s' metadata failed", packageName.toString()), e));
         }
         return future;
     }
@@ -128,23 +125,22 @@ public class PackagesManagementImpl implements PackagesManagement {
     public CompletableFuture<Void> download(PackageName packageName, OutputStream outputStream) {
         String packagePath = packagePath(packageName);
         return checkPackageNotExistsAndThrowException(packageName)
-            .thenCompose(ignore -> storage.readAsync(packagePath, outputStream));
+                .thenCompose(ignore -> storage.readAsync(packagePath, outputStream));
     }
 
     @Override
     public CompletableFuture<Void> upload(PackageName packageName, PackageMetadata metadata, InputStream inputStream) {
         return CompletableFuture.allOf(
-            checkMetadataExistsAndThrowException(packageName),
-            checkPackageExistsAndThrowException(packageName)
-        ).thenCompose(ignore -> writeMeta(packageName, metadata))
-            .thenCompose(ignore -> storage.writeAsync(packagePath(packageName), inputStream));
+                        checkMetadataExistsAndThrowException(packageName),
+                        checkPackageExistsAndThrowException(packageName))
+                .thenCompose(ignore -> writeMeta(packageName, metadata))
+                .thenCompose(ignore -> storage.writeAsync(packagePath(packageName), inputStream));
     }
 
     @Override
     public CompletableFuture<Void> delete(PackageName packageName) {
         return CompletableFuture.allOf(
-            storage.deleteAsync(metadataPath(packageName)),
-            storage.deleteAsync(packagePath(packageName)));
+                storage.deleteAsync(metadataPath(packageName)), storage.deleteAsync(packagePath(packageName)));
     }
 
     @Override
@@ -160,76 +156,72 @@ public class PackagesManagementImpl implements PackagesManagement {
     private CompletableFuture<Void> checkMetadataNotExistsAndThrowException(PackageName packageName) {
         String path = metadataPath(packageName);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        storage.existAsync(path)
-            .whenComplete((exist, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                    return;
-                }
-                if (exist) {
-                    future.complete(null);
-                } else {
-                    future.completeExceptionally(
+        storage.existAsync(path).whenComplete((exist, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+                return;
+            }
+            if (exist) {
+                future.complete(null);
+            } else {
+                future.completeExceptionally(
                         new NotFoundException(String.format("Package '%s' metadata does not exist", packageName)));
-                }
-            });
+            }
+        });
         return future;
     }
 
     private CompletableFuture<Void> checkMetadataExistsAndThrowException(PackageName packageName) {
         String path = metadataPath(packageName);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        storage.existAsync(path)
-            .whenComplete((exist, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                    return;
-                }
-                if (!exist) {
-                    future.complete(null);
-                } else {
-                    future.completeExceptionally(new FileAlreadyExistsException(
-                            String.format("Package '%s' metadata already exists", packageName)));
-                }
-            });
+        storage.existAsync(path).whenComplete((exist, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+                return;
+            }
+            if (!exist) {
+                future.complete(null);
+            } else {
+                future.completeExceptionally(new FileAlreadyExistsException(
+                        String.format("Package '%s' metadata already exists", packageName)));
+            }
+        });
         return future;
     }
 
     private CompletableFuture<Void> checkPackageNotExistsAndThrowException(PackageName packageName) {
         String path = packagePath(packageName);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        storage.existAsync(path)
-            .whenComplete((exist, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                    return;
-                }
-                if (exist) {
-                    future.complete(null);
-                } else {
-                    future.completeExceptionally(
+        storage.existAsync(path).whenComplete((exist, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+                return;
+            }
+            if (exist) {
+                future.complete(null);
+            } else {
+                future.completeExceptionally(
                         new NotFoundException(String.format("Package '%s' does not exist", packageName.toString())));
-                }
-            });
+            }
+        });
         return future;
     }
 
     private CompletableFuture<Void> checkPackageExistsAndThrowException(PackageName packageName) {
         String path = packagePath(packageName);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        storage.existAsync(path)
-            .whenComplete((exist, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                    return;
-                }
-                if (!exist) {
-                    future.complete(null);
-                } else {
-                    future.completeExceptionally(
+        storage.existAsync(path).whenComplete((exist, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+                return;
+            }
+            if (!exist) {
+                future.complete(null);
+            } else {
+                future.completeExceptionally(
                         new NotFoundException(String.format("Package '%s' already exists", packageName.toString())));
-                }
-            });
+            }
+        });
         return future;
     }
 
@@ -253,10 +245,11 @@ public class PackagesManagementImpl implements PackagesManagement {
     }
 
     private String packageWithoutVersionPath(PackageName packageName) {
-        return String.format("%s/%s/%s/%s",
-            packageName.getPkgType().toString(),
-            packageName.getTenant(),
-            packageName.getNamespace(),
-            packageName.getName());
+        return String.format(
+                "%s/%s/%s/%s",
+                packageName.getPkgType().toString(),
+                packageName.getTenant(),
+                packageName.getNamespace(),
+                packageName.getName());
     }
 }

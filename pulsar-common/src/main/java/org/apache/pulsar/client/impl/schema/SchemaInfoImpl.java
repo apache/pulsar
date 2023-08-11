@@ -73,8 +73,7 @@ public class SchemaInfoImpl implements SchemaInfo {
     private transient SchemaHash schemaHash;
 
     @Builder
-    public SchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
-                          Map<String, String> properties) {
+    public SchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp, Map<String, String> properties) {
         this.name = name;
         this.schema = schema;
         this.type = type;

@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.presto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.nio.ByteBuffer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +42,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 
 /**
  * Test basic Pulsar SQL query, the Pulsar SQL is standalone mode.
@@ -79,14 +77,14 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     @DataProvider(name = "schemaProvider")
     public Object[][] schemaProvider() {
         return new Object[][] {
-                { Schema.BYTES},
-                { Schema.BYTEBUFFER},
-                { Schema.STRING},
-                { AvroSchema.of(Stock.class)},
-                { JSONSchema.of(Stock.class)},
-                { ProtobufNativeSchema.of(StockProtoMessage.Stock.class)},
-                { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.INLINE) },
-                { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.SEPARATED) }
+            {Schema.BYTES},
+            {Schema.BYTEBUFFER},
+            {Schema.STRING},
+            {AvroSchema.of(Stock.class)},
+            {JSONSchema.of(Stock.class)},
+            {ProtobufNativeSchema.of(StockProtoMessage.Stock.class)},
+            {Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.INLINE)},
+            {Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.SEPARATED)}
         };
     }
 
@@ -101,14 +99,15 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         String schemaFlag;
         if (schema.getSchemaInfo().getType().isStruct()) {
             schemaFlag = schema.getSchemaInfo().getType().name();
-        } else if(schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
+        } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
             schemaFlag = schema.getSchemaInfo().getType().name() + "_"
                     + ((KeyValueSchemaImpl) schema).getKeyValueEncodingType();
         } else {
             // Because some schema types are same(such as BYTES and BYTEBUFFER), so use the schema name as flag.
             schemaFlag = schema.getSchemaInfo().getName();
         }
-        String topic = String.format("public/default/schema_%s_test_%s", schemaFlag, randomName(5)).toLowerCase();
+        String topic = String.format("public/default/schema_%s_test_%s", schemaFlag, randomName(5))
+                .toLowerCase();
         pulsarSQLBasicTest(TopicName.get(topic), false, false, schema, CompressionType.NONE);
     }
 
@@ -158,15 +157,19 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected int prepareData(TopicName topicName,
-                              boolean isBatch,
-                              boolean useNsOffloadPolices,
-                              Schema<?> schema,
-                              CompressionType compressionType) throws Exception {
+    protected int prepareData(
+            TopicName topicName,
+            boolean isBatch,
+            boolean useNsOffloadPolices,
+            Schema<?> schema,
+            CompressionType compressionType)
+            throws Exception {
 
         if (schema.getSchemaInfo().getName().equals(Schema.BYTES.getSchemaInfo().getName())) {
             prepareDataForBytesSchema(topicName, isBatch, compressionType);
-        } else if (schema.getSchemaInfo().getName().equals(Schema.BYTEBUFFER.getSchemaInfo().getName())) {
+        } else if (schema.getSchemaInfo()
+                .getName()
+                .equals(Schema.BYTEBUFFER.getSchemaInfo().getName())) {
             prepareDataForByteBufferSchema(topicName, isBatch, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.STRING)) {
             prepareDataForStringSchema(topicName, isBatch, compressionType);
@@ -174,7 +177,8 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 || schema.getSchemaInfo().getType().equals(SchemaType.AVRO)) {
             prepareDataForStructSchema(topicName, isBatch, (Schema<Stock>) schema, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.PROTOBUF_NATIVE)) {
-            prepareDataForProtobufNativeSchema(topicName, isBatch, (Schema<StockProtoMessage.Stock>) schema, compressionType);
+            prepareDataForProtobufNativeSchema(
+                    topicName, isBatch, (Schema<StockProtoMessage.Stock>) schema, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
             prepareDataForKeyValueSchema(topicName, (Schema<KeyValue<Stock, Stock>>) schema, compressionType);
         }
@@ -182,101 +186,108 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         return NUM_OF_STOCKS;
     }
 
-    private void prepareDataForBytesSchema(TopicName topicName,
-                                           boolean isBatch,
-                                           CompressionType compressionType) throws PulsarClientException {
+    private void prepareDataForBytesSchema(TopicName topicName, boolean isBatch, CompressionType compressionType)
+            throws PulsarClientException {
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
                 .topic(topicName.toString())
                 .enableBatching(isBatch)
                 .compressionType(compressionType)
                 .create();
 
-        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
             producer.send(("bytes schema test" + i).getBytes());
         }
         producer.flush();
     }
 
-    private void prepareDataForByteBufferSchema(TopicName topicName,
-                                                boolean isBatch,
-                                                CompressionType compressionType) throws PulsarClientException {
+    private void prepareDataForByteBufferSchema(TopicName topicName, boolean isBatch, CompressionType compressionType)
+            throws PulsarClientException {
         @Cleanup
-        Producer<ByteBuffer> producer = pulsarClient.newProducer(Schema.BYTEBUFFER)
+        Producer<ByteBuffer> producer = pulsarClient
+                .newProducer(Schema.BYTEBUFFER)
                 .topic(topicName.toString())
                 .enableBatching(isBatch)
                 .compressionType(compressionType)
                 .create();
 
-        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
             producer.send(ByteBuffer.wrap(("bytes schema test" + i).getBytes()));
         }
         producer.flush();
     }
 
-    private void prepareDataForStringSchema(TopicName topicName,
-                                            boolean isBatch,
-                                            CompressionType compressionType) throws PulsarClientException {
+    private void prepareDataForStringSchema(TopicName topicName, boolean isBatch, CompressionType compressionType)
+            throws PulsarClientException {
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topicName.toString())
                 .enableBatching(isBatch)
                 .compressionType(compressionType)
                 .create();
 
-        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
             producer.send("string" + i);
         }
         producer.flush();
     }
 
-    private void prepareDataForStructSchema(TopicName topicName,
-                                            boolean isBatch,
-                                            Schema<Stock> schema,
-                                            CompressionType compressionType) throws Exception {
+    private void prepareDataForStructSchema(
+            TopicName topicName, boolean isBatch, Schema<Stock> schema, CompressionType compressionType)
+            throws Exception {
         @Cleanup
-        Producer<Stock> producer = pulsarClient.newProducer(schema)
+        Producer<Stock> producer = pulsarClient
+                .newProducer(schema)
                 .topic(topicName.toString())
                 .enableBatching(isBatch)
                 .compressionType(compressionType)
                 .create();
 
-        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
             final Stock stock = new Stock(i, "STOCK_" + i, 100.0 + i * 10);
             producer.send(stock);
         }
         producer.flush();
     }
 
-    private void prepareDataForProtobufNativeSchema(TopicName topicName,
-                                            boolean isBatch,
-                                            Schema<StockProtoMessage.Stock> schema,
-                                            CompressionType compressionType) throws Exception {
+    private void prepareDataForProtobufNativeSchema(
+            TopicName topicName,
+            boolean isBatch,
+            Schema<StockProtoMessage.Stock> schema,
+            CompressionType compressionType)
+            throws Exception {
         @Cleanup
-        Producer<StockProtoMessage.Stock> producer = pulsarClient.newProducer(schema)
+        Producer<StockProtoMessage.Stock> producer = pulsarClient
+                .newProducer(schema)
                 .topic(topicName.toString())
                 .enableBatching(isBatch)
                 .compressionType(compressionType)
                 .create();
 
-        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
-            final StockProtoMessage.Stock stock = StockProtoMessage.Stock.newBuilder().
-                    setEntryId(i).setSymbol("STOCK_" + i).setSharePrice(100.0 + i * 10).build();
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
+            final StockProtoMessage.Stock stock = StockProtoMessage.Stock.newBuilder()
+                    .setEntryId(i)
+                    .setSymbol("STOCK_" + i)
+                    .setSharePrice(100.0 + i * 10)
+                    .build();
             producer.send(stock);
         }
         producer.flush();
     }
 
-    private void prepareDataForKeyValueSchema(TopicName topicName,
-                                              Schema<KeyValue<Stock, Stock>> schema,
-                                              CompressionType compressionType) throws Exception {
+    private void prepareDataForKeyValueSchema(
+            TopicName topicName, Schema<KeyValue<Stock, Stock>> schema, CompressionType compressionType)
+            throws Exception {
         @Cleanup
-        Producer<KeyValue<Stock,Stock>> producer = pulsarClient.newProducer(schema)
+        Producer<KeyValue<Stock, Stock>> producer = pulsarClient
+                .newProducer(schema)
                 .topic(topicName.toString())
                 .compressionType(compressionType)
                 .create();
 
-        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+        for (int i = 0; i < NUM_OF_STOCKS; ++i) {
             int j = 100 * i;
             final Stock stock1 = new Stock(j, "STOCK_" + j, 100.0 + j * 10);
             final Stock stock2 = new Stock(i, "STOCK_" + i, 100.0 + i * 10);
@@ -298,11 +309,14 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             case AVRO:
             case PROTOBUF_NATIVE:
                 validateContentForStructSchema(messageNum, contentArr);
-                log.info("finish validate content for {} schema type.", schema.getSchemaInfo().getType());
+                log.info(
+                        "finish validate content for {} schema type.",
+                        schema.getSchemaInfo().getType());
                 break;
             case KEY_VALUE:
                 validateContentForKeyValueSchema(messageNum, contentArr);
-                log.info("finish validate content for KEY_VALUE {} schema type.",
+                log.info(
+                        "finish validate content for KEY_VALUE {} schema type.",
                         ((KeyValueSchemaImpl) schema).getKeyValueEncodingType());
         }
     }
@@ -340,7 +354,8 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         String topic = "persistent://public/default/" + tableName;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
                 .topic(topic)
                 .enableBatching(false)
                 .create();
@@ -355,12 +370,11 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
         int messageCnt = 5;
         log.info("start produce big entry data, data length: {}", dataLength);
-        for (int i = 0 ; i < messageCnt; ++i) {
+        for (int i = 0; i < messageCnt; ++i) {
             producer.newMessage().value(data).send();
         }
 
         int count = selectCount("public/default", tableName);
         Assert.assertEquals(count, messageCnt);
     }
-
 }

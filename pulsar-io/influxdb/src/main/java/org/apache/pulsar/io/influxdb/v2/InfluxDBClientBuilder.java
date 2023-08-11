@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.influxdb.v2;
 
-
 import com.influxdb.client.InfluxDBClient;
 
 public interface InfluxDBClientBuilder {

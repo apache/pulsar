@@ -22,6 +22,7 @@ public class BrokerStats extends NamespaceStats {
 
     public int bundleCount;
     public int topics;
+
     public BrokerStats(int ratePeriodInSeconds) {
         super(ratePeriodInSeconds);
     }

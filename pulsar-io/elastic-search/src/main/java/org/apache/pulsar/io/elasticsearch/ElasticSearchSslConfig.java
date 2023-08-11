@@ -29,76 +29,41 @@ public class ElasticSearchSslConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "false",
-            help = "Enable SSL/TLS"
-    )
+    @FieldDoc(required = false, defaultValue = "false", help = "Enable SSL/TLS")
     private boolean enabled = false;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "None",
-            help = "SSL Provider"
-    )
+    @FieldDoc(required = false, defaultValue = "None", help = "SSL Provider")
     private String provider;
 
     @FieldDoc(
             required = false,
             defaultValue = "true",
             help = "Whether or not to validate node hostnames when using SSL. "
-                    + "Changing this value is high insecure and you should not use it in production environment."
-    )
+                    + "Changing this value is high insecure and you should not use it in production environment.")
     private boolean hostnameVerification = true;
 
     @FieldDoc(
             required = false,
             defaultValue = "false",
             help = "Whether or not to disable the node certificate validation. "
-                    + "Changing this value is high insecure and you should not use it in production environment."
-    )
+                    + "Changing this value is high insecure and you should not use it in production environment.")
     private boolean disableCertificateValidation;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "",
-            help = "The path to the truststore file"
-    )
+    @FieldDoc(required = false, defaultValue = "", help = "The path to the truststore file")
     private String truststorePath;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "",
-            help = "Truststore password"
-    )
+    @FieldDoc(required = false, defaultValue = "", help = "Truststore password")
     private String truststorePassword;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "",
-            help = "The path to the keystore file"
-    )
+    @FieldDoc(required = false, defaultValue = "", help = "The path to the keystore file")
     private String keystorePath;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "",
-            help = "Keystore password"
-    )
+    @FieldDoc(required = false, defaultValue = "", help = "Keystore password")
     private String keystorePassword;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "",
-            help = "SSL/TLS cipher suites"
-    )
+    @FieldDoc(required = false, defaultValue = "", help = "SSL/TLS cipher suites")
     private String cipherSuites;
 
-    @FieldDoc(
-            required = false,
-            defaultValue = "TLSv1.2",
-            help = "Comma separated list of enabled SSL/TLS protocols"
-    )
+    @FieldDoc(required = false, defaultValue = "TLSv1.2", help = "Comma separated list of enabled SSL/TLS protocols")
     private String protocols = "TLSv1.2";
-
 }

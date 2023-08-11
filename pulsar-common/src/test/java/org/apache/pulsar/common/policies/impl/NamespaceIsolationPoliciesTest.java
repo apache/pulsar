@@ -77,14 +77,13 @@ public class NamespaceIsolationPoliciesTest {
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters)
-                        .build()
-                ).build();
+                        .build())
+                .build();
         policies.setPolicy("otherPolicy", nsPolicyData);
         byte[] morePolicyJson = jsonMapperForWriter.writeValueAsBytes(policies.getPolicies());
         ObjectMapper jsonParser = ObjectMapperFactory.create();
-        Map<String, NamespaceIsolationDataImpl> policiesMap = jsonParser.readValue(morePolicyJson,
-                new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
-                });
+        Map<String, NamespaceIsolationDataImpl> policiesMap =
+                jsonParser.readValue(morePolicyJson, new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {});
         assertEquals(policiesMap.size(), 2);
     }
 
@@ -131,26 +130,27 @@ public class NamespaceIsolationPoliciesTest {
     public void testSetPolicy() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         // set a new policy
-        String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,\"usage_threshold\":80}}}";
+        String newPolicyJson =
+                "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,\"usage_threshold\":80}}}";
         String newPolicyName = "policy2";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        NamespaceIsolationDataImpl nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
-                NamespaceIsolationDataImpl.class);
+        NamespaceIsolationDataImpl nsPolicyData =
+                jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationDataImpl.class);
         policies.setPolicy(newPolicyName, nsPolicyData);
 
         assertEquals(policies.getPolicies().size(), 2);
         assertEquals(policies.getPolicyByName(newPolicyName), new NamespaceIsolationPolicyImpl(nsPolicyData));
         assertNotEquals(policies.getPolicyByName("policy1"), policies.getPolicyByName(newPolicyName));
-        assertEquals(policies.getPolicyByNamespace(NamespaceName.get("pulsar/use/TESTNS.1")),
+        assertEquals(
+                policies.getPolicyByNamespace(NamespaceName.get("pulsar/use/TESTNS.1")),
                 new NamespaceIsolationPolicyImpl(nsPolicyData));
     }
 
     @SuppressWarnings("unchecked")
     private NamespaceIsolationPolicies getDefaultTestPolicies() throws Exception {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        return new NamespaceIsolationPolicies(jsonMapper
-                .readValue(this.defaultJson.getBytes(), new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
-                }));
+        return new NamespaceIsolationPolicies(jsonMapper.readValue(
+                this.defaultJson.getBytes(), new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {}));
     }
 
     @Test
@@ -185,7 +185,11 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(secondaryCandidates.size(), 1);
         assertEquals(sharedCandidates.size(), 0);
         assertEquals(secondary, secondaryCandidates.first());
-        policies.assignBroker(NamespaceName.get("pulsar/use1/testns-1"), shared, primaryCandidates, secondaryCandidates,
+        policies.assignBroker(
+                NamespaceName.get("pulsar/use1/testns-1"),
+                shared,
+                primaryCandidates,
+                secondaryCandidates,
                 sharedCandidates);
         assertEquals(primaryCandidates.size(), 1);
         assertEquals(secondaryCandidates.size(), 1);

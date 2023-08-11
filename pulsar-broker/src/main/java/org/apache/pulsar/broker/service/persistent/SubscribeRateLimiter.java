@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
@@ -63,8 +62,9 @@ public class SubscribeRateLimiter {
      * @return
      */
     public long getAvailableSubscribeRateLimit(ConsumerIdentifier consumerIdentifier) {
-        return subscribeRateLimiter.get(consumerIdentifier)
-                == null ? -1 : subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits();
+        return subscribeRateLimiter.get(consumerIdentifier) == null
+                ? -1
+                : subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits();
     }
 
     /**
@@ -74,8 +74,8 @@ public class SubscribeRateLimiter {
      */
     public synchronized boolean tryAcquire(ConsumerIdentifier consumerIdentifier) {
         addSubscribeLimiterIfAbsent(consumerIdentifier);
-        return subscribeRateLimiter.get(consumerIdentifier)
-                == null || subscribeRateLimiter.get(consumerIdentifier).tryAcquire();
+        return subscribeRateLimiter.get(consumerIdentifier) == null
+                || subscribeRateLimiter.get(consumerIdentifier).tryAcquire();
     }
 
     /**
@@ -85,8 +85,8 @@ public class SubscribeRateLimiter {
      * @return
      */
     public boolean subscribeAvailable(ConsumerIdentifier consumerIdentifier) {
-        return (subscribeRateLimiter.get(consumerIdentifier)
-                == null || subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits() > 0);
+        return (subscribeRateLimiter.get(consumerIdentifier) == null
+                || subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits() > 0);
     }
 
     /**
@@ -122,7 +122,8 @@ public class SubscribeRateLimiter {
         // update subscribe-rateLimiter
         if (ratePerConsumer > 0) {
             if (this.subscribeRateLimiter.get(consumerIdentifier) == null) {
-                this.subscribeRateLimiter.put(consumerIdentifier,
+                this.subscribeRateLimiter.put(
+                        consumerIdentifier,
                         RateLimiter.builder()
                                 .scheduledExecutorService(brokerService.pulsar().getExecutor())
                                 .permits(ratePerConsumer)
@@ -130,9 +131,9 @@ public class SubscribeRateLimiter {
                                 .timeUnit(TimeUnit.SECONDS)
                                 .build());
             } else {
-                this.subscribeRateLimiter.get(consumerIdentifier)
-                        .setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS,
-                                null);
+                this.subscribeRateLimiter
+                        .get(consumerIdentifier)
+                        .setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS, null);
             }
         } else {
             // subscribe-rate should be disable and close
@@ -181,17 +182,18 @@ public class SubscribeRateLimiter {
         return getPoliciesSubscribeRate(cluster, policies, topicName);
     }
 
-    public static SubscribeRate getPoliciesSubscribeRate(final String cluster, final Optional<Policies> policies,
-            String topicName) {
+    public static SubscribeRate getPoliciesSubscribeRate(
+            final String cluster, final Optional<Policies> policies, String topicName) {
         // return policy-subscribe rate only if it's enabled in policies
         return policies.map(p -> {
-            if (p.clusterSubscribeRate != null) {
-                SubscribeRate subscribeRate = p.clusterSubscribeRate.get(cluster);
-                return isSubscribeRateEnabled(subscribeRate) ? subscribeRate : null;
-            } else {
-                return null;
-            }
-        }).orElse(null);
+                    if (p.clusterSubscribeRate != null) {
+                        SubscribeRate subscribeRate = p.clusterSubscribeRate.get(cluster);
+                        return isSubscribeRateEnabled(subscribeRate) ? subscribeRate : null;
+                    } else {
+                        return null;
+                    }
+                })
+                .orElse(null);
     }
 
     /**
@@ -200,8 +202,9 @@ public class SubscribeRateLimiter {
      * @return
      */
     public long getSubscribeRatePerConsumer(ConsumerIdentifier consumerIdentifier) {
-        return subscribeRateLimiter.get(consumerIdentifier)
-                != null ? subscribeRateLimiter.get(consumerIdentifier).getRate() : -1;
+        return subscribeRateLimiter.get(consumerIdentifier) != null
+                ? subscribeRateLimiter.get(consumerIdentifier).getRate()
+                : -1;
     }
 
     public static boolean isSubscribeRateEnabled(SubscribeRate subscribeRate) {
@@ -214,7 +217,8 @@ public class SubscribeRateLimiter {
     }
 
     private ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::closeAndClearRateLimiters),
+        return executorService.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(this::closeAndClearRateLimiters),
                 this.subscribeRate.ratePeriodInSecond,
                 this.subscribeRate.ratePeriodInSecond,
                 TimeUnit.SECONDS);
@@ -275,7 +279,8 @@ public class SubscribeRateLimiter {
             return MoreObjects.toStringHelper(this)
                     .add("host", host)
                     .add("consumerName", consumerName)
-                    .add("consumerId", consumerId).toString();
+                    .add("consumerId", consumerId)
+                    .toString();
         }
     }
 

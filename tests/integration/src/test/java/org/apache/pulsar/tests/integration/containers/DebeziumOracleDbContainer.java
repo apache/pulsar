@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
-
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbContainer> {
 
     public static final String NAME = "debezium-oracledb-12c";
-    static final Integer[] PORTS = { 1521 };
+    static final Integer[] PORTS = {1521};
 
     // https://github.com/MaksymBilenko/docker-oracle-12c
     // Apache 2.0 license.
@@ -49,15 +47,14 @@ public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbCo
     protected void configure() {
         super.configure();
         this.withNetworkAliases(NAME)
-            .withExposedPorts(PORTS)
-            .withEnv("DBCA_TOTAL_MEMORY", "2048")
-            .withEnv("WEB_CONSOLE", "false")
-            .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
-            .withCreateContainerCmdModifier(createContainerCmd -> {
-                createContainerCmd.withHostName(NAME);
-                createContainerCmd.withName(getContainerName());
-            })
-            .waitingFor(new HostPortWaitStrategy());
+                .withExposedPorts(PORTS)
+                .withEnv("DBCA_TOTAL_MEMORY", "2048")
+                .withEnv("WEB_CONSOLE", "false")
+                .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
+                .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(NAME);
+                    createContainerCmd.withName(getContainerName());
+                })
+                .waitingFor(new HostPortWaitStrategy());
     }
-
 }

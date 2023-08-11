@@ -54,11 +54,10 @@ import org.reactivestreams.Subscription;
  * This class assumes that the input will be JSON documents.
  */
 @Connector(
-    name = "mongo",
-    type = IOType.SINK,
-    help = "A sink connector that sends pulsar messages to mongodb",
-    configClass = MongoSinkConfig.class
-)
+        name = "mongo",
+        type = IOType.SINK,
+        help = "A sink connector that sends pulsar messages to mongodb",
+        configClass = MongoSinkConfig.class)
 @Slf4j
 public class MongoSink implements Sink<byte[]> {
 
@@ -100,8 +99,11 @@ public class MongoSink implements Sink<byte[]> {
 
         incomingList = Lists.newArrayList();
         flushExecutor = Executors.newScheduledThreadPool(1);
-        flushExecutor.scheduleAtFixedRate(() -> flush(),
-                mongoSinkConfig.getBatchTimeMs(), mongoSinkConfig.getBatchTimeMs(), TimeUnit.MILLISECONDS);
+        flushExecutor.scheduleAtFixedRate(
+                () -> flush(),
+                mongoSinkConfig.getBatchTimeMs(),
+                mongoSinkConfig.getBatchTimeMs(),
+                TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -169,15 +171,14 @@ public class MongoSink implements Sink<byte[]> {
             this.recordsToInsert = recordsToInsert;
             idxToAck = IntStream.range(0, this.docsToInsert.size()).boxed().collect(toList());
         }
+
         @Override
         public void onSubscribe(Subscription subscription) {
             subscription.request(Integer.MAX_VALUE);
         }
 
         @Override
-        public void onNext(InsertManyResult success) {
-
-        }
+        public void onNext(InsertManyResult success) {}
 
         @Override
         public void onError(Throwable t) {

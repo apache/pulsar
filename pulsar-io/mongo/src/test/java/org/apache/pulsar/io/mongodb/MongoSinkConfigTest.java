@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.io.mongodb;
 
-import java.util.Map;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
-
-import static org.testng.Assert.assertEquals;
+import java.util.Map;
+import org.testng.annotations.Test;
 
 public class MongoSinkConfigTest {
 
@@ -43,7 +41,8 @@ public class MongoSinkConfigTest {
         assertEquals(cfg.getBatchTimeMs(), TestHelper.BATCH_TIME);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Required MongoDB URI is not set.")
     public void testBadMongoUri() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
@@ -54,7 +53,8 @@ public class MongoSinkConfigTest {
         cfg.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Required MongoDB database name is not set.")
     public void testBadDatabase() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
@@ -65,7 +65,8 @@ public class MongoSinkConfigTest {
         cfg.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Required MongoDB collection name is not set.")
     public void testBadCollection() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
@@ -76,7 +77,8 @@ public class MongoSinkConfigTest {
         cfg.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public void testBadBatchSize() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
@@ -87,7 +89,8 @@ public class MongoSinkConfigTest {
         cfg.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public void testBadBatchTime() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();

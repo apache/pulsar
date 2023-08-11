@@ -29,10 +29,10 @@ public class KafkaStringSource extends KafkaAbstractSource<String> {
 
     @Override
     public KafkaRecord<String> buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-        return new KafkaRecord<>(consumerRecord,
+        return new KafkaRecord<>(
+                consumerRecord,
                 new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
                 Schema.STRING,
                 copyKafkaHeaders(consumerRecord));
     }
-
 }

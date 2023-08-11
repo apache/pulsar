@@ -84,5 +84,4 @@ public class SourceStatus {
     public void addInstance(SourceInstanceStatus sourceInstanceStatus) {
         instances.add(sourceInstanceStatus);
     }
-
 }

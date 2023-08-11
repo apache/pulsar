@@ -39,7 +39,6 @@ class CmdPackages extends CmdBase {
     public CmdPackages(Supplier<PulsarAdmin> admin) {
         super("packages", admin);
 
-
         jcommander.addCommand("get-metadata", new GetMetadataCmd());
         jcommander.addCommand("update-metadata", new UpdateMetadataCmd());
         jcommander.addCommand("upload", new UploadCmd());
@@ -72,19 +71,32 @@ class CmdPackages extends CmdBase {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
 
-        @Parameter(names = {"-d", "--description"}, description = "descriptions of a package", required = true)
+        @Parameter(
+                names = {"-d", "--description"},
+                description = "descriptions of a package",
+                required = true)
         private String description;
 
-        @Parameter(names = {"-c", "--contact"}, description = "contact info of a package")
+        @Parameter(
+                names = {"-c", "--contact"},
+                description = "contact info of a package")
         private String contact;
 
-        @DynamicParameter(names = {"--properties", "-P"},  description = "external information of a package")
+        @DynamicParameter(
+                names = {"--properties", "-P"},
+                description = "external information of a package")
         private Map<String, String> properties = new HashMap<>();
 
         @Override
         void run() throws Exception {
-            getPackages().updateMetadata(packageName, PackageMetadata.builder()
-                .description(description).contact(contact).properties(properties).build());
+            getPackages()
+                    .updateMetadata(
+                            packageName,
+                            PackageMetadata.builder()
+                                    .description(description)
+                                    .contact(contact)
+                                    .properties(properties)
+                                    .build());
             print(String.format("The metadata of the package '%s' updated successfully", packageName));
         }
     }
@@ -100,7 +112,9 @@ class CmdPackages extends CmdBase {
         @Parameter(names = "--contact", description = "contact information of a package")
         private String contact;
 
-        @DynamicParameter(names = {"--properties", "-P"}, description = "external information of a package")
+        @DynamicParameter(
+                names = {"--properties", "-P"},
+                description = "external information of a package")
         private Map<String, String> properties = new HashMap<>();
 
         @Parameter(names = "--path", description = "file path of the package", required = true)
@@ -109,9 +123,10 @@ class CmdPackages extends CmdBase {
         @Override
         void run() throws Exception {
             PackageMetadata metadata = PackageMetadata.builder()
-                .description(description)
-                .contact(contact)
-                .properties(properties).build();
+                    .description(description)
+                    .contact(contact)
+                    .properties(properties)
+                    .build();
             getPackages().upload(metadata, packageName, path);
             print(String.format("The package '%s' uploaded from path '%s' successfully", packageName, path));
         }
@@ -134,8 +149,10 @@ class CmdPackages extends CmdBase {
 
     @Parameters(commandDescription = "List all versions of the given package")
     private class ListPackageVersionsCmd extends CliCommand {
-        @Parameter(description = "the package name you want to query, don't need to specify the package version. "
-                + "type://tenant/namespace/packageName", required = true)
+        @Parameter(
+                description = "the package name you want to query, don't need to specify the package version. "
+                        + "type://tenant/namespace/packageName",
+                required = true)
         private String packageName;
 
         @Override
@@ -159,7 +176,7 @@ class CmdPackages extends CmdBase {
     }
 
     @Parameters(commandDescription = "Delete a package")
-    private class DeletePackageCmd extends CliCommand{
+    private class DeletePackageCmd extends CliCommand {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
 

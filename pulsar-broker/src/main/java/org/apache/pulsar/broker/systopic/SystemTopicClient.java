@@ -141,7 +141,6 @@ public interface SystemTopicClient<T> {
          * @return system topic
          */
         SystemTopicClient<T> getSystemTopicClient();
-
     }
 
     /**
@@ -189,5 +188,4 @@ public interface SystemTopicClient<T> {
          */
         SystemTopicClient<T> getSystemTopic();
     }
-
 }

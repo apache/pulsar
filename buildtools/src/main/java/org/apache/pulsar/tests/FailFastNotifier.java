@@ -45,29 +45,30 @@ import org.testng.SkipException;
  * implementation that is part of the Maven Surefire plugin.
  *
  */
-public class FailFastNotifier
-        implements IInvokedMethodListener, ITestListener {
+public class FailFastNotifier implements IInvokedMethodListener, ITestListener {
     private static final Logger LOG = LoggerFactory.getLogger(FailFastNotifier.class);
     private static final String PROPERTY_NAME_TEST_FAIL_FAST = "testFailFast";
-    private static final boolean FAIL_FAST_ENABLED = Boolean.parseBoolean(
-            System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST, "true"));
+    private static final boolean FAIL_FAST_ENABLED =
+            Boolean.parseBoolean(System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST, "true"));
 
     private static final String PROPERTY_NAME_TEST_FAIL_FAST_FILE = "testFailFastFile";
 
     // A file that is used to communicate to other parallel forked test processes to terminate the build
     // so that fail fast mode works with multiple forked test processes
-    private static final File FAIL_FAST_KILLSWITCH_FILE =
-            System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE) != null
-                    && System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE).trim().length() > 0
-                    ? new File(System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE).trim()) : null;
+    private static final File FAIL_FAST_KILLSWITCH_FILE = System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE) != null
+                    && System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE)
+                                    .trim()
+                                    .length()
+                            > 0
+            ? new File(System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE).trim())
+            : null;
 
     static class FailFastEventsSingleton {
         private static final FailFastEventsSingleton INSTANCE = new FailFastEventsSingleton();
 
         private volatile ITestResult firstFailure;
 
-        private FailFastEventsSingleton() {
-        }
+        private FailFastEventsSingleton() {}
 
         public static FailFastEventsSingleton getInstance() {
             return INSTANCE;
@@ -84,8 +85,10 @@ public class FailFastNotifier
                     try {
                         Files.createFile(FAIL_FAST_KILLSWITCH_FILE.toPath());
                     } catch (IOException e) {
-                        LOG.warn("Unable to create fail fast kill switch file '"
-                                + FAIL_FAST_KILLSWITCH_FILE.getAbsolutePath() + "'", e);
+                        LOG.warn(
+                                "Unable to create fail fast kill switch file '"
+                                        + FAIL_FAST_KILLSWITCH_FILE.getAbsolutePath() + "'",
+                                e);
                     }
                 }
             }
@@ -120,8 +123,8 @@ public class FailFastNotifier
                 // first exception happened
                 if (iTestResult.getInstance() != firstFailure.getInstance()
                         || !(iTestNGMethod.isAfterMethodConfiguration()
-                        || iTestNGMethod.isAfterClassConfiguration()
-                        || iTestNGMethod.isAfterTestConfiguration())) {
+                                || iTestNGMethod.isAfterClassConfiguration()
+                                || iTestNGMethod.isAfterTestConfiguration())) {
                     throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
                 }
             } else if (FAIL_FAST_KILLSWITCH_FILE != null && FAIL_FAST_KILLSWITCH_FILE.exists()) {
@@ -131,7 +134,5 @@ public class FailFastNotifier
     }
 
     @Override
-    public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult) {
-
-    }
+    public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult) {}
 }

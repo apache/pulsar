@@ -20,19 +20,16 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.client.api.Range;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.client.api.Range;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsistentHashingStickyKeyConsumerSelectorTest {
@@ -65,8 +62,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
 
         // Check that keys got assigned uniformely to consumers
-        Assert.assertEquals(selectionMap.get("c1"), N/2, N/2 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c2"), N/2, N/2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c1"), N / 2, N / 2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), N / 2, N / 2 * PERCENT_ERROR);
         selectionMap.clear();
 
         Consumer consumer3 = mock(Consumer.class);
@@ -80,9 +77,9 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
-        Assert.assertEquals(selectionMap.get("c1"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c2"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c3"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c1"), N / 3, N / 3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), N / 3, N / 3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), N / 3, N / 3 * PERCENT_ERROR);
         selectionMap.clear();
 
         Consumer consumer4 = mock(Consumer.class);
@@ -96,10 +93,10 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
-        Assert.assertEquals(selectionMap.get("c1"), N/4, N/4 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c2"), N/4, N/4 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c3"), N/4, N/4 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c4"), N/4, N/4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c1"), N / 4, N / 4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), N / 4, N / 4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), N / 4, N / 4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c4"), N / 4, N / 4 * PERCENT_ERROR);
         selectionMap.clear();
 
         selector.removeConsumer(consumer1);
@@ -111,9 +108,9 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
-        Assert.assertEquals(selectionMap.get("c2"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c3"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c4"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), N / 3, N / 3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), N / 3, N / 3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c4"), N / 3, N / 3 * PERCENT_ERROR);
         selectionMap.clear();
 
         selector.removeConsumer(consumer2);
@@ -125,8 +122,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
 
         System.err.println(selectionMap);
-        Assert.assertEquals(selectionMap.get("c3"), N/2, N/2 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c4"), N/2, N/2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), N / 2, N / 2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c4"), N / 2, N / 2 * PERCENT_ERROR);
         selectionMap.clear();
 
         selector.removeConsumer(consumer3);
@@ -140,7 +137,6 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         Assert.assertEquals(selectionMap.get("c4").intValue(), N);
     }
 
-
     @Test
     public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(3);
@@ -153,19 +149,24 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             consumers.add(consumer);
         }
         Map<Consumer, List<Range>> expectedResult = new HashMap<>();
-        expectedResult.put(consumers.get(0), Arrays.asList(
-                Range.of(0, 330121749),
-                Range.of(330121750, 618146114),
-                Range.of(1797637922, 1976098885)));
-        expectedResult.put(consumers.get(1), Arrays.asList(
-                Range.of(938427576, 1094135919),
-                Range.of(1138613629, 1342907082),
-                Range.of(1342907083, 1797637921)));
-        expectedResult.put(consumers.get(2), Arrays.asList(
-                Range.of(618146115, 772640562),
-                Range.of(772640563, 938427575),
-                Range.of(1094135920, 1138613628)));
-        for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+        expectedResult.put(
+                consumers.get(0),
+                Arrays.asList(
+                        Range.of(0, 330121749), Range.of(330121750, 618146114), Range.of(1797637922, 1976098885)));
+        expectedResult.put(
+                consumers.get(1),
+                Arrays.asList(
+                        Range.of(938427576, 1094135919),
+                        Range.of(1138613629, 1342907082),
+                        Range.of(1342907083, 1797637921)));
+        expectedResult.put(
+                consumers.get(2),
+                Arrays.asList(
+                        Range.of(618146115, 772640562),
+                        Range.of(772640563, 938427575),
+                        Range.of(1094135920, 1138613628)));
+        for (Map.Entry<Consumer, List<Range>> entry :
+                selector.getConsumerKeyHashRanges().entrySet()) {
             System.out.println(entry.getValue());
             Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
             expectedResult.remove(entry.getKey());

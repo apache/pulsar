@@ -93,9 +93,8 @@ public class ConcurrentBitmapSortedLongPairSet {
         }
     }
 
-
-    public <T extends Comparable<T>> NavigableSet<T> items(int numberOfItems,
-                                                           LongPairSet.LongPairFunction<T> longPairConverter) {
+    public <T extends Comparable<T>> NavigableSet<T> items(
+            int numberOfItems, LongPairSet.LongPairFunction<T> longPairConverter) {
         NavigableSet<T> items = new TreeSet<>();
         lock.readLock().lock();
         try {
@@ -135,7 +134,11 @@ public class ConcurrentBitmapSortedLongPairSet {
     public int size() {
         lock.readLock().lock();
         try {
-            return map.isEmpty() ? 0 : map.values().stream().mapToInt(RoaringBitmap::getCardinality).sum();
+            return map.isEmpty()
+                    ? 0
+                    : map.values().stream()
+                            .mapToInt(RoaringBitmap::getCardinality)
+                            .sum();
         } finally {
             lock.readLock().unlock();
         }

@@ -46,21 +46,22 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     @SuppressFBWarnings(value = "SE_BAD_FIELD", justification = "Using custom serializer which Findbugs can't detect")
     private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
-    public AuthenticationTls() {
-    }
+    public AuthenticationTls() {}
 
     public AuthenticationTls(String certFilePath, String keyFilePath) {
         this.certFilePath = certFilePath;
         this.keyFilePath = keyFilePath;
     }
 
-    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
-            Supplier<ByteArrayInputStream> keyStreamProvider) {
+    public AuthenticationTls(
+            Supplier<ByteArrayInputStream> certStreamProvider, Supplier<ByteArrayInputStream> keyStreamProvider) {
         this(certStreamProvider, keyStreamProvider, null);
     }
 
-    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
-            Supplier<ByteArrayInputStream> keyStreamProvider, Supplier<ByteArrayInputStream> trustStoreStreamProvider) {
+    public AuthenticationTls(
+            Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider,
+            Supplier<ByteArrayInputStream> trustStoreStreamProvider) {
         this.certStreamProvider = certStreamProvider;
         this.keyStreamProvider = keyStreamProvider;
         this.trustStoreStreamProvider = trustStoreStreamProvider;

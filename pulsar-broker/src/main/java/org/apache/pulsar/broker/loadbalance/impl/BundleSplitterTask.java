@@ -40,7 +40,6 @@ public class BundleSplitterTask implements BundleSplitStrategy {
 
     private final Map<String, Integer> namespaceBundleCount;
 
-
     /**
      * Construct a BundleSplitterTask.
      *
@@ -74,7 +73,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
 
         loadData.getBrokerData().forEach((broker, brokerData) -> {
             LocalBrokerData localData = brokerData.getLocalData();
-            for (final Map.Entry<String, NamespaceBundleStats> entry : localData.getLastStats().entrySet()) {
+            for (final Map.Entry<String, NamespaceBundleStats> entry :
+                    localData.getLastStats().entrySet()) {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
                 if (stats.topics < 2) {
@@ -87,23 +87,31 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                 double totalMessageThroughput = 0;
                 // Attempt to consider long-term message data, otherwise effectively ignore.
                 if (loadData.getBundleData().containsKey(bundle)) {
-                    final TimeAverageMessageData longTermData = loadData.getBundleData().get(bundle).getLongTermData();
+                    final TimeAverageMessageData longTermData =
+                            loadData.getBundleData().get(bundle).getLongTermData();
                     totalMessageRate = longTermData.totalMsgRate();
                     totalMessageThroughput = longTermData.totalMsgThroughput();
                 }
-                if (stats.topics > maxBundleTopics || (maxBundleSessions > 0 && (stats.consumerCount
-                        + stats.producerCount > maxBundleSessions))
-                        || totalMessageRate > maxBundleMsgRate || totalMessageThroughput > maxBundleBandwidth) {
+                if (stats.topics > maxBundleTopics
+                        || (maxBundleSessions > 0 && (stats.consumerCount + stats.producerCount > maxBundleSessions))
+                        || totalMessageRate > maxBundleMsgRate
+                        || totalMessageThroughput > maxBundleBandwidth) {
                     final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     try {
-                        final int bundleCount = pulsar.getNamespaceService()
-                                .getBundleCount(NamespaceName.get(namespace));
-                        if ((bundleCount + namespaceBundleCount.getOrDefault(namespace, 0))
-                                < maxBundleCount) {
-                            log.info("The bundle {} is considered to be unload. Topics: {}/{}, Sessions: ({}+{})/{}, "
+                        final int bundleCount =
+                                pulsar.getNamespaceService().getBundleCount(NamespaceName.get(namespace));
+                        if ((bundleCount + namespaceBundleCount.getOrDefault(namespace, 0)) < maxBundleCount) {
+                            log.info(
+                                    "The bundle {} is considered to be unload. Topics: {}/{}, Sessions: ({}+{})/{}, "
                                             + "Message Rate: {}/{} (msgs/s), Message Throughput: {}/{} (MB/s)",
-                                    bundle, stats.topics, maxBundleTopics, stats.producerCount, stats.consumerCount,
-                                    maxBundleSessions, totalMessageRate, maxBundleMsgRate,
+                                    bundle,
+                                    stats.topics,
+                                    maxBundleTopics,
+                                    stats.producerCount,
+                                    stats.consumerCount,
+                                    maxBundleSessions,
+                                    totalMessageRate,
+                                    maxBundleMsgRate,
                                     totalMessageThroughput / LoadManagerShared.MIBI,
                                     maxBundleBandwidth / LoadManagerShared.MIBI);
                             bundleCache.put(bundle, broker);
@@ -113,7 +121,10 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                             if (log.isDebugEnabled()) {
                                 log.debug(
                                         "Could not split namespace bundle {} because namespace {} has too many bundles:"
-                                                + "{}", bundle, namespace, bundleCount);
+                                                + "{}",
+                                        bundle,
+                                        namespace,
+                                        bundleCount);
                             }
                         }
                     } catch (Exception e) {

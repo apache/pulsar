@@ -45,9 +45,7 @@ public interface ManagedLedgerInterceptor {
      * Intercept When add entry failed.
      * @param numberOfMessages
      */
-    default void afterFailedAddEntry(int numberOfMessages){
-
-    }
+    default void afterFailedAddEntry(int numberOfMessages) {}
 
     /**
      * Intercept when ManagedLedger is initialized.
@@ -87,7 +85,7 @@ public interface ManagedLedgerInterceptor {
      * @param dataReadFromLedger data from ledger
      * @return handle to the processor
      */
-    default PayloadProcessorHandle processPayloadBeforeEntryCache(ByteBuf dataReadFromLedger){
+    default PayloadProcessorHandle processPayloadBeforeEntryCache(ByteBuf dataReadFromLedger) {
         return null;
     }
 
@@ -97,8 +95,8 @@ public interface ManagedLedgerInterceptor {
      * @param dataToBeStoredInLedger data to be stored in ledger
      * @return handle to the processor
      */
-    default PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry ledgerWriteOp,
-                                                                   ByteBuf dataToBeStoredInLedger){
+    default PayloadProcessorHandle processPayloadBeforeLedgerWrite(
+            OpAddEntry ledgerWriteOp, ByteBuf dataToBeStoredInLedger) {
         return null;
     }
 }

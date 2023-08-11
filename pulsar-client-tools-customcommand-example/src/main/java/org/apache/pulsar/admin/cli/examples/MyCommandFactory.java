@@ -32,67 +32,63 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 
 @Slf4j
 public class MyCommandFactory implements CustomCommandFactory {
-  @Override
-  public List<CustomCommandGroup> commandGroups(CommandExecutionContext context) {
-    return Arrays.asList(
-            new MyCustomCommandGroup());
-  }
+    @Override
+    public List<CustomCommandGroup> commandGroups(CommandExecutionContext context) {
+        return Arrays.asList(new MyCustomCommandGroup());
+    }
 
     private static class MyCustomCommandGroup implements CustomCommandGroup {
         @Override
         public String name() {
-          return "customgroup";
+            return "customgroup";
         }
 
         @Override
         public String description() {
-          return "Custom group 1 description";
+            return "Custom group 1 description";
         }
 
         @Override
         public List<CustomCommand> commands(CommandExecutionContext context) {
-          return Arrays.asList(new Command1(), new Command2());
+            return Arrays.asList(new Command1(), new Command2());
         }
 
         private static class Command1 implements CustomCommand {
             @Override
             public String name() {
-              return "command1";
+                return "command1";
             }
 
             @Override
             public String description() {
-              return "Command 1 description";
+                return "Command 1 description";
             }
 
             @Override
             public List<ParameterDescriptor> parameters() {
-              return Arrays.asList(
-                  ParameterDescriptor.builder()
-                      .description("Operation type")
-                      .type(ParameterType.STRING)
-                      .names(Arrays.asList("--type", "-t"))
-                      .required(true)
-                      .build(),
-                  ParameterDescriptor.builder()
-                      .description("Topic")
-                      .type(ParameterType.STRING)
-                      .mainParameter(true)
-                      .names(Arrays.asList("topic"))
-                      .required(true)
-                      .build());
+                return Arrays.asList(
+                        ParameterDescriptor.builder()
+                                .description("Operation type")
+                                .type(ParameterType.STRING)
+                                .names(Arrays.asList("--type", "-t"))
+                                .required(true)
+                                .build(),
+                        ParameterDescriptor.builder()
+                                .description("Topic")
+                                .type(ParameterType.STRING)
+                                .mainParameter(true)
+                                .names(Arrays.asList("topic"))
+                                .required(true)
+                                .build());
             }
 
             @Override
-            public boolean execute(
-                    Map<String, Object> parameters, CommandExecutionContext context)
-                throws Exception {
-              System.out.println(
-                  "Execute: " + parameters + " properties " + context.getConfiguration());
-              String destination = parameters.getOrDefault("topic", "").toString();
-              TopicStats stats = context.getPulsarAdmin().topics().getStats(destination);
-              System.out.println("Topic stats: " + stats);
-              return false;
+            public boolean execute(Map<String, Object> parameters, CommandExecutionContext context) throws Exception {
+                System.out.println("Execute: " + parameters + " properties " + context.getConfiguration());
+                String destination = parameters.getOrDefault("topic", "").toString();
+                TopicStats stats = context.getPulsarAdmin().topics().getStats(destination);
+                System.out.println("Topic stats: " + stats);
+                return false;
             }
         }
 
@@ -139,13 +135,10 @@ public class MyCommandFactory implements CustomCommandFactory {
             }
 
             @Override
-            public boolean execute(
-                    Map<String, Object> parameters, CommandExecutionContext context)
-                    throws Exception {
-                System.out.println(
-                        "Execute: " + parameters + " properties " + context.getConfiguration());
+            public boolean execute(Map<String, Object> parameters, CommandExecutionContext context) throws Exception {
+                System.out.println("Execute: " + parameters + " properties " + context.getConfiguration());
                 return false;
             }
         }
-  }
+    }
 }

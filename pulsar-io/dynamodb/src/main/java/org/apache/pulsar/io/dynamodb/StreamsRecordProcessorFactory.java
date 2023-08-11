@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.dynamodb;
 
-
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor;
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -27,8 +26,9 @@ public class StreamsRecordProcessorFactory implements IRecordProcessorFactory {
 
     private final LinkedBlockingQueue<StreamsRecord> queue;
     private final DynamoDBSourceConfig config;
-    public StreamsRecordProcessorFactory(LinkedBlockingQueue<StreamsRecord> queue,
-                                         DynamoDBSourceConfig kinesisSourceConfig) {
+
+    public StreamsRecordProcessorFactory(
+            LinkedBlockingQueue<StreamsRecord> queue, DynamoDBSourceConfig kinesisSourceConfig) {
         this.queue = queue;
         this.config = kinesisSourceConfig;
     }

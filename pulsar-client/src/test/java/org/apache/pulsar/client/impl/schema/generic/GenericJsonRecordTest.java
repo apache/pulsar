@@ -23,7 +23,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertSame;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,22 +38,19 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
-
 public class GenericJsonRecordTest {
 
     @Test
-    public void decodeNullValue() throws Exception{
+    public void decodeNullValue() throws Exception {
         byte[] json = "{\"somefield\":null}".getBytes(UTF_8);
-        GenericJsonRecord record
-                = new GenericJsonReader(Collections.singletonList(new Field("somefield", 0)))
-                        .read(json, 0, json.length);
+        GenericJsonRecord record =
+                new GenericJsonReader(Collections.singletonList(new Field("somefield", 0))).read(json, 0, json.length);
         assertTrue(record.getJsonNode().get("somefield").isNull());
         assertNull(record.getField("somefield"));
     }
 
-
     @Test
-    public void decodeLongField() throws Exception{
+    public void decodeLongField() throws Exception {
         String jsonStr = "{\"timestamp\":1585204833128, \"count\":2, \"value\": 1.1, \"on\":true}";
         byte[] jsonStrBytes = jsonStr.getBytes();
         ObjectMapper objectMapper = new ObjectMapper();
@@ -74,7 +70,7 @@ public class GenericJsonRecordTest {
         assertEquals(1.1, value);
 
         Object boolValue = record.getField("on");
-        assertTrue((boolean)boolValue);
+        assertTrue((boolean) boolValue);
     }
 
     @Data
@@ -98,16 +94,17 @@ public class GenericJsonRecordTest {
     }
 
     private enum GPU {
-        AMD, NVIDIA
+        AMD,
+        NVIDIA
     }
 
     @Test
     public void testEncodeAndDecodeObject() throws JsonProcessingException {
         // test case from issue https://github.com/apache/pulsar/issues/9605
-        JSONSchema<PC> jsonSchema = JSONSchema.of(SchemaDefinition.<PC>builder().withPojo(PC.class).build());
+        JSONSchema<PC> jsonSchema =
+                JSONSchema.of(SchemaDefinition.<PC>builder().withPojo(PC.class).build());
         GenericSchema genericJsonSchema = GenericJsonSchema.of(jsonSchema.getSchemaInfo());
-        PC pc = new PC("dell", "alienware", 2021, GPU.AMD,
-                new Seller("WA", "street", 98004));
+        PC pc = new PC("dell", "alienware", 2021, GPU.AMD, new Seller("WA", "street", 98004));
         JsonNode jsonNode = ObjectMapperFactory.getMapper().getObjectMapper().valueToTree(pc);
         GenericJsonRecord genericJsonRecord =
                 new GenericJsonRecord(null, null, jsonNode, genericJsonSchema.getSchemaInfo());
@@ -117,11 +114,10 @@ public class GenericJsonRecordTest {
     }
 
     @Test
-    public void testGetNativeRecord() throws Exception{
+    public void testGetNativeRecord() throws Exception {
         byte[] json = "{\"somefield\":null}".getBytes(UTF_8);
-        GenericJsonRecord record
-                = new GenericJsonReader(Collections.singletonList(new Field("somefield", 0)))
-                .read(json, 0, json.length);
+        GenericJsonRecord record =
+                new GenericJsonReader(Collections.singletonList(new Field("somefield", 0))).read(json, 0, json.length);
         assertEquals(SchemaType.JSON, record.getSchemaType());
         assertSame(record.getNativeObject(), record.getJsonNode());
     }

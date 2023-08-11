@@ -49,22 +49,26 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
 
     private final boolean isDelayedDeliveryDeliverAtTimeStrict;
 
-    public AbstractDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
-                                          long tickTimeMillis,
-                                          boolean isDelayedDeliveryDeliverAtTimeStrict) {
+    public AbstractDelayedDeliveryTracker(
+            PersistentDispatcherMultipleConsumers dispatcher,
+            Timer timer,
+            long tickTimeMillis,
+            boolean isDelayedDeliveryDeliverAtTimeStrict) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
     }
 
-    public AbstractDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
-                                          long tickTimeMillis, Clock clock,
-                                          boolean isDelayedDeliveryDeliverAtTimeStrict) {
+    public AbstractDelayedDeliveryTracker(
+            PersistentDispatcherMultipleConsumers dispatcher,
+            Timer timer,
+            long tickTimeMillis,
+            Clock clock,
+            boolean isDelayedDeliveryDeliverAtTimeStrict) {
         this.dispatcher = dispatcher;
         this.timer = timer;
         this.tickTimeMillis = tickTimeMillis;
         this.clock = clock;
         this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
     }
-
 
     /**
      * When {@link #isDelayedDeliveryDeliverAtTimeStrict} is false, we allow for early delivery by as much as the

@@ -86,6 +86,6 @@ public class MessagesImpl<T> implements Messages<T> {
 
     @Override
     public Iterator<Message<T>> iterator() {
-        return  messageList.iterator();
+        return messageList.iterator();
     }
 }

@@ -80,7 +80,8 @@ public class MessageIdImpl implements MessageIdAdv {
     private static final FastThreadLocal<MessageIdData> LOCAL_MESSAGE_ID = new FastThreadLocal<MessageIdData>() {
         protected MessageIdData initialValue() throws Exception {
             return new MessageIdData();
-        };
+        }
+        ;
     };
 
     public static MessageId fromByteArray(byte[] data) throws IOException {
@@ -96,16 +97,23 @@ public class MessageIdImpl implements MessageIdAdv {
         MessageIdImpl messageId;
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
-                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageIdImpl.newAckSet(idData.getBatchSize()));
+                messageId = new BatchMessageIdImpl(
+                        idData.getLedgerId(),
+                        idData.getEntryId(),
+                        idData.getPartition(),
+                        idData.getBatchIndex(),
+                        idData.getBatchSize(),
+                        BatchMessageIdImpl.newAckSet(idData.getBatchSize()));
             } else {
-                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex());
+                messageId = new BatchMessageIdImpl(
+                        idData.getLedgerId(), idData.getEntryId(), idData.getPartition(), idData.getBatchIndex());
             }
         } else if (idData.hasFirstChunkMessageId()) {
             MessageIdData firstChunkIdData = idData.getFirstChunkMessageId();
             messageId = new ChunkMessageIdImpl(
-                    new MessageIdImpl(firstChunkIdData.getLedgerId(), firstChunkIdData.getEntryId(),
+                    new MessageIdImpl(
+                            firstChunkIdData.getLedgerId(),
+                            firstChunkIdData.getEntryId(),
                             firstChunkIdData.getPartition()),
                     new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition()));
         } else {
@@ -131,12 +139,21 @@ public class MessageIdImpl implements MessageIdAdv {
         MessageIdAdv messageId;
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
-                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                        idData.getBatchIndex(), idData.getBatchSize(),
+                messageId = new BatchMessageIdImpl(
+                        idData.getLedgerId(),
+                        idData.getEntryId(),
+                        idData.getPartition(),
+                        idData.getBatchIndex(),
+                        idData.getBatchSize(),
                         BatchMessageIdImpl.newAckSet(idData.getBatchSize()));
             } else {
-                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                        idData.getBatchIndex(), 0, null);
+                messageId = new BatchMessageIdImpl(
+                        idData.getLedgerId(),
+                        idData.getEntryId(),
+                        idData.getPartition(),
+                        idData.getBatchIndex(),
+                        0,
+                        null);
             }
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
@@ -151,8 +168,7 @@ public class MessageIdImpl implements MessageIdAdv {
 
     protected MessageIdData writeMessageIdData(MessageIdData msgId, int batchIndex, int batchSize) {
         if (msgId == null) {
-            msgId = LOCAL_MESSAGE_ID.get()
-                    .clear();
+            msgId = LOCAL_MESSAGE_ID.get().clear();
         }
 
         msgId.setLedgerId(ledgerId).setEntryId(entryId);

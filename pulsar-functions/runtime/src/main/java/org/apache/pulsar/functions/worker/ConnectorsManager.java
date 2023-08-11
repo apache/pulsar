@@ -37,8 +37,8 @@ public class ConnectorsManager {
     private volatile TreeMap<String, Connector> connectors;
 
     public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils
-                .searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
+        this.connectors = ConnectorUtils.searchForConnectors(
+                workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 
     public Connector getConnector(String connectorType) {
@@ -50,7 +50,8 @@ public class ConnectorsManager {
     }
 
     public List<ConnectorDefinition> getConnectorDefinitions() {
-        return connectors.values().stream().map(connector -> connector.getConnectorDefinition())
+        return connectors.values().stream()
+                .map(connector -> connector.getConnectorDefinition())
                 .collect(Collectors.toList());
     }
 
@@ -71,7 +72,7 @@ public class ConnectorsManager {
     }
 
     public void reloadConnectors(WorkerConfig workerConfig) throws IOException {
-        connectors = ConnectorUtils
-                .searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
+        connectors = ConnectorUtils.searchForConnectors(
+                workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 }

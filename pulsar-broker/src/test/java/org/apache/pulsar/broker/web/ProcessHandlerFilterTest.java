@@ -59,19 +59,21 @@ public class ProcessHandlerFilterTest {
         Mockito.doReturn(spyInterceptor).when(mockPulsarService).getBrokerInterceptor();
         Mockito.doReturn(config).when(mockPulsarService).getConfig();
         // request has MULTIPART_FORM_DATA content-type
-        config.setBrokerInterceptors(Sets.newHashSet("Interceptor1","Interceptor2"));
+        config.setBrokerInterceptors(Sets.newHashSet("Interceptor1", "Interceptor2"));
         config.setDisableBrokerInterceptors(false);
         HttpServletRequest mockHttpServletRequest2 = Mockito.mock(HttpServletRequest.class);
-        Mockito.doReturn(MediaType.MULTIPART_FORM_DATA).when(mockHttpServletRequest2).getContentType();
+        Mockito.doReturn(MediaType.MULTIPART_FORM_DATA)
+                .when(mockHttpServletRequest2)
+                .getContentType();
         ProcessHandlerFilter processHandlerFilter2 = new ProcessHandlerFilter(mockPulsarService.getBrokerInterceptor());
         processHandlerFilter2.doFilter(mockHttpServletRequest2, mockHttpServletResponse, spyFilterChain);
         Mockito.verify(spyFilterChain).doFilter(mockHttpServletRequest2, mockHttpServletResponse);
         Mockito.clearInvocations(spyFilterChain);
         // request has APPLICATION_OCTET_STREAM content-type
-        Mockito.doReturn(MediaType.APPLICATION_OCTET_STREAM).when(mockHttpServletRequest2).getContentType();
+        Mockito.doReturn(MediaType.APPLICATION_OCTET_STREAM)
+                .when(mockHttpServletRequest2)
+                .getContentType();
         processHandlerFilter2.doFilter(mockHttpServletRequest2, mockHttpServletResponse, spyFilterChain);
         Mockito.verify(spyFilterChain).doFilter(mockHttpServletRequest2, mockHttpServletResponse);
     }
-
-
 }

@@ -47,6 +47,5 @@ public abstract class TransactionPendingAckException extends TransactionExceptio
         public TransactionPendingAckStoreProviderException(String message) {
             super(message);
         }
-
     }
 }

@@ -60,9 +60,7 @@ public class MessageBuilderImpl implements MessageBuilder {
     @Override
     public MessageBuilder setProperties(Map<String, String> properties) {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
-            msgMetadataBuilder.addProperty()
-                    .setKey(entry.getKey())
-                    .setValue(entry.getValue());
+            msgMetadataBuilder.addProperty().setKey(entry.getKey()).setValue(entry.getValue());
         }
 
         return this;
@@ -70,9 +68,7 @@ public class MessageBuilderImpl implements MessageBuilder {
 
     @Override
     public MessageBuilder setProperty(String name, String value) {
-        msgMetadataBuilder.addProperty()
-                .setKey(name)
-                .setValue(value);
+        msgMetadataBuilder.addProperty().setKey(name).setValue(value);
         return this;
     }
 
@@ -110,6 +106,4 @@ public class MessageBuilderImpl implements MessageBuilder {
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
     }
-
-
 }

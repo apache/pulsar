@@ -102,11 +102,7 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
     Field build() {
         requireNonNull(type, "Schema type is not provided");
         // verify the default value and object
-        SchemaUtils.validateFieldSchema(
-            fieldName,
-            type,
-            defaultVal
-        );
+        SchemaUtils.validateFieldSchema(fieldName, type, defaultVal);
 
         final Schema baseSchema;
         switch (type) {
@@ -131,7 +127,7 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
             case BYTES:
                 baseSchema = SchemaBuilder.builder().bytesType();
                 break;
-            // DATE, TIME, TIMESTAMP support from generic record
+                // DATE, TIME, TIMESTAMP support from generic record
             case DATE:
                 baseSchema = LogicalTypes.date().addToSchema(Schema.create(Schema.Type.INT));
                 break;
@@ -142,14 +138,16 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
                 baseSchema = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
                 break;
             case JSON:
-                checkArgument(genericSchema.getSchemaInfo().getType() == SchemaType.JSON,
+                checkArgument(
+                        genericSchema.getSchemaInfo().getType() == SchemaType.JSON,
                         "The field is expected to be using JSON schema but "
                                 + genericSchema.getSchemaInfo().getType() + " schema is found");
                 AvroBaseStructSchema genericJsonSchema = (AvroBaseStructSchema) genericSchema;
                 baseSchema = genericJsonSchema.getAvroSchema();
                 break;
             case AVRO:
-                checkArgument(genericSchema.getSchemaInfo().getType() == SchemaType.AVRO,
+                checkArgument(
+                        genericSchema.getSchemaInfo().getType() == SchemaType.AVRO,
                         "The field is expected to be using AVRO schema but "
                                 + genericSchema.getSchemaInfo().getType() + " schema is found");
                 GenericAvroSchema genericAvroSchema = (GenericAvroSchema) genericSchema;
@@ -172,17 +170,19 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
         final Schema finalSchema;
         if (optional) {
             if (defaultVal != null) {
-                finalSchema = SchemaBuilder.builder().unionOf()
-                    .type(baseSchema)
-                    .and()
-                    .nullType()
-                    .endUnion();
+                finalSchema = SchemaBuilder.builder()
+                        .unionOf()
+                        .type(baseSchema)
+                        .and()
+                        .nullType()
+                        .endUnion();
             } else {
-                finalSchema = SchemaBuilder.builder().unionOf()
-                    .nullType()
-                    .and()
-                    .type(baseSchema)
-                    .endUnion();
+                finalSchema = SchemaBuilder.builder()
+                        .unionOf()
+                        .nullType()
+                        .and()
+                        .type(baseSchema)
+                        .endUnion();
             }
         } else {
             finalSchema = baseSchema;
@@ -199,12 +199,6 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
             }
         }
 
-        return new Field(
-            fieldName,
-            finalSchema,
-            doc,
-            finalDefaultValue
-        );
+        return new Field(fieldName, finalSchema, doc, finalDefaultValue);
     }
-
 }

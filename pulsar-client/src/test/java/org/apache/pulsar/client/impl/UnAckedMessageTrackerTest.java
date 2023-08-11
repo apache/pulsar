@@ -18,32 +18,29 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.annotations.Test;
 
-public class UnAckedMessageTrackerTest  {
+public class UnAckedMessageTrackerTest {
 
     @Test
     public void testAddAndRemove() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
-        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
-                1, TimeUnit.MILLISECONDS);
+        Timer timer = new HashedWheelTimer(
+                new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
         when(client.timer()).thenReturn(timer);
 
         ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
@@ -76,5 +73,4 @@ public class UnAckedMessageTrackerTest  {
 
         timer.stop();
     }
-
 }

@@ -34,8 +34,7 @@ public interface SecretsProviderConfigurator {
     /**
      * Initialize the SecretsProviderConfigurator.
      */
-    default void init(Map<String, String> config) {
-    }
+    default void init(Map<String, String> config) {}
 
     /**
      * Return the Secrets Provider Classname. This will be passed to the cmdline
@@ -52,14 +51,14 @@ public interface SecretsProviderConfigurator {
     /**
      * Attaches any secrets specific stuff to the k8 container for kubernetes runtime.
      */
-    void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                   Function.FunctionDetails functionDetails);
+    void configureKubernetesRuntimeSecretsProvider(
+            V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails);
 
     /**
      * Attaches any secrets specific stuff to the ProcessBuilder for process runtime.
      */
-    void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                Function.FunctionDetails functionDetails);
+    void configureProcessRuntimeSecretsProvider(
+            ProcessBuilder processBuilder, Function.FunctionDetails functionDetails);
 
     /**
      * What is the type of the object that should be in the user secret config.
@@ -71,8 +70,10 @@ public interface SecretsProviderConfigurator {
     /**
      * Do config checks to see whether the secrets provided are conforming.
      */
-    default void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName,
-                                   Function.FunctionDetails functionDetails) {
-    }
-
+    default void doAdmissionChecks(
+            AppsV1Api appsV1Api,
+            CoreV1Api coreV1Api,
+            String jobNamespace,
+            String jobName,
+            Function.FunctionDetails functionDetails) {}
 }

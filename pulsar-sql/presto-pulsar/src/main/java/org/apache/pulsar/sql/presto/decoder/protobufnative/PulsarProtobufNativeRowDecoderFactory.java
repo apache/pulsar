@@ -67,47 +67,47 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
     }
 
     @Override
-    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
-                                             Set<DecoderColumnHandle> columns) {
-        return new PulsarProtobufNativeRowDecoder((GenericProtobufNativeSchema)
-                GenericProtobufNativeSchema.of(schemaInfo), columns);
+    public PulsarRowDecoder createRowDecoder(
+            TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
+        return new PulsarProtobufNativeRowDecoder(
+                (GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo), columns);
     }
 
     @Override
-    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
-                                                      PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(
+            TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         List<ColumnMetadata> columnMetadata;
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
-            throw new TrinoException(NOT_SUPPORTED, "Topic "
-                    + topicName.toString() + " does not have a valid schema");
+            throw new TrinoException(NOT_SUPPORTED, "Topic " + topicName.toString() + " does not have a valid schema");
         }
         Descriptors.Descriptor schema;
         try {
-            schema =
-                    ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo))
-                            .getProtobufNativeSchema();
+            schema = ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo))
+                    .getProtobufNativeSchema();
         } catch (Exception ex) {
             log.error(ex);
-            throw new TrinoException(NOT_SUPPORTED, "Topic "
-                    + topicName.toString() + " does not have a valid schema");
+            throw new TrinoException(NOT_SUPPORTED, "Topic " + topicName.toString() + " does not have a valid schema");
         }
 
-        //Protobuf have not yet supported Cyclic Objects.
+        // Protobuf have not yet supported Cyclic Objects.
         columnMetadata = schema.getFields().stream()
-                .map(field ->
-                        new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType,
-                                field.getName()), parseProtobufPrestoType(field), field.getType().toString(), null,
-                                false, false, handleKeyValueType,
-                                new PulsarColumnMetadata.DecoderExtraInfo(field.getName(), null, null))
-
-                ).collect(toList());
+                .map(field -> new PulsarColumnMetadata(
+                        PulsarColumnMetadata.getColumnName(handleKeyValueType, field.getName()),
+                        parseProtobufPrestoType(field),
+                        field.getType().toString(),
+                        null,
+                        false,
+                        false,
+                        handleKeyValueType,
+                        new PulsarColumnMetadata.DecoderExtraInfo(field.getName(), null, null)))
+                .collect(toList());
 
         return columnMetadata;
     }
 
     private Type parseProtobufPrestoType(Descriptors.FieldDescriptor field) {
-        //parse by proto JavaType
+        // parse by proto JavaType
         Descriptors.FieldDescriptor.JavaType type = field.getJavaType();
         Type dataType;
         switch (type) {
@@ -136,34 +136,39 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
             case MESSAGE:
                 Descriptors.Descriptor msg = field.getMessageType();
                 if (field.isMapField()) {
-                    //map
-                    TypeSignature keyType =
-                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder
-                                    .PROTOBUF_MAP_KEY_NAME)).getTypeSignature();
-                    TypeSignature valueType =
-                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder
-                                    .PROTOBUF_MAP_VALUE_NAME)).getTypeSignature();
-                    return typeManager.getParameterizedType(StandardTypes.MAP,
-                            ImmutableList.of(TypeSignatureParameter.typeParameter(keyType),
+                    // map
+                    TypeSignature keyType = parseProtobufPrestoType(
+                                    msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_KEY_NAME))
+                            .getTypeSignature();
+                    TypeSignature valueType = parseProtobufPrestoType(
+                                    msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_VALUE_NAME))
+                            .getTypeSignature();
+                    return typeManager.getParameterizedType(
+                            StandardTypes.MAP,
+                            ImmutableList.of(
+                                    TypeSignatureParameter.typeParameter(keyType),
                                     TypeSignatureParameter.typeParameter(valueType)));
                 } else {
-                    if (TimestampProto.getDescriptor().toProto().getName().equals(msg.getFile().toProto().getName())) {
-                        //if msg type is protobuf/timestamp
+                    if (TimestampProto.getDescriptor()
+                            .toProto()
+                            .getName()
+                            .equals(msg.getFile().toProto().getName())) {
+                        // if msg type is protobuf/timestamp
                         dataType = TimestampType.TIMESTAMP_MILLIS;
                     } else {
-                        //row
+                        // row
                         dataType = RowType.from(msg.getFields().stream()
-                                .map(rowField -> new RowType.Field(Optional.of(rowField.getName()),
-                                        parseProtobufPrestoType(rowField)))
+                                .map(rowField -> new RowType.Field(
+                                        Optional.of(rowField.getName()), parseProtobufPrestoType(rowField)))
                                 .collect(toImmutableList()));
                     }
                 }
                 break;
             default:
-                throw new RuntimeException("Unknown type: " + type.toString() + " for FieldDescriptor: "
-                        + field.getName());
+                throw new RuntimeException(
+                        "Unknown type: " + type.toString() + " for FieldDescriptor: " + field.getName());
         }
-        //list
+        // list
         if (field.isRepeated() && !field.isMapField()) {
             dataType = new ArrayType(dataType);
         }
@@ -172,5 +177,4 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
     }
 
     private static final Logger log = Logger.get(PulsarProtobufNativeRowDecoderFactory.class);
-
 }

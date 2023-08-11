@@ -144,15 +144,18 @@ public class SchedulerManager implements AutoCloseable {
     // on a poll).
     private final ConcurrentHashMap<String, DrainOpStatus> drainOpStatusMap = new ConcurrentHashMap<>();
 
-    public SchedulerManager(WorkerConfig workerConfig,
-                            PulsarClient pulsarClient,
-                            PulsarAdmin admin,
-                            WorkerStatsManager workerStatsManager,
-                            ErrorNotifier errorNotifier) {
+    public SchedulerManager(
+            WorkerConfig workerConfig,
+            PulsarClient pulsarClient,
+            PulsarAdmin admin,
+            WorkerStatsManager workerStatsManager,
+            ErrorNotifier errorNotifier) {
         this.workerConfig = workerConfig;
         this.pulsarClient = pulsarClient;
         this.admin = admin;
-        this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
+        this.scheduler = Reflections.createInstance(
+                workerConfig.getSchedulerClassName(),
+                IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
         this.workerStatsManager = workerStatsManager;
         this.errorNotifier = errorNotifier;
@@ -172,18 +175,20 @@ public class SchedulerManager implements AutoCloseable {
                 pulsarClient,
                 workerConfig.getFunctionAssignmentTopic(),
                 workerConfig.getWorkerId() + "-scheduler-manager",
-                isLeader, 10000);
+                isLeader,
+                10000);
     }
 
     public synchronized void initialize(Producer<byte[]> exclusiveProducer) {
         if (!isRunning) {
             log.info("Initializing scheduler manager");
             this.exclusiveProducer = exclusiveProducer;
-            executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<>(5));
-            executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
-            scheduledExecutorService = Executors
-                    .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
+            executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(5));
+            executorService.setThreadFactory(new ThreadFactoryBuilder()
+                    .setNameFormat("worker-scheduler-%d")
+                    .build());
+            scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+                    new DefaultThreadFactory("worker-assignment-topic-compactor"));
             if (workerConfig.getTopicCompactionFrequencySec() > 0) {
                 scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
             }
@@ -226,19 +231,23 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     public Future<?> schedule() {
-        return scheduleInternal(() -> {
-            workerStatsManager.scheduleTotalExecTimeStart();
-            invokeScheduler();
-            workerStatsManager.scheduleTotalExecTimeEnd();
-        }, "Encountered error when invoking scheduler");
+        return scheduleInternal(
+                () -> {
+                    workerStatsManager.scheduleTotalExecTimeStart();
+                    invokeScheduler();
+                    workerStatsManager.scheduleTotalExecTimeEnd();
+                },
+                "Encountered error when invoking scheduler");
     }
 
     private Future<?> rebalance() {
-        return scheduleInternal(() -> {
-            workerStatsManager.rebalanceTotalExecTimeStart();
-            invokeRebalance();
-            workerStatsManager.rebalanceTotalExecTimeEnd();
-        }, "Encountered error when invoking rebalance");
+        return scheduleInternal(
+                () -> {
+                    workerStatsManager.rebalanceTotalExecTimeStart();
+                    invokeRebalance();
+                    workerStatsManager.rebalanceTotalExecTimeEnd();
+                },
+                "Encountered error when invoking rebalance");
     }
 
     public Future<?> rebalanceIfNotInprogress() {
@@ -255,11 +264,13 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     private Future<?> drain(String workerId) {
-        return scheduleInternal(() -> {
-            workerStatsManager.drainTotalExecTimeStart();
-            assignmentsMovedInLastDrain = invokeDrain(workerId);
-            workerStatsManager.drainTotalExecTimeEnd();
-        }, "Encountered error when invoking drain");
+        return scheduleInternal(
+                () -> {
+                    workerStatsManager.drainTotalExecTimeStart();
+                    assignmentsMovedInLastDrain = invokeDrain(workerId);
+                    workerStatsManager.drainTotalExecTimeEnd();
+                },
+                "Encountered error when invoking drain");
     }
 
     public Future<?> drainIfNotInProgress(String workerId) {
@@ -277,8 +288,8 @@ public class SchedulerManager implements AutoCloseable {
                 // corresponding worker before any other drain op, so that the drainOpStatusMap should be empty
                 // at the next drain operation.]
                 if (drainOpStatusMap.containsKey(workerId)) {
-                    String warnString = "Worker " + workerId
-                            + " was not removed yet from SchedulerManager after previous drain op";
+                    String warnString =
+                            "Worker " + workerId + " was not removed yet from SchedulerManager after previous drain op";
                     log.warn(warnString);
                     throw new WorkerNotRemovedAfterPriorDrainException();
                 }
@@ -299,24 +310,24 @@ public class SchedulerManager implements AutoCloseable {
 
     public LongRunningProcessStatus getDrainStatus(String workerId) {
         long startTime = System.nanoTime();
-        LongRunningProcessStatus status = Optional.ofNullable(workerId).map(id ->
-                Optional.ofNullable(drainOpStatusMap.get(id)).map(opStatus ->
-                        switch (opStatus) {
-                            case DrainCompleted ->
-                                    LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.SUCCESS);
-                            case DrainInProgress ->
-                                    LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.RUNNING);
-                            case DrainNotInProgress ->
-                                    LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.NOT_RUN);
-                        }).orElse(
-                        LongRunningProcessStatus.forError("Worker " + id + " not found in drain records")
-                )
-        ).orElse(
-                new LongRunningProcessStatus()
-        );
-        log.info("Get drain status for worker {} - execution time: {} sec; returning status={}, error={}",
-                workerId, NANOSECONDS.toSeconds (System.nanoTime() - startTime),
-                status.status, status.lastError);
+        LongRunningProcessStatus status = Optional.ofNullable(workerId)
+                .map(id -> Optional.ofNullable(drainOpStatusMap.get(id))
+                        .map(opStatus -> switch (opStatus) {
+                            case DrainCompleted -> LongRunningProcessStatus.forStatus(
+                                    LongRunningProcessStatus.Status.SUCCESS);
+                            case DrainInProgress -> LongRunningProcessStatus.forStatus(
+                                    LongRunningProcessStatus.Status.RUNNING);
+                            case DrainNotInProgress -> LongRunningProcessStatus.forStatus(
+                                    LongRunningProcessStatus.Status.NOT_RUN);
+                        })
+                        .orElse(LongRunningProcessStatus.forError("Worker " + id + " not found in drain records")))
+                .orElse(new LongRunningProcessStatus());
+        log.info(
+                "Get drain status for worker {} - execution time: {} sec; returning status={}, error={}",
+                workerId,
+                NANOSECONDS.toSeconds(System.nanoTime() - startTime),
+                status.status,
+                status.lastError);
         return status;
     }
 
@@ -345,8 +356,9 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     private synchronized Set<String> getCurrentAvailableWorkers() {
-        Set<String> currentMembership = membershipManager.getCurrentMembership()
-                .stream().map(WorkerInfo::getWorkerId).collect(Collectors.toSet());
+        Set<String> currentMembership = membershipManager.getCurrentMembership().stream()
+                .map(WorkerInfo::getWorkerId)
+                .collect(Collectors.toSet());
 
         // iterate the set, instead of the concurrent hashmap
         currentMembership.removeIf(drainOpStatusMap::containsKey);
@@ -359,16 +371,16 @@ public class SchedulerManager implements AutoCloseable {
         Set<String> availableWorkers = getCurrentAvailableWorkers();
 
         List<FunctionMetaData> allFunctions = functionMetaDataManager.getAllFunctionMetaData();
-        Map<String, Function.Instance> allInstances =
-                computeAllInstances(allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
-        Map<String, Map<String, Assignment>> workerIdToAssignments = functionRuntimeManager
-                .getCurrentAssignments();
+        Map<String, Function.Instance> allInstances = computeAllInstances(
+                allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
+        Map<String, Map<String, Assignment>> workerIdToAssignments = functionRuntimeManager.getCurrentAssignments();
 
         // initialize stats collection
         SchedulerStats schedulerStats = new SchedulerStats(workerIdToAssignments, availableWorkers);
 
-        //delete assignments of functions and instances that don't exist anymore
-        Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
+        // delete assignments of functions and instances that don't exist anymore
+        Iterator<Map.Entry<String, Map<String, Assignment>>> it =
+                workerIdToAssignments.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, Map<String, Assignment>> workerIdToAssignmentEntry = it.next();
             Map<String, Assignment> functionMap = workerIdToAssignmentEntry.getValue();
@@ -379,7 +391,8 @@ public class SchedulerManager implements AutoCloseable {
                 boolean deleted = !allInstances.containsKey(fullyQualifiedInstanceId);
                 if (deleted) {
                     Assignment assignment = entry.getValue();
-                    MessageId messageId = publishNewAssignment(assignment.toBuilder().build(), true);
+                    MessageId messageId =
+                            publishNewAssignment(assignment.toBuilder().build(), true);
 
                     // Directly update in memory assignment cache since I am leader
                     log.info("Deleting assignment: {}", assignment);
@@ -399,8 +412,11 @@ public class SchedulerManager implements AutoCloseable {
                 Function.Instance instance = allInstances.get(fullyQualifiedInstanceId);
 
                 if (!assignment.getInstance().equals(instance)) {
-                    functionMap.put(fullyQualifiedInstanceId, assignment.toBuilder().setInstance(instance).build());
-                    Assignment newAssignment = assignment.toBuilder().setInstance(instance).build().toBuilder().build();
+                    functionMap.put(
+                            fullyQualifiedInstanceId,
+                            assignment.toBuilder().setInstance(instance).build());
+                    Assignment newAssignment = assignment.toBuilder().setInstance(instance).build().toBuilder()
+                            .build();
                     MessageId messageId = publishNewAssignment(newAssignment, false);
 
                     // Directly update in memory assignment cache since I am leader
@@ -408,7 +424,7 @@ public class SchedulerManager implements AutoCloseable {
                     functionRuntimeManager.processAssignment(newAssignment);
                     // update message id associated with current view of assignments map
                     lastMessageProduced = messageId;
-                    //update stats
+                    // update stats
                     schedulerStats.updatedAssignment(newAssignment);
                 }
                 if (functionMap.isEmpty()) {
@@ -417,9 +433,7 @@ public class SchedulerManager implements AutoCloseable {
             }
         }
 
-        List<Assignment> currentAssignments = workerIdToAssignments
-                .entrySet()
-                .stream()
+        List<Assignment> currentAssignments = workerIdToAssignments.entrySet().stream()
                 .filter(workerIdToAssignmentEntry -> {
                     String workerId = workerIdToAssignmentEntry.getKey();
                     // remove assignments to workers that don't exist / died for now.
@@ -457,9 +471,12 @@ public class SchedulerManager implements AutoCloseable {
             schedulerStats.newAssignment(assignment);
         }
 
-        log.info("Schedule summary - execution time: {} sec | total unassigned: {} | stats: {}\n{}",
+        log.info(
+                "Schedule summary - execution time: {} sec | total unassigned: {} | stats: {}\n{}",
                 (System.nanoTime() - startTime) / Math.pow(10, 9),
-                unassignedInstances.getLeft().size(), schedulerStats.getSummary(), schedulerStats);
+                unassignedInstances.getLeft().size(),
+                schedulerStats.getSummary(),
+                schedulerStats);
     }
 
     private void invokeRebalance() {
@@ -473,9 +490,7 @@ public class SchedulerManager implements AutoCloseable {
         SchedulerStats schedulerStats = new SchedulerStats(workerIdToAssignments, availableWorkers);
 
         // filter out assignments of workers that are not currently in the active membership
-        List<Assignment> currentAssignments = workerIdToAssignments
-                .entrySet()
-                .stream()
+        List<Assignment> currentAssignments = workerIdToAssignments.entrySet().stream()
                 .filter(workerIdToAssignmentEntry -> {
                     String workerId = workerIdToAssignmentEntry.getKey();
                     // remove assignments to workers that don't exist / died for now.
@@ -500,28 +515,40 @@ public class SchedulerManager implements AutoCloseable {
             schedulerStats.newAssignment(assignment);
         }
 
-        log.info("Rebalance summary - execution time: {} sec | stats: {}\n{}",
-                (System.nanoTime() - startTime) / Math.pow(10, 9), schedulerStats.getSummary(), schedulerStats);
+        log.info(
+                "Rebalance summary - execution time: {} sec | stats: {}\n{}",
+                (System.nanoTime() - startTime) / Math.pow(10, 9),
+                schedulerStats.getSummary(),
+                schedulerStats);
 
         rebalanceInProgress.set(false);
     }
 
     private void scheduleCompaction(ScheduledExecutorService executor, long scheduleFrequencySec) {
         if (executor != null) {
-            executor.scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
-                if (leaderService.isLeader() && isCompactionNeeded.get()) {
-                    compactAssignmentTopic();
-                    isCompactionNeeded.set(false);
-                }
-            }), scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+            executor.scheduleWithFixedDelay(
+                    catchingAndLoggingThrowables(() -> {
+                        if (leaderService.isLeader() && isCompactionNeeded.get()) {
+                            compactAssignmentTopic();
+                            isCompactionNeeded.set(false);
+                        }
+                    }),
+                    scheduleFrequencySec,
+                    scheduleFrequencySec,
+                    TimeUnit.SECONDS);
 
-            executor.scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
-                if (leaderService.isLeader()
-                        && metadataTopicLastMessage.compareTo(functionMetaDataManager.getLastMessageSeen()) != 0) {
-                    metadataTopicLastMessage = functionMetaDataManager.getLastMessageSeen();
-                    compactFunctionMetadataTopic();
-                }
-            }), scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+            executor.scheduleWithFixedDelay(
+                    catchingAndLoggingThrowables(() -> {
+                        if (leaderService.isLeader()
+                                && metadataTopicLastMessage.compareTo(functionMetaDataManager.getLastMessageSeen())
+                                        != 0) {
+                            metadataTopicLastMessage = functionMetaDataManager.getLastMessageSeen();
+                            compactFunctionMetadataTopic();
+                        }
+                    }),
+                    scheduleFrequencySec,
+                    scheduleFrequencySec,
+                    TimeUnit.SECONDS);
         }
     }
 
@@ -558,18 +585,16 @@ public class SchedulerManager implements AutoCloseable {
             availableWorkers.remove(workerId);
 
             List<FunctionMetaData> allFunctions = functionMetaDataManager.getAllFunctionMetaData();
-            Map<String, Function.Instance> allInstances =
-                    computeAllInstances(allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
+            Map<String, Function.Instance> allInstances = computeAllInstances(
+                    allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
 
             // The assignments that were not on the worker being drained don't need to change.
             val activeWorkersAssignmentsMap = new HashMap<String, Map<String, Assignment>>();
-            List<Assignment> assignmentsOnActiveWorkers = workerIdToAssignments
-                    .entrySet()
-                    .stream()
+            List<Assignment> assignmentsOnActiveWorkers = workerIdToAssignments.entrySet().stream()
                     .filter(workerIdToAssignmentEntry -> {
                         if (workerIdToAssignmentEntry.getKey().compareTo(workerId) != 0) {
-                            activeWorkersAssignmentsMap.put(workerIdToAssignmentEntry.getKey(),
-                                    workerIdToAssignmentEntry.getValue());
+                            activeWorkersAssignmentsMap.put(
+                                    workerIdToAssignmentEntry.getKey(), workerIdToAssignmentEntry.getValue());
                             return true;
                         }
 
@@ -605,10 +630,13 @@ public class SchedulerManager implements AutoCloseable {
             drainOpStatusMap.put(workerId, DrainOpStatus.DrainCompleted);
             drainSuccessful = true;
         } finally {
-            log.info("Draining worker {} was {}successful; summary [] - execution time: {} sec | stats: {}\n{}",
-                    workerId, drainSuccessful ? "" : "un",
+            log.info(
+                    "Draining worker {} was {}successful; summary [] - execution time: {} sec | stats: {}\n{}",
+                    workerId,
+                    drainSuccessful ? "" : "un",
                     (System.nanoTime() - startTime) / Math.pow(10, 9),
-                    schedulerStats.getSummary(), schedulerStats);
+                    schedulerStats.getSummary(),
+                    schedulerStats);
         }
         return postDrainAssignments;
     }
@@ -619,8 +647,8 @@ public class SchedulerManager implements AutoCloseable {
                 this.admin.topics().triggerCompaction(workerConfig.getFunctionAssignmentTopic());
             } catch (PulsarAdminException e) {
                 log.error("Failed to trigger compaction", e);
-                scheduledExecutorService.schedule(this::compactAssignmentTopic, DEFAULT_ADMIN_API_BACKOFF_SEC,
-                        TimeUnit.SECONDS);
+                scheduledExecutorService.schedule(
+                        this::compactAssignmentTopic, DEFAULT_ADMIN_API_BACKOFF_SEC, TimeUnit.SECONDS);
             }
         }
     }
@@ -630,8 +658,9 @@ public class SchedulerManager implements AutoCloseable {
         int numRemovedWorkerIds = 0;
 
         if (drainOpStatusMap.size() > 0) {
-            val currentMembership = membershipManager.getCurrentMembership()
-                    .stream().map(WorkerInfo::getWorkerId).collect(Collectors.toSet());
+            val currentMembership = membershipManager.getCurrentMembership().stream()
+                    .map(WorkerInfo::getWorkerId)
+                    .collect(Collectors.toSet());
             val removeWorkerIds = new ArrayList<String>();
 
             for (String workerId : drainOpStatusMap.keySet()) {
@@ -646,8 +675,10 @@ public class SchedulerManager implements AutoCloseable {
         }
 
         if (numRemovedWorkerIds > 0) {
-            log.info("cleanupWorkerDrainMap removed {} stale workerIds in {} sec",
-                    numRemovedWorkerIds, (System.nanoTime() - startTime) / Math.pow(10, 9));
+            log.info(
+                    "cleanupWorkerDrainMap removed {} stale workerIds in {} sec",
+                    numRemovedWorkerIds,
+                    (System.nanoTime() - startTime) / Math.pow(10, 9));
         }
 
         return numRemovedWorkerIds;
@@ -659,8 +690,8 @@ public class SchedulerManager implements AutoCloseable {
                 this.admin.topics().triggerCompaction(workerConfig.getFunctionMetadataTopic());
             } catch (PulsarAdminException e) {
                 log.error("Failed to trigger compaction", e);
-                scheduledExecutorService.schedule(this::compactFunctionMetadataTopic, DEFAULT_ADMIN_API_BACKOFF_SEC,
-                        TimeUnit.SECONDS);
+                scheduledExecutorService.schedule(
+                        this::compactFunctionMetadataTopic, DEFAULT_ADMIN_API_BACKOFF_SEC, TimeUnit.SECONDS);
             }
         }
     }
@@ -670,16 +701,19 @@ public class SchedulerManager implements AutoCloseable {
             String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
             // message
-            return exclusiveProducer.newMessage().key(fullyQualifiedInstanceId)
-                    .value(deleted ? "".getBytes() : assignment.toByteArray()).send();
+            return exclusiveProducer
+                    .newMessage()
+                    .key(fullyQualifiedInstanceId)
+                    .value(deleted ? "".getBytes() : assignment.toByteArray())
+                    .send();
         } catch (Exception e) {
             log.error("Failed to {} assignment update {}", assignment, deleted ? "send" : "deleted", e);
             throw new RuntimeException(e);
         }
     }
 
-    private static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions,
-                                                                      boolean externallyManagedRuntime) {
+    private static Map<String, Function.Instance> computeAllInstances(
+            List<FunctionMetaData> allFunctions, boolean externallyManagedRuntime) {
         Map<String, Function.Instance> functionInstances = new HashMap<>();
         for (FunctionMetaData functionMetaData : allFunctions) {
             for (Function.Instance instance : computeInstances(functionMetaData, externallyManagedRuntime)) {
@@ -689,8 +723,8 @@ public class SchedulerManager implements AutoCloseable {
         return functionInstances;
     }
 
-    static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData,
-                                                    boolean externallyManagedRuntime) {
+    static List<Function.Instance> computeInstances(
+            FunctionMetaData functionMetaData, boolean externallyManagedRuntime) {
         List<Function.Instance> functionInstances = new LinkedList<>();
         if (!externallyManagedRuntime) {
             int instances = functionMetaData.getFunctionDetails().getParallelism();
@@ -726,8 +760,10 @@ public class SchedulerManager implements AutoCloseable {
             Function.Instance instance = instanceEntry.getValue();
             String heartBeatWorkerId = checkHeartBeatFunction(instance);
             if (heartBeatWorkerId != null) {
-                heartBeatAssignments
-                        .add(Assignment.newBuilder().setInstance(instance).setWorkerId(heartBeatWorkerId).build());
+                heartBeatAssignments.add(Assignment.newBuilder()
+                        .setInstance(instance)
+                        .setWorkerId(heartBeatWorkerId)
+                        .build());
                 continue;
             }
             if (!assignmentMap.containsKey(fullyQualifiedInstanceId)) {
@@ -770,25 +806,22 @@ public class SchedulerManager implements AutoCloseable {
                 && funInstance.getFunctionMetaData().getFunctionDetails() != null) {
             FunctionDetails funDetails = funInstance.getFunctionMetaData().getFunctionDetails();
             return HEARTBEAT_TENANT.equals(funDetails.getTenant())
-                    && HEARTBEAT_NAMESPACE.equals(funDetails.getNamespace()) ? funDetails.getName() : null;
+                            && HEARTBEAT_NAMESPACE.equals(funDetails.getNamespace())
+                    ? funDetails.getName()
+                    : null;
         }
         return null;
     }
 
-    public static class RebalanceInProgressException extends RuntimeException {
-    }
+    public static class RebalanceInProgressException extends RuntimeException {}
 
-    public static class DrainInProgressException extends RuntimeException {
-    }
+    public static class DrainInProgressException extends RuntimeException {}
 
-    public static class TooFewWorkersException extends RuntimeException {
-    }
+    public static class TooFewWorkersException extends RuntimeException {}
 
-    public static class UnknownWorkerException extends RuntimeException {
-    }
+    public static class UnknownWorkerException extends RuntimeException {}
 
-    public static class WorkerNotRemovedAfterPriorDrainException extends RuntimeException {
-    }
+    public static class WorkerNotRemovedAfterPriorDrainException extends RuntimeException {}
 
     private static class SchedulerStats {
         @Builder
@@ -809,7 +842,8 @@ public class SchedulerManager implements AutoCloseable {
         public SchedulerStats(Map<String, Map<String, Assignment>> workerIdToAssignments, Set<String> workers) {
 
             for (String workerId : workers) {
-                WorkerStats.WorkerStatsBuilder workerStats = WorkerStats.builder().alive(true);
+                WorkerStats.WorkerStatsBuilder workerStats =
+                        WorkerStats.builder().alive(true);
                 Map<String, Assignment> assignmentMap = workerIdToAssignments.get(workerId);
                 if (assignmentMap != null) {
                     workerStats.originalNumAssignments(assignmentMap.size());
@@ -889,14 +923,16 @@ public class SchedulerManager implements AutoCloseable {
                 totalRemoved += workerStats.instancesRemoved;
             }
 
-            return String.format("{\"Added\": %d, \"Updated\": %d, \"removed\": %d}", totalAdded, totalUpdated,
-                    totalRemoved);
+            return String.format(
+                    "{\"Added\": %d, \"Updated\": %d, \"removed\": %d}", totalAdded, totalUpdated, totalRemoved);
         }
 
         @Override
         public String toString() {
             try {
-                return ObjectMapperFactory.getMapper().writer().withDefaultPrettyPrinter()
+                return ObjectMapperFactory.getMapper()
+                        .writer()
+                        .withDefaultPrettyPrinter()
                         .writeValueAsString(workerStatsMap);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);

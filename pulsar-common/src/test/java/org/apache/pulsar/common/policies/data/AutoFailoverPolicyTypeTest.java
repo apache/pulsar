@@ -20,8 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.testng.annotations.Test;
 
 public class AutoFailoverPolicyTypeTest {
@@ -29,6 +27,8 @@ public class AutoFailoverPolicyTypeTest {
     @Test
     public void testAutoFailoverPolicyType() {
         assertNull(AutoFailoverPolicyType.fromString("TEST"));
-        assertEquals("min_available", AutoFailoverPolicyType.fromString("min_available").toString());
+        assertEquals(
+                "min_available",
+                AutoFailoverPolicyType.fromString("min_available").toString());
     }
 }

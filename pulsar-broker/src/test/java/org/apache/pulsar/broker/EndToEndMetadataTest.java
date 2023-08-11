@@ -67,14 +67,12 @@ public class EndToEndMetadataTest extends BaseMetadataStoreTest {
                 .build();
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(epc.getServiceUrl())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(epc.getServiceUrl()).build();
 
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic("my-topic")
-                .create();
+        Producer<String> producer =
+                client.newProducer(Schema.STRING).topic("my-topic").create();
 
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -94,5 +92,4 @@ public class EndToEndMetadataTest extends BaseMetadataStoreTest {
             consumer.acknowledge(msg);
         }
     }
-
 }

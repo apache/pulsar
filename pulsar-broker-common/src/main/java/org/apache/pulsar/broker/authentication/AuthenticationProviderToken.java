@@ -247,8 +247,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
                         incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
-                        throw new AuthenticationException("Audiences in token: ["
-                                + String.join(", ", audiences) + "] not contains this broker: " + audience);
+                        throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
+                                + "] not contains this broker: " + audience);
                     }
                 } else if (object instanceof String) {
                     if (!object.equals(audience)) {
@@ -370,15 +370,15 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 AuthenticationProviderToken provider,
                 AuthData authData,
                 SocketAddress remoteAddress,
-                SSLSession sslSession) throws AuthenticationException {
+                SSLSession sslSession)
+                throws AuthenticationException {
             this.provider = provider;
             this.remoteAddress = remoteAddress;
             this.sslSession = sslSession;
         }
 
-        TokenAuthenticationState(
-                AuthenticationProviderToken provider,
-                HttpServletRequest request) throws AuthenticationException {
+        TokenAuthenticationState(AuthenticationProviderToken provider, HttpServletRequest request)
+                throws AuthenticationException {
             this.provider = provider;
 
             // Set this for backwards compatibility with AuthenticationProvider#newHttpAuthState

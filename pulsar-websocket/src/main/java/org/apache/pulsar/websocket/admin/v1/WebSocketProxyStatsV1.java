@@ -43,10 +43,12 @@ public class WebSocketProxyStatsV1 extends WebSocketProxyStatsBase {
 
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring",
-                  notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics",
-                  response = Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiOperation(
+            value = "Gets the metrics for Monitoring",
+            notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics",
+            response = Metrics.class,
+            responseContainer = "List")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public Collection<Metrics> internalGetMetrics() throws Exception {
         return super.internalGetMetrics();
     }
@@ -54,18 +56,23 @@ public class WebSocketProxyStatsV1 extends WebSocketProxyStatsBase {
     @GET
     @Path("/{tenant}/{cluster}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public ProxyTopicStat getStats(@PathParam("tenant") String tenant, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic) {
-        return super.internalGetStats(
-                TopicName.get("persistent", tenant, cluster, namespace, decode(encodedTopic)));
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "Topic does not exist")
+            })
+    public ProxyTopicStat getStats(
+            @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        return super.internalGetStats(TopicName.get("persistent", tenant, cluster, namespace, decode(encodedTopic)));
     }
 
     @GET
     @Path("/stats")
     @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public Map<String, ProxyTopicStat> internalGetProxyStats() {
         return super.internalGetProxyStats();
     }

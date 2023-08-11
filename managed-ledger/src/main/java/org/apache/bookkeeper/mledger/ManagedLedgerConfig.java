@@ -71,7 +71,7 @@ public class ManagedLedgerConfig {
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(StandardCharsets.UTF_8);
     private boolean unackedRangesOpenCacheSetEnabled = true;
-    private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
+    private Class<? extends EnsemblePlacementPolicy> bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
@@ -79,9 +79,11 @@ public class ManagedLedgerConfig {
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
+
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
+
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
@@ -171,7 +173,8 @@ public class ManagedLedgerConfig {
      */
     public void setMinimumRolloverTime(int minimumRolloverTime, TimeUnit unit) {
         this.minimumRolloverTimeMs = (int) unit.toMillis(minimumRolloverTime);
-        checkArgument(maximumRolloverTimeMs >= minimumRolloverTimeMs,
+        checkArgument(
+                maximumRolloverTimeMs >= minimumRolloverTimeMs,
                 "Minimum rollover time needs to be less than maximum rollover time");
     }
 
@@ -196,7 +199,8 @@ public class ManagedLedgerConfig {
      */
     public void setMaximumRolloverTime(int maximumRolloverTime, TimeUnit unit) {
         this.maximumRolloverTimeMs = unit.toMillis(maximumRolloverTime);
-        checkArgument(maximumRolloverTimeMs >= minimumRolloverTimeMs,
+        checkArgument(
+                maximumRolloverTimeMs >= minimumRolloverTimeMs,
                 "Maximum rollover time needs to be greater than minimum rollover time");
     }
 
@@ -451,7 +455,6 @@ public class ManagedLedgerConfig {
         return retentionSizeInMB;
     }
 
-
     /**
      * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
      * corrupted at bookkeeper and managed-cursor is stuck at that ledger.
@@ -643,11 +646,9 @@ public class ManagedLedgerConfig {
         this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
     }
 
-
     public Map<String, String> getProperties() {
         return properties;
     }
-
 
     public void setProperties(Map<String, String> properties) {
         this.properties = properties;

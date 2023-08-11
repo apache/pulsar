@@ -25,10 +25,10 @@ import io.netty.buffer.Unpooled;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -53,7 +53,8 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
     public void testCompactedOutMessages() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/my-topic";
 
-        BrokerEntryMetadata brokerEntryMetadata = new BrokerEntryMetadata().setBrokerTimestamp(1).setBrokerTimestamp(1);
+        BrokerEntryMetadata brokerEntryMetadata =
+                new BrokerEntryMetadata().setBrokerTimestamp(1).setBrokerTimestamp(1);
 
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName("foobar")
@@ -65,27 +66,40 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
         ByteBuf batchBuffer = Unpooled.buffer(1000);
         Commands.serializeSingleMessageInBatchWithPayload(
                 new SingleMessageMetadata().setCompactedOut(true).setPartitionKey("key1"),
-                Unpooled.EMPTY_BUFFER, batchBuffer);
+                Unpooled.EMPTY_BUFFER,
+                batchBuffer);
         Commands.serializeSingleMessageInBatchWithPayload(
                 new SingleMessageMetadata().setCompactedOut(true).setPartitionKey("key2"),
-                Unpooled.EMPTY_BUFFER, batchBuffer);
+                Unpooled.EMPTY_BUFFER,
+                batchBuffer);
         Commands.serializeSingleMessageInBatchWithPayload(
                 new SingleMessageMetadata().setCompactedOut(false).setPartitionKey("key3"),
-                Unpooled.EMPTY_BUFFER, batchBuffer);
+                Unpooled.EMPTY_BUFFER,
+                batchBuffer);
         Commands.serializeSingleMessageInBatchWithPayload(
                 new SingleMessageMetadata().setCompactedOut(true).setPartitionKey("key4"),
-                Unpooled.EMPTY_BUFFER, batchBuffer);
+                Unpooled.EMPTY_BUFFER,
+                batchBuffer);
 
-        try (ConsumerImpl<byte[]> consumer
-             = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                .subscriptionName("my-subscriber-name").subscribe()) {
+        try (ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .subscribe()) {
             // shove it in the sideways
-            consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
-                    batchBuffer, new MessageIdData().setLedgerId(1234).setEntryId(567), consumer.cnx(), DEFAULT_CONSUMER_EPOCH);
+            consumer.receiveIndividualMessagesFromBatch(
+                    brokerEntryMetadata,
+                    metadata,
+                    0,
+                    null,
+                    batchBuffer,
+                    new MessageIdData().setLedgerId(1234).setEntryId(567),
+                    consumer.cnx(),
+                    DEFAULT_CONSUMER_EPOCH);
             Message<?> m = consumer.receive();
-            assertEquals(((BatchMessageIdImpl)m.getMessageId()).getLedgerId(), 1234);
-            assertEquals(((BatchMessageIdImpl)m.getMessageId()).getEntryId(), 567);
-            assertEquals(((BatchMessageIdImpl)m.getMessageId()).getBatchIndex(), 2);
+            assertEquals(((BatchMessageIdImpl) m.getMessageId()).getLedgerId(), 1234);
+            assertEquals(((BatchMessageIdImpl) m.getMessageId()).getEntryId(), 567);
+            assertEquals(((BatchMessageIdImpl) m.getMessageId()).getBatchIndex(), 2);
             assertEquals(m.getKey(), "key3");
 
             assertEquals(consumer.numMessagesInQueue(), 0);

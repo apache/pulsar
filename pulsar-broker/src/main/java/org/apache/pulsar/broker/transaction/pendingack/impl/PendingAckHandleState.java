@@ -44,7 +44,6 @@ public abstract class PendingAckHandleState {
 
     public PendingAckHandleState(State state) {
         STATE_UPDATER.set(this, state);
-
     }
 
     protected boolean changeToReadyState() {

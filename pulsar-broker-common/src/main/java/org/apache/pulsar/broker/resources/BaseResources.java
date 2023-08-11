@@ -52,8 +52,10 @@ public class BaseResources<T> {
 
     @Getter
     private final MetadataStore store;
+
     @Getter
     private final MetadataCache<T> cache;
+
     private int operationTimeoutSec;
 
     public BaseResources(MetadataStore store, Class<T> clazz, int operationTimeoutSec) {
@@ -72,7 +74,8 @@ public class BaseResources<T> {
         try {
             return getChildrenAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+            throw (e.getCause() instanceof MetadataStoreException)
+                    ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to get children of " + path, e);
@@ -90,8 +93,12 @@ public class BaseResources<T> {
         return result;
     }
 
-    private void getChildrenRecursiveAsync(String path, Set<String> children, CompletableFuture<List<String>> result,
-            AtomicInteger totalResults, String parent) {
+    private void getChildrenRecursiveAsync(
+            String path,
+            Set<String> children,
+            CompletableFuture<List<String>> result,
+            AtomicInteger totalResults,
+            String parent) {
         cache.getChildren(path).thenAccept(childList -> {
             childList = childList != null ? childList : Collections.emptyList();
             if (totalResults.decrementAndGet() == 0 && childList.isEmpty()) {
@@ -118,7 +125,8 @@ public class BaseResources<T> {
         try {
             return getAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+            throw (e.getCause() instanceof MetadataStoreException)
+                    ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to get data from " + path, e);
@@ -140,7 +148,8 @@ public class BaseResources<T> {
         try {
             setAsync(path, modifyFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+            throw (e.getCause() instanceof MetadataStoreException)
+                    ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to set data for " + path, e);
@@ -155,7 +164,8 @@ public class BaseResources<T> {
         try {
             setWithCreateAsync(path, createFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+            throw (e.getCause() instanceof MetadataStoreException)
+                    ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to set/create " + path, e);
@@ -170,7 +180,8 @@ public class BaseResources<T> {
         try {
             createAsync(path, data).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+            throw (e.getCause() instanceof MetadataStoreException)
+                    ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to create " + path, e);
@@ -185,7 +196,8 @@ public class BaseResources<T> {
         try {
             deleteAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+            throw (e.getCause() instanceof MetadataStoreException)
+                    ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to delete " + path, e);
@@ -219,7 +231,8 @@ public class BaseResources<T> {
         try {
             return cache.exists(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+            throw (e.getCause() instanceof MetadataStoreException)
+                    ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + path, e);

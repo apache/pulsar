@@ -20,23 +20,18 @@ package org.apache.pulsar.tests.integration.cli;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -50,10 +45,11 @@ public class HealthCheckTest extends TestRetrySupport {
     private static final Logger log = LoggerFactory.getLogger(HealthCheckTest.class);
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
-        .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
-        .numProxies(0)
-        .numFunctionWorkers(0)
-        .enablePrestoWorker(false).build();
+            .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
+            .numProxies(0)
+            .numFunctionWorkers(0)
+            .enablePrestoWorker(false)
+            .build();
 
     private PulsarCluster pulsarCluster = null;
 

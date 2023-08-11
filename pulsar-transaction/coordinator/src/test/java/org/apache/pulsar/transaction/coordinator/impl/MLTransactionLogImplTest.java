@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.mockito.Mockito.*;
 import com.google.common.collect.ComparisonChain;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -46,8 +48,6 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
-import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
-import static org.mockito.Mockito.*;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -57,12 +57,12 @@ import org.testng.annotations.Test;
 public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
 
     @DataProvider(name = "variedBufferedWriteConfigProvider")
-    private Object[][] variedBufferedWriteConfigProvider(){
-        return new Object[][]{
-                {true, true},
-                {false, false},
-                {true, false},
-                {false, true}
+    private Object[][] variedBufferedWriteConfigProvider() {
+        return new Object[][] {
+            {true, true},
+            {false, false},
+            {true, false},
+            {false, true}
         };
     }
     /**
@@ -75,15 +75,20 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
      */
     @Test(dataProvider = "variedBufferedWriteConfigProvider")
     public void testMainProcess(boolean writeWithBatch, boolean readWithBatch) throws Exception {
-        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
-                1, TimeUnit.MILLISECONDS);
+        HashedWheelTimer transactionTimer =
+                new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"), 1, TimeUnit.MILLISECONDS);
         TxnLogBufferedWriterConfig bufferedWriterConfigForWrite = new TxnLogBufferedWriterConfig();
         bufferedWriterConfigForWrite.setBatchedWriteMaxDelayInMillis(1000 * 3600);
         bufferedWriterConfigForWrite.setBatchedWriteMaxRecords(3);
         bufferedWriterConfigForWrite.setBatchEnabled(writeWithBatch);
         TransactionCoordinatorID transactionCoordinatorID = TransactionCoordinatorID.get(0);
-        MLTransactionLogImpl mlTransactionLogForWrite = new MLTransactionLogImpl(TransactionCoordinatorID.get(0), factory,
-                new ManagedLedgerConfig(), bufferedWriterConfigForWrite, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        MLTransactionLogImpl mlTransactionLogForWrite = new MLTransactionLogImpl(
+                TransactionCoordinatorID.get(0),
+                factory,
+                new ManagedLedgerConfig(),
+                bufferedWriterConfigForWrite,
+                transactionTimer,
+                DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForWrite.initialize().get(3, TimeUnit.SECONDS);
         Map<Integer, List<CompletableFuture<Position>>> expectedMapping = new HashMap<>();
         /**
@@ -94,7 +99,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
          * 2. Start 30 transactions, these transactions will never commit, to validate the delete-logic.
          */
         // Add logs: start transaction.
-        for (int i = 1; i <= 20; i++){
+        for (int i = 1; i <= 20; i++) {
             TransactionMetadataEntry transactionLog = new TransactionMetadataEntry();
             transactionLog.setTxnidMostBits(i);
             transactionLog.setTxnidLeastBits(i);
@@ -107,7 +112,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
             expectedMapping.get(i).add(future);
         }
         // Add logs: add partition.
-        for (int i = 1; i <= 20; i++){
+        for (int i = 1; i <= 20; i++) {
             TransactionMetadataEntry transactionLog = new TransactionMetadataEntry();
             transactionLog.setTxnidLeastBits(i);
             transactionLog.setMaxLocalTxnId(i);
@@ -118,7 +123,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
             expectedMapping.get(i).add(future);
         }
         // Add logs: add subscription.
-        for (int i = 1; i <= 20; i++){
+        for (int i = 1; i <= 20; i++) {
             TransactionMetadataEntry transactionLog = new TransactionMetadataEntry();
             transactionLog.setTxnidLeastBits(i);
             transactionLog.setMaxLocalTxnId(i);
@@ -132,7 +137,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
             expectedMapping.get(i).add(future);
         }
         // Add logs: new transactions. These transactions will never commit, to validate the logic of transaction log.
-        for (int i = 21; i <= 50; i++){
+        for (int i = 21; i <= 50; i++) {
             TransactionMetadataEntry transactionLog = new TransactionMetadataEntry();
             transactionLog.setTxnidMostBits(i);
             transactionLog.setTxnidLeastBits(i);
@@ -146,7 +151,8 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         }
         // Waiting all future completed.
         FutureUtil.waitForAll(expectedMapping.values().stream()
-                .flatMap(l -> l.stream()).collect(Collectors.toList()))
+                        .flatMap(l -> l.stream())
+                        .collect(Collectors.toList()))
                 .get(2, TimeUnit.SECONDS);
         /**
          * Create a new transaction meta store and execute recover to verify that the txn-mapping built by Recover is as
@@ -157,25 +163,36 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         bufferedWriterConfigForRecover.setBatchedWriteMaxDelayInMillis(1000 * 3600);
         bufferedWriterConfigForRecover.setBatchedWriteMaxRecords(3);
         bufferedWriterConfigForRecover.setBatchEnabled(readWithBatch);
-        MLTransactionLogImpl mlTransactionLogForRecover = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
-                factory, new ManagedLedgerConfig(), bufferedWriterConfigForRecover, transactionTimer,
+        MLTransactionLogImpl mlTransactionLogForRecover = new MLTransactionLogImpl(
+                TransactionCoordinatorID.get(0),
+                factory,
+                new ManagedLedgerConfig(),
+                bufferedWriterConfigForRecover,
+                transactionTimer,
                 DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForRecover.initialize().get(3, TimeUnit.SECONDS);
         // Recover and verify the txnID and position mappings.
         TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
         MLTransactionSequenceIdGenerator sequenceIdGenerator = mock(MLTransactionSequenceIdGenerator.class);
         TransactionRecoverTracker recoverTracker = mock(TransactionRecoverTracker.class);
-        MLTransactionMetadataStore transactionMetadataStoreForRecover = new MLTransactionMetadataStore(transactionCoordinatorID,
-                mlTransactionLogForRecover, timeoutTracker, sequenceIdGenerator, Integer.MAX_VALUE);
+        MLTransactionMetadataStore transactionMetadataStoreForRecover = new MLTransactionMetadataStore(
+                transactionCoordinatorID,
+                mlTransactionLogForRecover,
+                timeoutTracker,
+                sequenceIdGenerator,
+                Integer.MAX_VALUE);
         transactionMetadataStoreForRecover.init(recoverTracker).get(2000, TimeUnit.SECONDS);
         Assert.assertEquals(transactionMetadataStoreForRecover.txnMetaMap.size(), expectedMapping.size());
         Iterator<Integer> txnIdSet = expectedMapping.keySet().iterator();
-        while (txnIdSet.hasNext()){
+        while (txnIdSet.hasNext()) {
             int txnId = txnIdSet.next();
             List<CompletableFuture<Position>> expectedPositions = expectedMapping.get(txnId);
-            List<Position> actualPositions = transactionMetadataStoreForRecover.txnMetaMap.get(Long.valueOf(txnId)).getRight();
+            List<Position> actualPositions = transactionMetadataStoreForRecover
+                    .txnMetaMap
+                    .get(Long.valueOf(txnId))
+                    .getRight();
             Assert.assertEquals(actualPositions.size(), expectedPositions.size());
-            for (int i = 0; i< expectedPositions.size(); i++){
+            for (int i = 0; i < expectedPositions.size(); i++) {
                 Position expectedPosition = expectedPositions.get(i).get(1, TimeUnit.SECONDS);
                 Position actualPosition = actualPositions.get(i);
                 Assert.assertEquals(actualPosition, expectedPosition);
@@ -186,7 +203,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
          * 2. Start another 20 transactions, these transactions will never commit, to validate the delete-logic.
          */
         // Add logs: committing.
-        for (int i = 1; i <= 20; i++){
+        for (int i = 1; i <= 20; i++) {
             TransactionMetadataEntry transactionLog = new TransactionMetadataEntry();
             transactionLog.setTxnidLeastBits(i);
             transactionLog.setMaxLocalTxnId(i);
@@ -198,7 +215,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
             expectedMapping.get(i).add(future);
         }
         // Add logs: committed.
-        for (int i = 1; i <= 20; i++){
+        for (int i = 1; i <= 20; i++) {
             TransactionMetadataEntry transactionLog = new TransactionMetadataEntry();
             transactionLog.setTxnidLeastBits(i);
             transactionLog.setMaxLocalTxnId(i);
@@ -210,7 +227,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
             expectedMapping.get(i).add(future);
         }
         // Add logs: new transaction.
-        for (int i = 51; i <= 70; i++){
+        for (int i = 51; i <= 70; i++) {
             TransactionMetadataEntry transactionLog = new TransactionMetadataEntry();
             transactionLog.setTxnidMostBits(i);
             transactionLog.setTxnidLeastBits(i);
@@ -224,11 +241,15 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         }
         // Waiting all callback.
         FutureUtil.waitForAll(expectedMapping.values().stream()
-                        .flatMap(l -> l.stream()).collect(Collectors.toList()))
+                        .flatMap(l -> l.stream())
+                        .collect(Collectors.toList()))
                 .get(2, TimeUnit.SECONDS);
         // rewind the cursor
-        ManagedCursorImpl managedCursorForRecover =
-                (ManagedCursorImpl)transactionMetadataStoreForRecover.getManagedLedger().getCursors().iterator().next();
+        ManagedCursorImpl managedCursorForRecover = (ManagedCursorImpl) transactionMetadataStoreForRecover
+                .getManagedLedger()
+                .getCursors()
+                .iterator()
+                .next();
         /** Rewind the cursor for next-step. **/
         managedCursorForRecover.rewind();
         /**
@@ -236,48 +257,57 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
          * the cursor-batch-indexes is expected.
          */
         // Create another transaction log for recover.
-        MLTransactionLogImpl mlTransactionLogForDelete = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
-                factory, new ManagedLedgerConfig(), bufferedWriterConfigForRecover, transactionTimer,
+        MLTransactionLogImpl mlTransactionLogForDelete = new MLTransactionLogImpl(
+                TransactionCoordinatorID.get(0),
+                factory,
+                new ManagedLedgerConfig(),
+                bufferedWriterConfigForRecover,
+                transactionTimer,
                 DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForDelete.initialize().get(3, TimeUnit.SECONDS);
-        MLTransactionMetadataStore transactionMetadataStoreForDelete = new MLTransactionMetadataStore(transactionCoordinatorID,
-                mlTransactionLogForDelete, timeoutTracker, sequenceIdGenerator, Integer.MAX_VALUE);
+        MLTransactionMetadataStore transactionMetadataStoreForDelete = new MLTransactionMetadataStore(
+                transactionCoordinatorID,
+                mlTransactionLogForDelete,
+                timeoutTracker,
+                sequenceIdGenerator,
+                Integer.MAX_VALUE);
         transactionMetadataStoreForDelete.init(recoverTracker).get(2000, TimeUnit.SECONDS);
-        ManagedCursorImpl managedCursor =
-                (ManagedCursorImpl)mlTransactionLogForDelete.getManagedLedger().getCursors().iterator().next();
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) mlTransactionLogForDelete
+                .getManagedLedger()
+                .getCursors()
+                .iterator()
+                .next();
         // Calculate expected deleted positions.
         List<Position> expectedDeletedPositions = new ArrayList<>();
-        for (int i = 1; i <= 20; i++){
+        for (int i = 1; i <= 20; i++) {
             expectedDeletedPositions.addAll(
-                    expectedMapping.remove(i).stream()
-                            .map(f -> f.join())
-                            .collect(Collectors.toList()));
+                    expectedMapping.remove(i).stream().map(f -> f.join()).collect(Collectors.toList()));
         }
-        expectedDeletedPositions = expectedDeletedPositions.stream().sorted((o1,o2) -> {
-            if (o1 instanceof TxnBatchedPositionImpl){
-                TxnBatchedPositionImpl t1 = (TxnBatchedPositionImpl) o1;
-                TxnBatchedPositionImpl t2 = (TxnBatchedPositionImpl) o2;
-                return ComparisonChain.start()
-                        .compare(o1.getLedgerId(), o2.getLedgerId())
-                        .compare(o1.getEntryId(), o2.getEntryId())
-                        .compare(t1.getBatchIndex(), t2.getBatchIndex())
-                        .result();
-            }else {
-                return ComparisonChain.start()
-                        .compare(o1.getLedgerId(), o2.getLedgerId())
-                        .compare(o1.getEntryId(), o2.getEntryId())
-                        .result();
-            }
-        }).collect(Collectors.toList());
+        expectedDeletedPositions = expectedDeletedPositions.stream()
+                .sorted((o1, o2) -> {
+                    if (o1 instanceof TxnBatchedPositionImpl) {
+                        TxnBatchedPositionImpl t1 = (TxnBatchedPositionImpl) o1;
+                        TxnBatchedPositionImpl t2 = (TxnBatchedPositionImpl) o2;
+                        return ComparisonChain.start()
+                                .compare(o1.getLedgerId(), o2.getLedgerId())
+                                .compare(o1.getEntryId(), o2.getEntryId())
+                                .compare(t1.getBatchIndex(), t2.getBatchIndex())
+                                .result();
+                    } else {
+                        return ComparisonChain.start()
+                                .compare(o1.getLedgerId(), o2.getLedgerId())
+                                .compare(o1.getEntryId(), o2.getEntryId())
+                                .result();
+                    }
+                })
+                .collect(Collectors.toList());
         PositionImpl markDeletedPosition = null;
         LinkedHashMap<PositionImpl, BitSetRecyclable> batchIndexes = null;
-        if (expectedDeletedPositions.get(0) instanceof TxnBatchedPositionImpl){
+        if (expectedDeletedPositions.get(0) instanceof TxnBatchedPositionImpl) {
             Pair<PositionImpl, LinkedHashMap<PositionImpl, BitSetRecyclable>> pair =
-                    calculateBatchIndexes(
-                            expectedDeletedPositions.stream()
-                                    .map(p -> (TxnBatchedPositionImpl)p)
-                                    .collect(Collectors.toList())
-                    );
+                    calculateBatchIndexes(expectedDeletedPositions.stream()
+                            .map(p -> (TxnBatchedPositionImpl) p)
+                            .collect(Collectors.toList()));
             markDeletedPosition = pair.getLeft();
             batchIndexes = pair.getRight();
         } else {
@@ -287,21 +317,21 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         // Assert mark deleted position correct.
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> {
             Position actualMarkDeletedPosition = managedCursor.getMarkDeletedPosition();
-            return markDeletedPosition_final.getLedgerId() == actualMarkDeletedPosition.getLedgerId() &&
-                    markDeletedPosition_final.getEntryId() == actualMarkDeletedPosition.getEntryId();
+            return markDeletedPosition_final.getLedgerId() == actualMarkDeletedPosition.getLedgerId()
+                    && markDeletedPosition_final.getEntryId() == actualMarkDeletedPosition.getEntryId();
         });
         // Assert batchIndexes correct.
-        if (batchIndexes != null){
+        if (batchIndexes != null) {
             // calculate last deleted position.
-            Map.Entry<PositionImpl, BitSetRecyclable>
-                    lastOne = batchIndexes.entrySet().stream().reduce((a, b) -> b).get();
+            Map.Entry<PositionImpl, BitSetRecyclable> lastOne =
+                    batchIndexes.entrySet().stream().reduce((a, b) -> b).get();
             // Wait last one has been deleted from cursor.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> {
                 long[] ls = managedCursor.getBatchPositionAckSet(lastOne.getKey());
                 return Arrays.equals(lastOne.getValue().toLongArray(), ls);
             });
             // Verify batch indexes.
-            for (Map.Entry<PositionImpl, BitSetRecyclable> entry : batchIndexes.entrySet()){
+            for (Map.Entry<PositionImpl, BitSetRecyclable> entry : batchIndexes.entrySet()) {
                 PositionImpl p = entry.getKey();
                 long[] actualAckSet = managedCursor.getBatchPositionAckSet(p);
                 Assert.assertEquals(actualAckSet, entry.getValue().toLongArray());
@@ -320,15 +350,15 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
     /***
      * Calculate markDeletedPosition by {@param sortedDeletedPositions}.
      */
-    private PositionImpl calculateMarkDeletedPosition(Collection<Position> sortedDeletedPositions){
+    private PositionImpl calculateMarkDeletedPosition(Collection<Position> sortedDeletedPositions) {
         Position markDeletedPosition = null;
-        for (Position position : sortedDeletedPositions){
-            if (markDeletedPosition == null){
+        for (Position position : sortedDeletedPositions) {
+            if (markDeletedPosition == null) {
                 markDeletedPosition = position;
                 continue;
             }
             // Ledger are never closed, so all positions has same ledger-id.
-            if (markDeletedPosition.getEntryId() == position.getEntryId() - 1){
+            if (markDeletedPosition.getEntryId() == position.getEntryId() - 1) {
                 markDeletedPosition = position;
                 continue;
             } else {
@@ -345,14 +375,14 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
      * Calculate markDeletedPosition and batchIndexes by {@param sortedDeletedPositions}.
      */
     private Pair<PositionImpl, LinkedHashMap<PositionImpl, BitSetRecyclable>> calculateBatchIndexes(
-            List<TxnBatchedPositionImpl> sortedDeletedPositions){
+            List<TxnBatchedPositionImpl> sortedDeletedPositions) {
         // build batchIndexes.
         LinkedHashMap<PositionImpl, BitSetRecyclable> batchIndexes = new LinkedHashMap<>();
-        for (TxnBatchedPositionImpl batchedPosition : sortedDeletedPositions){
+        for (TxnBatchedPositionImpl batchedPosition : sortedDeletedPositions) {
             batchedPosition.setAckSetByIndex();
             PositionImpl k = PositionImpl.get(batchedPosition.getLedgerId(), batchedPosition.getEntryId());
             BitSetRecyclable bitSetRecyclable = batchIndexes.get(k);
-            if (bitSetRecyclable == null){
+            if (bitSetRecyclable == null) {
                 bitSetRecyclable = BitSetRecyclable.valueOf(batchedPosition.getAckSet());
                 batchIndexes.put(k, bitSetRecyclable);
             }
@@ -360,18 +390,18 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         }
         // calculate markDeletedPosition.
         Position markDeletedPosition = null;
-        for (Map.Entry<PositionImpl, BitSetRecyclable> entry : batchIndexes.entrySet()){
+        for (Map.Entry<PositionImpl, BitSetRecyclable> entry : batchIndexes.entrySet()) {
             PositionImpl position = entry.getKey();
             BitSetRecyclable bitSetRecyclable = entry.getValue();
-            if (!bitSetRecyclable.isEmpty()){
+            if (!bitSetRecyclable.isEmpty()) {
                 break;
             }
-            if (markDeletedPosition == null){
+            if (markDeletedPosition == null) {
                 markDeletedPosition = position;
                 continue;
             }
             // Ledger are never closed, so all positions has same ledger-id.
-            if (markDeletedPosition.getEntryId() == position.getEntryId() - 1){
+            if (markDeletedPosition.getEntryId() == position.getEntryId() - 1) {
                 markDeletedPosition = position;
                 continue;
             } else {
@@ -386,11 +416,11 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
                 shouldRemoveFromMap.add(entry.getKey());
             }
         }
-        for (Position position : shouldRemoveFromMap){
+        for (Position position : shouldRemoveFromMap) {
             BitSetRecyclable bitSetRecyclable = batchIndexes.remove(position);
             bitSetRecyclable.recycle();
         }
-        return Pair.of(PositionImpl.get(markDeletedPosition.getLedgerId(), markDeletedPosition.getEntryId()),
-                batchIndexes);
+        return Pair.of(
+                PositionImpl.get(markDeletedPosition.getLedgerId(), markDeletedPosition.getEntryId()), batchIndexes);
     }
 }

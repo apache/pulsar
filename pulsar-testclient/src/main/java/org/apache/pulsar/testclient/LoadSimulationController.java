@@ -83,50 +83,77 @@ public class LoadSimulationController {
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     // JCommander arguments for starting a controller via main.
-    @Parameters(commandDescription = "Provides a shell for the user to dictate how simulation clients should "
-            + "incur load.")
+    @Parameters(
+            commandDescription =
+                    "Provides a shell for the user to dictate how simulation clients should " + "incur load.")
     private static class MainArguments {
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Help message",
+                help = true)
         boolean help;
 
-        @Parameter(names = { "--cluster" }, description = "Cluster to test on", required = true)
+        @Parameter(
+                names = {"--cluster"},
+                description = "Cluster to test on",
+                required = true)
         String cluster;
 
-        @Parameter(names = { "--clients" }, description = "Comma separated list of client hostnames", required = true)
+        @Parameter(
+                names = {"--clients"},
+                description = "Comma separated list of client hostnames",
+                required = true)
         String clientHostNames;
 
-        @Parameter(names = { "--client-port" }, description = "Port that the clients are listening on", required = true)
+        @Parameter(
+                names = {"--client-port"},
+                description = "Port that the clients are listening on",
+                required = true)
         int clientPort;
     }
 
     // JCommander arguments for accepting user input.
     private static class ShellArguments {
-        @Parameter(description = "Command arguments:\n" + "trade tenant namespace topic\n"
-                + "change tenant namespace topic\n" + "stop tenant namespace topic\n"
-                + "trade_group tenant group_name num_namespaces\n" + "change_group tenant group_name\n"
-                + "stop_group tenant group_name\n" + "script script_name\n" + "copy tenant_name source_zk target_zk\n"
-                + "stream source_zk\n" + "simulate zk\n", required = true)
+        @Parameter(
+                description = "Command arguments:\n" + "trade tenant namespace topic\n"
+                        + "change tenant namespace topic\n" + "stop tenant namespace topic\n"
+                        + "trade_group tenant group_name num_namespaces\n" + "change_group tenant group_name\n"
+                        + "stop_group tenant group_name\n" + "script script_name\n"
+                        + "copy tenant_name source_zk target_zk\n"
+                        + "stream source_zk\n" + "simulate zk\n",
+                required = true)
         List<String> commandArguments;
 
-        @Parameter(names = { "--rand-rate" }, description = "Choose message rate uniformly randomly from the next two "
-                + "comma separated values (overrides --rate)")
+        @Parameter(
+                names = {"--rand-rate"},
+                description = "Choose message rate uniformly randomly from the next two "
+                        + "comma separated values (overrides --rate)")
         String rangeString = "";
 
-        @Parameter(names = { "--rate" }, description = "Messages per second")
+        @Parameter(
+                names = {"--rate"},
+                description = "Messages per second")
         double rate = 1;
 
-        @Parameter(names = { "--rate-multiplier" }, description = "Multiplier to use for copying or streaming rates")
+        @Parameter(
+                names = {"--rate-multiplier"},
+                description = "Multiplier to use for copying or streaming rates")
         double rateMultiplier = 1;
 
-        @Parameter(names = { "--separation" }, description = "Separation time in ms for trade_group actions "
-                + "(0 for no separation)")
+        @Parameter(
+                names = {"--separation"},
+                description = "Separation time in ms for trade_group actions " + "(0 for no separation)")
         int separation = 0;
 
-        @Parameter(names = { "--size" }, description = "Message size in bytes")
+        @Parameter(
+                names = {"--size"},
+                description = "Message size in bytes")
         int size = 1024;
 
-        @Parameter(names = { "--topics-per-namespace" }, description = "Number of topics to create per namespace in "
-                + "trade_group (total number of topics is num_namespaces X num_topics)")
+        @Parameter(
+                names = {"--topics-per-namespace"},
+                description = "Number of topics to create per namespace in "
+                        + "trade_group (total number of topics is num_namespaces X num_topics)")
         int topicsPerNamespace = 1;
     }
 
@@ -155,8 +182,10 @@ public class LoadSimulationController {
                 final List<String> currentBrokers = zkClient.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT, this);
                 for (final String broker : currentBrokers) {
                     if (!brokers.contains(broker)) {
-                        new LoadReportWatcher(String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker),
-                                zkClient, arguments);
+                        new LoadReportWatcher(
+                                String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker),
+                                zkClient,
+                                arguments);
                         brokers.add(broker);
                     }
                 }
@@ -185,9 +214,11 @@ public class LoadSimulationController {
         public synchronized void process(final WatchedEvent event) {
             try {
                 // Get the load report and put this back as a watch.
-                final LoadReport loadReport = ObjectMapperFactory.getMapper().getObjectMapper()
+                final LoadReport loadReport = ObjectMapperFactory.getMapper()
+                        .getObjectMapper()
                         .readValue(zkClient.getData(path, this, null), LoadReport.class);
-                for (final Map.Entry<String, NamespaceBundleStats> entry : loadReport.getBundleStats().entrySet()) {
+                for (final Map.Entry<String, NamespaceBundleStats> entry :
+                        loadReport.getBundleStats().entrySet()) {
                     final String bundle = entry.getKey();
                     final String namespace = bundle.substring(0, bundle.lastIndexOf('/'));
                     final String topic = String.format("%s/%s", namespace, "t");
@@ -198,7 +229,8 @@ public class LoadSimulationController {
 
                     // size = throughput / rate.
                     final int messageSize = (int) Math.ceil(arguments.rateMultiplier
-                            * (stats.msgThroughputIn + stats.msgThroughputOut) / (2 * messageRate));
+                            * (stats.msgThroughputIn + stats.msgThroughputOut)
+                            / (2 * messageRate));
 
                     arguments.rate = messageRate;
                     arguments.size = messageSize;
@@ -246,12 +278,16 @@ public class LoadSimulationController {
 
     // Recursively acquire all resource quotas by getting the ZK children of the given path and calling this function
     // on the children if there are any, or getting the data from this ZNode otherwise.
-    private void getResourceQuotas(final String path, final ZooKeeper zkClient,
-            final Map<String, ResourceQuota>[] threadLocalMaps) throws Exception {
+    private void getResourceQuotas(
+            final String path, final ZooKeeper zkClient, final Map<String, ResourceQuota>[] threadLocalMaps)
+            throws Exception {
         final List<String> children = zkClient.getChildren(path, false);
         if (children.isEmpty()) {
-            threadLocalMaps[random.nextInt(clients.length)].put(path, ObjectMapperFactory.getMapper().getObjectMapper()
-                    .readValue(zkClient.getData(path, false, null), ResourceQuota.class));
+            threadLocalMaps[random.nextInt(clients.length)].put(
+                    path,
+                    ObjectMapperFactory.getMapper()
+                            .getObjectMapper()
+                            .readValue(zkClient.getData(path, false, null), ResourceQuota.class));
         } else {
             for (final String child : children) {
                 getResourceQuotas(String.format("%s/%s", path, child), zkClient, threadLocalMaps);
@@ -269,8 +305,8 @@ public class LoadSimulationController {
 
         // Modify the original quota so that new rates are set.
         final double modifiedRate = messageRate * arguments.rateMultiplier;
-        final double modifiedBandwidth = (quota.getBandwidthIn() + quota.getBandwidthOut()) * arguments.rateMultiplier
-                / 2;
+        final double modifiedBandwidth =
+                (quota.getBandwidthIn() + quota.getBandwidthOut()) * arguments.rateMultiplier / 2;
         quota.setMsgRateIn(modifiedRate);
         quota.setMsgRateOut(modifiedRate);
         quota.setBandwidthIn(modifiedBandwidth);
@@ -296,8 +332,8 @@ public class LoadSimulationController {
     }
 
     // Write options that are common to modifying and creating topics.
-    private void writeProducerOptions(final DataOutputStream outputStream, final ShellArguments arguments,
-            final String topic) throws Exception {
+    private void writeProducerOptions(
+            final DataOutputStream outputStream, final ShellArguments arguments, final String topic) throws Exception {
         if (!arguments.rangeString.isEmpty()) {
             // If --rand-rate was specified, extract the bounds by splitting on
             // the comma and parsing the resulting
@@ -375,8 +411,7 @@ public class LoadSimulationController {
         final List<String> commandArguments = arguments.commandArguments;
         // Change expects three application arguments: tenant name, namespace name, and topic name.
         if (checkAppArgs(commandArguments.size() - 1, 3)) {
-            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2),
-                    commandArguments.get(3));
+            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2), commandArguments.get(3));
             if (changeIfExists(arguments, topic) == -1) {
                 log.info("Topic {} not found", topic);
             }
@@ -419,20 +454,23 @@ public class LoadSimulationController {
                         final String namespace = bundle.substring(namespaceStart, bundle.lastIndexOf('/'));
                         final String keyRangeString = bundle.substring(bundle.lastIndexOf('/') + 1);
                         // To prevent duplicate node issues for same namespace names in different clusters/tenants.
-                        final String manglePrefix = String.format("%s-%s-%s", sourceCluster, sourceTenant,
-                                keyRangeString);
+                        final String manglePrefix =
+                                String.format("%s-%s-%s", sourceCluster, sourceTenant, keyRangeString);
                         final String mangledNamespace = String.format("%s-%s", manglePrefix, namespace);
                         final BundleData bundleData = initializeBundleData(quota, arguments);
                         final String oldAPITargetPath = String.format(
-                                "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff", tenantName,
-                                cluster, mangledNamespace);
+                                "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff",
+                                tenantName, cluster, mangledNamespace);
                         final String newAPITargetPath = String.format(
-                                "/loadbalance/bundle-data/%s/%s/%s/0x00000000_0xffffffff", tenantName, cluster,
-                                mangledNamespace);
+                                "/loadbalance/bundle-data/%s/%s/%s/0x00000000_0xffffffff",
+                                tenantName, cluster, mangledNamespace);
                         try {
-                            ZkUtils.createFullPathOptimistic(targetZKClient, oldAPITargetPath,
+                            ZkUtils.createFullPathOptimistic(
+                                    targetZKClient,
+                                    oldAPITargetPath,
                                     ObjectMapperFactory.getMapper().writer().writeValueAsBytes(quota),
-                                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                                    ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                                    CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
                         } catch (Exception e) {
@@ -440,9 +478,12 @@ public class LoadSimulationController {
                         }
                         // Put the bundle data in the new ZooKeeper.
                         try {
-                            ZkUtils.createFullPathOptimistic(targetZKClient, newAPITargetPath,
+                            ZkUtils.createFullPathOptimistic(
+                                    targetZKClient,
+                                    newAPITargetPath,
                                     ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData),
-                                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                                    ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                                    CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
                         } catch (Exception e) {
@@ -491,13 +532,18 @@ public class LoadSimulationController {
                     final BundleData bundleData = initializeBundleData(quota, arguments);
                     // Put the bundle data in the new ZooKeeper.
                     try {
-                        ZkUtils.createFullPathOptimistic(zkClient, newAPIPath,
+                        ZkUtils.createFullPathOptimistic(
+                                zkClient,
+                                newAPIPath,
                                 ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData),
-                                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                                CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException e) {
                         try {
-                            zkClient.setData(newAPIPath,
-                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData), -1);
+                            zkClient.setData(
+                                    newAPIPath,
+                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData),
+                                    -1);
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }
@@ -525,8 +571,7 @@ public class LoadSimulationController {
         // Stop expects three application arguments: tenant name, namespace
         // name, and topic name.
         if (checkAppArgs(commandArguments.size() - 1, 3)) {
-            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2),
-                    commandArguments.get(3));
+            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2), commandArguments.get(3));
             for (DataOutputStream outputStream : outputStreams) {
                 outputStream.write(LoadSimulationClient.STOP_COMMAND);
                 outputStream.writeUTF(topic);
@@ -556,8 +601,7 @@ public class LoadSimulationController {
         // Trade expects three application arguments: tenant, namespace, and
         // topic.
         if (checkAppArgs(commandArguments.size() - 1, 3)) {
-            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2),
-                    commandArguments.get(3));
+            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2), commandArguments.get(3));
             trade(arguments, topic, random.nextInt(clients.length));
         }
     }
@@ -613,8 +657,7 @@ public class LoadSimulationController {
                     // by using the group name and the
                     // namespace index, and then create the topic by using the
                     // topic index. Then just call trade.
-                    final String topic = makeTopic(tenant, String.format("%s-%d", group, i),
-                            Integer.toString(j));
+                    final String topic = makeTopic(tenant, String.format("%s-%d", group, i), Integer.toString(j));
                     trade(arguments, topic, random.nextInt(clients.length));
                     Thread.sleep(arguments.separation);
                 }
@@ -637,54 +680,54 @@ public class LoadSimulationController {
                 jc.parse(args);
                 final String command = arguments.commandArguments.get(0);
                 switch (command) {
-                case "trade":
-                    handleTrade(arguments);
-                    break;
-                case "change":
-                    handleChange(arguments);
-                    break;
-                case "stop":
-                    handleStop(arguments);
-                    break;
-                case "trade_group":
-                    handleGroupTrade(arguments);
-                    break;
-                case "change_group":
-                    handleGroupChange(arguments);
-                    break;
-                case "stop_group":
-                    handleGroupStop(arguments);
-                    break;
-                case "script":
-                    // Read input from the given script instead of stdin until
-                    // the script has executed completely.
-                    final List<String> commandArguments = arguments.commandArguments;
-                    checkAppArgs(commandArguments.size() - 1, 1);
-                    final String scriptName = commandArguments.get(1);
-                    final BufferedReader scriptReader = new BufferedReader(
-                            new InputStreamReader(new FileInputStream(Paths.get(scriptName).toFile())));
-                    String line = scriptReader.readLine();
-                    while (line != null) {
-                        read(line.split("\\s+"));
-                        line = scriptReader.readLine();
-                    }
-                    scriptReader.close();
-                    break;
-                case "copy":
-                    handleCopy(arguments);
-                    break;
-                case "stream":
-                    handleStream(arguments);
-                    break;
-                case "simulate":
-                    handleSimulate(arguments);
-                    break;
-                case "quit":
-                case "exit":
-                    PerfClientUtils.exit(0);
-                    break;
-                default:
-                    log.info("ERROR: Unknown command \"{}\"", command);
+                    case "trade":
+                        handleTrade(arguments);
+                        break;
+                    case "change":
+                        handleChange(arguments);
+                        break;
+                    case "stop":
+                        handleStop(arguments);
+                        break;
+                    case "trade_group":
+                        handleGroupTrade(arguments);
+                        break;
+                    case "change_group":
+                        handleGroupChange(arguments);
+                        break;
+                    case "stop_group":
+                        handleGroupStop(arguments);
+                        break;
+                    case "script":
+                        // Read input from the given script instead of stdin until
+                        // the script has executed completely.
+                        final List<String> commandArguments = arguments.commandArguments;
+                        checkAppArgs(commandArguments.size() - 1, 1);
+                        final String scriptName = commandArguments.get(1);
+                        final BufferedReader scriptReader = new BufferedReader(new InputStreamReader(
+                                new FileInputStream(Paths.get(scriptName).toFile())));
+                        String line = scriptReader.readLine();
+                        while (line != null) {
+                            read(line.split("\\s+"));
+                            line = scriptReader.readLine();
+                        }
+                        scriptReader.close();
+                        break;
+                    case "copy":
+                        handleCopy(arguments);
+                        break;
+                    case "stream":
+                        handleStream(arguments);
+                        break;
+                    case "simulate":
+                        handleSimulate(arguments);
+                        break;
+                    case "quit":
+                    case "exit":
+                        PerfClientUtils.exit(0);
+                        break;
+                    default:
+                        log.info("ERROR: Unknown command \"{}\"", command);
                 }
             } catch (ParameterException ex) {
                 ex.printStackTrace();

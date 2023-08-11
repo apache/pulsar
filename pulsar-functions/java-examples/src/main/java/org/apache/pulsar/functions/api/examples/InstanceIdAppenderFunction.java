@@ -31,4 +31,3 @@ public class InstanceIdAppenderFunction implements Function<String, String> {
         return input + context.getInstanceId();
     }
 }
-

@@ -45,11 +45,11 @@ public class AllocatorStatsGenerator {
 
         AllocatorStats stats = new AllocatorStats();
         stats.directArenas = allocator.metric().directArenas().stream()
-            .map(AllocatorStatsGenerator::newPoolArenaStats)
-            .collect(Collectors.toList());
+                .map(AllocatorStatsGenerator::newPoolArenaStats)
+                .collect(Collectors.toList());
         stats.heapArenas = allocator.metric().heapArenas().stream()
-            .map(AllocatorStatsGenerator::newPoolArenaStats)
-            .collect(Collectors.toList());
+                .map(AllocatorStatsGenerator::newPoolArenaStats)
+                .collect(Collectors.toList());
 
         stats.numDirectArenas = allocator.metric().numDirectArenas();
         stats.numHeapArenas = allocator.metric().numHeapArenas();
@@ -65,11 +65,11 @@ public class AllocatorStatsGenerator {
         stats.numChunkLists = m.numChunkLists();
 
         stats.smallSubpages = m.smallSubpages().stream()
-            .map(AllocatorStatsGenerator::newPoolSubpageStats)
-            .collect(Collectors.toList());
+                .map(AllocatorStatsGenerator::newPoolSubpageStats)
+                .collect(Collectors.toList());
         stats.chunkLists = m.chunkLists().stream()
-            .map(AllocatorStatsGenerator::newPoolChunkListStats)
-            .collect(Collectors.toList());
+                .map(AllocatorStatsGenerator::newPoolChunkListStats)
+                .collect(Collectors.toList());
 
         stats.numAllocations = m.numAllocations();
         stats.numSmallAllocations = m.numSmallAllocations();

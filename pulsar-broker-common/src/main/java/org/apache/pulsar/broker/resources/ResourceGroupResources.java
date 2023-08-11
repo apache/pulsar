@@ -54,8 +54,7 @@ public class ResourceGroupResources extends BaseResources<ResourceGroup> {
         delete(joinPath(BASE_PATH, resourceGroupName));
     }
 
-    public void updateResourceGroup(String resourceGroupName,
-                                    Function<ResourceGroup, ResourceGroup> modifyFunction)
+    public void updateResourceGroup(String resourceGroupName, Function<ResourceGroup, ResourceGroup> modifyFunction)
             throws MetadataStoreException {
         set(joinPath(BASE_PATH, resourceGroupName), modifyFunction);
     }
@@ -64,7 +63,7 @@ public class ResourceGroupResources extends BaseResources<ResourceGroup> {
         return getChildren(BASE_PATH);
     }
 
-    public CompletableFuture<List<String>> listResourceGroupsAsync(){
+    public CompletableFuture<List<String>> listResourceGroupsAsync() {
         return getChildrenAsync(BASE_PATH);
     }
 

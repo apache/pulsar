@@ -20,9 +20,9 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import java.time.LocalDate;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.time.LocalDate;
 
 public class LocalDateSchemaTest {
 
@@ -31,14 +31,14 @@ public class LocalDateSchemaTest {
         LocalDateSchema schema = LocalDateSchema.of();
         LocalDate localDate = LocalDate.now();
         byte[] expected = new byte[] {
-                (byte) (localDate.toEpochDay() >>> 56),
-                (byte) (localDate.toEpochDay() >>> 48),
-                (byte) (localDate.toEpochDay() >>> 40),
-                (byte) (localDate.toEpochDay() >>> 32),
-                (byte) (localDate.toEpochDay() >>> 24),
-                (byte) (localDate.toEpochDay() >>> 16),
-                (byte) (localDate.toEpochDay() >>> 8),
-                ((Long)localDate.toEpochDay()).byteValue()
+            (byte) (localDate.toEpochDay() >>> 56),
+            (byte) (localDate.toEpochDay() >>> 48),
+            (byte) (localDate.toEpochDay() >>> 40),
+            (byte) (localDate.toEpochDay() >>> 32),
+            (byte) (localDate.toEpochDay() >>> 24),
+            (byte) (localDate.toEpochDay() >>> 16),
+            (byte) (localDate.toEpochDay() >>> 8),
+            ((Long) localDate.toEpochDay()).byteValue()
         };
         Assert.assertEquals(expected, schema.encode(localDate));
     }
@@ -56,17 +56,8 @@ public class LocalDateSchemaTest {
 
     @Test
     public void testSchemaDecode() {
-        byte[] byteData = new byte[] {
-               0,
-               0,
-               0,
-               0,
-               0,
-               10,
-               24,
-               42
-        };
-        long expected = 10*65536 + 24*256 + 42;
+        byte[] byteData = new byte[] {0, 0, 0, 0, 0, 10, 24, 42};
+        long expected = 10 * 65536 + 24 * 256 + 42;
 
         LocalDateSchema schema = LocalDateSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
@@ -84,5 +75,4 @@ public class LocalDateSchemaTest {
         Assert.assertNull(LocalDateSchema.of().decode(byteBuf));
         Assert.assertNull(LocalDateSchema.of().decode(bytes));
     }
-
 }

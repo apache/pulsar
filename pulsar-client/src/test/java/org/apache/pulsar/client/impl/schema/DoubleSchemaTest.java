@@ -31,14 +31,14 @@ public class DoubleSchemaTest {
         double data = 12345678.1234;
         long longData = Double.doubleToLongBits(data);
         byte[] expected = new byte[] {
-                (byte) (longData >>> 56),
-                (byte) (longData >>> 48),
-                (byte) (longData >>> 40),
-                (byte) (longData >>> 32),
-                (byte) (longData >>> 24),
-                (byte) (longData >>> 16),
-                (byte) (longData >>> 8),
-                ((Long)longData).byteValue()
+            (byte) (longData >>> 56),
+            (byte) (longData >>> 48),
+            (byte) (longData >>> 40),
+            (byte) (longData >>> 32),
+            (byte) (longData >>> 24),
+            (byte) (longData >>> 16),
+            (byte) (longData >>> 8),
+            ((Long) longData).byteValue()
         };
         Assert.assertEquals(expected, schema.encode(data));
     }
@@ -62,5 +62,4 @@ public class DoubleSchemaTest {
         Assert.assertNull(DoubleSchema.of().decode(byteBuf));
         Assert.assertNull(DoubleSchema.of().decode(bytes));
     }
-
 }

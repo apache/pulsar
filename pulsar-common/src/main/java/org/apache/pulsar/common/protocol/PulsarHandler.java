@@ -71,8 +71,11 @@ public abstract class PulsarHandler extends PulsarDecoder {
         }
         if (keepAliveIntervalSeconds > 0) {
             this.keepAliveTask = ctx.executor()
-                    .scheduleAtFixedRate(catchingAndLoggingThrowables(this::handleKeepAliveTimeout),
-                            keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
+                    .scheduleAtFixedRate(
+                            catchingAndLoggingThrowables(this::handleKeepAliveTimeout),
+                            keepAliveIntervalSeconds,
+                            keepAliveIntervalSeconds,
+                            TimeUnit.SECONDS);
         }
     }
 
@@ -87,19 +90,19 @@ public abstract class PulsarHandler extends PulsarDecoder {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Replying back to ping message", ctx.channel());
         }
-        ctx.writeAndFlush(Commands.newPong())
-                .addListener(future -> {
-                    if (!future.isSuccess()) {
-                        log.warn("[{}] Forcing connection to close since cannot send a pong message.",
-                                ctx.channel(), future.cause());
-                        ctx.close();
-                    }
-                });
+        ctx.writeAndFlush(Commands.newPong()).addListener(future -> {
+            if (!future.isSuccess()) {
+                log.warn(
+                        "[{}] Forcing connection to close since cannot send a pong message.",
+                        ctx.channel(),
+                        future.cause());
+                ctx.close();
+            }
+        });
     }
 
     @Override
-    protected final void handlePong(CommandPong pong) {
-    }
+    protected final void handlePong(CommandPong pong) {}
 
     private void handleKeepAliveTimeout() {
         if (!ctx.channel().isOpen()) {
@@ -130,14 +133,15 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     protected ChannelFuture sendPing() {
-        return ctx.writeAndFlush(Commands.newPing())
-                .addListener(future -> {
-                    if (!future.isSuccess()) {
-                        log.warn("[{}] Forcing connection to close since cannot send a ping message.",
-                                ctx.channel(), future.cause());
-                        ctx.close();
-                    }
-                });
+        return ctx.writeAndFlush(Commands.newPing()).addListener(future -> {
+            if (!future.isSuccess()) {
+                log.warn(
+                        "[{}] Forcing connection to close since cannot send a ping message.",
+                        ctx.channel(),
+                        future.cause());
+                ctx.close();
+            }
+        });
     }
 
     public void cancelKeepAliveTask() {

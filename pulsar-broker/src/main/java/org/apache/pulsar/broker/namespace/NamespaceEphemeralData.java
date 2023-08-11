@@ -36,13 +36,18 @@ public class NamespaceEphemeralData {
     private boolean disabled;
     private Map<String, AdvertisedListener> advertisedListeners;
 
-    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
-            boolean disabled) {
+    public NamespaceEphemeralData(
+            String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls, boolean disabled) {
         this(brokerUrl, brokerUrlTls, httpUrl, httpUrlTls, disabled, null);
     }
 
-    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
-                                  boolean disabled, Map<String, AdvertisedListener> advertisedListeners) {
+    public NamespaceEphemeralData(
+            String brokerUrl,
+            String brokerUrlTls,
+            String httpUrl,
+            String httpUrlTls,
+            boolean disabled,
+            Map<String, AdvertisedListener> advertisedListeners) {
         this.nativeUrl = brokerUrl;
         this.nativeUrlTls = brokerUrlTls;
         this.httpUrl = httpUrl;

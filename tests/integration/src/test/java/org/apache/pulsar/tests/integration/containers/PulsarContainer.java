@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -50,8 +49,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_HTTP_PORT = 8080;
     public static final int BROKER_HTTPS_PORT = 8081;
 
-    public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
-            "apachepulsar/pulsar-test-latest-version:latest");
+    public static final String DEFAULT_IMAGE_NAME =
+            System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME", "apachepulsar/pulsar-test-latest-version:latest");
     public static final String DEFAULT_HTTP_PATH = "/metrics";
     public static final String PULSAR_2_5_IMAGE_NAME = "apachepulsar/pulsar:2.5.0";
     public static final String PULSAR_2_4_IMAGE_NAME = "apachepulsar/pulsar:2.4.0";
@@ -79,48 +78,68 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     private final int httpsPort;
     private final String httpPath;
 
-    public PulsarContainer(String clusterName,
-                           String hostname,
-                           String serviceName,
-                           String serviceEntryPoint,
-                           int servicePort,
-                           int httpPort) {
+    public PulsarContainer(
+            String clusterName,
+            String hostname,
+            String serviceName,
+            String serviceEntryPoint,
+            int servicePort,
+            int httpPort) {
         this(clusterName, hostname, serviceName, serviceEntryPoint, servicePort, httpPort, "/metrics");
     }
 
-    public PulsarContainer(String clusterName,
-                           String hostname,
-                           String serviceName,
-                           String serviceEntryPoint,
-                           int servicePort,
-                           int httpPort,
-                           String httpPath) {
-        this(clusterName, hostname, serviceName, serviceEntryPoint, servicePort, httpPort, httpPath,
+    public PulsarContainer(
+            String clusterName,
+            String hostname,
+            String serviceName,
+            String serviceEntryPoint,
+            int servicePort,
+            int httpPort,
+            String httpPath) {
+        this(
+                clusterName,
+                hostname,
+                serviceName,
+                serviceEntryPoint,
+                servicePort,
+                httpPort,
+                httpPath,
                 DEFAULT_IMAGE_NAME);
     }
 
-    public PulsarContainer(String clusterName,
-                           String hostname,
-                           String serviceName,
-                           String serviceEntryPoint,
-                           int servicePort,
-                           int httpPort,
-                           String httpPath,
-                           String pulsarImageName) {
-        this(clusterName, hostname, serviceName, serviceEntryPoint, servicePort, 0, httpPort, 0, httpPath,
+    public PulsarContainer(
+            String clusterName,
+            String hostname,
+            String serviceName,
+            String serviceEntryPoint,
+            int servicePort,
+            int httpPort,
+            String httpPath,
+            String pulsarImageName) {
+        this(
+                clusterName,
+                hostname,
+                serviceName,
+                serviceEntryPoint,
+                servicePort,
+                0,
+                httpPort,
+                0,
+                httpPath,
                 pulsarImageName);
     }
 
-    public PulsarContainer(String clusterName,
-                           String hostname,
-                           String serviceName,
-                           String serviceEntryPoint,
-                           int servicePort,
-                           int servicePortTls,
-                           int httpPort,
-                           int httpsPort,
-                           String httpPath,
-                           String pulsarImageName) {
+    public PulsarContainer(
+            String clusterName,
+            String hostname,
+            String serviceName,
+            String serviceEntryPoint,
+            int servicePort,
+            int servicePortTls,
+            int httpPort,
+            int httpsPort,
+            String httpPath,
+            String pulsarImageName) {
         super(clusterName, pulsarImageName);
         this.hostname = hostname;
         this.serviceName = serviceName;
@@ -134,8 +153,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         configureLeaveContainerRunning(this);
     }
 
-    public static void configureLeaveContainerRunning(
-            GenericContainer<?> container) {
+    public static void configureLeaveContainerRunning(GenericContainer<?> container) {
         if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
             // use Testcontainers reuse containers feature to leave the container running
             container.withReuse(true);
@@ -150,11 +168,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     protected void beforeStop() {
         super.beforeStop();
         if (null != getContainerId()) {
-            DockerUtils.dumpContainerDirToTargetCompressed(
-                getDockerClient(),
-                getContainerId(),
-                "/var/log/pulsar"
-            );
+            DockerUtils.dumpContainerDirToTargetCompressed(getDockerClient(), getContainerId(), "/var/log/pulsar");
             try {
                 // stop the "tail -f ..." commands started in afterStart method
                 // so that shutdown output doesn't clutter logs
@@ -180,15 +194,16 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         if (getContainerId() != null) {
             if (serviceEntryPoint.equals("bin/pulsar")) {
                 // attempt graceful shutdown using "docker stop"
-                dockerClient.stopContainerCmd(getContainerId())
-                        .withTimeout(15)
-                        .exec();
+                dockerClient.stopContainerCmd(getContainerId()).withTimeout(15).exec();
             } else {
                 // use "supervisorctl stop all" for graceful shutdown
                 try {
                     ContainerExecResult result = execCmd("/usr/bin/supervisorctl", "stop", "all");
-                    log.info("Stopped supervisor services exit code: {}\nstdout: {}\nstderr: {}", result.getExitCode(),
-                            result.getStdout(), result.getStderr());
+                    log.info(
+                            "Stopped supervisor services exit code: {}\nstdout: {}\nstderr: {}",
+                            result.getExitCode(),
+                            result.getStdout(),
+                            result.getStderr());
                 } catch (Exception e) {
                     log.error("Cannot run 'supervisorctl stop all'", e);
                 }
@@ -227,13 +242,12 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public void start() {
         if (httpPort > 0 && servicePort < 0) {
             this.waitStrategy = new HttpWaitStrategy()
-                .forPort(httpPort)
-                .forStatusCode(200)
-                .forPath(httpPath)
-                .withStartupTimeout(Duration.of(300, SECONDS));
+                    .forPort(httpPort)
+                    .forStatusCode(200)
+                    .forPath(httpPath)
+                    .withStartupTimeout(Duration.of(300, SECONDS));
         } else if (httpPort > 0 || servicePort > 0) {
-            this.waitStrategy = new HostPortWaitStrategy()
-                .withStartupTimeout(Duration.of(300, SECONDS));
+            this.waitStrategy = new HostPortWaitStrategy().withStartupTimeout(Duration.of(300, SECONDS));
         }
         this.withCreateContainerCmdModifier(createContainerCmd -> {
             createContainerCmd.withHostName(hostname);
@@ -269,7 +283,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         withFileSystemBind(coverageDirectory.getAbsolutePath(), "/jacocoDir", BindMode.READ_WRITE);
 
         String jacocoVersion = System.getProperty("jacoco.version");
-        File jacocoAgentJar = new File(System.getProperty("user.home"),
+        File jacocoAgentJar = new File(
+                System.getProperty("user.home"),
                 ".m2/repository/org/jacoco/org.jacoco.agent/" + jacocoVersion + "/" + "org.jacoco.agent-"
                         + jacocoVersion + "-runtime.jar");
 
@@ -279,10 +294,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-            withEnv("OPTS", "-javaagent:/jacocoDir/" + jacocoAgentJar.getName()
-                    + "=destfile=/jacocoDir/jacoco_" + getContainerName() + "_" + System.currentTimeMillis() + ".exec"
-                    + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*"
-                    + ",excludes=*.proto.*:*.shade.*:*.shaded.*");
+            withEnv(
+                    "OPTS",
+                    "-javaagent:/jacocoDir/" + jacocoAgentJar.getName()
+                            + "=destfile=/jacocoDir/jacoco_" + getContainerName() + "_" + System.currentTimeMillis()
+                            + ".exec"
+                            + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*"
+                            + ",excludes=*.proto.*:*.shade.*:*.shaded.*");
         } else {
             log.error("Cannot find jacoco agent jar from '" + jacocoAgentJar.getAbsolutePath() + "'");
         }
@@ -295,14 +313,12 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         }
 
         PulsarContainer<?> another = (PulsarContainer<?>) o;
-        return getContainerId().equals(another.getContainerId())
-            && super.equals(another);
+        return getContainerId().equals(another.getContainerId()) && super.equals(another);
     }
 
     @Override
     public int hashCode() {
-        return 31 * super.hashCode() + Objects.hash(
-                getContainerId());
+        return 31 * super.hashCode() + Objects.hash(getContainerId());
     }
 
     public String getPlainTextServiceUrl() {

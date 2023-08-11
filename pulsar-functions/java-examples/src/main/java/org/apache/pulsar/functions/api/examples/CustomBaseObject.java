@@ -30,5 +30,3 @@ import lombok.Setter;
 public class CustomBaseObject {
     private long baseValue;
 }
-
-

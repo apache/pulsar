@@ -18,8 +18,27 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import com.fasterxml.jackson.core.JsonParseException;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -32,25 +51,6 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Locale;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
@@ -72,10 +72,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.fail;
-
 public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     private static ElasticsearchContainer container;
@@ -89,6 +85,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     @Mock
     protected SinkContext mockSinkContext;
+
     protected Map<String, Object> map;
     protected ElasticSearchSink sink;
 
@@ -119,7 +116,8 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         valueSchema = Schema.JSON(UserProfile.class);
         genericSchema = Schema.generic(valueSchema.getSchemaInfo());
-        userProfile = genericSchema.newRecordBuilder()
+        userProfile = genericSchema
+                .newRecordBuilder()
                 .set("name", "bob")
                 .set("userName", "boby")
                 .set("email", "bob@bob.com")
@@ -171,7 +169,8 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         map.put("compatibilityMode", "OPENSEARCH");
         sink.open(map, mockSinkContext);
 
-        OpenSearchHighLevelRestClient client = (OpenSearchHighLevelRestClient) sink.getElasticsearchClient().getRestClient();
+        OpenSearchHighLevelRestClient client =
+                (OpenSearchHighLevelRestClient) sink.getElasticsearchClient().getRestClient();
         List<Node> nodeList = client.getClient().getLowLevelClient().getNodes();
         assertEquals(nodeList.size(), 3);
     }
@@ -223,7 +222,6 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
                 return Optional.empty();
             }
         });
-
 
         when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
             public String answer(InvocationOnMock invocation) throws Throwable {
@@ -340,8 +338,8 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     private String getHitIdAtIndex(String indexName, int index) throws IOException {
         if (elasticImageName.equals(ELASTICSEARCH_8)) {
-            final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient)
-                    sink.getElasticsearchClient().getRestClient();
+            final ElasticSearchJavaRestClient restClient =
+                    (ElasticSearchJavaRestClient) sink.getElasticsearchClient().getRestClient();
             return restClient.search(indexName).hits().hits().get(index).id();
         } else {
             final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient)
@@ -400,7 +398,8 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
     public void testStripNullNodes() throws Exception {
         map.put("stripNulls", true);
         sink.open(map, mockSinkContext);
-        GenericRecord genericRecord = genericSchema.newRecordBuilder()
+        GenericRecord genericRecord = genericSchema
+                .newRecordBuilder()
                 .set("name", null)
                 .set("userName", "boby")
                 .set("email", null)
@@ -413,7 +412,8 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
     public void testKeepNullNodes() throws Exception {
         map.put("stripNulls", false);
         sink.open(map, mockSinkContext);
-        GenericRecord genericRecord = genericSchema.newRecordBuilder()
+        GenericRecord genericRecord = genericSchema
+                .newRecordBuilder()
                 .set("name", null)
                 .set("userName", "boby")
                 .set("email", null)
@@ -479,7 +479,9 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         });
         assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), 1L);
         sink.write(new MockRecordNullValue());
-        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
+        assertEquals(
+                sink.getElasticsearchClient().getRestClient().totalHits(index),
+                action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
         assertNull(sink.getElasticsearchClient().irrecoverableError.get());
     }
 
@@ -506,8 +508,8 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
                 verify(restClient).close();
 
             } else if (restClient instanceof OpenSearchHighLevelRestClient client) {
-                final org.opensearch.action.bulk.BulkProcessor internalBulkProcessor = spy(
-                        client.getInternalBulkProcessor());
+                final org.opensearch.action.bulk.BulkProcessor internalBulkProcessor =
+                        spy(client.getInternalBulkProcessor());
                 final RestHighLevelClient restHighLevelClient = spy(client.getClient());
 
                 client.setClient(restHighLevelClient);
@@ -528,9 +530,8 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     @DataProvider(name = "IdHashingAlgorithm")
     public Object[][] schemaType() {
-        return new Object[][]{
-                {ElasticSearchConfig.IdHashingAlgorithm.SHA256},
-                {ElasticSearchConfig.IdHashingAlgorithm.SHA512}
+        return new Object[][] {
+            {ElasticSearchConfig.IdHashingAlgorithm.SHA256}, {ElasticSearchConfig.IdHashingAlgorithm.SHA512}
         };
     }
 
@@ -543,21 +544,17 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         send(10);
         verify(mockRecord, times(10)).ack();
-        final String expectedHashedValue = algorithm == ElasticSearchConfig.IdHashingAlgorithm.SHA256 ?
-                "gbY32PzSxtpjWeaWMROhFw3nleS3JbhNHgtM/Z7FjOk" :
-                "BBaia6VUM0KGsZVJGOyte6bDNXW0nfkV/zNntc737Nk7HwtDZjZmeyezYwEVQ5cfHIHDFR1e9yczUBwf8zw0rw";
-        final long count = sink.getElasticsearchClient().getRestClient()
-                .totalHits(indexName, "_id:" + expectedHashedValue);
+        final String expectedHashedValue = algorithm == ElasticSearchConfig.IdHashingAlgorithm.SHA256
+                ? "gbY32PzSxtpjWeaWMROhFw3nleS3JbhNHgtM/Z7FjOk"
+                : "BBaia6VUM0KGsZVJGOyte6bDNXW0nfkV/zNntc737Nk7HwtDZjZmeyezYwEVQ5cfHIHDFR1e9yczUBwf8zw0rw";
+        final long count =
+                sink.getElasticsearchClient().getRestClient().totalHits(indexName, "_id:" + expectedHashedValue);
         assertEquals(count, 1);
     }
 
-
     @DataProvider(name = "conditionalIdHashing")
     public Object[][] conditionalIdHashing() {
-        return new Object[][]{
-                {false},
-                {true}
-        };
+        return new Object[][] {{false}, {true}};
     }
 
     @Test(dataProvider = "conditionalIdHashing")
@@ -589,27 +586,22 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         send(1);
         verify(mockRecord, times(1)).ack();
         String expectedValue = "AkJcD1sNq/PSuRFfP3cjoCrYvPsVNKDSMWFP1CuBiPY";
-        assertEquals(sink.getElasticsearchClient().getRestClient()
-                .totalHits(indexName, "_id:" + expectedValue), 1);
-
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(indexName, "_id:" + expectedValue), 1);
 
         recordKey = exactKey;
         send(1);
         verify(mockRecord, times(2)).ack();
         expectedValue = conditionalIdHashing ? exactKey : "fiu8dRsHGN8giT4ZIIct9e+PZwO07LlTXxVWqUeWs88";
-        assertEquals(sink.getElasticsearchClient().getRestClient()
-                .totalHits(indexName, "_id:" + expectedValue), 1);
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(indexName, "_id:" + expectedValue), 1);
 
         recordKey = shortKey;
         send(1);
         verify(mockRecord, times(3)).ack();
         expectedValue = conditionalIdHashing ? shortKey : "/DatxoX5RmSN3ISp+GhRkdeWvPX6GYeMZldecSStEoI";
-        assertEquals(sink.getElasticsearchClient().getRestClient()
-                .totalHits(indexName, "_id:" + expectedValue), 1);
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(indexName, "_id:" + expectedValue), 1);
 
         // verify there are 3 different documents
-        assertEquals(sink.getElasticsearchClient().getRestClient()
-                .totalHits(indexName, "*:*"), 3);
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(indexName, "*:*"), 3);
     }
 
     private String getNewIndexName() {
@@ -625,19 +617,21 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         // more than 512 bytes to break the _id size limitation
         final String keyFieldBValue = Stream.generate(() -> "keyB").limit(1000).collect(Collectors.joining());
-        GenericRecord keyGenericRecord = keySchema.newRecordBuilder()
+        GenericRecord keyGenericRecord = keySchema
+                .newRecordBuilder()
                 .set("keyFieldB", keyFieldBValue)
                 .set("keyFieldA", "keyA")
                 .build();
 
-        GenericRecord keyGenericRecord2 = keySchema.newRecordBuilder()
+        GenericRecord keyGenericRecord2 = keySchema
+                .newRecordBuilder()
                 .set("keyFieldA", "keyA")
                 .set("keyFieldB", keyFieldBValue)
                 .build();
-        Record<GenericObject> genericObjectRecord = createKeyValueGenericRecordWithGenericKeySchema(
-                keySchema, keyGenericRecord);
-        Record<GenericObject> genericObjectRecord2 = createKeyValueGenericRecordWithGenericKeySchema(
-                keySchema, keyGenericRecord2);
+        Record<GenericObject> genericObjectRecord =
+                createKeyValueGenericRecordWithGenericKeySchema(keySchema, keyGenericRecord);
+        Record<GenericObject> genericObjectRecord2 =
+                createKeyValueGenericRecordWithGenericKeySchema(keySchema, keyGenericRecord2);
         final String indexName = getNewIndexName();
         map.put("indexName", indexName);
         map.put("keyIgnore", "false");
@@ -651,40 +645,30 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         for (int idx = 0; idx < 10; idx++) {
             sink.write(genericObjectRecord2);
         }
-        final String expectedHashedValue = "7BmM3pkYIbhm8cPN5ePd/BeZ7lYZnKhzmiJ62k0PsGNNAQdk" +
-                "S+/te9+NKpdy31lEN0jT1MVrBjYIj4O08QsU1g";
-        long count = sink.getElasticsearchClient().getRestClient()
-                .totalHits(indexName, "_id:" + expectedHashedValue);
+        final String expectedHashedValue =
+                "7BmM3pkYIbhm8cPN5ePd/BeZ7lYZnKhzmiJ62k0PsGNNAQdk" + "S+/te9+NKpdy31lEN0jT1MVrBjYIj4O08QsU1g";
+        long count = sink.getElasticsearchClient().getRestClient().totalHits(indexName, "_id:" + expectedHashedValue);
         assertEquals(count, 1);
 
-
-        Record<GenericObject> genericObjectRecordDelete = createKeyValueGenericRecordWithGenericKeySchema(
-                keySchema, keyGenericRecord, true);
+        Record<GenericObject> genericObjectRecordDelete =
+                createKeyValueGenericRecordWithGenericKeySchema(keySchema, keyGenericRecord, true);
         sink.write(genericObjectRecordDelete);
-        count = sink.getElasticsearchClient().getRestClient()
-                .totalHits(indexName, "_id:" + expectedHashedValue);
+        count = sink.getElasticsearchClient().getRestClient().totalHits(indexName, "_id:" + expectedHashedValue);
         assertEquals(count, 0);
-
     }
 
     private Record<GenericObject> createKeyValueGenericRecordWithGenericKeySchema(
-            GenericSchema<GenericRecord> keySchema,
-            GenericRecord keyGenericRecord) {
-        return createKeyValueGenericRecordWithGenericKeySchema(
-                keySchema,
-                keyGenericRecord,
-                false
-        );
+            GenericSchema<GenericRecord> keySchema, GenericRecord keyGenericRecord) {
+        return createKeyValueGenericRecordWithGenericKeySchema(keySchema, keyGenericRecord, false);
     }
 
     private Record<GenericObject> createKeyValueGenericRecordWithGenericKeySchema(
-            GenericSchema<GenericRecord> keySchema,
-            GenericRecord keyGenericRecord, boolean emptyValue) {
+            GenericSchema<GenericRecord> keySchema, GenericRecord keyGenericRecord, boolean emptyValue) {
 
         Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema =
                 Schema.KeyValue(keySchema, genericSchema, KeyValueEncodingType.INLINE);
-        KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyGenericRecord,
-                emptyValue ? null : userProfile);
+        KeyValue<GenericRecord, GenericRecord> keyValue =
+                new KeyValue<>(keyGenericRecord, emptyValue ? null : userProfile);
         GenericObject genericObject = new GenericObject() {
             @Override
             public SchemaType getSchemaType() {
@@ -714,6 +698,4 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         };
         return genericObjectRecord;
     }
-
-
 }

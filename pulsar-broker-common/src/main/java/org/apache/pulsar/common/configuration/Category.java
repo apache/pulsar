@@ -29,5 +29,4 @@ public @interface Category {
      * @return description of the category
      */
     String description() default "";
-
 }

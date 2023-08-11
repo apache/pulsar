@@ -60,16 +60,26 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
 
     private SchemaRegistryStats(ScheduledExecutorService scheduler) {
         this.deleteOpsFailedCounter = Counter.build("pulsar_schema_del_ops_failed_total", "-")
-                .labelNames(NAMESPACE).create().register();
+                .labelNames(NAMESPACE)
+                .create()
+                .register();
         this.getOpsFailedCounter = Counter.build("pulsar_schema_get_ops_failed_total", "-")
-                .labelNames(NAMESPACE).create().register();
+                .labelNames(NAMESPACE)
+                .create()
+                .register();
         this.putOpsFailedCounter = Counter.build("pulsar_schema_put_ops_failed_total", "-")
-                .labelNames(NAMESPACE).create().register();
+                .labelNames(NAMESPACE)
+                .create()
+                .register();
 
         this.compatibleCounter = Counter.build("pulsar_schema_compatible_total", "-")
-                .labelNames(NAMESPACE).create().register();
+                .labelNames(NAMESPACE)
+                .create()
+                .register();
         this.incompatibleCounter = Counter.build("pulsar_schema_incompatible_total", "-")
-                .labelNames(NAMESPACE).create().register();
+                .labelNames(NAMESPACE)
+                .create()
+                .register();
 
         this.deleteOpsLatency = this.buildSummary("pulsar_schema_del_ops_latency", "-");
         this.getOpsLatency = this.buildSummary("pulsar_schema_get_ops_latency", "-");
@@ -122,7 +132,6 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
         this.compatibleCounter.labels(getNamespace(schemaId)).inc();
     }
 
-
     private String getNamespace(String schemaId) {
         String namespace;
         try {
@@ -134,7 +143,6 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
         this.namespaceAccess.put(namespace, System.currentTimeMillis());
         return namespace;
     }
-
 
     private void removeChild(String namespace) {
         getOpsFailedCounter.remove(namespace);

@@ -23,16 +23,15 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
-import org.apache.commons.lang3.tuple.Pair;
-import org.testng.annotations.Test;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.tuple.Pair;
+import org.testng.annotations.Test;
 
 public class RangeCacheTest {
 
@@ -126,7 +125,6 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 2);
     }
 
-
     @Test
     public void customTimeExtraction() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> x.s.length());
@@ -185,11 +183,12 @@ public class RangeCacheTest {
         cache.put(3, new RefString("3"));
         cache.put(5, new RefString("5"));
 
-        assertEquals(cache.getRange(1, 8),
-                Lists.newArrayList(new RefString("1"), new RefString("3"), new RefString("5")));
+        assertEquals(
+                cache.getRange(1, 8), Lists.newArrayList(new RefString("1"), new RefString("3"), new RefString("5")));
 
         cache.put(8, new RefString("8"));
-        assertEquals(cache.getRange(1, 8),
+        assertEquals(
+                cache.getRange(1, 8),
                 Lists.newArrayList(new RefString("1"), new RefString("3"), new RefString("5"), new RefString("8")));
 
         cache.clear();

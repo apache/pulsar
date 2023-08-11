@@ -86,5 +86,4 @@ public interface FieldSchemaBuilder<T extends FieldSchemaBuilder<T>> {
      * @return value
      */
     T defaultValue(Object value);
-
 }

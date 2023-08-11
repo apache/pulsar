@@ -22,7 +22,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -34,21 +37,16 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-
 @Slf4j
 public class TopicMessagingBase extends MessagingBase {
 
-    protected void nonPartitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent)
+            throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-exclusive", isPersistent);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         @Cleanup
         final Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -73,7 +71,9 @@ public class TopicMessagingBase extends MessagingBase {
                 .producerName(producerName)
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         log.info("public messages complete.");
@@ -81,14 +81,14 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void partitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void partitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent)
+            throws Exception {
         log.info("-- Starting {} test --", methodName);
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-exclusive", isPersistent, partitions);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         List<Consumer<String>> consumerList = new ArrayList<>(3);
         for (int i = 0; i < partitions; i++) {
             Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -118,7 +118,9 @@ public class TopicMessagingBase extends MessagingBase {
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         log.info("public messages complete.");
@@ -127,7 +129,9 @@ public class TopicMessagingBase extends MessagingBase {
         Consumer<String> crashedConsumer = consumerList.remove(0);
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend - 3);
@@ -135,13 +139,13 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent)
+            throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-failover", isPersistent);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         List<Consumer<String>> consumerList = new ArrayList<>(2);
         final Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -166,7 +170,9 @@ public class TopicMessagingBase extends MessagingBase {
                 .producerName(producerName)
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         log.info("public messages complete.");
@@ -177,22 +183,24 @@ public class TopicMessagingBase extends MessagingBase {
         Thread.sleep(3000);
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
-                MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-                assertNotNull(messageId);
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
+            assertNotNull(messageId);
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void partitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void partitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent)
+            throws Exception {
         log.info("-- Starting {} test --", methodName);
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-failover", isPersistent, partitions);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         List<Consumer<String>> consumerList = new ArrayList<>(3);
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -218,7 +226,9 @@ public class TopicMessagingBase extends MessagingBase {
                 .producerName(producerName)
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         log.info("public messages complete.");
@@ -229,7 +239,9 @@ public class TopicMessagingBase extends MessagingBase {
         Thread.sleep(3000);
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
@@ -237,13 +249,13 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithShared(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithShared(String serviceUrl, boolean isPersistent)
+            throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-shared", isPersistent);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         List<Consumer<String>> consumerList = new ArrayList<>(2);
         final Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -268,7 +280,9 @@ public class TopicMessagingBase extends MessagingBase {
                 .producerName(producerName)
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         log.info("public messages complete.");
@@ -277,7 +291,9 @@ public class TopicMessagingBase extends MessagingBase {
         Consumer<String> crashedConsumer = consumerList.remove(0);
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
@@ -290,9 +306,8 @@ public class TopicMessagingBase extends MessagingBase {
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-shared", isPersistent, partitions);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         List<Consumer<String>> consumerList = new ArrayList<>(3);
         for (int i = 0; i < partitions; i++) {
             Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -312,7 +327,9 @@ public class TopicMessagingBase extends MessagingBase {
                 .producerName(producerName)
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         log.info("public messages complete.");
@@ -321,7 +338,9 @@ public class TopicMessagingBase extends MessagingBase {
         Consumer<String> crashedConsumer = consumerList.remove(0);
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
@@ -329,13 +348,13 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void nonPartitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent)
+            throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-key-shared", isPersistent);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         List<Consumer<String>> consumerList = new ArrayList<>(2);
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -384,14 +403,14 @@ public class TopicMessagingBase extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected void partitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void partitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent)
+            throws Exception {
         log.info("-- Starting {} test --", methodName);
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-key-shared", isPersistent, partitions);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
         List<Consumer<String>> consumerList = new ArrayList<>(2);
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -439,5 +458,4 @@ public class TopicMessagingBase extends MessagingBase {
         closeConsumers(consumerList);
         log.info("-- Exiting {} test --", methodName);
     }
-
 }

@@ -41,10 +41,11 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
     private final ClassLoader functionClassLoader;
     private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
-    public MultiConsumerPulsarSource(PulsarClient pulsarClient,
-                                     MultiConsumerPulsarSourceConfig pulsarSourceConfig,
-                                     Map<String, String> properties,
-                                     ClassLoader functionClassLoader) {
+    public MultiConsumerPulsarSource(
+            PulsarClient pulsarClient,
+            MultiConsumerPulsarSourceConfig pulsarSourceConfig,
+            Map<String, String> properties,
+            ClassLoader functionClassLoader) {
         super(pulsarClient, pulsarSourceConfig, properties, functionClassLoader);
         this.pulsarSourceConfig = pulsarSourceConfig;
         this.functionClassLoader = functionClassLoader;
@@ -58,12 +59,15 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
         for (Map.Entry<String, PulsarSourceConsumerConfig<T>> e : configs.entrySet()) {
             String topic = e.getKey();
             PulsarSourceConsumerConfig<T> conf = e.getValue();
-            log.info("Creating consumers for topic : {}, schema : {}, schemaInfo: {}",
-                    topic, conf.getSchema(), conf.getSchema().getSchemaInfo());
+            log.info(
+                    "Creating consumers for topic : {}, schema : {}, schemaInfo: {}",
+                    topic,
+                    conf.getSchema(),
+                    conf.getSchema().getSchemaInfo());
 
             ConsumerBuilder<T> cb = createConsumeBuilder(topic, conf);
 
-            //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
+            // messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
             cb.messageListener(this);
 
             Consumer<T> consumer = cb.subscribeAsync().join();
@@ -97,8 +101,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
     private Map<String, PulsarSourceConsumerConfig<T>> setupConsumerConfigs() throws ClassNotFoundException {
         Map<String, PulsarSourceConsumerConfig<T>> configs = new TreeMap<>();
 
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
-                this.functionClassLoader);
+        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(), this.functionClassLoader);
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
@@ -114,5 +117,4 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
     public List<Consumer<T>> getInputConsumers() {
         return inputConsumers;
     }
-
 }

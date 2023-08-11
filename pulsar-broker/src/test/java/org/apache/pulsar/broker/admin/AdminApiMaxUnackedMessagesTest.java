@@ -50,7 +50,12 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("max-unacked-messages", tenantInfo);
     }
@@ -72,17 +77,26 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().receiverQueueSize(1)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .receiverQueueSize(1)
                 .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName("sub").topic(topic).subscribe();
-        //set namespace-level policy
+                .subscriptionName("sub")
+                .topic(topic)
+                .subscribe();
+        // set namespace-level policy
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 1);
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(persistentTopic.getSubscription("sub")
-                        .getConsumers().get(0).getMaxUnackedMessages(), 1));
-        //consumer-throttling should take effect
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        persistentTopic
+                                .getSubscription("sub")
+                                .getConsumers()
+                                .get(0)
+                                .getMaxUnackedMessages(),
+                        1));
+        // consumer-throttling should take effect
         for (int i = 0; i < 20; i++) {
             producer.send("msg".getBytes());
         }
@@ -91,11 +105,16 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         Message<byte[]> nullMsg = consumer.receive(500, TimeUnit.MILLISECONDS);
         assertNull(nullMsg);
 
-        //disable limit check
+        // disable limit check
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 0);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(persistentTopic.getSubscription("sub")
-                        .getConsumers().get(0).getMaxUnackedMessages(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        persistentTopic
+                                .getSubscription("sub")
+                                .getConsumers()
+                                .get(0)
+                                .getMaxUnackedMessages(),
+                        0));
         consumer.acknowledge(message);
         message = consumer.receive(500, TimeUnit.MILLISECONDS);
         assertNotNull(message);
@@ -106,8 +125,10 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().createNamespace("max-unacked-messages/default-on-consumers");
         String namespace = "max-unacked-messages/default-on-consumers";
         assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace));
-        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2*50000);
-        assertEquals(2*50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2 * 50000);
+        assertEquals(
+                2 * 50000,
+                admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
     }
 
     @Test
@@ -115,13 +136,17 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().createNamespace("max-unacked-messages/default-on-subscription");
         String namespace = "max-unacked-messages/default-on-subscription";
         assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
-        admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2*200000);
-        Awaitility.await().untilAsserted(()
-                -> assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace).intValue()));
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2 * 200000);
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        2 * 200000,
+                        admin.namespaces()
+                                .getMaxUnackedMessagesPerSubscription(namespace)
+                                .intValue()));
 
         admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
-        Awaitility.await().untilAsserted(()
-                -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
     }
 
     @Test
@@ -145,58 +170,67 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, namespaceLevelPolicy);
         admin.topics().setMaxUnackedMessagesOnConsumer(topic, topicLevelPolicy);
 
-        Awaitility.await().untilAsserted(()
-                -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace)));
-        Awaitility.await().untilAsserted(()
-                -> assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topic)));
-        assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue(), namespaceLevelPolicy);
+        Awaitility.await()
+                .untilAsserted(() -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace)));
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topic)));
+        assertEquals(
+                admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue(), namespaceLevelPolicy);
         assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topic).intValue(), topicLevelPolicy);
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("sub").topic(topic).receiverQueueSize(1).subscribe();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+                .subscriptionName("sub")
+                .topic(topic)
+                .receiverQueueSize(1)
+                .subscribe();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         org.apache.pulsar.broker.service.Consumer serverConsumer =
                 persistentTopic.getSubscription("sub").getConsumers().get(0);
         assertEquals(serverConsumer.getMaxUnackedMessages(), topicLevelPolicy);
         List<Message> msgs = consumeMsg(consumer, 3);
         assertEquals(msgs.size(), 1);
-        //disable topic-level limiter
+        // disable topic-level limiter
         admin.topics().setMaxUnackedMessagesOnConsumer(topic, 0);
-        Awaitility.await().untilAsserted(()
-                -> assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topic).intValue(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topics().getMaxUnackedMessagesOnConsumer(topic).intValue(), 0));
         ackMsgs(consumer, msgs);
-        //remove topic-level policy, namespace-level should take effect
+        // remove topic-level policy, namespace-level should take effect
         admin.topics().removeMaxUnackedMessagesOnConsumer(topic);
-        Awaitility.await().untilAsserted(() ->
-                assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topic)));
-        assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue(), namespaceLevelPolicy);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(serverConsumer.getMaxUnackedMessages(), namespaceLevelPolicy));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topic)));
+        assertEquals(
+                admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue(), namespaceLevelPolicy);
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(serverConsumer.getMaxUnackedMessages(), namespaceLevelPolicy));
         msgs = consumeMsg(consumer, 5);
         assertEquals(msgs.size(), namespaceLevelPolicy);
         ackMsgs(consumer, msgs);
-        //disable namespace-level limiter
+        // disable namespace-level limiter
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 0);
-        Awaitility.await().untilAsserted(()
-                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.namespaces()
+                                .getMaxUnackedMessagesPerConsumer(namespace)
+                                .intValue(),
+                        0));
         msgs = consumeMsg(consumer, 5);
         assertEquals(msgs.size(), 5);
         ackMsgs(consumer, msgs);
-        //remove namespace-level policy, broker-level should take effect
+        // remove namespace-level policy, broker-level should take effect
         admin.namespaces().removeMaxUnackedMessagesPerConsumer(namespace);
-        Awaitility.await().untilAsserted(()
-                -> assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace)));
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace)));
         msgs = consumeMsg(consumer, 5);
         assertEquals(msgs.size(), brokerLevelPolicy);
         ackMsgs(consumer, msgs);
-
     }
 
     private List<Message> consumeMsg(Consumer<?> consumer, int msgNum) throws Exception {
         List<Message> list = new ArrayList<>();
-        for (int i = 0; i <msgNum; i++) {
+        for (int i = 0; i < msgNum; i++) {
             Message message = consumer.receive(500, TimeUnit.MILLISECONDS);
             if (message == null) {
                 break;

@@ -35,9 +35,6 @@ public class ConfigurationResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response release() throws JsonProcessingException {
-        return Response.ok()
-                .type(MediaType.APPLICATION_JSON)
-                .entity(VERSION)
-                .build();
+        return Response.ok().type(MediaType.APPLICATION_JSON).entity(VERSION).build();
     }
 }

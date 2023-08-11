@@ -51,5 +51,4 @@ public class PartitionedTopicMetadata {
      * A topic with '0' partitions is treated like non-partitioned topic.
      */
     public static final int NON_PARTITIONED = 0;
-
 }

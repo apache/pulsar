@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -44,9 +46,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.assertEquals;
-
 /**
  * Test Mutual Authentication.
  * Test connect set success, and producer consumer works well.
@@ -59,7 +58,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
     private static final String[] clientAuthStrings = {
         "MutualClientAuthInit", // step 0
-        "MutualClientStep1"     // step 1
+        "MutualClientStep1" // step 1
     };
 
     private static final String[] serverAuthStrings = {
@@ -85,8 +84,10 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
                 throw new AuthenticationException();
             }
 
-            log.debug("authenticate in client. passed in :{}, send: {}",
-                dataString, new String(toSend.getBytes(), UTF_8));
+            log.debug(
+                    "authenticate in client. passed in :{}, send: {}",
+                    dataString,
+                    new String(toSend.getBytes(), UTF_8));
             return toSend;
         }
     }
@@ -122,7 +123,6 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         }
     }
 
-
     public static class MutualAuthenticationState implements AuthenticationState {
         private boolean isComplete = false;
 
@@ -145,8 +145,10 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
                 throw new AuthenticationException();
             }
 
-            log.debug("authenticate in server. passed in :{}, send: {}",
-                dataString, toSend.getBytes() == null ? "null" : new String(toSend.getBytes(), UTF_8));
+            log.debug(
+                    "authenticate in server. passed in :{}, send: {}",
+                    dataString,
+                    toSend.getBytes() == null ? "null" : new String(toSend.getBytes(), UTF_8));
             return toSend;
         }
 
@@ -163,12 +165,10 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
     public static class MutualAuthenticationProvider implements AuthenticationProvider {
         @Override
-        public void close() throws IOException {
-        }
+        public void close() throws IOException {}
 
         @Override
-        public void initialize(ServiceConfiguration config) throws IOException {
-        }
+        public void initialize(ServiceConfiguration config) throws IOException {}
 
         @Override
         public String getAuthMethodName() {
@@ -181,9 +181,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         }
 
         @Override
-        public AuthenticationState newAuthState(AuthData authData,
-                                                SocketAddress remoteAddress,
-                                                SSLSession sslSession) {
+        public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession) {
             return new MutualAuthenticationState();
         }
     }
@@ -222,12 +220,13 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
         String topic = "persistent://my-property/my-ns/test-authentication";
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
-            .subscriptionName("my-subscriber-name")
-            .subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-            .topic(topic)
-            .create();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -252,9 +251,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         String defaultClientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion();
         String topic = "persistent://my-property/my-ns/test-client-version";
 
-        Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic).create();
         TopicStats stats = admin.topics().getStats(topic);
         assertEquals(stats.getPublishers().size(), 1);
         assertEquals(stats.getPublishers().get(0).getClientVersion(), defaultClientVersion);
@@ -268,7 +265,10 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         stats = admin.topics().getStats(topic);
         assertEquals(stats.getPublishers().size(), 2);
 
-        assertEquals(stats.getPublishers().stream().map(PublisherStats::getClientVersion).collect(Collectors.toSet()),
+        assertEquals(
+                stats.getPublishers().stream()
+                        .map(PublisherStats::getClientVersion)
+                        .collect(Collectors.toSet()),
                 Sets.newHashSet(defaultClientVersion, defaultClientVersion + "-my-java-client"));
 
         producer1.close();

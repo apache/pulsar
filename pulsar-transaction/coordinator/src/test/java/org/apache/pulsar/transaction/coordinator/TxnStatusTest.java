@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.util.Set;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.Set;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test {@link TxnStatus}.
@@ -39,83 +37,44 @@ public class TxnStatusTest {
         return new Object[][] {
             {
                 TxnStatus.OPEN,
-                Sets.newHashSet(
-                    TxnStatus.OPEN,
-                    TxnStatus.COMMITTING,
-                    TxnStatus.ABORTING
-                ),
-                Sets.newHashSet(
-                    TxnStatus.COMMITTED,
-                    TxnStatus.ABORTED
-                )
+                Sets.newHashSet(TxnStatus.OPEN, TxnStatus.COMMITTING, TxnStatus.ABORTING),
+                Sets.newHashSet(TxnStatus.COMMITTED, TxnStatus.ABORTED)
             },
             {
                 TxnStatus.COMMITTING,
-                Sets.newHashSet(
-                    TxnStatus.COMMITTING,
-                    TxnStatus.COMMITTED
-                ),
-                Sets.newHashSet(
-                    TxnStatus.OPEN,
-                    TxnStatus.ABORTING,
-                    TxnStatus.ABORTED
-                )
+                Sets.newHashSet(TxnStatus.COMMITTING, TxnStatus.COMMITTED),
+                Sets.newHashSet(TxnStatus.OPEN, TxnStatus.ABORTING, TxnStatus.ABORTED)
             },
             {
                 TxnStatus.COMMITTED,
-                Sets.newHashSet(
-                    TxnStatus.COMMITTED
-                ),
-                Sets.newHashSet(
-                    TxnStatus.OPEN,
-                    TxnStatus.COMMITTING,
-                    TxnStatus.ABORTING,
-                    TxnStatus.ABORTED
-                )
+                Sets.newHashSet(TxnStatus.COMMITTED),
+                Sets.newHashSet(TxnStatus.OPEN, TxnStatus.COMMITTING, TxnStatus.ABORTING, TxnStatus.ABORTED)
             },
             {
                 TxnStatus.ABORTING,
-                Sets.newHashSet(
-                    TxnStatus.ABORTING,
-                    TxnStatus.ABORTED
-                ),
-                Sets.newHashSet(
-                    TxnStatus.OPEN,
-                    TxnStatus.COMMITTING,
-                    TxnStatus.COMMITTED
-                )
+                Sets.newHashSet(TxnStatus.ABORTING, TxnStatus.ABORTED),
+                Sets.newHashSet(TxnStatus.OPEN, TxnStatus.COMMITTING, TxnStatus.COMMITTED)
             },
             {
                 TxnStatus.ABORTED,
-                Sets.newHashSet(
-                    TxnStatus.ABORTED
-                ),
-                Sets.newHashSet(
-                    TxnStatus.OPEN,
-                    TxnStatus.COMMITTING,
-                    TxnStatus.COMMITTED,
-                    TxnStatus.ABORTING
-                )
+                Sets.newHashSet(TxnStatus.ABORTED),
+                Sets.newHashSet(TxnStatus.OPEN, TxnStatus.COMMITTING, TxnStatus.COMMITTED, TxnStatus.ABORTING)
             },
         };
     }
 
     @Test(dataProvider = "statuses")
-    public void testTxnStatusTransition(TxnStatus status,
-                                        Set<TxnStatus> statusesCanTransitionTo,
-                                        Set<TxnStatus> statusesCanNotTransactionTo) {
+    public void testTxnStatusTransition(
+            TxnStatus status, Set<TxnStatus> statusesCanTransitionTo, Set<TxnStatus> statusesCanNotTransactionTo) {
         statusesCanTransitionTo.forEach(newStatus -> {
             assertTrue(
                     TransactionUtil.canTransitionTo(status, newStatus),
-                "Status `" + status + "` should be able to transition to `" + newStatus + "`"
-            );
+                    "Status `" + status + "` should be able to transition to `" + newStatus + "`");
         });
         statusesCanNotTransactionTo.forEach(newStatus -> {
             assertFalse(
                     TransactionUtil.canTransitionTo(status, newStatus),
-                "Status `" + status + "` should NOT be able to transition to `" + newStatus + "`"
-            );
+                    "Status `" + status + "` should NOT be able to transition to `" + newStatus + "`");
         });
     }
-
 }

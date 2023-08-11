@@ -59,8 +59,12 @@ public class WaterMarkEventGenerator<T> implements Runnable {
      * @param eventTsLagMs The max allowed lag behind the last watermark event before an event is considered late
      * @param inputTopics The input topics this generator is expected to handle
      */
-    public WaterMarkEventGenerator(WindowManager<T> windowManager, long intervalMs,
-                                   long eventTsLagMs, Set<String> inputTopics, Context context) {
+    public WaterMarkEventGenerator(
+            WindowManager<T> windowManager,
+            long intervalMs,
+            long eventTsLagMs,
+            Set<String> inputTopics,
+            Context context) {
         this.windowManager = windowManager;
         topicToTs = new ConcurrentHashMap<>();
 
@@ -93,8 +97,10 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     @Override
     public void run() {
         // initialize the thread context
-        ThreadContext.put("function", WindowUtils.getFullyQualifiedName(
-                context.getTenant(), context.getNamespace(), context.getFunctionName()));
+        ThreadContext.put(
+                "function",
+                WindowUtils.getFullyQualifiedName(
+                        context.getTenant(), context.getNamespace(), context.getFunctionName()));
         try {
             long waterMarkTs = computeWaterMarkTs();
             if (waterMarkTs > lastWaterMarkTs) {
@@ -134,9 +140,8 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     }
 
     public void start() {
-        this.executorFuture =
-                executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this), intervalMs, intervalMs,
-                        TimeUnit.MILLISECONDS);
+        this.executorFuture = executorService.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(this), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
     }
 
     public void shutdown() {

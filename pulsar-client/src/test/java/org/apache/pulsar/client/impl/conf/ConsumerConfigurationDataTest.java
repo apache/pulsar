@@ -27,8 +27,8 @@ public class ConsumerConfigurationDataTest {
     @DataProvider(name = "topicConf")
     public Object[][] topicConf() {
         return new Object[][] {
-                new Object[] {"foo", 2},
-                new Object[] {"bar", 1}
+            new Object[] {"foo", 2},
+            new Object[] {"bar", 1}
         };
     }
 
@@ -37,7 +37,8 @@ public class ConsumerConfigurationDataTest {
         ConsumerConfigurationData<String> consumerConfigurationData = new ConsumerConfigurationData<>();
         consumerConfigurationData.setPriorityLevel(1);
 
-        consumerConfigurationData.getTopicConfigurations()
+        consumerConfigurationData
+                .getTopicConfigurations()
                 .add(TopicConsumerConfigurationData.ofTopicsPattern(Pattern.compile("^foo$"), 2));
 
         TopicConsumerConfigurationData topicConsumerConfigurationData =

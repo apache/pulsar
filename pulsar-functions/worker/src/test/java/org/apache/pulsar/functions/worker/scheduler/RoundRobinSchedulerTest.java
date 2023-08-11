@@ -35,8 +35,12 @@ public class RoundRobinSchedulerTest {
     @Test
     public void testRebalance() {
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(0)
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setName("func-1")
+                        .setNamespace("namespace-1")
+                        .setTenant("tenant-1")
+                        .setParallelism(1))
+                .setVersion(0)
                 .build();
 
         List<Function.Assignment> assignments = new LinkedList<>();
@@ -44,7 +48,9 @@ public class RoundRobinSchedulerTest {
             Function.Assignment assignment1 = Function.Assignment.newBuilder()
                     .setWorkerId("worker-1")
                     .setInstance(Function.Instance.newBuilder()
-                            .setFunctionMetaData(function1).setInstanceId(i).build())
+                            .setFunctionMetaData(function1)
+                            .setInstanceId(i)
+                            .build())
                     .build();
 
             assignments.add(assignment1);

@@ -20,11 +20,8 @@ package org.apache.pulsar.common.lookup.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
-import java.util.Map;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.util.Map;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
@@ -38,8 +35,8 @@ public class LookupDataTest {
 
     @Test
     public void withConstructor() {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-                                         "http://localhost:8081");
+        LookupData data = new LookupData(
+                "pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080", "http://localhost:8081");
         assertEquals(data.getBrokerUrl(), "pulsar://localhost:8888");
         assertEquals(data.getHttpUrl(), "http://localhost:8080");
     }
@@ -47,8 +44,8 @@ public class LookupDataTest {
     @SuppressWarnings("unchecked")
     @Test
     public void serializeToJsonTest() throws Exception {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-                                         "http://localhost:8081");
+        LookupData data = new LookupData(
+                "pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080", "http://localhost:8081");
         ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
         String json = mapper.writeValueAsString(data);
 
@@ -82,15 +79,21 @@ public class LookupDataTest {
         final ResourceUsage resource = new ResourceUsage(usage, 0);
         simpleLmSystemResourceUsage.bandwidthIn = resource;
 
-        LoadReport simpleReport = getSimpleLoadManagerLoadReport(simpleLmBrokerUrl, simpleLmReportName,
-                simpleLmSystemResourceUsage);
+        LoadReport simpleReport =
+                getSimpleLoadManagerLoadReport(simpleLmBrokerUrl, simpleLmReportName, simpleLmSystemResourceUsage);
 
         LocalBrokerData modularReport = getModularLoadManagerLoadReport(modularLmBrokerUrl, resource);
 
-        LoadManagerReport simpleLoadReport = ObjectMapperFactory.getMapper().reader().readValue(
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(simpleReport), LoadManagerReport.class);
-        LoadManagerReport modularLoadReport = ObjectMapperFactory.getMapper().reader().readValue(
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(modularReport), LoadManagerReport.class);
+        LoadManagerReport simpleLoadReport = ObjectMapperFactory.getMapper()
+                .reader()
+                .readValue(
+                        ObjectMapperFactory.getMapper().writer().writeValueAsBytes(simpleReport),
+                        LoadManagerReport.class);
+        LoadManagerReport modularLoadReport = ObjectMapperFactory.getMapper()
+                .reader()
+                .readValue(
+                        ObjectMapperFactory.getMapper().writer().writeValueAsBytes(modularReport),
+                        LoadManagerReport.class);
 
         assertEquals(simpleLoadReport.getWebServiceUrl(), simpleLmBrokerUrl);
         assertTrue(simpleLoadReport instanceof LoadReport);
@@ -100,11 +103,10 @@ public class LookupDataTest {
         assertEquals(modularLoadReport.getWebServiceUrl(), modularLmBrokerUrl);
         assertTrue(modularLoadReport instanceof LocalBrokerData);
         assertEquals(((LocalBrokerData) modularLoadReport).getBandwidthIn().usage, usage);
-
     }
 
-    private LoadReport getSimpleLoadManagerLoadReport(String brokerUrl, String reportName,
-            SystemResourceUsage systemResourceUsage) {
+    private LoadReport getSimpleLoadManagerLoadReport(
+            String brokerUrl, String reportName, SystemResourceUsage systemResourceUsage) {
         LoadReport report = new LoadReport(brokerUrl, null, null, null);
         report.setName(reportName);
         report.setSystemResourceUsage(systemResourceUsage);

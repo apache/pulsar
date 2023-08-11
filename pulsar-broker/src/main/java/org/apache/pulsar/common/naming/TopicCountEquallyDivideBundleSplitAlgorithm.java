@@ -27,7 +27,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 /**
  * This algorithm divides the bundle into two parts with the same topics count.
  */
-public class TopicCountEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm  {
+public class TopicCountEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm {
 
     @Override
     public CompletableFuture<List<Long>> getSplitBoundary(BundleSplitOption bundleSplitOption) {

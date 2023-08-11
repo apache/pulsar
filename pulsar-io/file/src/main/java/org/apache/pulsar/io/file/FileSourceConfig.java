@@ -146,7 +146,7 @@ public class FileSourceConfig implements Serializable {
             }
         }
 
-        if (minimumFileAge != null &&  Math.signum(minimumFileAge) < 0) {
+        if (minimumFileAge != null && Math.signum(minimumFileAge) < 0) {
             throw new IllegalArgumentException("The property minimumFileAge must be non-negative");
         }
 

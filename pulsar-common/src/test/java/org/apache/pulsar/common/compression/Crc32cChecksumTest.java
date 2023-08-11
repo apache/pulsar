@@ -20,17 +20,14 @@ package org.apache.pulsar.common.compression;
 
 import static com.scurrilous.circe.params.CrcParameters.CRC32C;
 import static org.testng.Assert.assertEquals;
-
-import org.testng.annotations.Test;
-
 import com.scurrilous.circe.IncrementalIntHash;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import com.scurrilous.circe.checksum.Crc32cSse42Provider;
 import com.scurrilous.circe.crc.StandardCrcProvider;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import org.testng.annotations.Test;
 
 public class Crc32cChecksumTest {
 
@@ -69,8 +66,8 @@ public class Crc32cChecksumTest {
         ByteBuf payload = Unpooled.wrappedBuffer(inputBytes);
 
         // compute checksum using sse4.2 hw instruction
-        int hw = HARDWARE_CRC32C_HASH.calculate(payload.array(), payload.arrayOffset() + payload.readerIndex(),
-                payload.readableBytes());
+        int hw = HARDWARE_CRC32C_HASH.calculate(
+                payload.array(), payload.arrayOffset() + payload.readerIndex(), payload.readableBytes());
         assertEquals(hw, expectedChecksum);
     }
 
@@ -79,8 +76,8 @@ public class Crc32cChecksumTest {
         ByteBuf payload = Unpooled.wrappedBuffer(inputBytes);
 
         // compute checksum using sw algo
-        int sw = SOFTWARE_CRC32C_HASH.calculate(payload.array(), payload.arrayOffset() + payload.readerIndex(),
-                payload.readableBytes());
+        int sw = SOFTWARE_CRC32C_HASH.calculate(
+                payload.array(), payload.arrayOffset() + payload.readerIndex(), payload.readableBytes());
         assertEquals(sw, expectedChecksum);
     }
 
@@ -151,7 +148,5 @@ public class Crc32cChecksumTest {
         incrementalChecksum = Crc32cIntChecksum.resumeChecksum(checksum, payload);
         assertEquals(expectedChecksum, incrementalChecksum);
         payload.release();
-
     }
-
 }

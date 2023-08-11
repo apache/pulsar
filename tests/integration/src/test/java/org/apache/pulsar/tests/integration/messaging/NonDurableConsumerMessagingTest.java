@@ -37,13 +37,13 @@ public class NonDurableConsumerMessagingTest extends MessagingBase {
     public void testNonDurableConsumer(Supplier<String> serviceUrl) throws Exception {
         final String topicName = getNonPartitionedTopic("test-non-durable-consumer", false);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         int numMessages = 20;
 
-        try (final Producer<byte[]> producer = client.newProducer()
-            .topic(topicName)
-            .create()) {
+        try (final Producer<byte[]> producer =
+                client.newProducer().topic(topicName).create()) {
 
             IntStream.range(0, numMessages).forEach(i -> {
                 String payload = "message-" + i;
@@ -53,11 +53,11 @@ public class NonDurableConsumerMessagingTest extends MessagingBase {
             producer.flush();
 
             try (final Consumer<byte[]> consumer = client.newConsumer()
-                .topic(topicName)
-                .subscriptionName("non-durable-consumer")
-                .subscriptionMode(SubscriptionMode.NonDurable)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe()) {
+                    .topic(topicName)
+                    .subscriptionName("non-durable-consumer")
+                    .subscriptionMode(SubscriptionMode.NonDurable)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe()) {
 
                 for (int i = 0; i < numMessages; i++) {
                     Message<byte[]> msg = consumer.receive();
@@ -65,6 +65,5 @@ public class NonDurableConsumerMessagingTest extends MessagingBase {
                 }
             }
         }
-
     }
 }

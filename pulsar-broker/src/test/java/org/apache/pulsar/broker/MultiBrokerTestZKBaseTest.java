@@ -59,10 +59,13 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     }
 
     @NotNull
-    protected MetadataStoreExtended createMetadataStore(String metadataStoreName)  {
+    protected MetadataStoreExtended createMetadataStore(String metadataStoreName) {
         try {
-            return MetadataStoreExtended.create(testZKServer.getConnectionString(),
-                    MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
+            return MetadataStoreExtended.create(
+                    testZKServer.getConnectionString(),
+                    MetadataStoreConfig.builder()
+                            .metadataStoreName(metadataStoreName)
+                            .build());
         } catch (MetadataStoreException e) {
             throw new RuntimeException(e);
         }

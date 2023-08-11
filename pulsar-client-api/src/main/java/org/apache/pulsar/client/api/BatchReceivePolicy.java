@@ -57,14 +57,18 @@ public class BatchReceivePolicy implements Serializable {
      * Max number of bytes: 10MB
      * Timeout: 100ms<p/>
      */
-    public static final BatchReceivePolicy DEFAULT_POLICY = new BatchReceivePolicy(
-            -1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS, true);
+    public static final BatchReceivePolicy DEFAULT_POLICY =
+            new BatchReceivePolicy(-1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS, true);
 
-    public static final BatchReceivePolicy DEFAULT_MULTI_TOPICS_DISABLE_POLICY = new BatchReceivePolicy(
-            -1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS, false);
+    public static final BatchReceivePolicy DEFAULT_MULTI_TOPICS_DISABLE_POLICY =
+            new BatchReceivePolicy(-1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS, false);
 
-    private BatchReceivePolicy(int maxNumMessages, int maxNumBytes, int timeout, TimeUnit timeoutUnit,
-                               boolean messagesFromMultiTopicsEnabled) {
+    private BatchReceivePolicy(
+            int maxNumMessages,
+            int maxNumBytes,
+            int timeout,
+            TimeUnit timeoutUnit,
+            boolean messagesFromMultiTopicsEnabled) {
         this.maxNumMessages = maxNumMessages;
         this.maxNumBytes = maxNumBytes;
         this.timeout = timeout;
@@ -86,8 +90,8 @@ public class BatchReceivePolicy implements Serializable {
      * timeout for waiting for enough messages(enough number or enough bytes).
      */
     private final int timeout;
-    private final TimeUnit timeoutUnit;
 
+    private final TimeUnit timeoutUnit;
 
     /**
      * If it is false, one time `batchReceive()` only can receive the single topic messages,
@@ -97,8 +101,8 @@ public class BatchReceivePolicy implements Serializable {
 
     public void verify() {
         if (maxNumMessages <= 0 && maxNumBytes <= 0 && timeout <= 0) {
-            throw new IllegalArgumentException("At least "
-                    + "one of maxNumMessages, maxNumBytes, timeout must be specified.");
+            throw new IllegalArgumentException(
+                    "At least " + "one of maxNumMessages, maxNumBytes, timeout must be specified.");
         }
         if (timeout > 0 && timeoutUnit == null) {
             throw new IllegalArgumentException("Must set timeout unit for timeout.");
@@ -154,8 +158,8 @@ public class BatchReceivePolicy implements Serializable {
         }
 
         public BatchReceivePolicy build() {
-            return new BatchReceivePolicy(maxNumMessages, maxNumBytes, timeout, timeoutUnit,
-                    messagesFromMultiTopicsEnabled);
+            return new BatchReceivePolicy(
+                    maxNumMessages, maxNumBytes, timeout, timeoutUnit, messagesFromMultiTopicsEnabled);
         }
     }
 

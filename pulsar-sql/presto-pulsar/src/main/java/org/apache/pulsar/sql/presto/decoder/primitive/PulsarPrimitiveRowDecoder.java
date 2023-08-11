@@ -75,18 +75,21 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
             Type type = columnHandle.getType();
             if (type instanceof BooleanType) {
                 primitiveColumn.put(columnHandle, booleanValueProvider(Boolean.valueOf((Boolean) value)));
-            } else if (type instanceof TinyintType || type instanceof SmallintType || type instanceof IntegerType
+            } else if (type instanceof TinyintType
+                    || type instanceof SmallintType
+                    || type instanceof IntegerType
                     || type instanceof BigintType) {
                 primitiveColumn.put(columnHandle, longValueProvider(Long.parseLong(value.toString())));
             } else if (type instanceof DoubleType) {
                 primitiveColumn.put(columnHandle, doubleValueProvider(Double.parseDouble(value.toString())));
             } else if (type instanceof RealType) {
-                primitiveColumn.put(columnHandle, longValueProvider(
-                        Float.floatToIntBits((Float.parseFloat(value.toString())))));
+                primitiveColumn.put(
+                        columnHandle, longValueProvider(Float.floatToIntBits((Float.parseFloat(value.toString())))));
             } else if (type instanceof VarbinaryType) {
                 primitiveColumn.put(columnHandle, bytesValueProvider((byte[]) value));
             } else if (type instanceof VarcharType) {
-                primitiveColumn.put(columnHandle, bytesValueProvider(value.toString().getBytes()));
+                primitiveColumn.put(
+                        columnHandle, bytesValueProvider(value.toString().getBytes()));
             } else if (type instanceof DateType) {
                 primitiveColumn.put(columnHandle, longValueProvider(((Date) value).getTime()));
             } else if (type instanceof TimeType) {
@@ -98,7 +101,8 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
                 final long micros = millis * Timestamps.MICROSECONDS_PER_MILLISECOND;
                 primitiveColumn.put(columnHandle, longValueProvider(micros));
             } else {
-                primitiveColumn.put(columnHandle, bytesValueProvider(value.toString().getBytes()));
+                primitiveColumn.put(
+                        columnHandle, bytesValueProvider(value.toString().getBytes()));
             }
         }
         return Optional.of(primitiveColumn);

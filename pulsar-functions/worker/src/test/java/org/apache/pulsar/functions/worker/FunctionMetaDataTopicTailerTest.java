@@ -60,8 +60,8 @@ public class FunctionMetaDataTopicTailerTest {
         when(readerBuilder.subscriptionRolePrefix(anyString())).thenReturn(readerBuilder);
         when(readerBuilder.create()).thenReturn(reader);
         this.fsm = mock(FunctionMetaDataManager.class);
-        this.fsc = new FunctionMetaDataTopicTailer(fsm, readerBuilder, new WorkerConfig(), MessageId.earliest,
-                ErrorNotifier.getDefaultImpl());
+        this.fsc = new FunctionMetaDataTopicTailer(
+                fsm, readerBuilder, new WorkerConfig(), MessageId.earliest, ErrorNotifier.getDefaultImpl());
     }
 
     @AfterMethod(alwaysRun = true)

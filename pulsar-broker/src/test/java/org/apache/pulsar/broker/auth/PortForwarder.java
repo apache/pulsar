@@ -68,10 +68,12 @@ public class PortForwarder implements AutoCloseable {
                     .childHandler(new Initializer())
                     .childOption(ChannelOption.AUTO_READ, false)
                     .option(ChannelOption.SO_REUSEADDR, true)
-                    .bind(listenAddress).sync().channel();
+                    .bind(listenAddress)
+                    .sync()
+                    .channel();
 
             LOG.info("Started port forwarding service on {}, target: {}", listenAddress, targetAddress);
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(String.format("failed to bind to %s: %s", listenAddress, e.getMessage()), e);
         }
     }

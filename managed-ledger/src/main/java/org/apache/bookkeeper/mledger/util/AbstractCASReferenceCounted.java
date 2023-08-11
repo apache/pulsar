@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 /**
  * Abstract base class for classes wants to implement {@link ReferenceCounted}.
  */
-
 public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     private static final AtomicIntegerFieldUpdater<AbstractCASReferenceCounted> refCntUpdater =
             AtomicIntegerFieldUpdater.newUpdater(AbstractCASReferenceCounted.class, "refCnt");
@@ -60,7 +59,7 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     }
 
     private ReferenceCounted retain0(int increment) {
-        for (;;) {
+        for (; ; ) {
             int refCnt = this.refCnt;
             final int nextCnt = refCnt + increment;
 
@@ -91,7 +90,7 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     }
 
     private boolean release0(int decrement) {
-        for (;;) {
+        for (; ; ) {
             int refCnt = this.refCnt;
             if (refCnt < decrement) {
                 throw new IllegalReferenceCountException(refCnt, -decrement);

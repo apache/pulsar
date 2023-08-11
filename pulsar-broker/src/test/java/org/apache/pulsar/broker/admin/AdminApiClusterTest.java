@@ -46,7 +46,11 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
         admin.clusters()
-                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                .createCluster(
+                        CLUSTER,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -59,8 +63,11 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     public void testCreateClusterBadRequest() {
         try {
             admin.clusters()
-                    .createCluster("bad_request", ClusterData.builder()
-                            .serviceUrl("pulsar://example.com").build());
+                    .createCluster(
+                            "bad_request",
+                            ClusterData.builder()
+                                    .serviceUrl("pulsar://example.com")
+                                    .build());
             fail("Unexpected behaviour");
         } catch (PulsarAdminException ex) {
             assertEquals(ex.getStatusCode(), 400);
@@ -71,7 +78,8 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     public void testDeleteNonExistCluster() {
         String cluster = "test-non-exist-cluster-" + UUID.randomUUID();
 
-        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.clusters().deleteCluster(cluster));
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.clusters()
+                .deleteCluster(cluster));
     }
 
     @Test
@@ -79,7 +87,11 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
         String cluster = "test-exist-cluster-" + UUID.randomUUID();
 
         admin.clusters()
-                .createCluster(cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                .createCluster(
+                        cluster,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.clusters().getCluster(cluster)));
 
         admin.clusters().deleteCluster(cluster);
@@ -87,23 +99,21 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteNonExistentFailureDomain() {
-        assertThrows(PulsarAdminException.NotFoundException.class,
-                () -> admin.clusters().deleteFailureDomain(CLUSTER, "non-existent-failure-domain"));
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.clusters()
+                .deleteFailureDomain(CLUSTER, "non-existent-failure-domain"));
     }
 
     @Test
     public void testDeleteNonExistentFailureDomainInNonExistCluster() {
-        assertThrows(PulsarAdminException.PreconditionFailedException.class,
-                () -> admin.clusters().deleteFailureDomain(CLUSTER + UUID.randomUUID(),
-                        "non-existent-failure-domain"));
+        assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> admin.clusters()
+                .deleteFailureDomain(CLUSTER + UUID.randomUUID(), "non-existent-failure-domain"));
     }
 
     @Test
     public void testDeleteExistFailureDomain() throws PulsarAdminException {
         String domainName = CLUSTER + "-failure-domain";
-        FailureDomain domain = FailureDomain.builder()
-                .brokers(Set.of("b1", "b2", "b3"))
-                .build();
+        FailureDomain domain =
+                FailureDomain.builder().brokers(Set.of("b1", "b2", "b3")).build();
         admin.clusters().createFailureDomain(CLUSTER, domainName, domain);
         Awaitility.await().untilAsserted(() -> admin.clusters().getFailureDomain(CLUSTER, domainName));
 

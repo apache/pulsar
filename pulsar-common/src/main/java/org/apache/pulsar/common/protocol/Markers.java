@@ -80,7 +80,8 @@ public class Markers {
             };
 
     private static ByteBuf newMessage(MarkerType markerType, Optional<String> restrictToCluster, ByteBuf payload) {
-        MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA.get()
+        MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA
+                .get()
                 .clear()
                 .setPublishTime(System.currentTimeMillis())
                 .setProducerName("pulsar.marker")
@@ -105,10 +106,8 @@ public class Markers {
     }
 
     public static ByteBuf newReplicatedSubscriptionsSnapshotRequest(String snapshotId, String sourceCluster) {
-        ReplicatedSubscriptionsSnapshotRequest req = LOCAL_SNAPSHOT_REQUEST.get()
-                .clear()
-                .setSnapshotId(snapshotId)
-                .setSourceCluster(sourceCluster);
+        ReplicatedSubscriptionsSnapshotRequest req =
+                LOCAL_SNAPSHOT_REQUEST.get().clear().setSnapshotId(snapshotId).setSourceCluster(sourceCluster);
         ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(req.getSerializedSize());
 
         try {
@@ -126,13 +125,11 @@ public class Markers {
         return req;
     }
 
-    public static ByteBuf newReplicatedSubscriptionsSnapshotResponse(String snapshotId, String replyToCluster,
-            String cluster, long ledgerId, long entryId) {
-        ReplicatedSubscriptionsSnapshotResponse response = LOCAL_SNAPSHOT_RESPONSE.get()
-                .clear()
-                .setSnapshotId(snapshotId);
-        response
-                .setCluster()
+    public static ByteBuf newReplicatedSubscriptionsSnapshotResponse(
+            String snapshotId, String replyToCluster, String cluster, long ledgerId, long entryId) {
+        ReplicatedSubscriptionsSnapshotResponse response =
+                LOCAL_SNAPSHOT_RESPONSE.get().clear().setSnapshotId(snapshotId);
+        response.setCluster()
                 .setCluster(cluster)
                 .setMessageId()
                 .setLedgerId(ledgerId)
@@ -141,8 +138,8 @@ public class Markers {
         ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(response.getSerializedSize());
         try {
             response.writeTo(payload);
-            return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE, Optional.of(replyToCluster),
-                    payload);
+            return newMessage(
+                    MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE, Optional.of(replyToCluster), payload);
         } finally {
             payload.release();
         }
@@ -156,19 +153,17 @@ public class Markers {
     }
 
     @SneakyThrows
-    public static ByteBuf newReplicatedSubscriptionsSnapshot(String snapshotId, String sourceCluster, long ledgerId,
-            long entryId, Map<String, MarkersMessageIdData> clusterIds) {
-        ReplicatedSubscriptionsSnapshot snapshot = LOCAL_SNAPSHOT.get()
-                .clear()
-                .setSnapshotId(snapshotId);
-        snapshot.setLocalMessageId()
-                .setLedgerId(ledgerId)
-                .setEntryId(entryId);
+    public static ByteBuf newReplicatedSubscriptionsSnapshot(
+            String snapshotId,
+            String sourceCluster,
+            long ledgerId,
+            long entryId,
+            Map<String, MarkersMessageIdData> clusterIds) {
+        ReplicatedSubscriptionsSnapshot snapshot = LOCAL_SNAPSHOT.get().clear().setSnapshotId(snapshotId);
+        snapshot.setLocalMessageId().setLedgerId(ledgerId).setEntryId(entryId);
 
         clusterIds.forEach((cluster, msgId) -> {
-            snapshot.addCluster()
-                    .setCluster(cluster)
-                    .setMessageId().copyFrom(msgId);
+            snapshot.addCluster().setCluster(cluster).setMessageId().copyFrom(msgId);
         });
 
         int size = snapshot.getSerializedSize();
@@ -189,16 +184,13 @@ public class Markers {
     }
 
     @SneakyThrows
-    public static ByteBuf newReplicatedSubscriptionsUpdate(String subscriptionName,
-        Map<String, MarkersMessageIdData> clusterIds) {
-        ReplicatedSubscriptionsUpdate update = LOCAL_SUBSCRIPTION_UPDATE.get()
-                .clear()
-                .setSubscriptionName(subscriptionName);
+    public static ByteBuf newReplicatedSubscriptionsUpdate(
+            String subscriptionName, Map<String, MarkersMessageIdData> clusterIds) {
+        ReplicatedSubscriptionsUpdate update =
+                LOCAL_SUBSCRIPTION_UPDATE.get().clear().setSubscriptionName(subscriptionName);
 
         clusterIds.forEach((cluster, msgId) -> {
-            update.addCluster()
-                    .setCluster(cluster)
-                    .setMessageId().copyFrom(msgId);
+            update.addCluster().setCluster(cluster).setMessageId().copyFrom(msgId);
         });
 
         ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(update.getSerializedSize());
@@ -219,37 +211,34 @@ public class Markers {
 
     public static boolean isTxnCommitMarker(MessageMetadata msgMetadata) {
         return msgMetadata != null
-               && msgMetadata.hasMarkerType()
-               && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT.getValue();
+                && msgMetadata.hasMarkerType()
+                && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT.getValue();
     }
 
     public static boolean isTxnMarker(MessageMetadata msgMetadata) {
         return msgMetadata != null
                 && msgMetadata.hasMarkerType()
                 && (msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT.getValue()
-                || msgMetadata.getMarkerType() == MarkerType.TXN_ABORT.getValue());
+                        || msgMetadata.getMarkerType() == MarkerType.TXN_ABORT.getValue());
     }
 
-    public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
-                                             long txnLeastBits) {
+    public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits, long txnLeastBits) {
         return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits);
     }
 
     public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
         return msgMetadata != null
-               && msgMetadata.hasMarkerType()
-               && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT.getValue();
+                && msgMetadata.hasMarkerType()
+                && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT.getValue();
     }
 
-    public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
-                                            long txnLeastBits) {
-        return newTxnMarker(
-                MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits);
+    public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits, long txnLeastBits) {
+        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits);
     }
 
-    private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
-                                        long txnLeastBits) {
-        MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA.get()
+    private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits, long txnLeastBits) {
+        MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA
+                .get()
                 .clear()
                 .setPublishTime(System.currentTimeMillis())
                 .setProducerName("pulsar.txn.marker")
@@ -261,8 +250,7 @@ public class Markers {
         ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(0);
 
         try {
-            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c,
-                    msgMetadata, payload);
+            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
         } finally {
             payload.release();
         }

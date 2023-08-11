@@ -35,15 +35,14 @@ public class GenericAvroSchema extends GenericSchemaImpl {
         this(schemaInfo, true);
     }
 
-    GenericAvroSchema(SchemaInfo schemaInfo,
-                      boolean useProvidedSchemaAsReaderSchema) {
+    GenericAvroSchema(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo);
         setReader(new MultiVersionGenericAvroReader(useProvidedSchemaAsReaderSchema, schema));
         setWriter(new GenericAvroWriter(schema));
 
         if (schemaInfo.getProperties().containsKey(GenericAvroSchema.OFFSET_PROP)) {
-            this.schema.addProp(GenericAvroSchema.OFFSET_PROP,
-                    schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));
+            this.schema.addProp(
+                    GenericAvroSchema.OFFSET_PROP, schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));
         }
     }
 
@@ -59,9 +58,8 @@ public class GenericAvroSchema extends GenericSchemaImpl {
 
     @Override
     public org.apache.pulsar.client.api.Schema<GenericRecord> clone() {
-        org.apache.pulsar.client.api.Schema<GenericRecord> schema =
-                GenericAvroSchema.of(schemaInfo,
-                        ((AbstractMultiVersionGenericReader) reader).useProvidedSchemaAsReaderSchema);
+        org.apache.pulsar.client.api.Schema<GenericRecord> schema = GenericAvroSchema.of(
+                schemaInfo, ((AbstractMultiVersionGenericReader) reader).useProvidedSchemaAsReaderSchema);
         if (schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
         }

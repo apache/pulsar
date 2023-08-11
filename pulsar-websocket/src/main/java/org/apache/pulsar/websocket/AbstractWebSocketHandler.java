@@ -75,9 +75,8 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     private ScheduledFuture<?> pingFuture;
 
-    public AbstractWebSocketHandler(WebSocketService service,
-                                    HttpServletRequest request,
-                                    ServletUpgradeResponse response) {
+    public AbstractWebSocketHandler(
+            WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
         this.request = new WebSocketHttpServletRequestWrapper(request);
         this.topic = extractTopicName(request);
@@ -97,7 +96,8 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                 if (authMethodName != null
                         && service.getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
                     authenticationState = service.getAuthenticationService()
-                            .getAuthenticationProvider(authMethodName).newHttpAuthState(request);
+                            .getAuthenticationProvider(authMethodName)
+                            .newHttpAuthState(request);
                 }
                 if (authenticationState != null) {
                     authRole = service.getAuthenticationService()
@@ -105,17 +105,30 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                 } else {
                     authRole = service.getAuthenticationService().authenticateHttpRequest(request);
                 }
-                log.info("[{}:{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(),
-                        request.getRemotePort(), authRole, topic);
+                log.info(
+                        "[{}:{}] Authenticated WebSocket client {} on topic {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        authRole,
+                        topic);
 
             } catch (javax.naming.AuthenticationException e) {
-                log.warn("[{}:{}] Failed to authenticated WebSocket client {} on topic {}: {}", request.getRemoteAddr(),
-                        request.getRemotePort(), authRole, topic, e.getMessage());
+                log.warn(
+                        "[{}:{}] Failed to authenticated WebSocket client {} on topic {}: {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        authRole,
+                        topic,
+                        e.getMessage());
                 try {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Failed to authenticate");
                 } catch (IOException e1) {
-                    log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                            e1.getMessage(), e1);
+                    log.warn(
+                            "[{}:{}] Failed to send error: {}",
+                            request.getRemoteAddr(),
+                            request.getRemotePort(),
+                            e1.getMessage(),
+                            e1);
                 }
                 return false;
             }
@@ -130,19 +143,32 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             }
             try {
                 if (!isAuthorized(authRole, authenticationData)) {
-                    log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
-                            request.getRemotePort(), authRole, topic);
+                    log.warn(
+                            "[{}:{}] WebSocket Client [{}] is not authorized on topic {}",
+                            request.getRemoteAddr(),
+                            request.getRemotePort(),
+                            authRole,
+                            topic);
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not authorized");
                     return false;
                 }
             } catch (Exception e) {
-                log.warn("[{}:{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
-                        request.getRemoteAddr(), request.getRemotePort(), authRole, topic, e.getMessage());
+                log.warn(
+                        "[{}:{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        authRole,
+                        topic,
+                        e.getMessage());
                 try {
                     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Server error");
                 } catch (IOException e1) {
-                    log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                            e1.getMessage(), e1);
+                    log.warn(
+                            "[{}:{}] Failed to send error: {}",
+                            request.getRemoteAddr(),
+                            request.getRemotePort(),
+                            e1.getMessage(),
+                            e1);
                 }
                 return false;
             }
@@ -159,12 +185,15 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             return HttpServletResponse.SC_FORBIDDEN;
         } else if (e instanceof NotFoundException || e instanceof TopicDoesNotExistException) {
             return HttpServletResponse.SC_NOT_FOUND;
-        } else if (e instanceof ProducerBusyException || e instanceof ConsumerBusyException
-                || e instanceof ProducerFencedException || e instanceof IncompatibleSchemaException) {
+        } else if (e instanceof ProducerBusyException
+                || e instanceof ConsumerBusyException
+                || e instanceof ProducerFencedException
+                || e instanceof IncompatibleSchemaException) {
             return HttpServletResponse.SC_CONFLICT;
         } else if (e instanceof TooManyRequestsException) {
             return 429; // Too Many Requests
-        } else if (e instanceof ProducerBlockedQuotaExceededError || e instanceof ProducerBlockedQuotaExceededException
+        } else if (e instanceof ProducerBlockedQuotaExceededError
+                || e instanceof ProducerBlockedQuotaExceededException
                 || e instanceof TopicTerminatedException) {
             return HttpServletResponse.SC_SERVICE_UNAVAILABLE;
         } else if (e instanceof TimeoutException) {
@@ -193,13 +222,22 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         super.onWebSocketConnect(session);
         int webSocketPingDurationSeconds = service.getConfig().getWebSocketPingDurationSeconds();
         if (webSocketPingDurationSeconds > 0) {
-            pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
-                try {
-                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
-                } catch (IOException e) {
-                    log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
-                }
-            }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
+            pingFuture = service.getExecutor()
+                    .scheduleAtFixedRate(
+                            () -> {
+                                try {
+                                    session.getRemote()
+                                            .sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
+                                } catch (IOException e) {
+                                    log.warn(
+                                            "[{}] WebSocket send ping",
+                                            getSession().getRemoteAddress(),
+                                            e);
+                                }
+                            },
+                            webSocketPingDurationSeconds,
+                            webSocketPingDurationSeconds,
+                            TimeUnit.SECONDS);
         }
         log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }
@@ -218,8 +256,12 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     @Override
     public void onWebSocketClose(int statusCode, String reason) {
-        log.info("[{}] Closed WebSocket session on topic {}. status: {} - reason: {}", getSession().getRemoteAddress(),
-                topic, statusCode, reason);
+        log.info(
+                "[{}] Closed WebSocket session on topic {}. status: {} - reason: {}",
+                getSession().getRemoteAddress(),
+                topic,
+                statusCode,
+                reason);
         try {
             closePingFuture();
             close();
@@ -229,14 +271,22 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     }
 
     public void close(WebSocketError error) {
-        log.warn("[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
-                getSession().getRemoteAddress(), topic, error.getCode(), error.getDescription());
+        log.warn(
+                "[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
+                getSession().getRemoteAddress(),
+                topic,
+                error.getCode(),
+                error.getDescription());
         getSession().close(error.getCode(), error.getDescription());
     }
 
     public void close(WebSocketError error, String message) {
-        log.warn("[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
-                getSession().getRemoteAddress(), topic, error.getCode(), error.getDescription() + ": " + message);
+        log.warn(
+                "[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
+                getSession().getRemoteAddress(),
+                topic,
+                error.getCode(),
+                error.getDescription() + ": " + message);
         getSession().close(error.getCode(), error.getDescription() + ": " + message);
     }
 
@@ -271,8 +321,9 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                 || parts.get(domainIndex).equals("non-persistent"));
 
         final String domain = parts.get(domainIndex);
-        final NamespaceName namespace = isV2Format ? NamespaceName.get(parts.get(5), parts.get(6)) :
-                NamespaceName.get(parts.get(4), parts.get(5), parts.get(6));
+        final NamespaceName namespace = isV2Format
+                ? NamespaceName.get(parts.get(5), parts.get(6))
+                : NamespaceName.get(parts.get(4), parts.get(5), parts.get(6));
 
         // The topic name which contains slashes is also split, so it needs to be jointed
         int startPosition = 7;
@@ -281,7 +332,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         StringBuilder topicName = new StringBuilder(parts.get(startPosition));
         while (++startPosition < endPosition) {
             if (StringUtils.isEmpty(parts.get(startPosition))) {
-               continue;
+                continue;
             }
             topicName.append("/").append(parts.get(startPosition));
         }
@@ -295,9 +346,8 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return pingFuture;
     }
 
-
-    protected abstract Boolean isAuthorized(String authRole,
-                                            AuthenticationDataSource authenticationData) throws Exception;
+    protected abstract Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData)
+            throws Exception;
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 

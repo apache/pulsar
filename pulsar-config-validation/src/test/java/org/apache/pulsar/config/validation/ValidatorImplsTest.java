@@ -19,14 +19,13 @@
 package org.apache.pulsar.config.validation;
 
 import static org.testng.Assert.assertThrows;
-import org.testng.annotations.Test;
-
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.testng.annotations.Test;
 
 public class ValidatorImplsTest {
     @Test
@@ -80,7 +79,7 @@ public class ValidatorImplsTest {
         mixedList.add(true);
         mixedList.add("false");
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", mixedList));
-   }
+    }
 
     @Test
     public void testMapEntryTypeValidator() {
@@ -111,24 +110,26 @@ public class ValidatorImplsTest {
         ValidatorImpls.ImplementsClassValidator validator = new ValidatorImpls.ImplementsClassValidator(config);
         validator.validateField("fieldname", SocketAddress.class.getName());
         validator.validateField("fieldname", InetSocketAddress.class.getName());
-        assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", String.class.getName()));
+        assertThrows(
+                IllegalArgumentException.class, () -> validator.validateField("fieldname", String.class.getName()));
     }
 
     @Test
     public void testImplementsClassesValidator() {
         Map<String, Object> config = new HashMap<>();
-        Class<?> clazzes [] = new Class<?>[] {String.class, Integer.class};
+        Class<?> clazzes[] = new Class<?>[] {String.class, Integer.class};
         config.put(ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASSES, clazzes);
         ValidatorImpls.ImplementsClassesValidator validator = new ValidatorImpls.ImplementsClassesValidator(config);
         validator.validateField("fieldname", String.class.getName());
         validator.validateField("fieldname", Integer.class.getName());
-        assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", Boolean.class.getName()));
+        assertThrows(
+                IllegalArgumentException.class, () -> validator.validateField("fieldname", Boolean.class.getName()));
     }
 
     @Test
     public void testStringValidator() {
         Map<String, Object> config = new HashMap<>();
-        String accepted [] = new String[] {"good", "bad", "ugly"};
+        String accepted[] = new String[] {"good", "bad", "ugly"};
         config.put(ConfigValidationAnnotations.ValidatorParams.ACCEPTED_VALUES, accepted);
         ValidatorImpls.StringValidator validator = new ValidatorImpls.StringValidator(config);
         validator.validateField("fieldname", "good");

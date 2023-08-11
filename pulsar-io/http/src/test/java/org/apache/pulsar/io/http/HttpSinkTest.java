@@ -67,8 +67,7 @@ public class HttpSinkTest {
         server = new WireMockServer(0);
         server.start();
         configureFor(server.port());
-        stubFor(post(urlPathEqualTo("/"))
-            .willReturn(aResponse().withStatus(200)));
+        stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(200)));
     }
 
     @AfterClass
@@ -78,7 +77,7 @@ public class HttpSinkTest {
 
     @DataProvider(name = "primitives")
     public Object[][] primitives() {
-        return new Object[][]{
+        return new Object[][] {
             new Object[] {Schema.STRING, "test-string", "\"test-string\""},
             new Object[] {Schema.INT8, (byte) 42, "42"},
             new Object[] {Schema.INT16, (short) 42, "42"},
@@ -115,9 +114,8 @@ public class HttpSinkTest {
 
     @DataProvider(name = "schema")
     public Object[][] schema() {
-        return new Object[][]{
-            new Object[]{Schema.JSON(Object.class)},
-            new Object[]{Schema.AVRO(Object.class)},
+        return new Object[][] {
+            new Object[] {Schema.JSON(Object.class)}, new Object[] {Schema.AVRO(Object.class)},
         };
     }
 
@@ -135,24 +133,32 @@ public class HttpSinkTest {
         udtSchemaBuilder.field("i").type(SchemaType.INT32).optional().defaultValue(null);
         udtSchemaBuilder.field("l").type(SchemaType.INT64).optional().defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
-        valueSchemaBuilder.field("e", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        valueSchemaBuilder
+                .field("e", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
-            .set("c", "1")
-            .set("d", 1)
-            .set("e", udtGenericSchema.newRecordBuilder()
-                .set("a", "a")
-                .set("b", true)
-                .set("d", 1.0)
-                .set("f", 1.0f)
-                .set("i", 1)
-                .set("l", 10L)
-                .build())
-            .build();
+        GenericRecord valueGenericRecord = valueSchema
+                .newRecordBuilder()
+                .set("c", "1")
+                .set("d", 1)
+                .set(
+                        "e",
+                        udtGenericSchema
+                                .newRecordBuilder()
+                                .set("a", "a")
+                                .set("b", true)
+                                .set("d", 1.0)
+                                .set("f", 1.0f)
+                                .set("i", 1)
+                                .set("l", 10L)
+                                .build())
+                .build();
 
         String responseBody =
-            "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}";
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}";
         test(schema, valueGenericRecord, responseBody);
     }
 
@@ -180,10 +186,8 @@ public class HttpSinkTest {
         keySchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);
         keySchemaBuilder.field("b").type(SchemaType.INT32).optional().defaultValue(null);
         GenericSchema<GenericRecord> keySchema = Schema.generic(keySchemaBuilder.build(schemaType));
-        GenericRecord keyGenericRecord = keySchema.newRecordBuilder()
-            .set("a", "1")
-            .set("b", 1)
-            .build();
+        GenericRecord keyGenericRecord =
+                keySchema.newRecordBuilder().set("a", "1").set("b", 1).build();
 
         RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
         valueSchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
@@ -196,23 +200,32 @@ public class HttpSinkTest {
         udtSchemaBuilder.field("i").type(SchemaType.INT32).optional().defaultValue(null);
         udtSchemaBuilder.field("l").type(SchemaType.INT64).optional().defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
-        valueSchemaBuilder.field("e", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        valueSchemaBuilder
+                .field("e", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
-            .set("c", "1")
-            .set("d", 1)
-            .set("e", udtGenericSchema.newRecordBuilder()
-                .set("a", "a")
-                .set("b", true)
-                .set("d", 1.0)
-                .set("f", 1.0f)
-                .set("i", 1)
-                .set("l", 10L)
-                .build())
-            .build();
+        GenericRecord valueGenericRecord = valueSchema
+                .newRecordBuilder()
+                .set("c", "1")
+                .set("d", 1)
+                .set(
+                        "e",
+                        udtGenericSchema
+                                .newRecordBuilder()
+                                .set("a", "a")
+                                .set("b", true)
+                                .set("d", 1.0)
+                                .set("f", 1.0f)
+                                .set("i", 1)
+                                .set("l", 10L)
+                                .build())
+                .build();
 
-        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema = Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema =
+                Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
         KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyGenericRecord, valueGenericRecord);
         GenericObject genericObject = new GenericObject() {
             @Override
@@ -226,7 +239,7 @@ public class HttpSinkTest {
             }
         };
         String responseBody = "{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,"
-            + "\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}}";
+                + "\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}}";
         test(keyValueSchema, genericObject, responseBody);
     }
 
@@ -394,9 +407,7 @@ public class HttpSinkTest {
                     }
 
                     @Override
-                    public void release() {
-
-                    }
+                    public void release() {}
 
                     @Override
                     public boolean hasBrokerPublishTime() {
@@ -423,22 +434,20 @@ public class HttpSinkTest {
         httpSink.write(record);
 
         verify(postRequestedFor(urlEqualTo("/"))
-            .withRequestBody(equalTo(responseBody))
-            .withHeader("Content-Type", equalTo("application/json"))
-            .withHeader("header-name", equalTo("header-value"))
-            .withHeader("PulsarTopic", equalTo("test-topic"))
-            .withHeader("PulsarKey", equalTo("test-key"))
-            .withHeader("PulsarEventTime", equalTo("1662418008000"))
-            .withHeader("PulsarPublishTime", equalTo("1662418008001"))
-            .withHeader("PulsarMessageId", equalTo("CAEQAhgDMAA="))
-            .withHeader("PulsarProperties-prop-name", equalTo("prop-value"))
-        );
+                .withRequestBody(equalTo(responseBody))
+                .withHeader("Content-Type", equalTo("application/json"))
+                .withHeader("header-name", equalTo("header-value"))
+                .withHeader("PulsarTopic", equalTo("test-topic"))
+                .withHeader("PulsarKey", equalTo("test-key"))
+                .withHeader("PulsarEventTime", equalTo("1662418008000"))
+                .withHeader("PulsarPublishTime", equalTo("1662418008001"))
+                .withHeader("PulsarMessageId", equalTo("CAEQAhgDMAA="))
+                .withHeader("PulsarProperties-prop-name", equalTo("prop-value")));
     }
 
     @Test(expectedExceptions = IOException.class)
     public void testRequestFailure() throws Exception {
-        stubFor(post(urlPathEqualTo("/"))
-            .willReturn(aResponse().withStatus(500)));
+        stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(500)));
 
         testKeyValuePrimitives();
     }

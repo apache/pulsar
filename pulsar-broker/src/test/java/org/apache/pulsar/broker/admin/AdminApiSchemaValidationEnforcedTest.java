@@ -49,7 +49,12 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
     }
@@ -124,14 +129,13 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         assertEquals(actual.getSchemaDefinition(), expected.getSchemaDefinition());
     }
 
-
     @Test
     public void testEnableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/enable-no-schema");
         String namespace = "schema-validation-enforced/enable-no-schema";
         String topicName = "persistent://schema-validation-enforced/enable-no-schema/test";
         assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace));
-        admin.namespaces().setSchemaValidationEnforced(namespace,true);
+        admin.namespaces().setSchemaValidationEnforced(namespace, true);
         try {
             admin.schemas().getSchemaInfo(topicName);
             fail();
@@ -149,7 +153,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         String namespace = "schema-validation-enforced/enable-has-schema-mismatch";
         String topicName = "persistent://schema-validation-enforced/enable-has-schema-mismatch/test";
         assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace));
-        admin.namespaces().setSchemaValidationEnforced(namespace,true);
+        admin.namespaces().setSchemaValidationEnforced(namespace, true);
         assertTrue(admin.namespaces().getSchemaValidationEnforced(namespace));
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().getStats(topicName);
@@ -171,7 +175,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         admin.schemas().createSchema(topicName, postSchemaPayload);
         try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
             fail("Client no schema, but topic has schema, should fail");
-        }  catch (PulsarClientException e) {
+        } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
         assertEquals(admin.schemas().getSchemaInfo(topicName).getName(), schemaInfo.getName());
@@ -190,7 +194,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         } catch (PulsarAdminException.NotFoundException e) {
             assertEquals(e.getMessage(), "Schema not found");
         }
-        admin.namespaces().setSchemaValidationEnforced(namespace,true);
+        admin.namespaces().setSchemaValidationEnforced(namespace, true);
         Map<String, String> properties = new HashMap<>();
         SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
@@ -200,11 +204,11 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
                 .build();
         PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
         admin.schemas().createSchema(topicName, postSchemaPayload);
-        try (Producer<String> p = pulsarClient.newProducer(Schema.STRING).topic(topicName).create()) {
+        try (Producer<String> p =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).create()) {
             p.send("test schemaValidationEnforced");
         }
         assertEquals(admin.schemas().getSchemaInfo(topicName).getName(), schemaInfo.getName());
         assertEquals(admin.schemas().getSchemaInfo(topicName).getType(), schemaInfo.getType());
     }
-
 }

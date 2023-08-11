@@ -52,9 +52,15 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-tenant",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-tenant", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
     }
 
@@ -66,36 +72,39 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "batchingAndCompression")
     public static Object[][] batchingAndCompression() {
         return new Object[][] {
-                { true, CompressionType.ZLIB },
-                { true, CompressionType.ZSTD },
-                { true, CompressionType.SNAPPY },
-                { true, CompressionType.LZ4 },
-                { true, CompressionType.NONE },
-                { false, CompressionType.ZLIB },
-                { false, CompressionType.ZSTD },
-                { false, CompressionType.SNAPPY },
-                { false, CompressionType.LZ4 },
-                { false, CompressionType.NONE },
+            {true, CompressionType.ZLIB},
+            {true, CompressionType.ZSTD},
+            {true, CompressionType.SNAPPY},
+            {true, CompressionType.LZ4},
+            {true, CompressionType.NONE},
+            {false, CompressionType.ZLIB},
+            {false, CompressionType.ZSTD},
+            {false, CompressionType.SNAPPY},
+            {false, CompressionType.LZ4},
+            {false, CompressionType.NONE},
         };
     }
 
     @Test(dataProvider = "batchingAndCompression")
-    public void testParseMessages(boolean batchEnabled, CompressionType compressionType) throws Exception{
+    public void testParseMessages(boolean batchEnabled, CompressionType compressionType) throws Exception {
         final String topic = "persistent://my-tenant/my-ns/message-parse-test-" + batchEnabled + "-" + compressionType;
         final TopicName topicName = TopicName.get(topic);
 
         final int n = 10;
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .compressionType(compressionType)
                 .enableBatching(batchEnabled)
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .topic(topic)
                 .create();
 
-        ManagedCursor cursor = ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get())
-                .getManagedLedger().newNonDurableCursor(PositionImpl.EARLIEST);
+        ManagedCursor cursor = ((PersistentTopic)
+                        pulsar.getBrokerService().getTopicReference(topic).get())
+                .getManagedLedger()
+                .newNonDurableCursor(PositionImpl.EARLIEST);
 
         if (batchEnabled) {
             for (int i = 0; i < n - 1; i++) {
@@ -116,8 +125,13 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
             ByteBuf headsAndPayload = entry.getDataBuffer();
 
             try {
-                MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(), headsAndPayload,
-                        messages::add, Commands.DEFAULT_MAX_MESSAGE_SIZE);
+                MessageParser.parseMessage(
+                        topicName,
+                        entry.getLedgerId(),
+                        entry.getEntryId(),
+                        headsAndPayload,
+                        messages::add,
+                        Commands.DEFAULT_MAX_MESSAGE_SIZE);
             } finally {
                 entry.release();
             }
@@ -148,8 +162,13 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
             for (Entry entry : entries) {
                 ByteBuf headsAndPayload = entry.getDataBuffer();
                 headsAndPayloadList.add(headsAndPayload);
-                MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(), entry.getDataBuffer(),
-                        messages::add, Commands.DEFAULT_MAX_MESSAGE_SIZE);
+                MessageParser.parseMessage(
+                        topicName,
+                        entry.getLedgerId(),
+                        entry.getEntryId(),
+                        entry.getDataBuffer(),
+                        messages::add,
+                        Commands.DEFAULT_MAX_MESSAGE_SIZE);
                 entry.release();
             }
 

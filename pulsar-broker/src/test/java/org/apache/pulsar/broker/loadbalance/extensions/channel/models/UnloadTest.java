@@ -49,5 +49,4 @@ public class UnloadTest {
     public void testNullServiceUnit() {
         new Unload("A", null);
     }
-
 }

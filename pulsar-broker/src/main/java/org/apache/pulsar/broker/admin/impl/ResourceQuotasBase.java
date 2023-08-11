@@ -32,19 +32,22 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
 
     public CompletableFuture<ResourceQuota> getDefaultResourceQuotaAsync() {
         return validateSuperUserAccessAsync()
-                .thenCompose(__ -> pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota());
+                .thenCompose(
+                        __ -> pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota());
     }
 
     public CompletableFuture<Void> setDefaultResourceQuotaAsync(ResourceQuota quota) {
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota));
+                .thenCompose(
+                        __ -> pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota));
     }
 
     @SuppressWarnings("deprecation")
     protected CompletableFuture<ResourceQuota> internalGetNamespaceBundleResourceQuota(String bundleRange) {
         return getNamespaceBundleRangeAsync(bundleRange, false)
-                .thenCompose(nsBundle -> pulsar().getBrokerService().getBundlesQuotas().getResourceQuota(nsBundle));
+                .thenCompose(nsBundle ->
+                        pulsar().getBrokerService().getBundlesQuotas().getResourceQuota(nsBundle));
     }
 
     @SuppressWarnings("deprecation")
@@ -62,21 +65,19 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
     }
 
     private CompletableFuture<NamespaceBundle> getNamespaceBundleRangeAsync(String bundleRange, boolean checkReadOnly) {
-        CompletableFuture<Void> ret =
-                validateSuperUserAccessAsync().thenCompose(__ -> {
-                    if (checkReadOnly) {
-                        return validatePoliciesReadOnlyAccessAsync();
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        CompletableFuture<Void> ret = validateSuperUserAccessAsync().thenCompose(__ -> {
+            if (checkReadOnly) {
+                return validatePoliciesReadOnlyAccessAsync();
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
         if (!namespaceName.isGlobal()) {
             ret = ret.thenCompose(__ -> validateClusterOwnershipAsync(namespaceName.getCluster()))
-                    .thenCompose(__ -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                            namespaceName.getCluster()));
+                    .thenCompose(
+                            __ -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
         }
-        return ret
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+        return ret.thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange));
     }
 }

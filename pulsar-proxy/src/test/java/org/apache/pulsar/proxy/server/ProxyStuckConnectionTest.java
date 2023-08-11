@@ -86,13 +86,14 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
     }
 
     private void startProxyService() throws Exception {
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))) {
-            @Override
-            protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
-                return new TestLookupProxyHandler(this, proxyConnection);
-            }
-        });
+        proxyService = Mockito.spy(
+                new ProxyService(
+                        proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))) {
+                    @Override
+                    protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
+                        return new TestLookupProxyHandler(this, proxyConnection);
+                    }
+                });
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
         proxyService.start();
@@ -124,7 +125,8 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testKeySharedStickyWithStuckConnection() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(proxyService.getServiceUrl())
                 // keep alive is set to 2 seconds to detect the dead connection on the client side
                 // the main focus of the test is to verify that the broker and proxy doesn't get stuck forever
                 // when there's a hanging connection from the proxy to the broker and that it doesn't cause issues
@@ -138,8 +140,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 .topic(topicName)
                 .subscriptionName("test-subscription")
                 .subscriptionType(SubscriptionType.Key_Shared)
-                .keySharedPolicy(KeySharedPolicy.stickyHashRange()
-                        .ranges(Range.of(0, 65535)))
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65535)))
                 .receiverQueueSize(2)
                 .isAckReceiptEnabled(true)
                 .subscribe();
@@ -153,9 +154,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 .create()) {
             for (int i = 0; i < 10; i++) {
                 String message = "test" + i;
-                producer.newMessage().value(message.getBytes())
-                        .key("A")
-                        .send();
+                producer.newMessage().value(message.getBytes()).key("A").send();
                 messages.add(message);
             }
         }
@@ -180,11 +179,13 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 break;
             }
             if (counter == 2) {
-                log.info(
-                        "Pausing connection between proxy and broker and making further connections from proxy "
-                                + "directly to broker");
+                log.info("Pausing connection between proxy and broker and making further connections from proxy "
+                        + "directly to broker");
                 useBrokerSocatProxy = false;
-                socatContainer.getDockerClient().pauseContainerCmd(socatContainer.getContainerId()).exec();
+                socatContainer
+                        .getDockerClient()
+                        .pauseContainerCmd(socatContainer.getContainerId())
+                        .exec();
             }
         }
 

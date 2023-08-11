@@ -26,15 +26,19 @@ import org.apache.pulsar.common.stats.Rate;
 
 public class CompactionRecord {
 
-    public static final long[] WRITE_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
-            200_000, 1000_000 };
+    public static final long[] WRITE_LATENCY_BUCKETS_USEC = {
+        500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 1000_000
+    };
 
     @Getter
     private volatile long lastCompactionRemovedEventCount = 0L;
+
     @Getter
     private volatile long lastCompactionSucceedTimestamp = 0L;
+
     @Getter
     private volatile long lastCompactionFailedTimestamp = 0L;
+
     @Getter
     private volatile long lastCompactionDurationTimeInMills = 0L;
 
@@ -68,8 +72,7 @@ public class CompactionRecord {
     }
 
     public void addCompactionEndOp(boolean succeed) {
-        lastCompactionDurationTimeInMills = System.currentTimeMillis()
-                - lastCompactionStartTimeOp;
+        lastCompactionDurationTimeInMills = System.currentTimeMillis() - lastCompactionStartTimeOp;
         compactionDurationTimeInMills.add(lastCompactionDurationTimeInMills);
         lastCompactionRemovedEventCount = lastCompactionRemovedEventCountOp.longValue();
         if (succeed) {

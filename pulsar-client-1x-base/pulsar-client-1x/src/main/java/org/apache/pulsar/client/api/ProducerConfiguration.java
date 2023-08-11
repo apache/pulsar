@@ -44,12 +44,15 @@ public class ProducerConfiguration implements Serializable {
 
     @Deprecated
     public enum MessageRoutingMode {
-        SinglePartition, RoundRobinPartition, CustomPartition
+        SinglePartition,
+        RoundRobinPartition,
+        CustomPartition
     }
 
     @Deprecated
     public enum HashingScheme {
-        JavaStringHash, Murmur3_32Hash
+        JavaStringHash,
+        Murmur3_32Hash
     }
 
     /**

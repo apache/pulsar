@@ -62,11 +62,8 @@ public interface MessagePayloadContext {
      *   If `containMetadata` is true, parse the single message metadata from the payload first. The fields of single
      *   message metadata will overwrite the same fields of the entry's metadata.
      */
-    <T> Message<T> getMessageAt(int index,
-                                int numMessages,
-                                MessagePayload payload,
-                                boolean containMetadata,
-                                Schema<T> schema);
+    <T> Message<T> getMessageAt(
+            int index, int numMessages, MessagePayload payload, boolean containMetadata, Schema<T> schema);
 
     /**
      * Convert the given payload to a single message if the entry is not a batch.

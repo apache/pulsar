@@ -68,12 +68,10 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
     private void initializeUserFunction(WindowConfig windowConfig) {
         String actualWindowFunctionClassName = windowConfig.getActualWindowFunctionClassName();
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-        Object userClassObject = Reflections.createInstance(
-                actualWindowFunctionClassName,
-                clsLoader);
+        Object userClassObject = Reflections.createInstance(actualWindowFunctionClassName, clsLoader);
         if (userClassObject instanceof java.util.function.Function) {
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
-                    java.util.function.Function.class, userClassObject.getClass());
+            Class<?>[] typeArgs =
+                    TypeResolver.resolveRawArguments(java.util.function.Function.class, userClassObject.getClass());
             if (typeArgs[0].equals(Collection.class)) {
                 bareWindowFunction = (java.util.function.Function) userClassObject;
             } else {
@@ -91,9 +89,12 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         if (!context.getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY).isPresent()) {
             throw new IllegalArgumentException("Window Configs cannot be found");
         }
-        WindowConfig windowConfig = new Gson().fromJson(
-                (new Gson().toJson(context.getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY).get())),
-                WindowConfig.class);
+        WindowConfig windowConfig = new Gson()
+                .fromJson(
+                        (new Gson()
+                                .toJson(context.getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY)
+                                        .get())),
+                        WindowConfig.class);
 
         return windowConfig;
     }
@@ -106,9 +107,12 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         if (this.windowConfig.getTimestampExtractorClassName() != null) {
             this.timestampExtractor = getTimeStampExtractor(windowConfig);
 
-            waterMarkEventGenerator = new WaterMarkEventGenerator<>(manager, this.windowConfig
-                    .getWatermarkEmitIntervalMs(),
-                    this.windowConfig.getMaxLagMs(), new HashSet<>(context.getInputTopics()), context);
+            waterMarkEventGenerator = new WaterMarkEventGenerator<>(
+                    manager,
+                    this.windowConfig.getWatermarkEmitIntervalMs(),
+                    this.windowConfig.getMaxLagMs(),
+                    new HashSet<>(context.getInputTopics()),
+                    context);
         } else {
             if (this.windowConfig.getLateDataTopic() != null) {
                 throw new IllegalArgumentException(
@@ -117,8 +121,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         }
 
         EvictionPolicy<Record<T>, ?> evictionPolicy = getEvictionPolicy(windowConfig);
-        TriggerPolicy<Record<T>, ?> triggerPolicy = getTriggerPolicy(windowConfig, manager,
-                evictionPolicy, context);
+        TriggerPolicy<Record<T>, ?> triggerPolicy = getTriggerPolicy(windowConfig, manager, evictionPolicy, context);
         manager.setEvictionPolicy(evictionPolicy);
         manager.setTriggerPolicy(triggerPolicy);
 
@@ -129,12 +132,16 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
 
         Class<?> theCls;
         try {
-            theCls = Class.forName(windowConfig.getTimestampExtractorClassName(),
-                    true, Thread.currentThread().getContextClassLoader());
+            theCls = Class.forName(
+                    windowConfig.getTimestampExtractorClassName(),
+                    true,
+                    Thread.currentThread().getContextClassLoader());
         } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException(
-                    String.format("Timestamp extractor class %s must be in class path",
-                            windowConfig.getTimestampExtractorClassName()), cnfe);
+                    String.format(
+                            "Timestamp extractor class %s must be in class path",
+                            windowConfig.getTimestampExtractorClassName()),
+                    cnfe);
         }
 
         Object result;
@@ -151,8 +158,8 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         } catch (InvocationTargetException e) {
             throw new RuntimeException("User class constructor throws exception", e);
         }
-        Class<?>[] timestampExtractorTypeArgs = TypeResolver.resolveRawArguments(
-                TimestampExtractor.class, result.getClass());
+        Class<?>[] timestampExtractorTypeArgs =
+                TypeResolver.resolveRawArguments(TimestampExtractor.class, result.getClass());
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, this.getClass());
         if (!typeArgs[0].equals(timestampExtractorTypeArgs[0])) {
             throw new RuntimeException(
@@ -163,8 +170,11 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         return (TimestampExtractor<T>) result;
     }
 
-    private TriggerPolicy<Record<T>, ?> getTriggerPolicy(WindowConfig windowConfig, WindowManager<Record<T>> manager,
-                                                         EvictionPolicy<Record<T>, ?> evictionPolicy, Context context) {
+    private TriggerPolicy<Record<T>, ?> getTriggerPolicy(
+            WindowConfig windowConfig,
+            WindowManager<Record<T>> manager,
+            EvictionPolicy<Record<T>, ?> evictionPolicy,
+            Context context) {
         if (windowConfig.getSlidingIntervalCount() != null) {
             if (this.isEventTime()) {
                 return new WatermarkCountTriggerPolicy<>(
@@ -174,11 +184,11 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
             }
         } else {
             if (this.isEventTime()) {
-                return new WatermarkTimeTriggerPolicy<>(windowConfig.getSlidingIntervalDurationMs(), manager,
-                        evictionPolicy, manager);
+                return new WatermarkTimeTriggerPolicy<>(
+                        windowConfig.getSlidingIntervalDurationMs(), manager, evictionPolicy, manager);
             }
-            return new TimeTriggerPolicy<>(windowConfig.getSlidingIntervalDurationMs(), manager,
-                    evictionPolicy, context);
+            return new TimeTriggerPolicy<>(
+                    windowConfig.getSlidingIntervalDurationMs(), manager, evictionPolicy, context);
         }
     }
 
@@ -202,13 +212,14 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
     protected WindowLifecycleListener<Event<Record<T>>> newWindowLifecycleListener(Context context) {
         return new WindowLifecycleListener<Event<Record<T>>>() {
             @Override
-            public void onExpiry(List<Event<Record<T>>> events) {
-            }
+            public void onExpiry(List<Event<Record<T>>> events) {}
 
             @Override
-            public void onActivation(List<Event<Record<T>>> tuples, List<Event<Record<T>>> newTuples,
-                                     List<Event<Record<T>>>
-                                             expiredTuples, Long referenceTime) {
+            public void onActivation(
+                    List<Event<Record<T>>> tuples,
+                    List<Event<Record<T>>> newTuples,
+                    List<Event<Record<T>>> expiredTuples,
+                    Long referenceTime) {
                 processWindow(
                         context,
                         tuples.stream().map(event -> event.get()).collect(Collectors.toList()),
@@ -219,8 +230,12 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         };
     }
 
-    private void processWindow(Context context, List<Record<T>> tuples, List<Record<T>> newTuples, List<Record<T>>
-            expiredTuples, Long referenceTime) {
+    private void processWindow(
+            Context context,
+            List<Record<T>> tuples,
+            List<Record<T>> newTuples,
+            List<Record<T>> expiredTuples,
+            Long referenceTime) {
 
         X output = null;
         try {
@@ -231,13 +246,14 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
             throw new RuntimeException(e);
         }
         if (output != null) {
-            context.publish(context.getOutputTopic(), output, context.getOutputSchemaType()).thenAccept(__ -> {
-                if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                    for (Record<T> record : tuples) {
-                        record.ack();
-                    }
-                }
-            });
+            context.publish(context.getOutputTopic(), output, context.getOutputSchemaType())
+                    .thenAccept(__ -> {
+                        if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                            for (Record<T> record : tuples) {
+                                record.ack();
+                            }
+                        }
+                    });
         }
     }
 
@@ -292,11 +308,12 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
                 this.windowManager.add(record, ts, record);
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
-                    context.newOutputMessage(this.windowConfig.getLateDataTopic(), null).value(input).sendAsync();
+                    context.newOutputMessage(this.windowConfig.getLateDataTopic(), null)
+                            .value(input)
+                            .sendAsync();
                 } else {
                     log.info(String.format(
-                            "Received a late tuple %s with ts %d. This will not be " + "processed"
-                                    + ".", input, ts));
+                            "Received a late tuple %s with ts %d. This will not be " + "processed" + ".", input, ts));
                 }
             }
         } else {
@@ -307,7 +324,8 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
 
     public X process(Window<Record<T>> inputWindow, WindowContext context) throws Exception {
         if (this.bareWindowFunction != null) {
-            Collection<T> newCollection = inputWindow.get().stream().map(Record::getValue).collect(Collectors.toList());
+            Collection<T> newCollection =
+                    inputWindow.get().stream().map(Record::getValue).collect(Collectors.toList());
             return this.bareWindowFunction.apply(newCollection);
         } else {
             return this.windowFunction.process(inputWindow.get(), context);

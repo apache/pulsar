@@ -48,8 +48,7 @@ public class BindAddressValidator {
         List<BindAddress> addresses = migrateBindAddresses(config);
 
         // parse the list of additional bind addresses
-        Arrays
-                .stream(StringUtils.split(StringUtils.defaultString(config.getBindAddresses()), ","))
+        Arrays.stream(StringUtils.split(StringUtils.defaultString(config.getBindAddresses()), ","))
                 .map(s -> {
                     Matcher m = BIND_ADDRESSES_PATTERN.matcher(s);
                     if (!m.matches()) {
@@ -74,23 +73,30 @@ public class BindAddressValidator {
     private static List<BindAddress> migrateBindAddresses(ServiceConfiguration config) {
         List<BindAddress> addresses = new ArrayList<>(2);
         if (config.getBrokerServicePort().isPresent()) {
-            addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.brokerUrl(config.getBindAddress(),
+            addresses.add(new BindAddress(
+                    null,
+                    URI.create(ServiceConfigurationUtils.brokerUrl(
+                            config.getBindAddress(),
                             config.getBrokerServicePort().get()))));
         }
         if (config.getBrokerServicePortTls().isPresent()) {
-            addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.brokerUrlTls(config.getBindAddress(),
+            addresses.add(new BindAddress(
+                    null,
+                    URI.create(ServiceConfigurationUtils.brokerUrlTls(
+                            config.getBindAddress(),
                             config.getBrokerServicePortTls().get()))));
         }
         if (config.getWebServicePort().isPresent()) {
-            addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.webServiceUrl(config.getBindAddress(),
-                            config.getWebServicePort().get()))));
+            addresses.add(new BindAddress(
+                    null,
+                    URI.create(ServiceConfigurationUtils.webServiceUrl(
+                            config.getBindAddress(), config.getWebServicePort().get()))));
         }
         if (config.getWebServicePortTls().isPresent()) {
-            addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.webServiceUrlTls(config.getBindAddress(),
+            addresses.add(new BindAddress(
+                    null,
+                    URI.create(ServiceConfigurationUtils.webServiceUrlTls(
+                            config.getBindAddress(),
                             config.getWebServicePortTls().get()))));
         }
         return addresses;

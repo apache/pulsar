@@ -44,10 +44,8 @@ public abstract class Compactor {
     protected final BookKeeper bk;
     protected final CompactorMXBeanImpl mxBean;
 
-    public Compactor(ServiceConfiguration conf,
-                     PulsarClient pulsar,
-                     BookKeeper bk,
-                     ScheduledExecutorService scheduler) {
+    public Compactor(
+            ServiceConfiguration conf, PulsarClient pulsar, BookKeeper bk, ScheduledExecutorService scheduler) {
         this.conf = conf;
         this.scheduler = scheduler;
         this.pulsar = pulsar;
@@ -56,29 +54,28 @@ public abstract class Compactor {
     }
 
     public CompletableFuture<Long> compact(String topic) {
-        return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION).thenComposeAsync(
-                this::compactAndCloseReader, scheduler);
+        return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION)
+                .thenComposeAsync(this::compactAndCloseReader, scheduler);
     }
 
     private CompletableFuture<Long> compactAndCloseReader(RawReader reader) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
         mxBean.addCompactionStartOp(reader.getTopic());
-        doCompaction(reader, bk).whenComplete(
-                (ledgerId, exception) -> {
-                    reader.closeAsync().whenComplete((v, exception2) -> {
-                        if (exception2 != null) {
-                            log.warn("Error closing reader handle {}, ignoring", reader, exception2);
-                        }
-                        if (exception != null) {
-                            // complete with original exception
-                            mxBean.addCompactionEndOp(reader.getTopic(), false);
-                            promise.completeExceptionally(exception);
-                        } else {
-                            mxBean.addCompactionEndOp(reader.getTopic(), true);
-                            promise.complete(ledgerId);
-                        }
-                    });
-                });
+        doCompaction(reader, bk).whenComplete((ledgerId, exception) -> {
+            reader.closeAsync().whenComplete((v, exception2) -> {
+                if (exception2 != null) {
+                    log.warn("Error closing reader handle {}, ignoring", reader, exception2);
+                }
+                if (exception != null) {
+                    // complete with original exception
+                    mxBean.addCompactionEndOp(reader.getTopic(), false);
+                    promise.completeExceptionally(exception);
+                } else {
+                    mxBean.addCompactionEndOp(reader.getTopic(), true);
+                    promise.complete(ledgerId);
+                }
+            });
+        });
         return promise;
     }
 
@@ -88,4 +85,3 @@ public abstract class Compactor {
         return this.mxBean;
     }
 }
-

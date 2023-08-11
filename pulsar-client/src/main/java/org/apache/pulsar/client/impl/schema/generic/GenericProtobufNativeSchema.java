@@ -39,12 +39,10 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
         this(schemaInfo, true);
     }
 
-    public GenericProtobufNativeSchema(SchemaInfo schemaInfo,
-                                       boolean useProvidedSchemaAsReaderSchema) {
+    public GenericProtobufNativeSchema(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo, useProvidedSchemaAsReaderSchema);
         this.descriptor = parseProtobufSchema(schemaInfo);
-        this.fields = descriptor.getFields()
-                .stream()
+        this.fields = descriptor.getFields().stream()
                 .map(f -> new Field(f.getName(), f.getIndex()))
                 .collect(Collectors.toList());
         setReader(new MultiVersionGenericProtobufNativeReader(useProvidedSchemaAsReaderSchema, schemaInfo));
@@ -72,5 +70,4 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
     public boolean supportSchemaVersioning() {
         return true;
     }
-
 }

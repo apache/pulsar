@@ -47,10 +47,11 @@ public abstract class PulsarSource<T> implements Source<T> {
     protected final ClassLoader functionClassLoader;
     protected final TopicSchema topicSchema;
 
-    protected PulsarSource(PulsarClient pulsarClient,
-                           PulsarSourceConfig pulsarSourceConfig,
-                           Map<String, String> properties,
-                           ClassLoader functionClassLoader) {
+    protected PulsarSource(
+            PulsarClient pulsarClient,
+            PulsarSourceConfig pulsarSourceConfig,
+            Map<String, String> properties,
+            ClassLoader functionClassLoader) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarSourceConfig;
         this.topicSchema = new TopicSchema(pulsarClient, functionClassLoader);
@@ -62,12 +63,14 @@ public abstract class PulsarSource<T> implements Source<T> {
 
     protected ConsumerBuilder<T> createConsumeBuilder(String topic, PulsarSourceConsumerConfig conf) {
 
-        ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
+        ConsumerBuilder<T> cb = pulsarClient
+                .newConsumer(conf.getSchema())
                 .subscriptionName(pulsarSourceConfig.getSubscriptionName())
                 .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
                 .subscriptionType(pulsarSourceConfig.getSubscriptionType());
 
-        if (conf.getConsumerProperties() != null && !conf.getConsumerProperties().isEmpty()) {
+        if (conf.getConsumerProperties() != null
+                && !conf.getConsumerProperties().isEmpty()) {
             cb.loadConf(new HashMap<>(conf.getConsumerProperties()));
         }
 
@@ -96,7 +99,8 @@ public abstract class PulsarSource<T> implements Source<T> {
         if (pulsarSourceConfig.getMaxMessageRetries() != null && pulsarSourceConfig.getMaxMessageRetries() >= 0) {
             DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterPolicyBuilder = DeadLetterPolicy.builder();
             deadLetterPolicyBuilder.maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries());
-            if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
+            if (pulsarSourceConfig.getDeadLetterTopic() != null
+                    && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
                 deadLetterPolicyBuilder.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
             }
             cb = cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
@@ -125,8 +129,7 @@ public abstract class PulsarSource<T> implements Source<T> {
             // we cannot use atSchemaVersion, because atSchemaVersion is only
             // able to decode data, here we want a Schema that
             // is able to re-encode the payload when needed.
-            schema = (Schema<T>) autoConsumeSchema
-                    .unwrapInternalSchema(message.getSchemaVersion());
+            schema = (Schema<T>) autoConsumeSchema.unwrapInternalSchema(message.getSchemaVersion());
         }
         return PulsarRecord.<T>builder()
                 .message(message)
@@ -141,14 +144,15 @@ public abstract class PulsarSource<T> implements Source<T> {
                     }
                 })
                 .ackFunction(() -> {
-                    if (pulsarSourceConfig
-                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    if (pulsarSourceConfig.getProcessingGuarantees()
+                            == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         consumer.acknowledgeCumulativeAsync(message)
                                 .whenComplete((unused, throwable) -> message.release());
                     } else {
                         consumer.acknowledgeAsync(message).whenComplete((unused, throwable) -> message.release());
                     }
-                }).failFunction(() -> {
+                })
+                .failFunction(() -> {
                     try {
                         if (pulsarSourceConfig.getProcessingGuarantees()
                                 == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
@@ -164,10 +168,11 @@ public abstract class PulsarSource<T> implements Source<T> {
                 .build();
     }
 
-    protected PulsarSourceConsumerConfig<T> buildPulsarSourceConsumerConfig(String topic, ConsumerConfig conf,
-                                                                            Class<?> typeArg) {
+    protected PulsarSourceConsumerConfig<T> buildPulsarSourceConsumerConfig(
+            String topic, ConsumerConfig conf, Class<?> typeArg) {
         PulsarSourceConsumerConfig.PulsarSourceConsumerConfigBuilder<T> consumerConfBuilder =
-                PulsarSourceConsumerConfig.<T>builder().isRegexPattern(conf.isRegexPattern())
+                PulsarSourceConsumerConfig.<T>builder()
+                        .isRegexPattern(conf.isRegexPattern())
                         .receiverQueueSize(conf.getReceiverQueueSize())
                         .consumerProperties(conf.getConsumerProperties());
 
@@ -185,10 +190,12 @@ public abstract class PulsarSource<T> implements Source<T> {
                 Security.addProvider(new BouncyCastleProvider());
             }
 
-            consumerConfBuilder.consumerCryptoFailureAction(conf.getCryptoConfig().getConsumerCryptoFailureAction());
+            consumerConfBuilder.consumerCryptoFailureAction(
+                    conf.getCryptoConfig().getConsumerCryptoFailureAction());
             consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(
                     conf.getCryptoConfig().getCryptoKeyReaderClassName(),
-                    conf.getCryptoConfig().getCryptoKeyReaderConfig(), functionClassLoader));
+                    conf.getCryptoConfig().getCryptoKeyReaderConfig(),
+                    functionClassLoader));
         }
         consumerConfBuilder.poolMessages(conf.isPoolMessages());
         return consumerConfBuilder.build();

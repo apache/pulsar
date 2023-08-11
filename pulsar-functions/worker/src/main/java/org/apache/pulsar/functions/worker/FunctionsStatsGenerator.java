@@ -43,8 +43,10 @@ public class FunctionsStatsGenerator {
             try {
                 out.write(workerService.getWorkerStatsManager().getStatsAsString());
             } catch (IOException e) {
-                log.warn("Encountered error when generating metrics for worker {}",
-                        workerService.getWorkerConfig().getWorkerId(), e);
+                log.warn(
+                        "Encountered error when generating metrics for worker {}",
+                        workerService.getWorkerConfig().getWorkerId(),
+                        e);
             }
 
             /* function stats */
@@ -73,8 +75,10 @@ public class FunctionsStatsGenerator {
                             }
 
                         } catch (IOException e) {
-                            log.warn("Failed to collect metrics for function instance {}",
-                                    fullyQualifiedInstanceName, e);
+                            log.warn(
+                                    "Failed to collect metrics for function instance {}",
+                                    fullyQualifiedInstanceName,
+                                    e);
                         }
                     }
                 }

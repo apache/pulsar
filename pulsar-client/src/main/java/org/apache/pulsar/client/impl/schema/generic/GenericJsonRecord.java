@@ -39,15 +39,11 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     private final JsonNode jn;
     private final SchemaInfo schemaInfo;
 
-    GenericJsonRecord(byte[] schemaVersion,
-                      List<Field> fields,
-                      JsonNode jn) {
+    GenericJsonRecord(byte[] schemaVersion, List<Field> fields, JsonNode jn) {
         this(schemaVersion, fields, jn, null);
     }
 
-    public GenericJsonRecord(byte[] schemaVersion,
-                      List<Field> fields,
-                      JsonNode jn, SchemaInfo schemaInfo) {
+    public GenericJsonRecord(byte[] schemaVersion, List<Field> fields, JsonNode jn, SchemaInfo schemaInfo) {
         super(schemaVersion, fields);
         this.jn = jn;
         this.schemaInfo = schemaInfo;
@@ -65,10 +61,9 @@ public class GenericJsonRecord extends VersionedGenericRecord {
         }
         if (fn.isContainerNode()) {
             AtomicInteger idx = new AtomicInteger(0);
-            List<Field> fields = Lists.newArrayList(fn.fieldNames())
-                .stream()
-                .map(f -> new Field(f, idx.getAndIncrement()))
-                .collect(Collectors.toList());
+            List<Field> fields = Lists.newArrayList(fn.fieldNames()).stream()
+                    .map(f -> new Field(f, idx.getAndIncrement()))
+                    .collect(Collectors.toList());
             return new GenericJsonRecord(schemaVersion, fields, fn, schemaInfo);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
@@ -113,7 +108,9 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             if (field == null) {
                 return false;
             }
-            JsonNode jsonNode = ObjectMapperFactory.getMapper().reader().readTree(field.schema().toString());
+            JsonNode jsonNode = ObjectMapperFactory.getMapper()
+                    .reader()
+                    .readTree(field.schema().toString());
             for (JsonNode node : jsonNode) {
                 JsonNode jn = node.get("type");
                 if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {

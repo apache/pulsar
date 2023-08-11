@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -40,17 +47,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
-
-import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.fail;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link MessageImpl}.
@@ -79,8 +76,7 @@ public class MessageImplTest {
 
     @Test
     public void testGetSequenceIdAssociated() {
-        MessageMetadata builder = new MessageMetadata()
-            .setSequenceId(1234);
+        MessageMetadata builder = new MessageMetadata().setSequenceId(1234);
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
@@ -99,8 +95,7 @@ public class MessageImplTest {
 
     @Test
     public void testGetProducerNameAssigned() {
-        MessageMetadata builder = new MessageMetadata()
-            .setProducerName("test-producer");
+        MessageMetadata builder = new MessageMetadata().setProducerName("test-producer");
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
@@ -110,12 +105,15 @@ public class MessageImplTest {
 
     @Test
     public void testDefaultGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
         foo.setField2("field2");
@@ -125,10 +123,9 @@ public class MessageImplTest {
 
         // // Check kv.encoding.type default, not set value
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("default");
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageMetadata builder = new MessageMetadata().setProducerName("default");
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -138,13 +135,15 @@ public class MessageImplTest {
     @Test
     public void testInlineGetProducerDataAssigned() {
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(
-                fooSchema, barSchema, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
         foo.setField2("field2");
@@ -154,10 +153,9 @@ public class MessageImplTest {
 
         // Check kv.encoding.type INLINE
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("inline");
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageMetadata builder = new MessageMetadata().setProducerName("inline");
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -166,13 +164,15 @@ public class MessageImplTest {
 
     @Test
     public void testSeparatedGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(
-                fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
         foo.setField2("field2");
@@ -182,12 +182,11 @@ public class MessageImplTest {
 
         // Check kv.encoding.type SPRAERATE
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("separated");
+        MessageMetadata builder = new MessageMetadata().setProducerName("separated");
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -196,13 +195,16 @@ public class MessageImplTest {
 
     @Test
     public void testDefaultAVROVersionGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -215,30 +217,32 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("default");
+        MessageMetadata builder = new MessageMetadata().setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
         assertFalse(builder.hasPartitionKey());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.INLINE);
     }
 
     @Test
     public void testSeparatedAVROVersionGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(
-                fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -251,31 +255,34 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("separated");
+        MessageMetadata builder = new MessageMetadata().setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
         assertTrue(builder.hasPartitionKey());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.SEPARATED);
     }
 
     @Test
     public void testDefaultJSONVersionGetProducerDataAssigned() {
-        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
-                SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(
-                SchemaTestUtils.Bar.class).build());
+        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -288,30 +295,32 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("default");
+        MessageMetadata builder = new MessageMetadata().setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
         assertFalse(builder.hasPartitionKey());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.INLINE);
     }
 
     @Test
     public void testSeparatedJSONVersionGetProducerDataAssigned() {
-        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(
-                fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -324,31 +333,34 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("separated");
+        MessageMetadata builder = new MessageMetadata().setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
         assertTrue(builder.hasPartitionKey());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.SEPARATED);
     }
 
     @Test
     public void testDefaultAVROJSONVersionGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
-                SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(
-                SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -361,30 +373,32 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("default");
+        MessageMetadata builder = new MessageMetadata().setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
         assertFalse(builder.hasPartitionKey());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.INLINE);
     }
 
     @Test
     public void testSeparatedAVROJSONVersionGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(
-                fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -397,27 +411,26 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("separated");
+        MessageMetadata builder = new MessageMetadata().setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
-        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
+        MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg =
+                MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
         assertTrue(builder.hasPartitionKey());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.SEPARATED);
     }
 
     @Test
     public void testTypedSchemaGetNullValue() {
         byte[] encodeBytes = new byte[0];
-        MessageMetadata builder = new MessageMetadata()
-                .setProducerName("valueNotSet");
+        MessageMetadata builder = new MessageMetadata().setProducerName("valueNotSet");
         builder.setSchemaVersion(new byte[0]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(encodeBytes));
         builder.setPartitionKeyB64Encoded(true);
@@ -440,11 +453,10 @@ public class MessageImplTest {
                     .setProducerName("test")
                     .setSequenceId(1);
             byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
-            BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
-                            .setIndex(MOCK_BATCH_SIZE - 1);
+            BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata().setIndex(MOCK_BATCH_SIZE - 1);
 
             int brokerMetaSize = brokerMetadata.getSerializedSize();
-            ByteBuf  brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+            ByteBuf brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
             brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
             brokerMeta.writeInt(brokerMetaSize);
             brokerMetadata.writeTo(brokerMeta);
@@ -494,19 +506,16 @@ public class MessageImplTest {
         // first, build a message with broker entry metadata
 
         // build message metadata
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setPublishTime(1)
-                .setProducerName("test")
-                .setSequenceId(1);
+        MessageMetadata messageMetadata =
+                new MessageMetadata().setPublishTime(1).setProducerName("test").setSequenceId(1);
         byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
 
         // build broker entry metadata
-        BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
-                .setIndex(MOCK_BATCH_SIZE - 1);
+        BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata().setIndex(MOCK_BATCH_SIZE - 1);
 
         // build final data which contains broker entry metadata
         int brokerMetaSize = brokerMetadata.getSerializedSize();
-        ByteBuf  brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+        ByteBuf brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
         brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
         brokerMeta.writeInt(brokerMetaSize);
         brokerMetadata.writeTo(brokerMeta);
@@ -517,7 +526,7 @@ public class MessageImplTest {
         CompositeByteBuf dupCompositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
         dupCompositeByteBuf.addComponents(true, brokerMeta, byteBuf);
 
-        //second, parse message metadata without skip broker entry metadata
+        // second, parse message metadata without skip broker entry metadata
         Commands.skipChecksumIfPresent(compositeByteBuf);
         int metadataSize = (int) compositeByteBuf.readUnsignedInt();
         MessageMetadata md = new MessageMetadata();
@@ -528,7 +537,7 @@ public class MessageImplTest {
             // expected
         }
 
-        //third, parse message metadata with skip broker entry metadata first
+        // third, parse message metadata with skip broker entry metadata first
         MessageMetadata metadata = Commands.parseMessageMetadata(dupCompositeByteBuf);
         assertEquals(metadata.getPublishTime(), 1);
         assertEquals(metadata.getProducerName(), "test");

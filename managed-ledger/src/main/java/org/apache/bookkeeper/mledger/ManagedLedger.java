@@ -131,8 +131,8 @@ public interface ManagedLedger {
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
      */
-    Position addEntry(byte[] data, int numberOfMessages, int offset, int length) throws InterruptedException,
-            ManagedLedgerException;
+    Position addEntry(byte[] data, int numberOfMessages, int offset, int length)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Append a new entry asynchronously.
@@ -168,9 +168,8 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncAddEntry(byte[] data, int numberOfMessages, int offset, int length, AddEntryCallback callback,
-                       Object ctx);
-
+    void asyncAddEntry(
+            byte[] data, int numberOfMessages, int offset, int length, AddEntryCallback callback, Object ctx);
 
     /**
      * Append a new entry asynchronously.
@@ -225,8 +224,8 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException,
-            ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Open a ManagedCursor in this ManagedLedger.
@@ -245,8 +244,11 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
-                             Map<String, String> cursorProperties)
+    ManagedCursor openCursor(
+            String name,
+            InitialPosition initialPosition,
+            Map<String, Long> properties,
+            Map<String, String> cursorProperties)
             throws InterruptedException, ManagedLedgerException;
 
     /**
@@ -265,9 +267,12 @@ public interface ManagedLedger {
      * @return the new NonDurableCursor
      */
     ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
+
     ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException;
-    ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName, InitialPosition initialPosition,
-                                      boolean isReadCompacted) throws ManagedLedgerException;
+
+    ManagedCursor newNonDurableCursor(
+            Position startPosition, String subscriptionName, InitialPosition initialPosition, boolean isReadCompacted)
+            throws ManagedLedgerException;
 
     /**
      * Delete a ManagedCursor asynchronously.
@@ -345,8 +350,13 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
-                         Map<String, String> cursorProperties, OpenCursorCallback callback, Object ctx);
+    void asyncOpenCursor(
+            String name,
+            InitialPosition initialPosition,
+            Map<String, Long> properties,
+            Map<String, String> cursorProperties,
+            OpenCursorCallback callback,
+            Object ctx);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger.
@@ -424,7 +434,7 @@ public interface ManagedLedger {
     long getLastOffloadedLedgerId();
 
     /**
-    * Get last suceessful offloaded timestamp. If no successful offload, it returns 0.
+     * Get last suceessful offloaded timestamp. If no successful offload, it returns 0.
      *
      * @return last successful offloaded timestamp
      */
@@ -622,8 +632,8 @@ public interface ManagedLedger {
      * @param callback   a callback which will be supplied with the newest properties in managedLedger.
      * @param ctx        a context object which will be passed to the callback on completion.
      */
-    void asyncSetProperties(Map<String, String> properties, AsyncCallbacks.UpdatePropertiesCallback callback,
-        Object ctx);
+    void asyncSetProperties(
+            Map<String, String> properties, AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx);
 
     /**
      * Trim consumed ledgers in background.
@@ -635,7 +645,7 @@ public interface ManagedLedger {
      * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
      * used to delete information about this ledger in the ManagedCursor.
      */
-    default void skipNonRecoverableLedger(long ledgerId){}
+    default void skipNonRecoverableLedger(long ledgerId) {}
 
     /**
      * Roll current ledger if it is full.

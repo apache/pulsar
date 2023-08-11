@@ -51,7 +51,6 @@ public class SinkOfFlume extends AbstractSinkOfFlume implements Configurable, Ba
         return batchSize;
     }
 
-
     @Override
     public Status process() throws EventDeliveryException {
         Status result = Status.READY;
@@ -119,7 +118,5 @@ public class SinkOfFlume extends AbstractSinkOfFlume implements Configurable, Ba
     }
 
     @Override
-    public synchronized void stop() {
-    }
-
+    public synchronized void stop() {}
 }

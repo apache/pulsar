@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
 import com.google.common.collect.Sets;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -32,8 +33,6 @@ import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 @Slf4j
 public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
 
@@ -44,7 +43,7 @@ public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
     }
 
     @Test(groups = "source", timeOut = 1800000)
-    public void testDebeziumOracleDbSource() throws Exception{
+    public void testDebeziumOracleDbSource() throws Exception {
         testDebeziumOracleDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
@@ -64,23 +63,34 @@ public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
                 .build();
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
         initNamespace(admin);
 
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
-        @Cleanup
-        DebeziumOracleDbSourceTester sourceTester = new DebeziumOracleDbSourceTester(pulsarCluster);
+        @Cleanup DebeziumOracleDbSourceTester sourceTester = new DebeziumOracleDbSourceTester(pulsarCluster);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium oracle server
-        DebeziumOracleDbContainer debeziumOracleDbContainer = new DebeziumOracleDbContainer(pulsarCluster.getClusterName());
+        DebeziumOracleDbContainer debeziumOracleDbContainer =
+                new DebeziumOracleDbContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(debeziumOracleDbContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-                consumeTopicName, client);
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(
+                pulsarCluster,
+                functionRuntimeType.toString(),
+                converterClassName,
+                tenant,
+                namespace,
+                sourceName,
+                outputTopicName,
+                numMessages,
+                jsonWithEnvelope,
+                consumeTopicName,
+                client);
 
         runner.testSource(sourceTester);
     }
@@ -88,14 +98,14 @@ public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
     protected void initNamespace(PulsarAdmin admin) {
         log.info("[initNamespace] start.");
         try {
-            admin.tenants().createTenant("debezium", new TenantInfoImpl(Sets.newHashSet(),
-                    Sets.newHashSet(pulsarCluster.getClusterName())));
-            String [] namespaces = {
-                "debezium/oracle"
-            };
+            admin.tenants()
+                    .createTenant(
+                            "debezium",
+                            new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(pulsarCluster.getClusterName())));
+            String[] namespaces = {"debezium/oracle"};
             Policies policies = new Policies();
             policies.retention_policies = new RetentionPolicies(-1, 50);
-            for (String ns: namespaces) {
+            for (String ns : namespaces) {
                 admin.namespaces().createNamespace(ns, policies);
             }
         } catch (Exception e) {

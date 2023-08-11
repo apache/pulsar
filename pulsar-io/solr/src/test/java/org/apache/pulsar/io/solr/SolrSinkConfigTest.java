@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.io.solr;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import com.google.common.collect.Lists;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -28,9 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.testng.annotations.Test;
 
 /**
  * SolrSinkConfig test
@@ -85,8 +83,9 @@ public class SolrSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "solrUrl property not set.")
+    @Test(
+            expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "solrUrl property not set.")
     public final void missingValidValidateSolrModeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrMode", "SolrCloud");
@@ -99,8 +98,9 @@ public class SolrSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "solrCommitWithinMs must be a positive integer.")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "solrCommitWithinMs must be a positive integer.")
     public final void invalidBatchTimeMsTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
@@ -114,8 +114,10 @@ public class SolrSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant org.apache.pulsar.io.solr.SolrAbstractSink.SolrMode.NOTSUPPORT")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp =
+                    "No enum constant org.apache.pulsar.io.solr.SolrAbstractSink.SolrMode.NOTSUPPORT")
     public final void invalidClientModeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");

@@ -94,7 +94,8 @@ public class MultiTopicsConsumerImplTest {
         conf.setServiceUrl("pulsar://127.0.0.99:23456");
         conf.setStatsIntervalSeconds(100);
 
-        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        ThreadFactory threadFactory = new DefaultThreadFactory(
+                "client-test-stats", Thread.currentThread().isDaemon());
 
         @Cleanup("shutdown")
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
@@ -102,8 +103,7 @@ public class MultiTopicsConsumerImplTest {
         @Cleanup("shutdownNow")
         ExecutorProvider executorProvider = new ExecutorProvider(1, "client-test-stats");
 
-        @Cleanup
-        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+        @Cleanup PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
         ConsumerConfigurationData consumerConfData = new ConsumerConfigurationData();
         consumerConfData.setTopicNames(Sets.newHashSet(topicName));
@@ -111,8 +111,7 @@ public class MultiTopicsConsumerImplTest {
         assertEquals(Long.parseLong("100"), clientImpl.getConfiguration().getStatsIntervalSeconds());
 
         MultiTopicsConsumerImpl impl = new MultiTopicsConsumerImpl(
-            clientImpl, consumerConfData,
-            executorProvider, null, Schema.BYTES, null, true);
+                clientImpl, consumerConfData, executorProvider, null, Schema.BYTES, null, true);
 
         impl.getStats();
 
@@ -153,11 +152,11 @@ public class MultiTopicsConsumerImplTest {
         int completionDelayMillis = 100;
         Schema<byte[]> schema = Schema.BYTES;
         PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
-        when(clientMock.getPartitionedTopicMetadata(any())).thenAnswer(invocation -> createDelayedCompletedFuture(
-                new PartitionedTopicMetadata(), completionDelayMillis));
+        when(clientMock.getPartitionedTopicMetadata(any()))
+                .thenAnswer(invocation ->
+                        createDelayedCompletedFuture(new PartitionedTopicMetadata(), completionDelayMillis));
         MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(
-                clientMock, consumerConfData, executorProvider,
-                new CompletableFuture<>(), schema, null, true);
+                clientMock, consumerConfData, executorProvider, new CompletableFuture<>(), schema, null, true);
         return impl;
     }
 
@@ -201,11 +200,13 @@ public class MultiTopicsConsumerImplTest {
         int completionDelayMillis = 10;
         Schema<byte[]> schema = Schema.BYTES;
         PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
-        when(clientMock.getPartitionedTopicMetadata(any())).thenAnswer(invocation -> createExceptionFuture(
-                new PulsarClientException.InvalidConfigurationException("a mock exception"), completionDelayMillis));
+        when(clientMock.getPartitionedTopicMetadata(any()))
+                .thenAnswer(invocation -> createExceptionFuture(
+                        new PulsarClientException.InvalidConfigurationException("a mock exception"),
+                        completionDelayMillis));
         CompletableFuture<Consumer<byte[]>> completeFuture = new CompletableFuture<>();
-        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(clientMock, consumerConfData,
-                executorProvider, completeFuture, schema, null, true);
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(
+                clientMock, consumerConfData, executorProvider, completeFuture, schema, null, true);
         // assert that we don't start in closed, then we move to closed and get an exception
         // indicating that closeAsync was called
         assertEquals(impl.getState(), HandlerState.State.Uninitialized);
@@ -241,8 +242,7 @@ public class MultiTopicsConsumerImplTest {
         CompletableFuture<Consumer<byte[]>> completeFuture = new CompletableFuture<>();
 
         MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
-                clientMock, consumerConfData, executorProvider,
-                completeFuture, Schema.BYTES, null, true);
+                clientMock, consumerConfData, executorProvider, completeFuture, Schema.BYTES, null, true);
         impl.setState(HandlerState.State.Ready);
         Thread.sleep(5000);
 
@@ -250,5 +250,4 @@ public class MultiTopicsConsumerImplTest {
         // but not anymore since the topics are not partitioned.
         verify(clientMock, times(3)).getPartitionedTopicMetadata(any());
     }
-
 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -71,14 +70,12 @@ public class DeprecatedCommanderTest {
 
         // annotation was changed to hidden, reset it.
         cmdTopics = new CmdTopics(() -> admin);
-        CmdUsageFormatter formatter = (CmdUsageFormatter)cmdTopics.jcommander.getUsageFormatter();
+        CmdUsageFormatter formatter = (CmdUsageFormatter) cmdTopics.jcommander.getUsageFormatter();
         formatter.clearDeprecatedCommand();
         StringBuilder builder3 = new StringBuilder();
         cmdTopics.jcommander.getUsageFormatter().usage(builder3);
         String outputAfterClean = builder3.toString();
 
         assertEquals(outputAfterClean, defaultOutput);
-
     }
-
 }

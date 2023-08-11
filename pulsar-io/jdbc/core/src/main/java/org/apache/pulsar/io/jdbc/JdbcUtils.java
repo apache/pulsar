@@ -70,11 +70,7 @@ public class JdbcUtils {
         }
 
         private TableDefinition(
-                TableId tableId,
-                List<ColumnId> columns,
-                List<ColumnId> nonKeyColumns,
-                List<ColumnId> keyColumns
-        ) {
+                TableId tableId, List<ColumnId> columns, List<ColumnId> nonKeyColumns, List<ColumnId> keyColumns) {
             this.tableId = tableId;
             this.columns = columns;
             this.nonKeyColumns = nonKeyColumns;
@@ -85,11 +81,10 @@ public class JdbcUtils {
             return new TableDefinition(tableId, columns);
         }
 
-        public static TableDefinition of(TableId tableId, List<ColumnId> columns,
-                                         List<ColumnId> nonKeyColumns, List<ColumnId> keyColumns) {
+        public static TableDefinition of(
+                TableId tableId, List<ColumnId> columns, List<ColumnId> nonKeyColumns, List<ColumnId> keyColumns) {
             return new TableDefinition(tableId, columns, nonKeyColumns, keyColumns);
         }
-
     }
 
     /**
@@ -97,13 +92,13 @@ public class JdbcUtils {
      */
     public static TableId getTableId(Connection connection, String tableName) throws Exception {
         DatabaseMetaData metadata = connection.getMetaData();
-        try (ResultSet rs = metadata.getTables(null, null, tableName, new String[]{"TABLE", "PARTITIONED TABLE"})) {
+        try (ResultSet rs = metadata.getTables(null, null, tableName, new String[] {"TABLE", "PARTITIONED TABLE"})) {
             if (rs.next()) {
                 String catalogName = rs.getString(1);
                 String schemaName = rs.getString(2);
                 String gotTableName = rs.getString(3);
-                checkState(tableName.equals(gotTableName),
-                        "TableName not match: " + tableName + " Got: " + gotTableName);
+                checkState(
+                        tableName.equals(gotTableName), "TableName not match: " + tableName + " Got: " + gotTableName);
                 if (log.isDebugEnabled()) {
                     log.debug("Get Table: {}, {}, {}", catalogName, schemaName, tableName);
                 }
@@ -122,20 +117,17 @@ public class JdbcUtils {
             TableId tableId,
             List<String> keyList,
             List<String> nonKeyList,
-            boolean excludeNonDeclaredFields
-    ) throws Exception {
-        TableDefinition table = TableDefinition.of(
-                tableId, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
+            boolean excludeNonDeclaredFields)
+            throws Exception {
+        TableDefinition table =
+                TableDefinition.of(tableId, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
 
         keyList = keyList == null ? Collections.emptyList() : keyList;
         nonKeyList = nonKeyList == null ? Collections.emptyList() : nonKeyList;
 
-        try (ResultSet rs = connection.getMetaData().getColumns(
-                tableId.getCatalogName(),
-                tableId.getSchemaName(),
-                tableId.getTableName(),
-                null
-        )) {
+        try (ResultSet rs = connection
+                .getMetaData()
+                .getColumns(tableId.getCatalogName(), tableId.getSchemaName(), tableId.getTableName(), null)) {
             while (rs.next()) {
                 final String columnName = rs.getString(4);
 

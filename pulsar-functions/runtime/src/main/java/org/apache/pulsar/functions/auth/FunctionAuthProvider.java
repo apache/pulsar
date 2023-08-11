@@ -45,12 +45,14 @@ public interface FunctionAuthProvider {
      * @return
      * @throws Exception
      */
-    Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
-                                             AuthenticationDataSource authenticationDataSource) throws Exception;
+    Optional<FunctionAuthData> cacheAuthData(
+            Function.FunctionDetails funcDetails, AuthenticationDataSource authenticationDataSource) throws Exception;
 
-    Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
-                                              Optional<FunctionAuthData> existingFunctionAuthData,
-                                              AuthenticationDataSource authenticationDataSource) throws Exception;
+    Optional<FunctionAuthData> updateAuthData(
+            Function.FunctionDetails funcDetails,
+            Optional<FunctionAuthData> existingFunctionAuthData,
+            AuthenticationDataSource authenticationDataSource)
+            throws Exception;
 
     /**
      * Clean up operation for auth when function is terminated.
@@ -62,7 +64,7 @@ public interface FunctionAuthProvider {
             throws Exception;
 
     static FunctionAuthProvider getAuthProvider(String className) {
-        return Reflections
-                .createInstance(className, FunctionAuthProvider.class, Thread.currentThread().getContextClassLoader());
+        return Reflections.createInstance(
+                className, FunctionAuthProvider.class, Thread.currentThread().getContextClassLoader());
     }
 }

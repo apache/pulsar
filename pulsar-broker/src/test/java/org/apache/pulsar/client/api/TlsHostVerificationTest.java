@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -47,12 +46,14 @@ public class TlsHostVerificationTest extends TlsProducerConsumerBase {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
-        Assert.assertTrue(pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"),
-                "Test relies on this address");
+        Assert.assertTrue(
+                pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"), "Test relies on this address");
         PulsarAdmin adminClientTls = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsar.getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
-                .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(true)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .authentication(AuthenticationTls.class.getName(), authParams)
+                .enableTlsHostnameVerification(true)
                 .requestTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
 
@@ -73,12 +74,14 @@ public class TlsHostVerificationTest extends TlsProducerConsumerBase {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
-        Assert.assertTrue(pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"),
-                "Test relies on this address");
+        Assert.assertTrue(
+                pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"), "Test relies on this address");
         PulsarAdmin adminClient = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsar.getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
-                .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .authentication(AuthenticationTls.class.getName(), authParams)
+                .enableTlsHostnameVerification(false)
                 .build();
 
         // Should not fail, since verification is disabled

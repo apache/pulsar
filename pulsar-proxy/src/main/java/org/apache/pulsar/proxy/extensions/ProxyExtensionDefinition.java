@@ -42,5 +42,4 @@ public class ProxyExtensionDefinition {
      * The class name for the extension.
      */
     private String extensionClass;
-
 }

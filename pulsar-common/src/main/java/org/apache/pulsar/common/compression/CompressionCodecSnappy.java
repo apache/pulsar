@@ -95,7 +95,8 @@ public class CompressionCodecSnappy implements CompressionCodec {
                     null,
                     encoded.memoryAddress() + encoded.readerIndex(),
                     encoded.memoryAddress() + encoded.writerIndex(),
-                    null, uncompressed.memoryAddress(),
+                    null,
+                    uncompressed.memoryAddress(),
                     uncompressed.memoryAddress() + uncompressedLength);
         } else {
             ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);

@@ -46,7 +46,8 @@ public class DistributedIdGeneratorTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        store  = MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreExtended.create(
+                "memory:local", MetadataStoreConfig.builder().build());
         coordinationService = new CoordinationServiceImpl(store);
     }
 
@@ -91,7 +92,8 @@ public class DistributedIdGeneratorTest {
         for (int i = 0; i < Threads; i++) {
             executor.execute(() -> {
                 try {
-                    DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService, "/my/test/concurrent", "prefix");
+                    DistributedIdGenerator gen =
+                            new DistributedIdGenerator(coordinationService, "/my/test/concurrent", "prefix");
 
                     barrier.await();
 

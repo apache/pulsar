@@ -40,7 +40,8 @@ import org.testng.annotations.Test;
 public class AdminMultiHostTest extends TestRetrySupport {
 
     private final String clusterName = "MultiHostTest-" + UUID.randomUUID();
-    private final PulsarClusterSpec spec = PulsarClusterSpec.builder().clusterName(clusterName).numBrokers(3).build();
+    private final PulsarClusterSpec spec =
+            PulsarClusterSpec.builder().clusterName(clusterName).numBrokers(3).build();
     private PulsarCluster pulsarCluster = null;
 
     @BeforeMethod(alwaysRun = true)
@@ -82,7 +83,7 @@ public class AdminMultiHostTest extends TestRetrySupport {
 
     // Because zookeeper session timeout is 30ms and ticktime is 2ms, so we need wait more than 32ms
     private void waitBrokerDown(PulsarAdmin admin, int expectBrokers, int timeout)
-        throws InterruptedException, ExecutionException, TimeoutException {
+            throws InterruptedException, ExecutionException, TimeoutException {
         FutureTask<Boolean> futureTask = new FutureTask<>(() -> {
             while (admin.brokers().getActiveBrokers(clusterName).size() != expectBrokers) {
                 admin.brokers().healthcheck(TopicVersion.V1);

@@ -71,9 +71,8 @@ public class Futures {
         return compositeFuture;
     }
 
-    public static <T> CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op,
-                                                            Class<? extends Exception> needRetryExceptionClass,
-                                                            int maxRetryTimes) {
+    public static <T> CompletableFuture<T> executeWithRetry(
+            Supplier<CompletableFuture<T>> op, Class<? extends Exception> needRetryExceptionClass, int maxRetryTimes) {
         CompletableFuture<T> resultFuture = new CompletableFuture<>();
         op.get().whenComplete((res, ex) -> {
             if (ex == null) {
@@ -81,13 +80,14 @@ public class Futures {
             } else {
                 Throwable throwable = FutureUtil.unwrapCompletionException(ex);
                 if (needRetryExceptionClass.isAssignableFrom(throwable.getClass()) && maxRetryTimes > 0) {
-                    executeWithRetry(op, needRetryExceptionClass, maxRetryTimes - 1).whenComplete((res2, ex2) -> {
-                        if (ex2 == null) {
-                            resultFuture.complete(res2);
-                        } else {
-                            resultFuture.completeExceptionally(ex2);
-                        }
-                    });
+                    executeWithRetry(op, needRetryExceptionClass, maxRetryTimes - 1)
+                            .whenComplete((res2, ex2) -> {
+                                if (ex2 == null) {
+                                    resultFuture.complete(res2);
+                                } else {
+                                    resultFuture.completeExceptionally(ex2);
+                                }
+                            });
                     return;
                 }
                 resultFuture.completeExceptionally(ex);

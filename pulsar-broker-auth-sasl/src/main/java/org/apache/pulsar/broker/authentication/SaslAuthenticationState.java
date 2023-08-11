@@ -70,6 +70,4 @@ public class SaslAuthenticationState implements AuthenticationState {
     public long getStateId() {
         return stateId;
     }
-
-
 }

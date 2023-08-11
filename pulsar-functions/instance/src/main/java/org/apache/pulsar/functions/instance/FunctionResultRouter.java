@@ -39,12 +39,7 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
 
     @VisibleForTesting
     public FunctionResultRouter(int startPtnIdx, Clock clock) {
-        super(
-            HashingScheme.Murmur3_32Hash,
-            startPtnIdx,
-            true,
-            1,
-            clock);
+        super(HashingScheme.Murmur3_32Hash, startPtnIdx, true, 1, clock);
     }
 
     public static FunctionResultRouter of() {
@@ -65,5 +60,4 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
         // for a given message it always go to one partition, so we use sequence id to do a deterministic routing.
         return (int) (msg.getSequenceId() % metadata.numPartitions());
     }
-
 }

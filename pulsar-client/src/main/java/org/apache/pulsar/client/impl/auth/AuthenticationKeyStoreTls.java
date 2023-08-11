@@ -48,8 +48,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
 
     private transient KeyStoreParams keyStoreParams;
 
-    public AuthenticationKeyStoreTls() {
-    }
+    public AuthenticationKeyStoreTls() {}
 
     public AuthenticationKeyStoreTls(String keyStoreType, String keyStorePath, String keyStorePassword) {
         this.keyStoreParams = KeyStoreParams.builder()
@@ -105,11 +104,10 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
         String keyStorePath = params.get(KEYSTORE_PATH);
         String keyStorePassword = params.get(KEYSTORE_PW);
 
-        if (Strings.isNullOrEmpty(keyStorePath)
-            || Strings.isNullOrEmpty(keyStorePassword)) {
+        if (Strings.isNullOrEmpty(keyStorePath) || Strings.isNullOrEmpty(keyStorePassword)) {
             throw new IllegalArgumentException("Passed in parameter empty. "
-                                               + KEYSTORE_PATH + ": " + keyStorePath
-                                               + " " + KEYSTORE_PW + ": " + keyStorePassword);
+                    + KEYSTORE_PATH + ": " + keyStorePath
+                    + " " + KEYSTORE_PW + ": " + keyStorePassword);
         }
 
         if (Strings.isNullOrEmpty(keyStoreType)) {

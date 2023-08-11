@@ -39,5 +39,4 @@ public class NettyTCPChannelInitializer extends ChannelInitializer<Channel> {
         channel.pipeline().addLast(new ByteArrayDecoder());
         channel.pipeline().addLast(this.handler);
     }
-
 }

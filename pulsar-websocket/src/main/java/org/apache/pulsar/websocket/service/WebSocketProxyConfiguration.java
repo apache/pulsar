@@ -47,23 +47,20 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "The secured broker binary service URL (for produce and consume operations)")
     private String brokerServiceUrlTls;
 
-    @FieldContext(doc = "Path for the file used to determine the rotation status for the broker "
-            + "when responding to service discovery health checks")
+    @FieldContext(
+            doc = "Path for the file used to determine the rotation status for the broker "
+                    + "when responding to service discovery health checks")
     private String statusFilePath;
 
     @Deprecated
-    @FieldContext(
-            doc = "Configuration Store connection string",
-            deprecated = true
-    )
+    @FieldContext(doc = "Configuration Store connection string", deprecated = true)
     private String globalZookeeperServers;
 
     @Deprecated
     @FieldContext(
             deprecated = true,
             doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
-                    + "`configurationMetadataStoreUrl`"
-    )
+                    + "`configurationMetadataStoreUrl`")
     private String configurationStoreServers;
 
     @FieldContext(doc = "Connection string of configuration metadata store servers")
@@ -78,13 +75,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
             deprecated = true,
             doc = "ZooKeeper session timeout in milliseconds. "
-                        + "@deprecated - Use metadataStoreSessionTimeoutMillis instead.")
+                    + "@deprecated - Use metadataStoreSessionTimeoutMillis instead.")
     private long zooKeeperSessionTimeoutMillis = -1;
 
     @FieldContext(
             deprecated = true,
             doc = "ZooKeeper cache expiry time in seconds. "
-                        + "@deprecated - Use metadataStoreCacheExpirySeconds instead.")
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead.")
     private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(doc = "Port to use to server HTTP request")
@@ -111,13 +108,15 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Authorization provider fully qualified class name")
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
-    @FieldContext(doc = "Role names that are treated as \"super-user\", "
-            + "which means they can do all admin operations and publish to or consume from all topics")
+    @FieldContext(
+            doc = "Role names that are treated as \"super-user\", "
+                    + "which means they can do all admin operations and publish to or consume from all topics")
     private Set<String> superUserRoles = new TreeSet<>();
 
-    @FieldContext(doc = "Allow wildcard matching in authorization "
-            + "(wildcard matching only applicable if wildcard-char: "
-            + "presents at first or last position. For example: *.pulsar.service,pulsar.service.*)")
+    @FieldContext(
+            doc = "Allow wildcard matching in authorization "
+                    + "(wildcard matching only applicable if wildcard-char: "
+                    + "presents at first or last position. For example: *.pulsar.service,pulsar.service.*)")
     private boolean authorizationAllowWildcardsMatching = false;
 
     @FieldContext(doc = "Proxy authentication settings used to connect to brokers")
@@ -145,18 +144,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
-    @FieldContext(doc = "Capacity for thread pool queue in the HTTP server"
-                    + " Default is set to 8192."
-    )
+    @FieldContext(doc = "Capacity for thread pool queue in the HTTP server" + " Default is set to 8192.")
     private int httpServerThreadPoolQueueSize = 8192;
 
-    @FieldContext(doc = "Capacity for accept queue in the HTTP server"
-                    + " Default is set to 8192."
-    )
+    @FieldContext(doc = "Capacity for accept queue in the HTTP server" + " Default is set to 8192.")
     private int httpServerAcceptQueueSize = 8192;
 
-    @FieldContext(doc = "Maximum number of inbound http connections. "
-            + "(0 to disable limiting)")
+    @FieldContext(doc = "Maximum number of inbound http connections. " + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
 
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
@@ -190,71 +184,52 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Accept untrusted TLS certificate from client and broker")
     private boolean tlsAllowInsecureConnection = false;
 
-    @FieldContext(doc = "Specify whether client certificates are required for "
-            + "TLS rejecting the connection if the client certificate is not trusted")
+    @FieldContext(
+            doc = "Specify whether client certificates are required for "
+                    + "TLS rejecting the connection if the client certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
     @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
     /**** --- KeyStore TLS config variables. --- ****/
-    @FieldContext(
-            doc = "Enable TLS with KeyStore type configuration for WebSocket"
-    )
+    @FieldContext(doc = "Enable TLS with KeyStore type configuration for WebSocket")
     private boolean tlsEnabledWithKeyStore = false;
 
-    @FieldContext(
-            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc."
-    )
+    @FieldContext(doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc.")
     private String tlsProvider = "Conscrypt";
 
-    @FieldContext(
-            doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
-    )
+    @FieldContext(doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12")
     private String tlsKeyStoreType = "JKS";
 
-    @FieldContext(
-            doc = "TLS KeyStore path in WebSocket"
-    )
+    @FieldContext(doc = "TLS KeyStore path in WebSocket")
     private String tlsKeyStore = null;
 
-    @FieldContext(
-            doc = "TLS KeyStore password for WebSocket"
-    )
+    @FieldContext(doc = "TLS KeyStore password for WebSocket")
     @ToString.Exclude
     private String tlsKeyStorePassword = null;
 
-    @FieldContext(
-            doc = "TLS TrustStore type configuration in WebSocket: JKS, PKCS12"
-    )
+    @FieldContext(doc = "TLS TrustStore type configuration in WebSocket: JKS, PKCS12")
     private String tlsTrustStoreType = "JKS";
 
-    @FieldContext(
-            doc = "TLS TrustStore path in WebSocket"
-    )
+    @FieldContext(doc = "TLS TrustStore path in WebSocket")
     private String tlsTrustStore = null;
 
-    @FieldContext(
-            doc = "TLS TrustStore password for WebSocket, null means empty password."
-    )
+    @FieldContext(doc = "TLS TrustStore password for WebSocket, null means empty password.")
     @ToString.Exclude
     private String tlsTrustStorePassword = null;
 
     @FieldContext(
             doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
-                    + "Example:- [TLSv1.3, TLSv1.2]"
-    )
+                    + "Example:- [TLSv1.3, TLSv1.2]")
     private Set<String> webServiceTlsProtocols = new TreeSet<>();
 
     @FieldContext(
             doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
-                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
-    )
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]")
     private Set<String> webServiceTlsCiphers = new TreeSet<>();
 
-    @FieldContext(
-            doc = "CryptoKeyReader factory classname to support encryption at websocket."
-    )
+    @FieldContext(doc = "CryptoKeyReader factory classname to support encryption at websocket.")
     private String cryptoKeyReaderFactoryClassName;
 
     @FieldContext(doc = "Key-value properties. Types are all String")

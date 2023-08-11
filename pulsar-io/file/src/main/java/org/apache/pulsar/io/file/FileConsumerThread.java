@@ -41,7 +41,8 @@ public class FileConsumerThread extends Thread {
     private final BlockingQueue<File> inProcess;
     private final BlockingQueue<File> recentlyProcessed;
 
-    public FileConsumerThread(PushSource<byte[]> source,
+    public FileConsumerThread(
+            PushSource<byte[]> source,
             BlockingQueue<File> workQueue,
             BlockingQueue<File> inProcess,
             BlockingQueue<File> recentlyProcessed) {
@@ -71,7 +72,7 @@ public class FileConsumerThread extends Thread {
     private void consumeFile(File file) {
         final AtomicInteger idx = new AtomicInteger(1);
         try (Stream<String> lines = getLines(file)) {
-             lines.forEachOrdered(line -> process(file, idx.getAndIncrement(), line));
+            lines.forEachOrdered(line -> process(file, idx.getAndIncrement(), line));
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -103,5 +104,4 @@ public class FileConsumerThread extends Thread {
     private void process(File srcFile, int lineNumber, String line) {
         source.consume(new FileRecord(srcFile, lineNumber, line.getBytes()));
     }
-
 }

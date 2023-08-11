@@ -97,8 +97,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final BookkeeperFactoryForCustomEnsemblePlacementPolicy bookkeeperFactory;
     private final boolean isBookkeeperManaged;
     private final ManagedLedgerFactoryConfig config;
+
     @Getter
     protected final OrderedScheduler scheduledExecutor;
+
     private final ScheduledExecutorService cacheEvictionExecutor;
 
     @Getter
@@ -106,7 +108,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     protected final ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = new ConcurrentHashMap<>();
     protected final ConcurrentHashMap<String, PendingInitializeManagedLedger> pendingInitializeLedgers =
-        new ConcurrentHashMap<>();
+            new ConcurrentHashMap<>();
     private final EntryCacheManager entryCacheManager;
 
     private long lastStatTimestamp = System.nanoTime();
@@ -116,7 +118,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private volatile long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
 
-    //indicate whether shutdown() is called.
+    // indicate whether shutdown() is called.
     private volatile boolean closed;
 
     /**
@@ -134,7 +136,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             this.ledger = ledger;
             this.createTimeMs = System.currentTimeMillis();
         }
-
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration)
@@ -143,74 +144,90 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @SuppressWarnings("deprecation")
-    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration,
-                                    ManagedLedgerFactoryConfig config)
+    public ManagedLedgerFactoryImpl(
+            MetadataStoreExtended metadataStore,
+            ClientConfiguration bkClientConfiguration,
+            ManagedLedgerFactoryConfig config)
             throws Exception {
-        this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
-                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE);
+        this(
+                metadataStore,
+                new DefaultBkFactory(bkClientConfiguration),
+                true /* isBookkeeperManaged */,
+                config,
+                NullStatsLogger.INSTANCE);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper)
-            throws Exception {
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper) throws Exception {
         this(metadataStore, bookKeeper, new ManagedLedgerFactoryConfig());
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
-                                    ManagedLedgerFactoryConfig config)
+    public ManagedLedgerFactoryImpl(
+            MetadataStoreExtended metadataStore, BookKeeper bookKeeper, ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, (policyConfig) -> bookKeeper, config);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
-                                    BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
-                                    ManagedLedgerFactoryConfig config)
+    public ManagedLedgerFactoryImpl(
+            MetadataStoreExtended metadataStore,
+            BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+            ManagedLedgerFactoryConfig config)
             throws Exception {
-        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, NullStatsLogger.INSTANCE);
+        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
-                                    BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
-                                    ManagedLedgerFactoryConfig config, StatsLogger statsLogger)
+    public ManagedLedgerFactoryImpl(
+            MetadataStoreExtended metadataStore,
+            BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+            ManagedLedgerFactoryConfig config,
+            StatsLogger statsLogger)
             throws Exception {
-        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, statsLogger);
+        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */, config, statsLogger);
     }
 
-    private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
-                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
-                                     boolean isBookkeeperManaged,
-                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
+    private ManagedLedgerFactoryImpl(
+            MetadataStoreExtended metadataStore,
+            BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+            boolean isBookkeeperManaged,
+            ManagedLedgerFactoryConfig config,
+            StatsLogger statsLogger)
+            throws Exception {
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(config.getNumManagedLedgerSchedulerThreads())
                 .statsLogger(statsLogger)
                 .traceTaskExecution(config.isTraceTaskExecution())
                 .name("bookkeeper-ml-scheduler")
                 .build();
-        cacheEvictionExecutor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
+        cacheEvictionExecutor =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
         this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
         this.metadataStore = metadataStore;
-        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor,
+        this.store = new MetaStoreImpl(
+                metadataStore,
+                scheduledExecutor,
                 config.getCompressionConfigForManagedLedgerInfo(),
                 config.getCompressionConfigForManagedCursorInfo());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new RangeEntryCacheManagerImpl(this);
-        this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
-                0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
-        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
-                config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
+        this.statsTask = scheduledExecutor.scheduleWithFixedDelay(
+                catchingAndLoggingThrowables(this::refreshStats), 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
+        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(this::flushCursors),
+                config.getCursorPositionFlushSeconds(),
+                config.getCursorPositionFlushSeconds(),
+                TimeUnit.SECONDS);
 
-
-        this.cacheEvictionTimeThresholdNanos = TimeUnit.MILLISECONDS
-                .toNanos(config.getCacheEvictionTimeThresholdMillis());
+        this.cacheEvictionTimeThresholdNanos =
+                TimeUnit.MILLISECONDS.toNanos(config.getCacheEvictionTimeThresholdMillis());
 
         long evictionTaskInterval = config.getCacheEvictionIntervalMs();
-        cacheEvictionExecutor.scheduleWithFixedDelay(Runnables.catchingAndLoggingThrowables(this::doCacheEviction),
-                evictionTaskInterval, evictionTaskInterval, TimeUnit.MILLISECONDS);
+        cacheEvictionExecutor.scheduleWithFixedDelay(
+                Runnables.catchingAndLoggingThrowables(this::doCacheEviction),
+                evictionTaskInterval,
+                evictionTaskInterval,
+                TimeUnit.MILLISECONDS);
         closed = false;
 
         metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
@@ -301,19 +318,24 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
         final Result r = new Result();
         final CountDownLatch latch = new CountDownLatch(1);
-        asyncOpen(name, config, new OpenLedgerCallback() {
-            @Override
-            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                r.l = ledger;
-                latch.countDown();
-            }
+        asyncOpen(
+                name,
+                config,
+                new OpenLedgerCallback() {
+                    @Override
+                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                        r.l = ledger;
+                        latch.countDown();
+                    }
 
-            @Override
-            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                r.e = exception;
-                latch.countDown();
-            }
-        }, null, null);
+                    @Override
+                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        r.e = exception;
+                        latch.countDown();
+                    }
+                },
+                null,
+                null);
 
         latch.await();
 
@@ -329,8 +351,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public void asyncOpen(final String name, final ManagedLedgerConfig config, final OpenLedgerCallback callback,
-            Supplier<Boolean> mlOwnershipChecker, final Object ctx) {
+    public void asyncOpen(
+            final String name,
+            final ManagedLedgerConfig config,
+            final OpenLedgerCallback callback,
+            Supplier<Boolean> mlOwnershipChecker,
+            final Object ctx) {
         if (closed) {
             callback.openLedgerFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
             return;
@@ -344,8 +370,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     ManagedLedgerImpl l = existingFuture.get();
                     if (l.getState().isFenced() || l.getState() == State.Closed) {
                         // Managed ledger is in unusable state. Recreate it.
-                        log.warn("[{}] Attempted to open ledger in {} state. Removing from the map to recreate it",
-                                name, l.getState());
+                        log.warn(
+                                "[{}] Attempted to open ledger in {} state. Removing from the map to recreate it",
+                                name,
+                                l.getState());
                         ledgers.remove(name, existingFuture);
                     }
                 } catch (Exception e) {
@@ -357,100 +385,121 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 if (null != pendingLedger) {
                     long pendingMs = System.currentTimeMillis() - pendingLedger.createTimeMs;
                     if (pendingMs > TimeUnit.SECONDS.toMillis(config.getMetadataOperationsTimeoutSeconds())) {
-                        log.warn("[{}] Managed ledger has been pending in initialize state more than {} milliseconds,"
-                            + " remove it from cache to retry ...", name, pendingMs);
+                        log.warn(
+                                "[{}] Managed ledger has been pending in initialize state more than {} milliseconds,"
+                                        + " remove it from cache to retry ...",
+                                name,
+                                pendingMs);
                         ledgers.remove(name, existingFuture);
                         pendingInitializeLedgers.remove(name, pendingLedger);
                     }
                 }
-
             }
         }
 
         // Ensure only one managed ledger is created and initialized
         ledgers.computeIfAbsent(name, (mlName) -> {
-            // Create the managed ledger
-            CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
-            BookKeeper bk = bookkeeperFactory.get(
-                    new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                    // Create the managed ledger
+                    CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
+                    BookKeeper bk = bookkeeperFactory.get(new EnsemblePlacementPolicyConfig(
+                            config.getBookKeeperEnsemblePlacementPolicyClassName(),
                             config.getBookKeeperEnsemblePlacementPolicyProperties()));
-            final ManagedLedgerImpl newledger = config.getShadowSource() == null
-                    ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker)
-                    : new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                    mlOwnershipChecker);
-            PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
-            pendingInitializeLedgers.put(name, pendingLedger);
-            newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
-                @Override
-                public void initializeComplete() {
-                    log.info("[{}] Successfully initialize managed ledger", name);
-                    pendingInitializeLedgers.remove(name, pendingLedger);
-                    future.complete(newledger);
+                    final ManagedLedgerImpl newledger = config.getShadowSource() == null
+                            ? new ManagedLedgerImpl(
+                                    this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker)
+                            : new ShadowManagedLedgerImpl(
+                                    this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker);
+                    PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
+                    pendingInitializeLedgers.put(name, pendingLedger);
+                    newledger.initialize(
+                            new ManagedLedgerInitializeLedgerCallback() {
+                                @Override
+                                public void initializeComplete() {
+                                    log.info("[{}] Successfully initialize managed ledger", name);
+                                    pendingInitializeLedgers.remove(name, pendingLedger);
+                                    future.complete(newledger);
 
-                    // May need to update the cursor position
-                    newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
-                }
+                                    // May need to update the cursor position
+                                    newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                                }
 
-                @Override
-                public void initializeFailed(ManagedLedgerException e) {
-                    if (config.isCreateIfMissing()) {
-                        log.error("[{}] Failed to initialize managed ledger: {}", name, e.getMessage());
-                    }
+                                @Override
+                                public void initializeFailed(ManagedLedgerException e) {
+                                    if (config.isCreateIfMissing()) {
+                                        log.error("[{}] Failed to initialize managed ledger: {}", name, e.getMessage());
+                                    }
 
-                    // Clean the map if initialization fails
-                    ledgers.remove(name, future);
+                                    // Clean the map if initialization fails
+                                    ledgers.remove(name, future);
 
-                    if (pendingInitializeLedgers.remove(name, pendingLedger)) {
-                        pendingLedger.ledger.asyncClose(new CloseCallback() {
-                            @Override
-                            public void closeComplete(Object ctx) {
-                                // no-op
-                            }
+                                    if (pendingInitializeLedgers.remove(name, pendingLedger)) {
+                                        pendingLedger.ledger.asyncClose(
+                                                new CloseCallback() {
+                                                    @Override
+                                                    public void closeComplete(Object ctx) {
+                                                        // no-op
+                                                    }
 
-                            @Override
-                            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                                log.warn("[{}] Failed to a pending initialization managed ledger", name, exception);
-                            }
-                        }, null);
-                    }
+                                                    @Override
+                                                    public void closeFailed(
+                                                            ManagedLedgerException exception, Object ctx) {
+                                                        log.warn(
+                                                                "[{}] Failed to a pending initialization managed ledger",
+                                                                name,
+                                                                exception);
+                                                    }
+                                                },
+                                                null);
+                                    }
 
-                    future.completeExceptionally(e);
-                }
-            }, null);
-            return future;
-        }).thenAccept(ml -> callback.openLedgerComplete(ml, ctx)).exceptionally(exception -> {
-            callback.openLedgerFailed((ManagedLedgerException) exception.getCause(), ctx);
-            return null;
-        });
+                                    future.completeExceptionally(e);
+                                }
+                            },
+                            null);
+                    return future;
+                })
+                .thenAccept(ml -> callback.openLedgerComplete(ml, ctx))
+                .exceptionally(exception -> {
+                    callback.openLedgerFailed((ManagedLedgerException) exception.getCause(), ctx);
+                    return null;
+                });
     }
 
     @Override
-    public void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
-                              AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
-                              ManagedLedgerConfig config, Object ctx) {
+    public void asyncOpenReadOnlyManagedLedger(
+            String managedLedgerName,
+            AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
+            ManagedLedgerConfig config,
+            Object ctx) {
         if (closed) {
             callback.openReadOnlyManagedLedgerFailed(
                     new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
         }
-        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
-                bookkeeperFactory
-                        .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                                config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                store, config, scheduledExecutor, managedLedgerName);
-        roManagedLedger.initialize().thenRun(() -> {
-            log.info("[{}] Successfully initialize Read-only managed ledger", managedLedgerName);
-            callback.openReadOnlyManagedLedgerComplete(roManagedLedger, ctx);
-
-        }).exceptionally(e -> {
-            log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
-            callback.openReadOnlyManagedLedgerFailed((ManagedLedgerException) e.getCause(), ctx);
-            return null;
-        });
+        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(
+                this,
+                bookkeeperFactory.get(new EnsemblePlacementPolicyConfig(
+                        config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                        config.getBookKeeperEnsemblePlacementPolicyProperties())),
+                store,
+                config,
+                scheduledExecutor,
+                managedLedgerName);
+        roManagedLedger
+                .initialize()
+                .thenRun(() -> {
+                    log.info("[{}] Successfully initialize Read-only managed ledger", managedLedgerName);
+                    callback.openReadOnlyManagedLedgerComplete(roManagedLedger, ctx);
+                })
+                .exceptionally(e -> {
+                    log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
+                    callback.openReadOnlyManagedLedgerFailed((ManagedLedgerException) e.getCause(), ctx);
+                    return null;
+                });
     }
 
     @Override
-    public ReadOnlyCursor openReadOnlyCursor(String managedLedgerName, Position startPosition,
-                                             ManagedLedgerConfig config)
+    public ReadOnlyCursor openReadOnlyCursor(
+            String managedLedgerName, Position startPosition, ManagedLedgerConfig config)
             throws InterruptedException, ManagedLedgerException {
         class Result {
             ReadOnlyCursor c = null;
@@ -458,19 +507,24 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
         final Result r = new Result();
         final CountDownLatch latch = new CountDownLatch(1);
-        asyncOpenReadOnlyCursor(managedLedgerName, startPosition, config, new OpenReadOnlyCursorCallback() {
-            @Override
-            public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
-                r.c = cursor;
-                latch.countDown();
-            }
+        asyncOpenReadOnlyCursor(
+                managedLedgerName,
+                startPosition,
+                config,
+                new OpenReadOnlyCursorCallback() {
+                    @Override
+                    public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
+                        r.c = cursor;
+                        latch.countDown();
+                    }
 
-            @Override
-            public void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx) {
-                r.e = exception;
-                latch.countDown();
-            }
-        }, null);
+                    @Override
+                    public void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        r.e = exception;
+                        latch.countDown();
+                    }
+                },
+                null);
 
         latch.await();
 
@@ -481,8 +535,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
-            OpenReadOnlyCursorCallback callback, Object ctx) {
+    public void asyncOpenReadOnlyCursor(
+            String managedLedgerName,
+            Position startPosition,
+            ManagedLedgerConfig config,
+            OpenReadOnlyCursorCallback callback,
+            Object ctx) {
         if (closed) {
             callback.openReadOnlyCursorFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
             return;
@@ -490,17 +548,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         checkArgument(startPosition instanceof PositionImpl);
         AsyncCallbacks.OpenReadOnlyManagedLedgerCallback openReadOnlyManagedLedgerCallback =
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
-            @Override
-            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
-                callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
-                        createReadOnlyCursor((PositionImpl) startPosition), ctx);
-            }
+                    @Override
+                    public void openReadOnlyManagedLedgerComplete(
+                            ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
+                        callback.openReadOnlyCursorComplete(
+                                readOnlyManagedLedger.createReadOnlyCursor((PositionImpl) startPosition), ctx);
+                    }
 
-            @Override
-            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                callback.openReadOnlyCursorFailed(exception, ctx);
-            }
-        };
+                    @Override
+                    public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        callback.openReadOnlyCursorFailed(exception, ctx);
+                    }
+                };
         asyncOpenReadOnlyManagedLedger(managedLedgerName, openReadOnlyManagedLedgerCallback, config, null);
     }
 
@@ -508,10 +567,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         // If the future in map is not done or has exceptionally complete, it means that @param-ledger is not in the
         // map.
         CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.get(ledger.getName());
-        if (ledgerFuture == null || !ledgerFuture.isDone() || ledgerFuture.isCompletedExceptionally()){
+        if (ledgerFuture == null || !ledgerFuture.isDone() || ledgerFuture.isCompletedExceptionally()) {
             return;
         }
-        if (ledgerFuture.join() != ledger){
+        if (ledgerFuture.join() != ledger) {
             return;
         }
         // Remove the ledger from the internal factory cache.
@@ -542,27 +601,32 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 future.complete(null);
                 continue;
             }
-            ledgerFuture.whenCompleteAsync((managedLedger, throwable) -> {
-                if (throwable != null || managedLedger == null) {
-                    future.complete(null);
-                    return;
-                }
-                managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
-                    @Override
-                    public void closeComplete(Object ctx) {
-                        future.complete(null);
-                    }
+            ledgerFuture.whenCompleteAsync(
+                    (managedLedger, throwable) -> {
+                        if (throwable != null || managedLedger == null) {
+                            future.complete(null);
+                            return;
+                        }
+                        managedLedger.asyncClose(
+                                new AsyncCallbacks.CloseCallback() {
+                                    @Override
+                                    public void closeComplete(Object ctx) {
+                                        future.complete(null);
+                                    }
 
-                    @Override
-                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("[{}] Got exception when closing managed ledger: {}", managedLedger.getName(),
-                                exception);
-                        future.complete(null);
-                    }
-                }, null);
-
-            }, scheduledExecutor.chooseThread());
-            //close pendingInitializeManagedLedger directly to make sure all callbacks is called.
+                                    @Override
+                                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                                        log.warn(
+                                                "[{}] Got exception when closing managed ledger: {}",
+                                                managedLedger.getName(),
+                                                exception);
+                                        future.complete(null);
+                                    }
+                                },
+                                null);
+                    },
+                    scheduledExecutor.chooseThread());
+            // close pendingInitializeManagedLedger directly to make sure all callbacks is called.
             PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(ledgerName);
             if (pendingLedger != null && !ledgerFuture.isDone()) {
                 ledgerFuture.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
@@ -586,7 +650,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }
             if (!ledgers.isEmpty()) {
                 log.info("Force closing {} ledgers.", ledgers.size());
-                //make sure all callbacks is called.
+                // make sure all callbacks is called.
                 ledgers.forEach(((ledgerName, ledgerFuture) -> {
                     if (!ledgerFuture.isDone()) {
                         ledgerFuture.completeExceptionally(
@@ -599,7 +663,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         try {
                             managedLedger.close();
                         } catch (Throwable throwable) {
-                            log.warn("[{}] Got exception when closing managed ledger: {}", managedLedger.getName(),
+                            log.warn(
+                                    "[{}] Got exception when closing managed ledger: {}",
+                                    managedLedger.getName(),
                                     throwable);
                         }
                     }
@@ -608,7 +674,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }));
         entryCacheManager.clear();
         return FutureUtil.waitForAll(futures).thenAccept(__ -> {
-            //wait for tasks in scheduledExecutor executed.
+            // wait for tasks in scheduledExecutor executed.
             scheduledExecutor.shutdown();
         });
     }
@@ -637,18 +703,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 continue;
             }
 
-            ledger.asyncClose(new AsyncCallbacks.CloseCallback() {
-                @Override
-                public void closeComplete(Object ctx) {
-                    latch.countDown();
-                }
+            ledger.asyncClose(
+                    new AsyncCallbacks.CloseCallback() {
+                        @Override
+                        public void closeComplete(Object ctx) {
+                            latch.countDown();
+                        }
 
-                @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.warn("[{}] Got exception when closing managed ledger: {}", ledger.getName(), exception);
-                    latch.countDown();
-                }
-            }, null);
+                        @Override
+                        public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("[{}] Got exception when closing managed ledger: {}", ledger.getName(), exception);
+                            latch.countDown();
+                        }
+                    },
+                    null);
         }
 
         latch.await();
@@ -683,19 +751,22 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
         final Result r = new Result();
         final CountDownLatch latch = new CountDownLatch(1);
-        asyncGetManagedLedgerInfo(name, new ManagedLedgerInfoCallback() {
-            @Override
-            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                r.info = info;
-                latch.countDown();
-            }
+        asyncGetManagedLedgerInfo(
+                name,
+                new ManagedLedgerInfoCallback() {
+                    @Override
+                    public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+                        r.info = info;
+                        latch.countDown();
+                    }
 
-            @Override
-            public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
-                r.e = exception;
-                latch.countDown();
-            }
-        }, null);
+                    @Override
+                    public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
+                        r.e = exception;
+                        latch.countDown();
+                    }
+                },
+                null);
 
         latch.await();
 
@@ -707,112 +778,136 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx) {
-        store.getManagedLedgerInfo(name, false /* createIfMissing */,
+        store.getManagedLedgerInfo(
+                name,
+                false /* createIfMissing */,
                 new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
-            @Override
-            public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
-                ManagedLedgerInfo info = new ManagedLedgerInfo();
-                info.version = stat.getVersion();
-                info.creationDate = DateFormatter.format(stat.getCreationTimestamp());
-                info.modificationDate = DateFormatter.format(stat.getModificationTimestamp());
-
-                info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
-                if (pbInfo.hasTerminatedPosition()) {
-                    info.terminatedPosition = new PositionInfo();
-                    info.terminatedPosition.ledgerId = pbInfo.getTerminatedPosition().getLedgerId();
-                    info.terminatedPosition.entryId = pbInfo.getTerminatedPosition().getEntryId();
-                }
-
-                if (pbInfo.getPropertiesCount() > 0) {
-                    info.properties = new TreeMap();
-                    for (int i = 0; i < pbInfo.getPropertiesCount(); i++) {
-                        MLDataFormats.KeyValue property = pbInfo.getProperties(i);
-                        info.properties.put(property.getKey(), property.getValue());
-                    }
-                }
-
-                for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
-                    MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
-                    LedgerInfo ledgerInfo = new LedgerInfo();
-                    ledgerInfo.ledgerId = pbLedgerInfo.getLedgerId();
-                    ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
-                    ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
-                    ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
-                    if (pbLedgerInfo.hasOffloadContext()) {
-                        MLDataFormats.OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
-                        UUID uuid = new UUID(offloadContext.getUidMsb(), offloadContext.getUidLsb());
-                        ledgerInfo.offloadedContextUuid = uuid.toString();
-                    }
-                    info.ledgers.add(ledgerInfo);
-                }
-
-                store.getCursors(name, new MetaStoreCallback<List<String>>() {
                     @Override
-                    public void operationComplete(List<String> cursorsList, Stat stat) {
-                        // Get the info for each cursor
-                        info.cursors = new ConcurrentSkipListMap<>();
-                        List<CompletableFuture<Void>> cursorsFutures = new ArrayList<>();
+                    public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
+                        ManagedLedgerInfo info = new ManagedLedgerInfo();
+                        info.version = stat.getVersion();
+                        info.creationDate = DateFormatter.format(stat.getCreationTimestamp());
+                        info.modificationDate = DateFormatter.format(stat.getModificationTimestamp());
 
-                        for (String cursorName : cursorsList) {
-                            CompletableFuture<Void> cursorFuture = new CompletableFuture<>();
-                            cursorsFutures.add(cursorFuture);
-                            store.asyncGetCursorInfo(name, cursorName,
-                                    new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
-                                        @Override
-                                        public void operationComplete(ManagedCursorInfo pbCursorInfo, Stat stat) {
-                                            CursorInfo cursorInfo = new CursorInfo();
-                                            cursorInfo.version = stat.getVersion();
-                                            cursorInfo.creationDate = DateFormatter.format(stat.getCreationTimestamp());
-                                            cursorInfo.modificationDate = DateFormatter
-                                                    .format(stat.getModificationTimestamp());
-
-                                            cursorInfo.cursorsLedgerId = pbCursorInfo.getCursorsLedgerId();
-
-                                            if (pbCursorInfo.hasMarkDeleteLedgerId()) {
-                                                cursorInfo.markDelete = new PositionInfo();
-                                                cursorInfo.markDelete.ledgerId = pbCursorInfo.getMarkDeleteLedgerId();
-                                                cursorInfo.markDelete.entryId = pbCursorInfo.getMarkDeleteEntryId();
-                                            }
-
-                                            if (pbCursorInfo.getPropertiesCount() > 0) {
-                                                cursorInfo.properties = new TreeMap();
-                                                for (int i = 0; i < pbCursorInfo.getPropertiesCount(); i++) {
-                                                    LongProperty property = pbCursorInfo.getProperties(i);
-                                                    cursorInfo.properties.put(property.getName(), property.getValue());
-                                                }
-                                            }
-
-                                            if (pbCursorInfo.getIndividualDeletedMessagesCount() > 0) {
-                                                cursorInfo.individualDeletedMessages = new ArrayList<>();
-                                                for (int i = 0; i < pbCursorInfo
-                                                        .getIndividualDeletedMessagesCount(); i++) {
-                                                    MessageRange range = pbCursorInfo.getIndividualDeletedMessages(i);
-                                                    MessageRangeInfo rangeInfo = new MessageRangeInfo();
-                                                    rangeInfo.from.ledgerId = range.getLowerEndpoint().getLedgerId();
-                                                    rangeInfo.from.entryId = range.getLowerEndpoint().getEntryId();
-                                                    rangeInfo.to.ledgerId = range.getUpperEndpoint().getLedgerId();
-                                                    rangeInfo.to.entryId = range.getUpperEndpoint().getEntryId();
-                                                    cursorInfo.individualDeletedMessages.add(rangeInfo);
-                                                }
-                                            }
-
-                                            info.cursors.put(cursorName, cursorInfo);
-                                            cursorFuture.complete(null);
-                                        }
-
-                                        @Override
-                                        public void operationFailed(MetaStoreException e) {
-                                            cursorFuture.completeExceptionally(e);
-                                        }
-                                    });
+                        info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
+                        if (pbInfo.hasTerminatedPosition()) {
+                            info.terminatedPosition = new PositionInfo();
+                            info.terminatedPosition.ledgerId =
+                                    pbInfo.getTerminatedPosition().getLedgerId();
+                            info.terminatedPosition.entryId =
+                                    pbInfo.getTerminatedPosition().getEntryId();
                         }
 
-                        Futures.waitForAll(cursorsFutures).thenRun(() -> {
-                            // Completed all the cursors info
-                            callback.getInfoComplete(info, ctx);
-                        }).exceptionally((ex) -> {
-                            callback.getInfoFailed(getManagedLedgerException(ex.getCause()), ctx);
-                            return null;
+                        if (pbInfo.getPropertiesCount() > 0) {
+                            info.properties = new TreeMap();
+                            for (int i = 0; i < pbInfo.getPropertiesCount(); i++) {
+                                MLDataFormats.KeyValue property = pbInfo.getProperties(i);
+                                info.properties.put(property.getKey(), property.getValue());
+                            }
+                        }
+
+                        for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
+                            MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
+                            LedgerInfo ledgerInfo = new LedgerInfo();
+                            ledgerInfo.ledgerId = pbLedgerInfo.getLedgerId();
+                            ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
+                            ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
+                            ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
+                            if (pbLedgerInfo.hasOffloadContext()) {
+                                MLDataFormats.OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
+                                UUID uuid = new UUID(offloadContext.getUidMsb(), offloadContext.getUidLsb());
+                                ledgerInfo.offloadedContextUuid = uuid.toString();
+                            }
+                            info.ledgers.add(ledgerInfo);
+                        }
+
+                        store.getCursors(name, new MetaStoreCallback<List<String>>() {
+                            @Override
+                            public void operationComplete(List<String> cursorsList, Stat stat) {
+                                // Get the info for each cursor
+                                info.cursors = new ConcurrentSkipListMap<>();
+                                List<CompletableFuture<Void>> cursorsFutures = new ArrayList<>();
+
+                                for (String cursorName : cursorsList) {
+                                    CompletableFuture<Void> cursorFuture = new CompletableFuture<>();
+                                    cursorsFutures.add(cursorFuture);
+                                    store.asyncGetCursorInfo(
+                                            name, cursorName, new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
+                                                @Override
+                                                public void operationComplete(
+                                                        ManagedCursorInfo pbCursorInfo, Stat stat) {
+                                                    CursorInfo cursorInfo = new CursorInfo();
+                                                    cursorInfo.version = stat.getVersion();
+                                                    cursorInfo.creationDate =
+                                                            DateFormatter.format(stat.getCreationTimestamp());
+                                                    cursorInfo.modificationDate =
+                                                            DateFormatter.format(stat.getModificationTimestamp());
+
+                                                    cursorInfo.cursorsLedgerId = pbCursorInfo.getCursorsLedgerId();
+
+                                                    if (pbCursorInfo.hasMarkDeleteLedgerId()) {
+                                                        cursorInfo.markDelete = new PositionInfo();
+                                                        cursorInfo.markDelete.ledgerId =
+                                                                pbCursorInfo.getMarkDeleteLedgerId();
+                                                        cursorInfo.markDelete.entryId =
+                                                                pbCursorInfo.getMarkDeleteEntryId();
+                                                    }
+
+                                                    if (pbCursorInfo.getPropertiesCount() > 0) {
+                                                        cursorInfo.properties = new TreeMap();
+                                                        for (int i = 0; i < pbCursorInfo.getPropertiesCount(); i++) {
+                                                            LongProperty property = pbCursorInfo.getProperties(i);
+                                                            cursorInfo.properties.put(
+                                                                    property.getName(), property.getValue());
+                                                        }
+                                                    }
+
+                                                    if (pbCursorInfo.getIndividualDeletedMessagesCount() > 0) {
+                                                        cursorInfo.individualDeletedMessages = new ArrayList<>();
+                                                        for (int i = 0;
+                                                                i < pbCursorInfo.getIndividualDeletedMessagesCount();
+                                                                i++) {
+                                                            MessageRange range =
+                                                                    pbCursorInfo.getIndividualDeletedMessages(i);
+                                                            MessageRangeInfo rangeInfo = new MessageRangeInfo();
+                                                            rangeInfo.from.ledgerId = range.getLowerEndpoint()
+                                                                    .getLedgerId();
+                                                            rangeInfo.from.entryId = range.getLowerEndpoint()
+                                                                    .getEntryId();
+                                                            rangeInfo.to.ledgerId = range.getUpperEndpoint()
+                                                                    .getLedgerId();
+                                                            rangeInfo.to.entryId = range.getUpperEndpoint()
+                                                                    .getEntryId();
+                                                            cursorInfo.individualDeletedMessages.add(rangeInfo);
+                                                        }
+                                                    }
+
+                                                    info.cursors.put(cursorName, cursorInfo);
+                                                    cursorFuture.complete(null);
+                                                }
+
+                                                @Override
+                                                public void operationFailed(MetaStoreException e) {
+                                                    cursorFuture.completeExceptionally(e);
+                                                }
+                                            });
+                                }
+
+                                Futures.waitForAll(cursorsFutures)
+                                        .thenRun(() -> {
+                                            // Completed all the cursors info
+                                            callback.getInfoComplete(info, ctx);
+                                        })
+                                        .exceptionally((ex) -> {
+                                            callback.getInfoFailed(getManagedLedgerException(ex.getCause()), ctx);
+                                            return null;
+                                        });
+                            }
+
+                            @Override
+                            public void operationFailed(MetaStoreException e) {
+                                callback.getInfoFailed(e, ctx);
+                            }
                         });
                     }
 
@@ -821,13 +916,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         callback.getInfoFailed(e, ctx);
                     }
                 });
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                callback.getInfoFailed(e, ctx);
-            }
-        });
     }
 
     @Override
@@ -843,18 +931,22 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
         final Result r = new Result();
         final CountDownLatch latch = new CountDownLatch(1);
-        asyncDelete(name, mlConfigFuture, new DeleteLedgerCallback() {
-            @Override
-            public void deleteLedgerComplete(Object ctx) {
-                latch.countDown();
-            }
+        asyncDelete(
+                name,
+                mlConfigFuture,
+                new DeleteLedgerCallback() {
+                    @Override
+                    public void deleteLedgerComplete(Object ctx) {
+                        latch.countDown();
+                    }
 
-            @Override
-            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                r.e = exception;
-                latch.countDown();
-            }
-        }, null);
+                    @Override
+                    public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        r.e = exception;
+                        latch.countDown();
+                    }
+                },
+                null);
 
         latch.await();
 
@@ -869,129 +961,166 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
-                            DeleteLedgerCallback callback, Object ctx) {
+    public void asyncDelete(
+            String name,
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+            DeleteLedgerCallback callback,
+            Object ctx) {
         CompletableFuture<ManagedLedgerImpl> future = ledgers.get(name);
         if (future == null) {
             // Managed ledger does not exist and we're not currently trying to open it
             deleteManagedLedger(name, mlConfigFuture, callback, ctx);
         } else {
             future.thenAccept(ml -> {
-                // If it's open, delete in the normal way
-                ml.asyncDelete(callback, ctx);
-            }).exceptionally(ex -> {
-                // If it's failing to get open, just delete from metadata
-                return null;
-            });
+                        // If it's open, delete in the normal way
+                        ml.asyncDelete(callback, ctx);
+                    })
+                    .exceptionally(ex -> {
+                        // If it's failing to get open, just delete from metadata
+                        return null;
+                    });
         }
     }
 
     /**
      * Delete all managed ledger resources and metadata.
      */
-    void deleteManagedLedger(String managedLedgerName, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
-                             DeleteLedgerCallback callback, Object ctx) {
+    void deleteManagedLedger(
+            String managedLedgerName,
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+            DeleteLedgerCallback callback,
+            Object ctx) {
         // Read the managed ledger metadata from store
-        asyncGetManagedLedgerInfo(managedLedgerName, new ManagedLedgerInfoCallback() {
-            @Override
-            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                BookKeeper bkc = getBookKeeper();
+        asyncGetManagedLedgerInfo(
+                managedLedgerName,
+                new ManagedLedgerInfoCallback() {
+                    @Override
+                    public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+                        BookKeeper bkc = getBookKeeper();
 
-                // First delete all cursors resources
-                List<CompletableFuture<Void>> futures = info.cursors.entrySet().stream()
-                        .map(e -> deleteCursor(bkc, managedLedgerName, e.getKey(), e.getValue()))
-                        .collect(Collectors.toList());
-                Futures.waitForAll(futures).thenRun(() -> {
-                    deleteManagedLedgerData(bkc, managedLedgerName, info, mlConfigFuture, callback, ctx);
-                }).exceptionally(ex -> {
-                    callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
-                    return null;
-                });
-            }
+                        // First delete all cursors resources
+                        List<CompletableFuture<Void>> futures = info.cursors.entrySet().stream()
+                                .map(e -> deleteCursor(bkc, managedLedgerName, e.getKey(), e.getValue()))
+                                .collect(Collectors.toList());
+                        Futures.waitForAll(futures)
+                                .thenRun(() -> {
+                                    deleteManagedLedgerData(
+                                            bkc, managedLedgerName, info, mlConfigFuture, callback, ctx);
+                                })
+                                .exceptionally(ex -> {
+                                    callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
+                                    return null;
+                                });
+                    }
 
-            @Override
-            public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
-                callback.deleteLedgerFailed(exception, ctx);
-            }
-        }, ctx);
+                    @Override
+                    public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
+                        callback.deleteLedgerFailed(exception, ctx);
+                    }
+                },
+                ctx);
     }
 
-    private void deleteManagedLedgerData(BookKeeper bkc, String managedLedgerName, ManagedLedgerInfo info,
-                                         CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
-                                         DeleteLedgerCallback callback, Object ctx) {
-        final CompletableFuture<Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>>
-                ledgerInfosFuture = new CompletableFuture<>();
-        store.getManagedLedgerInfo(managedLedgerName, false, null,
-                new MetaStoreCallback<>() {
-                    @Override
-                    public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
-                        Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> infos = new HashMap<>();
-                        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : mlInfo.getLedgerInfoList()) {
-                            infos.put(ls.getLedgerId(), ls);
-                        }
-                        ledgerInfosFuture.complete(infos);
-                    }
+    private void deleteManagedLedgerData(
+            BookKeeper bkc,
+            String managedLedgerName,
+            ManagedLedgerInfo info,
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+            DeleteLedgerCallback callback,
+            Object ctx) {
+        final CompletableFuture<Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>> ledgerInfosFuture =
+                new CompletableFuture<>();
+        store.getManagedLedgerInfo(managedLedgerName, false, null, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
+                Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> infos = new HashMap<>();
+                for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+                    infos.put(ls.getLedgerId(), ls);
+                }
+                ledgerInfosFuture.complete(infos);
+            }
 
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.error("Failed to get managed ledger info for {}", managedLedgerName, e);
-                        ledgerInfosFuture.completeExceptionally(e);
-                    }
-                });
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.error("Failed to get managed ledger info for {}", managedLedgerName, e);
+                ledgerInfosFuture.completeExceptionally(e);
+            }
+        });
 
         Futures.waitForAll(info.ledgers.stream()
-                .map(li -> {
-                    final CompletableFuture<Void> res;
-                    if (li.isOffloaded) {
-                        res = mlConfigFuture
-                                .thenCombine(ledgerInfosFuture, Pair::of)
-                                .thenCompose(pair -> {
-                            ManagedLedgerConfig mlConfig =  pair.getLeft();
-                            Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfos = pair.getRight();
+                        .map(li -> {
+                            final CompletableFuture<Void> res;
+                            if (li.isOffloaded) {
+                                res = mlConfigFuture
+                                        .thenCombine(ledgerInfosFuture, Pair::of)
+                                        .thenCompose(pair -> {
+                                            ManagedLedgerConfig mlConfig = pair.getLeft();
+                                            Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfos =
+                                                    pair.getRight();
 
-                            if (mlConfig == null || ledgerInfos == null) {
-                                return CompletableFuture.completedFuture(null);
+                                            if (mlConfig == null || ledgerInfos == null) {
+                                                return CompletableFuture.completedFuture(null);
+                                            }
+
+                                            MLDataFormats.ManagedLedgerInfo.LedgerInfo ls =
+                                                    ledgerInfos.get(li.ledgerId);
+
+                                            if (ls.getOffloadContext().hasUidMsb()) {
+                                                MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder newInfoBuilder =
+                                                        ls.toBuilder();
+                                                newInfoBuilder
+                                                        .getOffloadContextBuilder()
+                                                        .setBookkeeperDeleted(true);
+                                                String driverName = OffloadUtils.getOffloadDriverName(
+                                                        ls,
+                                                        mlConfig.getLedgerOffloader()
+                                                                .getOffloadDriverName());
+                                                Map<String, String> driverMetadata =
+                                                        OffloadUtils.getOffloadDriverMetadata(
+                                                                ls,
+                                                                mlConfig.getLedgerOffloader()
+                                                                        .getOffloadDriverMetadata());
+                                                OffloadUtils.setOffloadDriverMetadata(
+                                                        newInfoBuilder, driverName, driverMetadata);
+
+                                                UUID uuid = new UUID(
+                                                        ls.getOffloadContext().getUidMsb(),
+                                                        ls.getOffloadContext().getUidLsb());
+                                                return OffloadUtils.cleanupOffloaded(
+                                                        li.ledgerId,
+                                                        uuid,
+                                                        mlConfig,
+                                                        OffloadUtils.getOffloadDriverMetadata(
+                                                                ls,
+                                                                mlConfig.getLedgerOffloader()
+                                                                        .getOffloadDriverMetadata()),
+                                                        "Deletion",
+                                                        managedLedgerName,
+                                                        scheduledExecutor);
+                                            }
+
+                                            return CompletableFuture.completedFuture(null);
+                                        });
+                            } else {
+                                res = CompletableFuture.completedFuture(null);
                             }
-
-                            MLDataFormats.ManagedLedgerInfo.LedgerInfo ls = ledgerInfos.get(li.ledgerId);
-
-                            if (ls.getOffloadContext().hasUidMsb()) {
-                                MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
-                                newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
-                                String driverName = OffloadUtils.getOffloadDriverName(ls,
-                                        mlConfig.getLedgerOffloader().getOffloadDriverName());
-                                Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ls,
-                                        mlConfig.getLedgerOffloader().getOffloadDriverMetadata());
-                                OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
-
-                                UUID uuid = new UUID(ls.getOffloadContext().getUidMsb(),
-                                        ls.getOffloadContext().getUidLsb());
-                                return OffloadUtils.cleanupOffloaded(li.ledgerId, uuid, mlConfig,
-                                        OffloadUtils.getOffloadDriverMetadata(ls,
-                                                mlConfig.getLedgerOffloader().getOffloadDriverMetadata()),
-                                        "Deletion", managedLedgerName, scheduledExecutor);
-                            }
-
-                            return CompletableFuture.completedFuture(null);
-                        });
-                    } else {
-                        res = CompletableFuture.completedFuture(null);
-                    }
-                    return res.thenCompose(__ -> bkc.newDeleteLedgerOp().withLedgerId(li.ledgerId).execute()
-                            .handle((result, ex) -> {
-                                if (ex != null) {
-                                    int rc = BKException.getExceptionCode(ex);
-                                    if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
-                                        || rc == BKException.Code.NoSuchLedgerExistsException) {
-                                        log.info("Ledger {} does not exist, ignoring", li.ledgerId);
-                                        return null;
-                                    }
-                                    throw new CompletionException(ex);
-                                }
-                                return result;
-                        }));
-                })
-                .collect(Collectors.toList()))
+                            return res.thenCompose(__ -> bkc.newDeleteLedgerOp()
+                                    .withLedgerId(li.ledgerId)
+                                    .execute()
+                                    .handle((result, ex) -> {
+                                        if (ex != null) {
+                                            int rc = BKException.getExceptionCode(ex);
+                                            if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
+                                                    || rc == BKException.Code.NoSuchLedgerExistsException) {
+                                                log.info("Ledger {} does not exist, ignoring", li.ledgerId);
+                                                return null;
+                                            }
+                                            throw new CompletionException(ex);
+                                        }
+                                        return result;
+                                    }));
+                        })
+                        .collect(Collectors.toList()))
                 .thenRun(() -> {
                     // Delete the metadata
                     store.removeManagedLedger(managedLedgerName, new MetaStoreCallback<Void>() {
@@ -1005,20 +1134,22 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             callback.deleteLedgerFailed(new ManagedLedgerException(e), ctx);
                         }
                     });
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
                     return null;
                 });
     }
 
-    private CompletableFuture<Void> deleteCursor(BookKeeper bkc, String managedLedgerName, String cursorName,
-                                                 CursorInfo cursor) {
+    private CompletableFuture<Void> deleteCursor(
+            BookKeeper bkc, String managedLedgerName, String cursorName, CursorInfo cursor) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         CompletableFuture<Void> cursorLedgerDeleteFuture;
 
         // Delete the cursor ledger if present
         if (cursor.cursorsLedgerId != -1) {
-            cursorLedgerDeleteFuture = bkc.newDeleteLedgerOp().withLedgerId(cursor.cursorsLedgerId)
+            cursorLedgerDeleteFuture = bkc.newDeleteLedgerOp()
+                    .withLedgerId(cursor.cursorsLedgerId)
                     .execute()
                     .handle((result, ex) -> {
                         if (ex != null) {
@@ -1045,12 +1176,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                 @Override
                 public void operationFailed(MetaStoreException e) {
-                   future.completeExceptionally(e);
+                    future.completeExceptionally(e);
                 }
             });
         });
-
-
 
         return future;
     }
@@ -1074,12 +1203,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos){
+    public void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos) {
         this.cacheEvictionTimeThresholdNanos = cacheEvictionTimeThresholdNanos;
     }
 
     @Override
-    public long getCacheEvictionTimeThreshold(){
+    public long getCacheEvictionTimeThreshold() {
         return cacheEvictionTimeThresholdNanos;
     }
 

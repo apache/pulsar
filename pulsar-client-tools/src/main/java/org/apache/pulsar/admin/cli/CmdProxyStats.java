@@ -34,7 +34,10 @@ public class CmdProxyStats extends CmdBase {
 
     @Parameters(commandDescription = "dump connections metrics for Monitoring")
     private class CmdConnectionMetrics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Parameter(
+                names = {"-i", "--indent"},
+                description = "Indent JSON output",
+                required = false)
         private boolean indent = false;
 
         @Override
@@ -47,7 +50,10 @@ public class CmdProxyStats extends CmdBase {
 
     @Parameters(commandDescription = "dump topics metrics for Monitoring")
     private class CmdTopicsMetrics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Parameter(
+                names = {"-i", "--indent"},
+                description = "Indent JSON output",
+                required = false)
         private boolean indent = false;
 
         @Override

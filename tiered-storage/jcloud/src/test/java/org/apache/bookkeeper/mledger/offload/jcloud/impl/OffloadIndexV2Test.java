@@ -114,16 +114,20 @@ public class OffloadIndexV2Test {
         assertEquals(dataHeaderLength, 23455);
 
         wrapper.readBytes(segmentMetadataLength);
-        log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
-                magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
+        log.debug(
+                "magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
+                magic,
+                indexBlockLength,
+                segmentMetadataLength,
+                indexEntryCount);
 
         // verify entry
-        OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                wrapper.readLong(), dataHeaderLength);
-        OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                wrapper.readLong(), dataHeaderLength);
-        OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e1 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e2 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e3 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
 
         assertEquals(e1.getEntryId(), entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());
@@ -155,7 +159,6 @@ public class OffloadIndexV2Test {
         // 3. verify reach end
         assertEquals(out2.read(), -1);
 
-
         out2.reset();
         byte streamContent[] = new byte[streamLength];
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
@@ -169,8 +172,7 @@ public class OffloadIndexV2Test {
 
         // simulate read header too small, throw EOFException.
         out2.read(streamContent);
-        try (InputStream stream4 =
-                     new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
+        try (InputStream stream4 = new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
             OffloadIndexBlockV2 indexBlock4 = blockBuilder.fromStream(stream4);
             fail("Should throw EOFException");
         } catch (Exception e) {
@@ -191,7 +193,8 @@ public class OffloadIndexV2Test {
         log.debug("created metadata: {}", metadata1.toString());
         log.debug("created metadata: {}", metadata2.toString());
 
-        blockBuilder.addLedgerMeta(ledgerId1, metadata1)
+        blockBuilder
+                .addLedgerMeta(ledgerId1, metadata1)
                 .addLedgerMeta(ledgerId2, metadata2)
                 .withDataObjectLength(1)
                 .withDataBlockHeaderLength(23455);
@@ -203,8 +206,7 @@ public class OffloadIndexV2Test {
 
         // verify getEntryCount and getLedgerMetadata
         assertEquals(indexBlock.getEntryCount(), 3);
-        assertEquals(indexBlock.getLedgerMetadata(ledgerId1),
-                new CompatibleMetadata(metadata1));
+        assertEquals(indexBlock.getLedgerMetadata(ledgerId1), new CompatibleMetadata(metadata1));
         assertEquals(indexBlock.getLedgerMetadata(ledgerId2), new CompatibleMetadata(metadata2));
 
         // verify getIndexEntryForEntry
@@ -263,18 +265,21 @@ public class OffloadIndexV2Test {
         assertEquals(dataHeaderLength, 23455);
 
         wrapper.readBytes(segmentMetadataLength);
-        log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
-                magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
+        log.debug(
+                "magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
+                magic,
+                indexBlockLength,
+                segmentMetadataLength,
+                indexEntryCount);
 
         // verify entry
-        OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e1 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
 
         assertEquals(e1.getEntryId(), entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());
         assertEquals(e1.getOffset(), entry1.getOffset());
         assertEquals(e1.getDataOffset(), entry1.getDataOffset());
-
 
         assertEquals(ledgerId2, wrapper.readLong());
         int indexEntryCount2 = wrapper.readInt();
@@ -282,10 +287,10 @@ public class OffloadIndexV2Test {
         int segmentMetadataLength2 = wrapper.readInt();
         wrapper.readBytes(segmentMetadataLength2);
 
-        OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                wrapper.readLong(), dataHeaderLength);
-        OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e2 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e3 =
+                OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong(), dataHeaderLength);
 
         assertEquals(e2.getEntryId(), entry2.getEntryId());
         assertEquals(e2.getPartId(), entry2.getPartId());
@@ -303,19 +308,19 @@ public class OffloadIndexV2Test {
         out2.mark(0);
         OffloadIndexBlockV2 indexBlock2 = blockBuilder.fromStream(out2);
         // 1. verify metadata that got from inputstream success.
-        //TODO change to meaningful things
-//        LedgerMetadata metadata1back = indexBlock2.getLedgerMetadata(ledgerId1);
-//        log.debug("built metadata: {}", metadata1back.toString());
-//        assertEquals(metadata1back.getAckQuorumSize(), metadata1.getAckQuorumSize());
-//        assertEquals(metadata1back.getEnsembleSize(), metadata1.getEnsembleSize());
-//        assertEquals(metadata1back.getDigestType(), metadata1.getDigestType());
-//        assertEquals(metadata1back.getAllEnsembles().entrySet(), metadata1.getAllEnsembles().entrySet());
-//        LedgerMetadata metadata2back = indexBlock2.getLedgerMetadata(ledgerId2);
-//        log.debug("built metadata: {}", metadata2back.toString());
-//        assertEquals(metadata2back.getAckQuorumSize(), metadata1.getAckQuorumSize());
-//        assertEquals(metadata2back.getEnsembleSize(), metadata1.getEnsembleSize());
-//        assertEquals(metadata2back.getDigestType(), metadata1.getDigestType());
-//        assertEquals(metadata2back.getAllEnsembles().entrySet(), metadata1.getAllEnsembles().entrySet());
+        // TODO change to meaningful things
+        //        LedgerMetadata metadata1back = indexBlock2.getLedgerMetadata(ledgerId1);
+        //        log.debug("built metadata: {}", metadata1back.toString());
+        //        assertEquals(metadata1back.getAckQuorumSize(), metadata1.getAckQuorumSize());
+        //        assertEquals(metadata1back.getEnsembleSize(), metadata1.getEnsembleSize());
+        //        assertEquals(metadata1back.getDigestType(), metadata1.getDigestType());
+        //        assertEquals(metadata1back.getAllEnsembles().entrySet(), metadata1.getAllEnsembles().entrySet());
+        //        LedgerMetadata metadata2back = indexBlock2.getLedgerMetadata(ledgerId2);
+        //        log.debug("built metadata: {}", metadata2back.toString());
+        //        assertEquals(metadata2back.getAckQuorumSize(), metadata1.getAckQuorumSize());
+        //        assertEquals(metadata2back.getEnsembleSize(), metadata1.getEnsembleSize());
+        //        assertEquals(metadata2back.getDigestType(), metadata1.getDigestType());
+        //        assertEquals(metadata2back.getAllEnsembles().entrySet(), metadata1.getAllEnsembles().entrySet());
         // 2. verify set all the entries
         assertEquals(indexBlock2.getEntryCount(), indexBlock.getEntryCount());
         // 3. verify reach end

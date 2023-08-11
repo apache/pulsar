@@ -41,7 +41,10 @@ public class CmdBrokerStats extends CmdBase {
 
     @Parameters(commandDescription = "dump metrics for Monitoring")
     private class CmdMonitoringMetrics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Parameter(
+                names = {"-i", "--indent"},
+                description = "Indent JSON output",
+                required = false)
         private boolean indent = false;
 
         @Override
@@ -50,7 +53,7 @@ public class CmdBrokerStats extends CmdBase {
             JsonArray metrics = new Gson().fromJson(s, JsonArray.class);
 
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
-                 JsonWriter jsonWriter = new JsonWriter(out)) {
+                    JsonWriter jsonWriter = new JsonWriter(out)) {
                 for (int i = 0; i < metrics.size(); i++) {
                     JsonObject m = (JsonObject) metrics.get(i);
                     if (indent) {
@@ -69,7 +72,10 @@ public class CmdBrokerStats extends CmdBase {
 
     @Parameters(commandDescription = "dump mbean stats")
     private class CmdDumpMBeans extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Parameter(
+                names = {"-i", "--indent"},
+                description = "Indent JSON output",
+                required = false)
         private boolean indent = false;
 
         @Override
@@ -77,7 +83,7 @@ public class CmdBrokerStats extends CmdBase {
             String s = getAdmin().brokerStats().getMBeans();
             JsonArray result = new Gson().fromJson(s, JsonArray.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
-                 JsonWriter jsonWriter = new JsonWriter(out)) {
+                    JsonWriter jsonWriter = new JsonWriter(out)) {
                 if (indent) {
                     jsonWriter.setIndent(DEFAULT_INDENTATION);
                 }
@@ -85,7 +91,6 @@ public class CmdBrokerStats extends CmdBase {
                 out.flush();
             }
         }
-
     }
 
     @Parameters(commandDescription = "dump broker load-report")
@@ -99,7 +104,10 @@ public class CmdBrokerStats extends CmdBase {
 
     @Parameters(commandDescription = "dump topics stats")
     private class CmdTopics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Parameter(
+                names = {"-i", "--indent"},
+                description = "Indent JSON output",
+                required = false)
         private boolean indent = false;
 
         @Override
@@ -107,7 +115,7 @@ public class CmdBrokerStats extends CmdBase {
             String s = getAdmin().brokerStats().getTopics();
             JsonObject result = new Gson().fromJson(s, JsonObject.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
-                 JsonWriter jsonWriter = new JsonWriter(out)) {
+                    JsonWriter jsonWriter = new JsonWriter(out)) {
                 if (indent) {
                     jsonWriter.setIndent(DEFAULT_INDENTATION);
                 }
@@ -115,7 +123,6 @@ public class CmdBrokerStats extends CmdBase {
                 out.flush();
             }
         }
-
     }
 
     @Parameters(commandDescription = "dump allocator stats")
@@ -133,7 +140,6 @@ public class CmdBrokerStats extends CmdBase {
                 out.flush();
             }
         }
-
     }
 
     public CmdBrokerStats(Supplier<PulsarAdmin> admin) {
@@ -144,5 +150,4 @@ public class CmdBrokerStats extends CmdBase {
         jcommander.addCommand("allocator-stats", new CmdAllocatorStats());
         jcommander.addCommand("load-report", new CmdLoadReport());
     }
-
 }

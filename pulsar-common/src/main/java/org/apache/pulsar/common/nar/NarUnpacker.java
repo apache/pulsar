@@ -20,7 +20,6 @@
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
  */
-
 package org.apache.pulsar.common.nar;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -83,7 +82,7 @@ public class NarUnpacker {
             // create file lock that ensures that other processes
             // using the same lock file don't execute concurrently
             try (FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
-                 FileLock lock = channel.lock()) {
+                    FileLock lock = channel.lock()) {
                 File narWorkingDirectory = new File(parentDirectory, md5Sum);
                 if (narWorkingDirectory.mkdir()) {
                     try {
@@ -93,8 +92,10 @@ public class NarUnpacker {
                         }
                         unpack(nar, narWorkingDirectory);
                     } catch (IOException e) {
-                        log.error("There was a problem extracting the nar file. Deleting {} to clean up state.",
-                                narWorkingDirectory, e);
+                        log.error(
+                                "There was a problem extracting the nar file. Deleting {} to clean up state.",
+                                narWorkingDirectory,
+                                e);
                         FileUtils.deleteFile(narWorkingDirectory, true);
                         throw e;
                     }
@@ -141,7 +142,8 @@ public class NarUnpacker {
      *             if the file could not be created.
      */
     private static void makeFile(final InputStream inputStream, final File file) throws IOException {
-        try (final InputStream in = inputStream; final FileOutputStream fos = new FileOutputStream(file)) {
+        try (final InputStream in = inputStream;
+                final FileOutputStream fos = new FileOutputStream(file)) {
             byte[] bytes = new byte[65536];
             int numRead;
             while ((numRead = in.read(bytes)) != -1) {

@@ -77,31 +77,33 @@ public class RabbitMQSinkTest {
 
     private Record<byte[]> build(String topic, String key, String value, String routingKey) {
         // prepare a SinkRecord
-        SinkRecord<byte[]> record = new SinkRecord<>(new Record<byte[]>() {
+        SinkRecord<byte[]> record = new SinkRecord<>(
+                new Record<byte[]>() {
 
-            @Override
-            public byte[] getValue() {
-                return value.getBytes(StandardCharsets.UTF_8);
-            }
-
-            @Override
-            public Optional<String> getDestinationTopic() {
-                if (topic != null) {
-                    return Optional.of(topic);
-                } else {
-                    return Optional.empty();
-                }
-            }
-
-            @Override
-            public Map<String, String> getProperties() {
-                return new HashMap<String, String>() {
-                    {
-                        put("routingKey", routingKey);
+                    @Override
+                    public byte[] getValue() {
+                        return value.getBytes(StandardCharsets.UTF_8);
                     }
-                };
-            }
-        }, value.getBytes(StandardCharsets.UTF_8));
+
+                    @Override
+                    public Optional<String> getDestinationTopic() {
+                        if (topic != null) {
+                            return Optional.of(topic);
+                        } else {
+                            return Optional.empty();
+                        }
+                    }
+
+                    @Override
+                    public Map<String, String> getProperties() {
+                        return new HashMap<String, String>() {
+                            {
+                                put("routingKey", routingKey);
+                            }
+                        };
+                    }
+                },
+                value.getBytes(StandardCharsets.UTF_8));
         return record;
     }
 }

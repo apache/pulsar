@@ -43,8 +43,10 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
-@Parameters(commandDescription = "Operations on persistent topics. The persistent-topics "
-        + "has been deprecated in favor of topics", hidden = true)
+@Parameters(
+        commandDescription =
+                "Operations on persistent topics. The persistent-topics " + "has been deprecated in favor of topics",
+        hidden = true)
 public class CmdPersistentTopics extends CmdBase {
     private Topics persistentTopics;
 
@@ -125,8 +127,10 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks,"
-                + "functions,packages)", required = true)
+        @Parameter(
+                names = "--actions",
+                description = "Actions to be granted (produce,consume,sources,sinks," + "functions,packages)",
+                required = true)
         private List<String> actions;
 
         @Override
@@ -136,10 +140,11 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Revoke permissions on a topic. "
-            + "Revoke permissions to a client role on a single topic. If the permission "
-            + "was not set at the topic level, but rather at the namespace level, this "
-            + "operation will return an error (HTTP status code 412).")
+    @Parameters(
+            commandDescription = "Revoke permissions on a topic. "
+                    + "Revoke permissions to a client role on a single topic. If the permission "
+                    + "was not set at the topic level, but rather at the namespace level, this "
+                    + "operation will return an error (HTTP status code 412).")
     private class RevokePermissions extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -154,10 +159,11 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the permissions on a topic. "
-            + "Retrieve the effective permissions for a topic. These permissions are defined "
-            + "by the permissions set at the namespace level combined (union) with any eventual "
-            + "specific permission set on the topic.")
+    @Parameters(
+            commandDescription = "Get the permissions on a topic. "
+                    + "Retrieve the effective permissions for a topic. These permissions are defined "
+                    + "by the permissions set at the namespace level combined (union) with any eventual "
+                    + "specific permission set on the topic.")
     private class Permissions extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -193,15 +199,18 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create a partitioned topic. "
-            + "The partitioned topic has to be created before creating a producer on it.")
+    @Parameters(
+            commandDescription = "Create a partitioned topic. "
+                    + "The partitioned topic has to be created before creating a producer on it.")
     private class CreatePartitionedCmd extends CliCommand {
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-p",
-                "--partitions" }, description = "Number of partitions for the topic", required = true)
+        @Parameter(
+                names = {"-p", "--partitions"},
+                description = "Number of partitions for the topic",
+                required = true)
         private int numPartitions;
 
         @Override
@@ -211,15 +220,18 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update existing partitioned topic. "
-            + "New updating number of partitions must be greater than existing number of partitions.")
+    @Parameters(
+            commandDescription = "Update existing partitioned topic. "
+                    + "New updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-p",
-                "--partitions" }, description = "Number of partitions for the topic", required = true)
+        @Parameter(
+                names = {"-p", "--partitions"},
+                description = "Number of partitions for the topic",
+                required = true)
         private int numPartitions;
 
         @Override
@@ -229,8 +241,10 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the partitioned topic metadata. "
-            + "If the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
+    @Parameters(
+            commandDescription =
+                    "Get the partitioned topic metadata. "
+                            + "If the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
     private class GetPartitionedTopicMetadataCmd extends CliCommand {
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -243,14 +257,16 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Delete a partitioned topic. "
-            + "It will also delete all the partitions of the topic if it exists.")
+    @Parameters(
+            commandDescription = "Delete a partitioned topic. "
+                    + "It will also delete all the partitions of the topic if it exists.")
     private class DeletePartitionedCmd extends CliCommand {
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--force",
+        @Parameter(
+                names = "--force",
                 description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
@@ -261,13 +277,15 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Delete a topic. "
-            + "The topic cannot be deleted if there's any active subscription or producers connected to it.")
+    @Parameters(
+            commandDescription = "Delete a topic. "
+                    + "The topic cannot be deleted if there's any active subscription or producers connected to it.")
     private class DeleteCmd extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--force",
+        @Parameter(
+                names = "--force",
                 description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
@@ -290,8 +308,9 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Truncate a topic. \n\t\tThe truncate operation will move all cursors to the end "
-            + "of the topic and delete all inactive ledgers. ")
+    @Parameters(
+            commandDescription = "Truncate a topic. \n\t\tThe truncate operation will move all cursors to the end "
+                    + "of the topic and delete all inactive ledgers. ")
     private class TruncateCmd extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;
@@ -315,17 +334,22 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Delete a durable subscriber from a topic. "
-            + "The subscription cannot be deleted if there are any active consumers attached to it")
+    @Parameters(
+            commandDescription = "Delete a durable subscriber from a topic. "
+                    + "The subscription cannot be deleted if there are any active consumers attached to it")
     private class DeleteSubscription extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-f",
-            "--force" }, description = "Disconnect and close all consumers and delete subscription forcefully")
+        @Parameter(
+                names = {"-f", "--force"},
+                description = "Disconnect and close all consumers and delete subscription forcefully")
         private boolean force = false;
 
-        @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be deleted", required = true)
+        @Parameter(
+                names = {"-s", "--subscription"},
+                description = "Subscription to be deleted",
+                required = true)
         private String subName;
 
         @Override
@@ -335,13 +359,17 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the stats for the topic and its connected producers and consumers. "
-            + "All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    @Parameters(
+            commandDescription =
+                    "Get the stats for the topic and its connected producers and consumers. "
+                            + "All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
     private class GetStats extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-gpb", "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        @Parameter(
+                names = {"-gpb", "--get-precise-backlog"},
+                description = "Set true to get precise backlog")
         private boolean getPreciseBacklog = false;
 
         @Override
@@ -356,8 +384,9 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-m",
-        "--metadata" }, description = "Flag to include ledger metadata")
+        @Parameter(
+                names = {"-m", "--metadata"},
+                description = "Flag to include ledger metadata")
         private boolean metadata = false;
 
         @Override
@@ -381,9 +410,10 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the stats for the partitioned topic and "
-            + "its connected producers and consumers. All the rates are computed over a 1 minute window and "
-            + "are relative the last completed 1 minute period.")
+    @Parameters(
+            commandDescription = "Get the stats for the partitioned topic and "
+                    + "its connected producers and consumers. All the rates are computed over a 1 minute window and "
+                    + "are relative the last completed 1 minute period.")
     private class GetPartitionedStats extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -398,9 +428,10 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the stats-internal for the partitioned topic and "
-            + "its connected producers and consumers. All the rates are computed over a 1 minute window and "
-            + "are relative the last completed 1 minute period.")
+    @Parameters(
+            commandDescription = "Get the stats-internal for the partitioned topic and "
+                    + "its connected producers and consumers. All the rates are computed over a 1 minute window and "
+                    + "are relative the last completed 1 minute period.")
     private class GetPartitionedStatsInternal extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -417,7 +448,10 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be cleared", required = true)
+        @Parameter(
+                names = {"-s", "--subscription"},
+                description = "Subscription to be cleared",
+                required = true)
         private String subName;
 
         @Override
@@ -432,11 +466,16 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to be skip messages on", required = true)
+        @Parameter(
+                names = {"-s", "--subscription"},
+                description = "Subscription to be skip messages on",
+                required = true)
         private String subName;
 
-        @Parameter(names = { "-n", "--count" }, description = "Number of messages to skip", required = true)
+        @Parameter(
+                names = {"-n", "--count"},
+                description = "Number of messages to skip",
+                required = true)
         private long numMessages;
 
         @Override
@@ -446,18 +485,24 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) "
-            + "for the subscription")
+    @Parameters(
+            commandDescription =
+                    "Expire messages that older than given expiry time (in seconds) " + "for the subscription")
     private class ExpireMessages extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to be skip messages on", required = true)
+        @Parameter(
+                names = {"-s", "--subscription"},
+                description = "Subscription to be skip messages on",
+                required = true)
         private String subName;
 
-        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
-                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
+        @Parameter(
+                names = {"-t", "--expireTime"},
+                description = "Expire messages older than time in seconds "
+                        + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)",
+                required = true)
         private String expireTimeStr;
 
         @Override
@@ -473,14 +518,18 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) "
-            + "for all subscriptions")
+    @Parameters(
+            commandDescription =
+                    "Expire messages that older than given expiry time (in seconds) " + "for all subscriptions")
     private class ExpireMessagesForAllSubscriptions extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
-                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
+        @Parameter(
+                names = {"-t", "--expireTime"},
+                description = "Expire messages older than time in seconds "
+                        + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)",
+                required = true)
         private String expireTimeStr;
 
         @Override
@@ -501,17 +550,24 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription name", required = true)
+        @Parameter(
+                names = {"-s", "--subscription"},
+                description = "Subscription name",
+                required = true)
         private String subscriptionName;
 
-        @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId where to create the subscription. "
-                + "It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
+        @Parameter(
+                names = {"--messageId", "-m"},
+                description = "messageId where to create the subscription. "
+                        + "It can be either 'latest', 'earliest' or (ledgerId:entryId)",
+                required = false)
         private String messageIdStr = "latest";
 
-        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false, splitter = NoSplitter.class)
+        @Parameter(
+                names = {"--property", "-p"},
+                description = "key value pair properties(-p a=b -p c=d)",
+                required = false,
+                splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Override
@@ -535,17 +591,23 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to reset position on", required = true)
+        @Parameter(
+                names = {"-s", "--subscription"},
+                description = "Subscription to reset position on",
+                required = true)
         private String subName;
 
-        @Parameter(names = { "--time",
-                "-t" }, description = "time in minutes to reset back to "
-                + "(or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = false)
+        @Parameter(
+                names = {"--time", "-t"},
+                description =
+                        "time in minutes to reset back to " + "(or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)",
+                required = false)
         private String resetTimeStr;
 
-        @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
+        @Parameter(
+                names = {"--messageId", "-m"},
+                description = "messageId to reset back to (ledgerId:entryId)",
+                required = false)
         private String resetMessageIdStr;
 
         @Override
@@ -557,8 +619,8 @@ public class CmdPersistentTopics extends CmdBase {
             } else if (isNotBlank(resetTimeStr)) {
                 long resetTimeInMillis;
                 try {
-                    resetTimeInMillis = TimeUnit.SECONDS.toMillis(
-                            RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+                    resetTimeInMillis =
+                            TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
                 } catch (IllegalArgumentException exception) {
                     throw new ParameterException(exception.getMessage());
                 }
@@ -582,7 +644,9 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                MessageId lastMessageId = getPersistentTopics().terminateTopicAsync(persistentTopic).get();
+                MessageId lastMessageId = getPersistentTopics()
+                        .terminateTopicAsync(persistentTopic)
+                        .get();
                 System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
@@ -595,11 +659,16 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to get messages from", required = true)
+        @Parameter(
+                names = {"-s", "--subscription"},
+                description = "Subscription to get messages from",
+                required = true)
         private String subName;
 
-        @Parameter(names = { "-n", "--count" }, description = "Number of messages (default 1)", required = false)
+        @Parameter(
+                names = {"-n", "--count"},
+                description = "Number of messages (default 1)",
+                required = false)
         private int numMessages = 1;
 
         @Override
@@ -634,14 +703,16 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-l", "--ledgerId" },
-            description = "ledger id pointing to the desired ledger",
-            required = true)
+        @Parameter(
+                names = {"-l", "--ledgerId"},
+                description = "ledger id pointing to the desired ledger",
+                required = true)
         private long ledgerId;
 
-        @Parameter(names = { "-e", "--entryId" },
-            description = "entry id pointing to the desired entry",
-            required = true)
+        @Parameter(
+                names = {"-e", "--entryId"},
+                description = "entry id pointing to the desired entry",
+                required = true)
         private long entryId;
 
         @Override
@@ -654,7 +725,6 @@ public class CmdPersistentTopics extends CmdBase {
             System.out.println(ByteBufUtil.prettyHexDump(date));
         }
     }
-
 
     @Parameters(commandDescription = "Get last message Id of the topic")
     private class GetLastMessageId extends CliCommand {
@@ -688,8 +758,10 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-w", "--wait-complete" },
-                   description = "Wait for compaction to complete", required = false)
+        @Parameter(
+                names = {"-w", "--wait-complete"},
+                description = "Wait for compaction to complete",
+                required = false)
         private boolean wait = false;
 
         @Override
@@ -704,19 +776,19 @@ public class CmdPersistentTopics extends CmdBase {
                 }
 
                 switch (status.status) {
-                case NOT_RUN:
-                    System.out.println("Compaction has not been run for " + persistentTopic
-                                       + " since broker startup");
-                    break;
-                case RUNNING:
-                    System.out.println("Compaction is currently running");
-                    break;
-                case SUCCESS:
-                    System.out.println("Compaction was a success");
-                    break;
-                case ERROR:
-                    System.out.println("Error in compaction");
-                    throw new PulsarAdminException("Error compacting: " + status.lastError);
+                    case NOT_RUN:
+                        System.out.println(
+                                "Compaction has not been run for " + persistentTopic + " since broker startup");
+                        break;
+                    case RUNNING:
+                        System.out.println("Compaction is currently running");
+                        break;
+                    case SUCCESS:
+                        System.out.println("Compaction was a success");
+                        break;
+                    case ERROR:
+                        System.out.println("Error in compaction");
+                        throw new PulsarAdminException("Error compacting: " + status.lastError);
                 }
             } catch (InterruptedException e) {
                 throw new PulsarAdminException(e);

@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -70,13 +69,11 @@ public class GenericSchemaImplTest {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionGenericSchemaProvider = mock(MultiVersionSchemaInfoProvider.class);
         when(multiVersionGenericSchemaProvider.getSchemaByVersion(any(byte[].class)))
-            .thenReturn(CompletableFuture.completedFuture(encodeSchema.getSchemaInfo()));
+                .thenReturn(CompletableFuture.completedFuture(encodeSchema.getSchemaInfo()));
 
         // configure decode schema
         AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
-        decodeSchema.configureSchemaInfo(
-            "test-topic", "topic", encodeSchema.getSchemaInfo()
-        );
+        decodeSchema.configureSchemaInfo("test-topic", "topic", encodeSchema.getSchemaInfo());
         decodeSchema.setSchemaInfoProvider(multiVersionGenericSchemaProvider);
 
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
@@ -86,7 +83,8 @@ public class GenericSchemaImplTest {
     public void testAutoJsonSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.JSON(Foo.class).getSchemaInfo());
+        GenericSchema genericAvroSchema =
+                GenericSchemaImpl.of(Schema.JSON(Foo.class).getSchemaInfo());
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(genericAvroSchema.getSchemaInfo()));
 
@@ -101,8 +99,7 @@ public class GenericSchemaImplTest {
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
-    private void testEncodeAndDecodeGenericRecord(Schema<Foo> encodeSchema,
-                                                  Schema<GenericRecord> decodeSchema) {
+    private void testEncodeAndDecodeGenericRecord(Schema<Foo> encodeSchema, Schema<GenericRecord> decodeSchema) {
         int numRecords = 10;
         for (int i = 0; i < numRecords; i++) {
             Foo foo = newFoo(i);
@@ -125,45 +122,32 @@ public class GenericSchemaImplTest {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
 
-        List<Schema<Foo>> encodeSchemas = Lists.newArrayList(
-            Schema.JSON(Foo.class),
-            Schema.AVRO(Foo.class)
-        );
+        List<Schema<Foo>> encodeSchemas = Lists.newArrayList(Schema.JSON(Foo.class), Schema.AVRO(Foo.class));
 
         for (Schema<Foo> keySchema : encodeSchemas) {
             for (Schema<Foo> valueSchema : encodeSchemas) {
                 // configure encode schema
-                Schema<KeyValue<Foo, Foo>> kvSchema = KeyValueSchemaImpl.of(
-                    keySchema, valueSchema
-                );
+                Schema<KeyValue<Foo, Foo>> kvSchema = KeyValueSchemaImpl.of(keySchema, valueSchema);
 
                 // configure decode schema
-                Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchemaImpl.of(
-                    Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()
-                );
-                decodeSchema.configureSchemaInfo(
-                    "test-topic", "topic",kvSchema.getSchemaInfo()
-                );
+                Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema =
+                        KeyValueSchemaImpl.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME());
+                decodeSchema.configureSchemaInfo("test-topic", "topic", kvSchema.getSchemaInfo());
 
-                GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
+                GenericSchema genericAvroSchema =
+                        GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
                 when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                        .thenReturn(CompletableFuture.completedFuture(
-                                KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
-                                        keySchema,
-                                        valueSchema,
-                                        KeyValueEncodingType.INLINE
-                                )
-                        ));
+                        .thenReturn(CompletableFuture.completedFuture(KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
+                                keySchema, valueSchema, KeyValueEncodingType.INLINE)));
                 decodeSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
                 testEncodeAndDecodeKeyValues(kvSchema, decodeSchema);
             }
         }
-
     }
 
-    private void testEncodeAndDecodeKeyValues(Schema<KeyValue<Foo, Foo>> encodeSchema,
-                                              Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema) {
+    private void testEncodeAndDecodeKeyValues(
+            Schema<KeyValue<Foo, Foo>> encodeSchema, Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema) {
         int numRecords = 10;
         for (int i = 0; i < numRecords; i++) {
             Foo foo = newFoo(i);
@@ -200,8 +184,6 @@ public class GenericSchemaImplTest {
         GenericRecord field4Record = (GenericRecord) field4;
         assertEquals(i % 2 == 0, field4Record.getField("field1"));
         Object fieldUnableNull = record.getField("fieldUnableNull");
-        assertEquals("fieldUnableNull-1-" + i, fieldUnableNull,
-            "fieldUnableNull 1 is " + fieldUnableNull.getClass());
+        assertEquals("fieldUnableNull-1-" + i, fieldUnableNull, "fieldUnableNull 1 is " + fieldUnableNull.getClass());
     }
-
 }

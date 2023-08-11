@@ -88,8 +88,8 @@ public class ObserverGauge extends SimpleCollector<ObserverGauge.Child> implemen
         List<MetricFamilySamples.Sample> samples = new ArrayList<MetricFamilySamples.Sample>();
         for (Map.Entry<List<String>, Child> c : children.entrySet()) {
             Child child = c.getValue();
-            samples.add(new MetricFamilySamples.Sample(fullname, labelNames, c.getKey(),
-                    child.supplier.get().doubleValue()));
+            samples.add(new MetricFamilySamples.Sample(
+                    fullname, labelNames, c.getKey(), child.supplier.get().doubleValue()));
         }
 
         return familySamplesList(Type.GAUGE, samples);

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.fail;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -37,10 +40,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.PostgreSQLContainer;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 /**
  * A tester for testing jdbc sink.
@@ -72,7 +71,8 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
     private static final String NAME = "jdbc-postgres";
     private static final String POSTGRES = "postgres";
 
-    private final AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+    private final AvroSchema<Foo> schema =
+            AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
     private final String tableName = "test";
     private Connection connection;
     private boolean keyValueSchema;
@@ -101,8 +101,7 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
 
     @Override
     protected PostgreSQLContainer createSinkService(PulsarCluster cluster) {
-        return (PostgreSQLContainer) new PostgreSQLContainer("postgres:14.3")
-            .withNetworkAliases(POSTGRES);
+        return (PostgreSQLContainer) new PostgreSQLContainer("postgres:14.3").withNetworkAliases(POSTGRES);
     }
 
     @Override
@@ -117,22 +116,26 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
         log.info("getConnection: {}, jdbcurl: {}", connection, jdbcUrl);
 
         // create table
-        String createTable = "CREATE TABLE " + tableName +
-            " (field1 TEXT, field2 TEXT, field3 INTEGER, PRIMARY KEY (field3))";
+        String createTable =
+                "CREATE TABLE " + tableName + " (field1 TEXT, field2 TEXT, field3 INTEGER, PRIMARY KEY (field3))";
         int ret = connection.createStatement().executeUpdate(createTable);
         log.info("created table in jdbc: {}, return value: {}", createTable, ret);
     }
 
     @Override
-    public void produceMessage(int numMessages, PulsarClient client, String inputTopicName, LinkedHashMap<String, String> kvs) throws Exception {
+    public void produceMessage(
+            int numMessages, PulsarClient client, String inputTopicName, LinkedHashMap<String, String> kvs)
+            throws Exception {
         if (!keyValueSchema) {
             super.produceMessage(numMessages, client, inputTopicName, kvs);
             return;
         }
 
         @Cleanup
-        Producer<KeyValue<KVSchemaKey, KVSchemaValue>> producer = client.newProducer(Schema.KeyValue(Schema.JSON(KVSchemaKey.class),
-                        Schema.AVRO(KVSchemaValue.class), KeyValueEncodingType.SEPARATED))
+        Producer<KeyValue<KVSchemaKey, KVSchemaValue>> producer = client.newProducer(Schema.KeyValue(
+                        Schema.JSON(KVSchemaKey.class),
+                        Schema.AVRO(KVSchemaValue.class),
+                        KeyValueEncodingType.SEPARATED))
                 .topic(inputTopicName)
                 .create();
 
@@ -143,7 +146,6 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
                     .value(new KeyValue<>(new KVSchemaKey(i), new KVSchemaValue("f1_" + i, "f2_" + i)))
                     .send();
         }
-
     }
 
     @Override
@@ -155,9 +157,8 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
             // backend flush may not complete.
             Thread.sleep(1000);
 
-            PreparedStatement statement = connection.prepareStatement(querySql,
-                ResultSet.TYPE_SCROLL_INSENSITIVE,
-                ResultSet.CONCUR_UPDATABLE);
+            PreparedStatement statement = connection.prepareStatement(
+                    querySql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
             rs = statement.executeQuery();
 
             if (!keyValueSchema && kvs.get("ACTION").equals("DELETE")) {

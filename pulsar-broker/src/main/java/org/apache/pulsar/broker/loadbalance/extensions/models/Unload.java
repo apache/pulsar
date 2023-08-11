@@ -30,7 +30,6 @@ public record Unload(String sourceBroker, String serviceUnit, Optional<String> d
         Objects.requireNonNull(serviceUnit);
     }
 
-
     public Unload(String sourceBroker, String serviceUnit) {
         this(sourceBroker, serviceUnit, Optional.empty(), false);
     }

@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.io.sources;
 
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -74,29 +73,28 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
     @Override
     public void prepareSource() throws Exception {
         ExecResult execResult = kafkaContainer.execInContainer(
-            "/usr/bin/kafka-topics",
-            "--create",
-            "--zookeeper",
-            "localhost:2181",
-            "--partitions",
-            "1",
-            "--replication-factor",
-            "1",
-            "--topic",
-            kafkaTopicName);
-        assertTrue(
-            execResult.getStdout().contains("Created topic"),
-            execResult.getStdout());
+                "/usr/bin/kafka-topics",
+                "--create",
+                "--zookeeper",
+                "localhost:2181",
+                "--partitions",
+                "1",
+                "--replication-factor",
+                "1",
+                "--topic",
+                kafkaTopicName);
+        assertTrue(execResult.getStdout().contains("Created topic"), execResult.getStdout());
 
         kafkaConsumer = new KafkaConsumer<>(
-            ImmutableMap.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
-                ConsumerConfig.GROUP_ID_CONFIG, "source-test-" + randomName(8),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
-            ),
-            new StringDeserializer(),
-            new StringDeserializer()
-        );
+                ImmutableMap.of(
+                        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                        kafkaContainer.getBootstrapServers(),
+                        ConsumerConfig.GROUP_ID_CONFIG,
+                        "source-test-" + randomName(8),
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                        "earliest"),
+                new StringDeserializer(),
+                new StringDeserializer());
         kafkaConsumer.subscribe(Arrays.asList(kafkaTopicName));
         log.info("Successfully subscribe to kafka topic {}", kafkaTopicName);
     }
@@ -117,24 +115,18 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
     }
 
     @Override
-    public Map<String, String> produceSourceMessages(int numMessages) throws Exception{
+    public Map<String, String> produceSourceMessages(int numMessages) throws Exception {
         try (KafkaProducer<String, String> producer = new KafkaProducer<>(
                 ImmutableMap.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
-                        ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString()
-                ),
+                        ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString()),
                 new StringSerializer(),
-                new StringSerializer()
-        )) {
+                new StringSerializer())) {
             LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
             for (int i = 0; i < numMessages; i++) {
                 String key = "key-" + i;
                 String value = "value-" + i;
-                ProducerRecord<String, String> record = new ProducerRecord<>(
-                        kafkaTopicName,
-                        key,
-                        value
-                );
+                ProducerRecord<String, String> record = new ProducerRecord<>(kafkaTopicName, key, value);
                 kvs.put(key, value);
                 producer.send(record).get();
             }

@@ -33,159 +33,149 @@ import org.apache.pulsar.common.util.URIPreconditions;
 /**
  * The configuration data for a cluster.
  */
-@ApiModel(
-        value = "ClusterData",
-        description = "The configuration data for a cluster"
-)
+@ApiModel(value = "ClusterData", description = "The configuration data for a cluster")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Slf4j
-public final class ClusterDataImpl implements  ClusterData, Cloneable {
+public final class ClusterDataImpl implements ClusterData, Cloneable {
     @ApiModelProperty(
             name = "serviceUrl",
             value = "The HTTP rest service URL (for admin operations)",
-            example = "http://pulsar.example.com:8080"
-    )
+            example = "http://pulsar.example.com:8080")
     private String serviceUrl;
+
     @ApiModelProperty(
             name = "serviceUrlTls",
             value = "The HTTPS rest service URL (for admin operations)",
-            example = "https://pulsar.example.com:8443"
-    )
+            example = "https://pulsar.example.com:8443")
     private String serviceUrlTls;
+
     @ApiModelProperty(
             name = "brokerServiceUrl",
             value = "The broker service url (for produce and consume operations)",
-            example = "pulsar://pulsar.example.com:6650"
-    )
+            example = "pulsar://pulsar.example.com:6650")
     private String brokerServiceUrl;
+
     @ApiModelProperty(
             name = "brokerServiceUrlTls",
             value = "The secured broker service url (for produce and consume operations)",
-            example = "pulsar+ssl://pulsar.example.com:6651"
-    )
+            example = "pulsar+ssl://pulsar.example.com:6651")
     private String brokerServiceUrlTls;
+
     @ApiModelProperty(
             name = "proxyServiceUrl",
             value = "Proxy-service url when client would like to connect to broker via proxy.",
-            example = "pulsar+ssl://ats-proxy.example.com:4443 or "
-                    + "pulsar://ats-proxy.example.com:4080"
-    )
+            example = "pulsar+ssl://ats-proxy.example.com:4443 or " + "pulsar://ats-proxy.example.com:4080")
     private String proxyServiceUrl;
+
     @ApiModelProperty(
-        name = "authenticationPlugin",
-        value = "Authentication plugin when client would like to connect to cluster.",
-        example = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
-    )
+            name = "authenticationPlugin",
+            value = "Authentication plugin when client would like to connect to cluster.",
+            example = "org.apache.pulsar.client.impl.auth.AuthenticationToken")
     private String authenticationPlugin;
+
     @ApiModelProperty(
-        name = "authenticationParameters",
-        value = "Authentication parameters when client would like to connect to cluster."
-    )
+            name = "authenticationParameters",
+            value = "Authentication parameters when client would like to connect to cluster.")
     private String authenticationParameters;
+
     @ApiModelProperty(
             name = "proxyProtocol",
             value = "protocol to decide type of proxy routing eg: SNI-routing",
-            example = "SNI"
-    )
+            example = "SNI")
     private ProxyProtocol proxyProtocol;
 
     // For given Cluster1(us-west1, us-east1) and Cluster2(us-west2, us-east2)
     // Peer: [us-west1 -> us-west2] and [us-east1 -> us-east2]
-    @ApiModelProperty(
-            name = "peerClusterNames",
-            value = "A set of peer cluster names"
-    )
+    @ApiModelProperty(name = "peerClusterNames", value = "A set of peer cluster names")
     private LinkedHashSet<String> peerClusterNames;
 
     @ApiModelProperty(
-        name = "brokerClientTlsEnabled",
-        value = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
-                + " or different clusters (replication)"
-    )
+            name = "brokerClientTlsEnabled",
+            value = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
+                    + " or different clusters (replication)")
     private boolean brokerClientTlsEnabled;
+
     @ApiModelProperty(
-        name = "tlsAllowInsecureConnection",
-        value = "Allow TLS connections to servers whose certificate cannot be"
-                + " be verified to have been signed by a trusted certificate"
-                + " authority."
-    )
+            name = "tlsAllowInsecureConnection",
+            value = "Allow TLS connections to servers whose certificate cannot be"
+                    + " be verified to have been signed by a trusted certificate"
+                    + " authority.")
     private boolean tlsAllowInsecureConnection;
+
     @ApiModelProperty(
-        name = "brokerClientTlsEnabledWithKeyStore",
-        value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
-    )
+            name = "brokerClientTlsEnabledWithKeyStore",
+            value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers")
     private boolean brokerClientTlsEnabledWithKeyStore;
+
     @ApiModelProperty(
-        name = "brokerClientTlsTrustStoreType",
-        value = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
-                + " used by the internal client to authenticate with Pulsar brokers",
-        example = "JKS"
-    )
+            name = "brokerClientTlsTrustStoreType",
+            value = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
+                    + " used by the internal client to authenticate with Pulsar brokers",
+            example = "JKS")
     private String brokerClientTlsTrustStoreType;
+
     @ApiModelProperty(
-        name = "brokerClientTlsTrustStore",
-        value = "TLS TrustStore path for internal client"
-                + " used by the internal client to authenticate with Pulsar brokers"
-    )
+            name = "brokerClientTlsTrustStore",
+            value = "TLS TrustStore path for internal client"
+                    + " used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientTlsTrustStore;
+
     @ApiModelProperty(
-        name = "brokerClientTlsTrustStorePassword",
-        value = "TLS TrustStore password for internal client"
-                + " used by the internal client to authenticate with Pulsar brokers"
-    )
+            name = "brokerClientTlsTrustStorePassword",
+            value = "TLS TrustStore password for internal client"
+                    + " used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientTlsTrustStorePassword;
+
     @ApiModelProperty(
             name = "brokerClientTlsKeyStoreType",
             value = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
-                    + " used by the internal client to authenticate with Pulsar brokers"
-    )
+                    + " used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientTlsKeyStoreType;
+
     @ApiModelProperty(
             name = "brokerClientTlsKeyStore",
             value = "TLS KeyStore path for internal client, "
-                    + " used by the internal client to authenticate with Pulsar brokers"
-    )
+                    + " used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientTlsKeyStore;
+
     @ApiModelProperty(
             name = "brokerClientTlsKeyStorePassword",
             value = "TLS KeyStore password for internal client, "
-                    + " used by the internal client to authenticate with Pulsar brokers"
-    )
+                    + " used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientTlsKeyStorePassword;
+
     @ApiModelProperty(
             name = "brokerClientTrustCertsFilePath",
-            value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
-    )
+            value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
     private String brokerClientTrustCertsFilePath;
+
     @ApiModelProperty(
             name = "brokerClientKeyFilePath",
             value = "TLS private key file for internal client, "
                     + "used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientKeyFilePath;
+
     @ApiModelProperty(
             name = "brokerClientCertificateFilePath",
             value = "TLS certificate file for internal client, "
-                    + "used by the internal client to authenticate with Pulsar brokers"
-    )
+                    + "used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientCertificateFilePath;
+
     @ApiModelProperty(
             name = "listenerName",
             value = "listenerName when client would like to connect to cluster",
-            example = ""
-    )
+            example = "")
     private String listenerName;
+
     @ApiModelProperty(
             name = "migrated",
             value = "flag to check if cluster is migrated to different cluster",
-            example = "true/false"
-    )
+            example = "true/false")
     private boolean migrated;
-    @ApiModelProperty(
-            name = "migratedClusterUrl",
-            value = "url of cluster where current cluster is migrated"
-    )
+
+    @ApiModelProperty(name = "migratedClusterUrl", value = "url of cluster where current cluster is migrated")
     private ClusterUrl migratedClusterUrl;
 
     public static ClusterDataImplBuilder builder() {
@@ -248,8 +238,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private boolean migrated;
         private ClusterUrl migratedClusterUrl;
 
-        ClusterDataImplBuilder() {
-        }
+        ClusterDataImplBuilder() {}
 
         public ClusterDataImplBuilder serviceUrl(String serviceUrl) {
             this.serviceUrl = serviceUrl;
@@ -361,7 +350,6 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             return this;
         }
 
-
         public ClusterDataImplBuilder listenerName(String listenerName) {
             this.listenerName = listenerName;
             return this;
@@ -413,21 +401,25 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
      * @throws IllegalArgumentException exist illegal property.
      */
     public void checkPropertiesIfPresent() throws IllegalArgumentException {
-        URIPreconditions.checkURIIfPresent(getServiceUrl(),
+        URIPreconditions.checkURIIfPresent(
+                getServiceUrl(),
                 uri -> Objects.equals(uri.getScheme(), "http"),
                 "Illegal service url, example: http://pulsar.example.com:8080");
-        URIPreconditions.checkURIIfPresent(getServiceUrlTls(),
+        URIPreconditions.checkURIIfPresent(
+                getServiceUrlTls(),
                 uri -> Objects.equals(uri.getScheme(), "https"),
                 "Illegal service tls url, example: https://pulsar.example.com:8443");
-        URIPreconditions.checkURIIfPresent(getBrokerServiceUrl(),
+        URIPreconditions.checkURIIfPresent(
+                getBrokerServiceUrl(),
                 uri -> Objects.equals(uri.getScheme(), "pulsar"),
                 "Illegal broker service url, example: pulsar://pulsar.example.com:6650");
-        URIPreconditions.checkURIIfPresent(getBrokerServiceUrlTls(),
+        URIPreconditions.checkURIIfPresent(
+                getBrokerServiceUrlTls(),
                 uri -> Objects.equals(uri.getScheme(), "pulsar+ssl"),
                 "Illegal broker service tls url, example: pulsar+ssl://pulsar.example.com:6651");
-        URIPreconditions.checkURIIfPresent(getProxyServiceUrl(),
-                uri -> Objects.equals(uri.getScheme(), "pulsar")
-                        || Objects.equals(uri.getScheme(), "pulsar+ssl"),
+        URIPreconditions.checkURIIfPresent(
+                getProxyServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar") || Objects.equals(uri.getScheme(), "pulsar+ssl"),
                 "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
                         + "or pulsar://ats-proxy.example.com:4080");
 

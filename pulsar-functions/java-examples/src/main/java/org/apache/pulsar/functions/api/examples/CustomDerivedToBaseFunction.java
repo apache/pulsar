@@ -31,4 +31,3 @@ public class CustomDerivedToBaseFunction implements Function<CustomDerivedObject
         return new CustomBaseObject(input.getBaseValue() + 101);
     }
 }
-

@@ -19,11 +19,9 @@
 package org.apache.pulsar.tests.integration.python;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.Data;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -61,9 +59,8 @@ public class PythonSchemaTest extends PulsarTestSuite {
         String topicName = generateTopicName(nsName, "testJavaPublishPythonConsume", true);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         // Create subscription to retain data
         client.newConsumer(Schema.JSON(Example1.class))
@@ -73,9 +70,8 @@ public class PythonSchemaTest extends PulsarTestSuite {
                 .close();
 
         @Cleanup
-        Producer<Example1> producer = client.newProducer(Schema.JSON(Example1.class))
-                .topic(topicName)
-                .create();
+        Producer<Example1> producer =
+                client.newProducer(Schema.JSON(Example1.class)).topic(topicName).create();
 
         Example1 e1 = new Example1();
         e1.setX(1);
@@ -84,7 +80,8 @@ public class PythonSchemaTest extends PulsarTestSuite {
 
         // Verify Python can receive the typed message
 
-        ContainerExecResult res = pulsarCluster.getAnyBroker()
+        ContainerExecResult res = pulsarCluster
+                .getAnyBroker()
                 .execCmd("/pulsar/examples/python-examples/consumer_schema.py", "pulsar://localhost:6650", topicName);
         assertEquals(res.getExitCode(), 0);
     }
@@ -100,9 +97,8 @@ public class PythonSchemaTest extends PulsarTestSuite {
         String topicName = generateTopicName(nsName, "testPythonPublishJavaConsume", true);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         @Cleanup
         Consumer<Example2> consumer = client.newConsumer(Schema.AVRO(Example2.class))
@@ -112,7 +108,8 @@ public class PythonSchemaTest extends PulsarTestSuite {
 
         // Verify Python can receive the typed message
 
-        ContainerExecResult res = pulsarCluster.getAnyBroker()
+        ContainerExecResult res = pulsarCluster
+                .getAnyBroker()
                 .execCmd("/pulsar/examples/python-examples/producer_schema.py", "pulsar://localhost:6650", topicName);
         assertEquals(res.getExitCode(), 0);
 

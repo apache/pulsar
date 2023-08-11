@@ -93,9 +93,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
     // of the BatchMessageIdImpl will not complete.
-    private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(1, TimeUnit.HOURS)
-            .build();
+    private Cache<String, MessageId> messageIdCache =
+            CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.HOURS).build();
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -113,7 +112,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             builder = (ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(service.getPulsarClient());
 
             if (!this.pullMode) {
-                this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0) ? 1
+                this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0)
+                        ? 1
                         : builder.getConf().getReceiverQueueSize();
             }
             this.subscriptionType = builder.getConf().getSubscriptionType();
@@ -123,97 +123,130 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 return;
             }
 
-            this.consumer = builder.topic(topic.toString()).subscriptionName(subscription).subscribe();
+            this.consumer = builder.topic(topic.toString())
+                    .subscriptionName(subscription)
+                    .subscribe();
             if (!this.service.addConsumer(this)) {
-                log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
-                        request.getRemotePort(), topic);
+                log.warn(
+                        "[{}:{}] Failed to add consumer handler for topic {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        topic);
             }
         } catch (Exception e) {
-            log.warn("[{}:{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(),
-                    request.getRemotePort(), subscription, topic, e);
+            log.warn(
+                    "[{}:{}] Failed in creating subscription {} on topic {}",
+                    request.getRemoteAddr(),
+                    request.getRemotePort(),
+                    subscription,
+                    topic,
+                    e);
 
             try {
                 response.sendError(getErrorCode(e), getErrorMessage(e));
             } catch (IOException e1) {
-                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                        e1.getMessage(), e1);
+                log.warn(
+                        "[{}:{}] Failed to send error: {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        e1.getMessage(),
+                        e1);
             }
         }
     }
 
     private void receiveMessage() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}:{}] [{}] [{}] Receive next message",
-                    request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
+            log.debug(
+                    "[{}:{}] [{}] [{}] Receive next message",
+                    request.getRemoteAddr(),
+                    request.getRemotePort(),
+                    topic,
+                    subscription);
         }
 
-        consumer.receiveAsync().thenAccept(msg -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] [{}] Got message {}", getSession().getRemoteAddress(), topic, subscription,
-                        msg.getMessageId());
-            }
+        consumer.receiveAsync()
+                .thenAccept(msg -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "[{}] [{}] [{}] Got message {}",
+                                getSession().getRemoteAddress(),
+                                topic,
+                                subscription,
+                                msg.getMessageId());
+                    }
 
-            ConsumerMessage dm = new ConsumerMessage();
-            dm.messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
-            dm.payload = Base64.getEncoder().encodeToString(msg.getData());
-            dm.properties = msg.getProperties();
-            dm.publishTime = DateFormatter.format(msg.getPublishTime());
-            dm.redeliveryCount = msg.getRedeliveryCount();
-            dm.encryptionContext = msg.getEncryptionCtx().orElse(null);
-            if (msg.getEventTime() != 0) {
-                dm.eventTime = DateFormatter.format(msg.getEventTime());
-            }
-            if (msg.hasKey()) {
-                dm.key = msg.getKey();
-            }
-            final long msgSize = msg.getData().length;
+                    ConsumerMessage dm = new ConsumerMessage();
+                    dm.messageId = Base64.getEncoder()
+                            .encodeToString(msg.getMessageId().toByteArray());
+                    dm.payload = Base64.getEncoder().encodeToString(msg.getData());
+                    dm.properties = msg.getProperties();
+                    dm.publishTime = DateFormatter.format(msg.getPublishTime());
+                    dm.redeliveryCount = msg.getRedeliveryCount();
+                    dm.encryptionContext = msg.getEncryptionCtx().orElse(null);
+                    if (msg.getEventTime() != 0) {
+                        dm.eventTime = DateFormatter.format(msg.getEventTime());
+                    }
+                    if (msg.hasKey()) {
+                        dm.key = msg.getKey();
+                    }
+                    final long msgSize = msg.getData().length;
 
-            messageIdCache.put(dm.messageId, msg.getMessageId());
+                    messageIdCache.put(dm.messageId, msg.getMessageId());
 
-            try {
-                getSession().getRemote()
-                        .sendString(objectWriter().writeValueAsString(dm),
-                                new WriteCallback() {
-                                    @Override
-                                    public void writeFailed(Throwable th) {
-                                        log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(),
-                                                subscription,
-                                                getRemote().getInetSocketAddress().toString(), th.getMessage());
-                                        pendingMessages.decrementAndGet();
-                                        // schedule receive as one of the delivery failed
-                                        service.getExecutor().execute(() -> receiveMessage());
-                                    }
+                    try {
+                        getSession().getRemote().sendString(objectWriter().writeValueAsString(dm), new WriteCallback() {
+                            @Override
+                            public void writeFailed(Throwable th) {
+                                log.warn(
+                                        "[{}/{}] Failed to deliver msg to {} {}",
+                                        consumer.getTopic(),
+                                        subscription,
+                                        getRemote().getInetSocketAddress().toString(),
+                                        th.getMessage());
+                                pendingMessages.decrementAndGet();
+                                // schedule receive as one of the delivery failed
+                                service.getExecutor().execute(() -> receiveMessage());
+                            }
 
-                                    @Override
-                                    public void writeSuccess() {
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("[{}/{}] message is delivered successfully to {} ",
-                                                    consumer.getTopic(),
-                                                    subscription, getRemote().getInetSocketAddress().toString());
-                                        }
-                                        updateDeliverMsgStat(msgSize);
-                                    }
-                                });
-            } catch (JsonProcessingException e) {
-                close(WebSocketError.FailedToSerializeToJSON);
-            }
+                            @Override
+                            public void writeSuccess() {
+                                if (log.isDebugEnabled()) {
+                                    log.debug(
+                                            "[{}/{}] message is delivered successfully to {} ",
+                                            consumer.getTopic(),
+                                            subscription,
+                                            getRemote().getInetSocketAddress().toString());
+                                }
+                                updateDeliverMsgStat(msgSize);
+                            }
+                        });
+                    } catch (JsonProcessingException e) {
+                        close(WebSocketError.FailedToSerializeToJSON);
+                    }
 
-            int pending = pendingMessages.incrementAndGet();
-            if (pending < maxPendingMessages) {
-                // Start next read in a separate thread to avoid recursion
-                service.getExecutor().execute(this::receiveMessage);
-            }
-        }).exceptionally(exception -> {
-            if (exception.getCause() instanceof AlreadyClosedException) {
-                log.info("[{}/{}] Consumer was closed while receiving msg from broker", consumer.getTopic(),
-                        subscription);
-            } else {
-                log.warn("[{}/{}] Error occurred while consumer handler was delivering msg to {}: {}",
-                        consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString(),
-                        exception.getMessage());
-            }
-            return null;
-        });
+                    int pending = pendingMessages.incrementAndGet();
+                    if (pending < maxPendingMessages) {
+                        // Start next read in a separate thread to avoid recursion
+                        service.getExecutor().execute(this::receiveMessage);
+                    }
+                })
+                .exceptionally(exception -> {
+                    if (exception.getCause() instanceof AlreadyClosedException) {
+                        log.info(
+                                "[{}/{}] Consumer was closed while receiving msg from broker",
+                                consumer.getTopic(),
+                                subscription);
+                    } else {
+                        log.warn(
+                                "[{}/{}] Error occurred while consumer handler was delivering msg to {}: {}",
+                                consumer.getTopic(),
+                                subscription,
+                                getRemote().getInetSocketAddress().toString(),
+                                exception.getMessage());
+                    }
+                    return null;
+                });
     }
 
     @Override
@@ -250,25 +283,33 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     // Check and notify consumer if reached end of topic.
     private void handleEndOfTopic() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received check reach the end of topic request from {} ", consumer.getTopic(),
-                    subscription, getRemote().getInetSocketAddress().toString());
+            log.debug(
+                    "[{}/{}] Received check reach the end of topic request from {} ",
+                    consumer.getTopic(),
+                    subscription,
+                    getRemote().getInetSocketAddress().toString());
         }
         try {
-            String msg = objectWriter().writeValueAsString(
-                    new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
-            getSession().getRemote()
-            .sendString(msg, new WriteCallback() {
+            String msg = objectWriter().writeValueAsString(new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
+            getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {
-                    log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", consumer.getTopic(),
-                            subscription, getRemote().getInetSocketAddress().toString(), th.getMessage());
+                    log.warn(
+                            "[{}/{}] Failed to send end of topic msg to {} due to {}",
+                            consumer.getTopic(),
+                            subscription,
+                            getRemote().getInetSocketAddress().toString(),
+                            th.getMessage());
                 }
 
                 @Override
                 public void writeSuccess() {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
-                                consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString());
+                        log.debug(
+                                "[{}/{}] End of topic message is delivered successfully to {} ",
+                                consumer.getTopic(),
+                                subscription,
+                                getRemote().getInetSocketAddress().toString());
                     }
                 }
             });
@@ -281,8 +322,11 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void handleUnsubscribe(ConsumerCommand command) throws PulsarClientException {
         if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received unsubscribe request from {} ", consumer.getTopic(),
-                    subscription, getRemote().getInetSocketAddress().toString());
+            log.debug(
+                    "[{}/{}] Received unsubscribe request from {} ",
+                    consumer.getTopic(),
+                    subscription,
+                    getRemote().getInetSocketAddress().toString());
         }
         consumer.unsubscribe();
     }
@@ -299,11 +343,15 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void handleAck(ConsumerCommand command) throws IOException {
         // We should have received an ack
-        TopicMessageId msgId = new TopicMessageIdImpl(topic.toString(),
-                (MessageIdAdv) MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId)));
+        TopicMessageId msgId = new TopicMessageIdImpl(topic.toString(), (MessageIdAdv)
+                MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId)));
         if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
-                    subscription, msgId, getRemote().getInetSocketAddress().toString());
+            log.debug(
+                    "[{}/{}] Received ack request of message {} from {} ",
+                    consumer.getTopic(),
+                    subscription,
+                    msgId,
+                    getRemote().getInetSocketAddress().toString());
         }
 
         MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
@@ -317,11 +365,15 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     private void handleNack(ConsumerCommand command) throws IOException {
-        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-            topic.toString());
+        MessageId msgId =
+                MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId), topic.toString());
         if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received negative ack request of message {} from {} ", consumer.getTopic(),
-                    subscription, msgId, getRemote().getInetSocketAddress().toString());
+            log.debug(
+                    "[{}/{}] Received negative ack request of message {} from {} ",
+                    consumer.getTopic(),
+                    subscription,
+                    msgId,
+                    getRemote().getInetSocketAddress().toString());
         }
 
         MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
@@ -335,8 +387,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void handlePermit(ConsumerCommand command) throws IOException {
         if (log.isDebugEnabled()) {
-            log.debug("[{}/{}] Received {} permits request from {} ", consumer.getTopic(),
-                    subscription, command.permitMessages, getRemote().getInetSocketAddress().toString());
+            log.debug(
+                    "[{}/{}] Received {} permits request from {} ",
+                    consumer.getTopic(),
+                    subscription,
+                    command.permitMessages,
+                    getRemote().getInetSocketAddress().toString());
         }
         if (command.permitMessages == null) {
             throw new IOException("Missing required permitMessages field for 'permit' command");
@@ -356,14 +412,16 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             if (!this.service.removeConsumer(this)) {
                 log.warn("[{}] Failed to remove consumer handler", consumer.getTopic());
             }
-            consumer.closeAsync().thenAccept(x -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Closed consumer asynchronously", consumer.getTopic());
-                }
-            }).exceptionally(exception -> {
-                log.warn("[{}] Failed to close consumer", consumer.getTopic(), exception);
-                return null;
-            });
+            consumer.closeAsync()
+                    .thenAccept(x -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Closed consumer asynchronously", consumer.getTopic());
+                        }
+                    })
+                    .exceptionally(exception -> {
+                        log.warn("[{}] Failed to close consumer", consumer.getTopic(), exception);
+                        return null;
+                    });
         }
     }
 
@@ -413,14 +471,20 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("subscriptionType")) {
-            checkArgument(Enums.getIfPresent(SubscriptionType.class, queryParams.get("subscriptionType")).isPresent(),
-                    "Invalid subscriptionType %s", queryParams.get("subscriptionType"));
+            checkArgument(
+                    Enums.getIfPresent(SubscriptionType.class, queryParams.get("subscriptionType"))
+                            .isPresent(),
+                    "Invalid subscriptionType %s",
+                    queryParams.get("subscriptionType"));
             builder.subscriptionType(SubscriptionType.valueOf(queryParams.get("subscriptionType")));
         }
 
         if (queryParams.containsKey("subscriptionMode")) {
-            checkArgument(Enums.getIfPresent(SubscriptionMode.class, queryParams.get("subscriptionMode")).isPresent(),
-                    "Invalid subscriptionMode %s", queryParams.get("subscriptionMode"));
+            checkArgument(
+                    Enums.getIfPresent(SubscriptionMode.class, queryParams.get("subscriptionMode"))
+                            .isPresent(),
+                    "Invalid subscriptionMode %s",
+                    queryParams.get("subscriptionMode"));
             builder.subscriptionMode(SubscriptionMode.valueOf(queryParams.get("subscriptionMode")));
         }
 
@@ -437,14 +501,15 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("negativeAckRedeliveryDelay")) {
-            builder.negativeAckRedeliveryDelay(Integer.parseInt(queryParams.get("negativeAckRedeliveryDelay")),
-                    TimeUnit.MILLISECONDS);
+            builder.negativeAckRedeliveryDelay(
+                    Integer.parseInt(queryParams.get("negativeAckRedeliveryDelay")), TimeUnit.MILLISECONDS);
         }
 
         if (queryParams.containsKey("maxRedeliverCount") || queryParams.containsKey("deadLetterTopic")) {
             DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
             if (queryParams.containsKey("maxRedeliverCount")) {
-                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")))
+                dlpBuilder
+                        .maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")))
                         .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
             }
 
@@ -472,17 +537,22 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
         try {
-            AuthenticationDataSubscription subscription = new AuthenticationDataSubscription(authenticationData,
-                    this.subscription);
+            AuthenticationDataSubscription subscription =
+                    new AuthenticationDataSubscription(authenticationData, this.subscription);
             return service.getAuthorizationService()
                     .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            log.warn(
+                    "Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(),
+                    topic);
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+            log.warn(
+                    "Consumer-client  with Role - {} failed to get permissions for topic - {}. {}",
+                    authRole,
+                    topic,
                     e.getMessage());
             throw e;
         }

@@ -34,8 +34,7 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
     private static final Method JSONSCHEMA_CLEARCACHES_METHOD;
 
     static {
-        Class<?> objectMapperFactoryClazz =
-                null;
+        Class<?> objectMapperFactoryClazz = null;
         try {
             objectMapperFactoryClazz = ClassUtils.getClass("org.apache.pulsar.common.util.ObjectMapperFactory");
         } catch (ClassNotFoundException e) {
@@ -45,15 +44,12 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
         Method clearCachesMethod = null;
         try {
             if (objectMapperFactoryClazz != null) {
-                clearCachesMethod =
-                        objectMapperFactoryClazz
-                                .getMethod("clearCaches");
+                clearCachesMethod = objectMapperFactoryClazz.getMethod("clearCaches");
             }
         } catch (NoSuchMethodException e) {
             LOG.warn("Cannot find method for clearing singleton ObjectMapper caches", e);
         }
         OBJECTMAPPERFACTORY_CLEARCACHES_METHOD = clearCachesMethod;
-
 
         Class<?> jsonSchemaClazz = null;
         try {
@@ -65,9 +61,7 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
         Method jsonSchemaCleanCachesMethod = null;
         try {
             if (jsonSchemaClazz != null) {
-                jsonSchemaCleanCachesMethod =
-                        jsonSchemaClazz
-                                .getMethod("clearCaches");
+                jsonSchemaCleanCachesMethod = jsonSchemaClazz.getMethod("clearCaches");
             }
         } catch (NoSuchMethodException e) {
             LOG.warn("Cannot find method for clearing singleton JSONSchema caches", e);

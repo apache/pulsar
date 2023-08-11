@@ -19,9 +19,9 @@
 package org.apache.pulsar.common.util;
 
 import static org.apache.pulsar.common.util.URIPreconditions.*;
+import java.util.Objects;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.util.Objects;
 
 public class URIPreconditionsTest {
 

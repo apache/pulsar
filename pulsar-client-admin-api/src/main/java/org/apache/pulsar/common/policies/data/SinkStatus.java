@@ -83,5 +83,4 @@ public class SinkStatus {
     public void addInstance(SinkInstanceStatus sinkInstanceStatus) {
         instances.add(sinkInstanceStatus);
     }
-
 }

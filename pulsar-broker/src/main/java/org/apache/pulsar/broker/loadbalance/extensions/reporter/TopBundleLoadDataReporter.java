@@ -52,9 +52,8 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
     private volatile long lastTombstonedAt;
     private long tombstoneDelayInMillis;
 
-    public TopBundleLoadDataReporter(PulsarService pulsar,
-                                     String lookupServiceAddress,
-                                     LoadDataStore<TopBundlesLoadData> bundleLoadDataStore) {
+    public TopBundleLoadDataReporter(
+            PulsarService pulsar, String lookupServiceAddress, LoadDataStore<TopBundlesLoadData> bundleLoadDataStore) {
         this.pulsar = pulsar;
         this.lookupServiceAddress = lookupServiceAddress;
         this.bundleLoadDataStore = bundleLoadDataStore;
@@ -88,7 +87,8 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
             if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
                 log.info("Reporting TopBundlesLoadData:{}", topKBundles.getLoadData());
             }
-            return this.bundleLoadDataStore.pushAsync(lookupServiceAddress, topKBundles.getLoadData())
+            return this.bundleLoadDataStore
+                    .pushAsync(lookupServiceAddress, topKBundles.getLoadData())
                     .exceptionally(e -> {
                         log.error("Failed to report top-bundles load data.", e);
                         return null;
@@ -106,19 +106,17 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         }
         var lastSuccessfulTombstonedAt = lastTombstonedAt;
         lastTombstonedAt = now; // dedup first
-        bundleLoadDataStore.removeAsync(lookupServiceAddress)
-                .whenComplete((__, e) -> {
-                            if (e != null) {
-                                log.error("Failed to clean broker load data.", e);
-                                lastTombstonedAt = lastSuccessfulTombstonedAt;
-                            } else {
-                                boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
-                                if (debug) {
-                                    log.info("Cleaned broker load data.");
-                                }
-                            }
-                        }
-                );
+        bundleLoadDataStore.removeAsync(lookupServiceAddress).whenComplete((__, e) -> {
+            if (e != null) {
+                log.error("Failed to clean broker load data.", e);
+                lastTombstonedAt = lastSuccessfulTombstonedAt;
+            } else {
+                boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
+                if (debug) {
+                    log.info("Cleaned broker load data.");
+                }
+            }
+        });
     }
 
     @Override

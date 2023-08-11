@@ -19,19 +19,17 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.HashMap;
 import java.util.Map;
-
 import org.testng.annotations.Test;
 
 public class JCloudBlobStoreProviderTests {
-      
+
     private TieredStorageConfiguration config;
-    
+
     @Test
     public void awsValidationSuccessTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<String, String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffloadRegion", "us-east-1");
         map.put("managedLedgerOffloadBucket", "test bucket");
@@ -39,32 +37,34 @@ public class JCloudBlobStoreProviderTests {
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
-    
+
     @Test
     public void awsValidationDefaultBlockSizeTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<String, String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffloadRegion", "us-east-1");
         map.put("managedLedgerOffloadBucket", "test bucket");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Either Region or ServiceEndpoint must specified for aws-s3 offload")
     public void awsValidationMissingRegionTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<String, String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffloadBucket", "my-bucket");
         map.put("managedLedgerOffloadMaxBlockSizeInBytes", "999999");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Bucket cannot be empty for aws-s3 offload")
     public void awsValidationMissingBucketTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<String, String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffloadRegion", "us-east-1");
         map.put("managedLedgerOffloadMaxBlockSizeInBytes", "99999999");
@@ -72,12 +72,13 @@ public class JCloudBlobStoreProviderTests {
         assertEquals(config.getRegion(), "us-east-1");
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "ManagedLedgerOffloadMaxBlockSizeInBytes cannot "
-                    + "be less than 5MB for aws-s3 offload")
+
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp =
+                    "ManagedLedgerOffloadMaxBlockSizeInBytes cannot " + "be less than 5MB for aws-s3 offload")
     public void awsValidationBlockSizeTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<String, String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffloadRegion", "us-east-1");
         map.put("managedLedgerOffloadBucket", "test bucket");
@@ -85,20 +86,21 @@ public class JCloudBlobStoreProviderTests {
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.AWS_S3.validate(config);
     }
-   
+
     @Test
     public void transientValidationSuccessTest() {
-        Map<String, String> map = new HashMap<String,String>();
+        Map<String, String> map = new HashMap<String, String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "transient");
         map.put("managedLedgerOffloadBucket", "test bucket");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.TRANSIENT.validate(config);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Bucket cannot be empty for Local offload")
     public void transientValidationFailureTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<String, String>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "transient");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.TRANSIENT.validate(config);
@@ -114,8 +116,9 @@ public class JCloudBlobStoreProviderTests {
         configuration.getProvider().validate(configuration);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "ServiceEndpoint must specified for S3 offload")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "ServiceEndpoint must specified for S3 offload")
     public void s3ValidationServiceEndpointMissed() {
         Map<String, String> map = new HashMap<>();
         map.put("managedLedgerOffloadDriver", "S3");
@@ -123,8 +126,9 @@ public class JCloudBlobStoreProviderTests {
         configuration.getProvider().validate(configuration);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "Bucket cannot be empty for S3 offload")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Bucket cannot be empty for S3 offload")
     public void s3ValidationBucketMissed() {
         Map<String, String> map = new HashMap<>();
         map.put("managedLedgerOffloadDriver", "S3");

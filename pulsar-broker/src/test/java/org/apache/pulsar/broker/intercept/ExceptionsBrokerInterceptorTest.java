@@ -22,7 +22,6 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,7 +46,6 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
         this.conf.setDisableBrokerInterceptors(false);
-
 
         this.enableBrokerInterceptor = true;
         super.internalSetup();
@@ -77,7 +75,8 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
 
         BrokerInterceptors listener = (BrokerInterceptors) pulsar.getBrokerInterceptor();
         assertNotNull(listener);
-        BrokerInterceptorWithClassLoader brokerInterceptor = listener.getInterceptors().get(interceptorName);
+        BrokerInterceptorWithClassLoader brokerInterceptor =
+                listener.getInterceptors().get(interceptorName);
         assertNotNull(brokerInterceptor);
         BrokerInterceptor interceptor = brokerInterceptor.getInterceptor();
         assertTrue(interceptor instanceof ExceptionsBrokerInterceptor);
@@ -92,26 +91,36 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
                 .isAckReceiptEnabled(true)
                 .subscribe();
 
-        Awaitility.await().until(() -> ((ExceptionsBrokerInterceptor) interceptor).getProducerCount().get() == 1);
-        Awaitility.await().until(() -> ((ExceptionsBrokerInterceptor) interceptor).getConsumerCount().get() == 1);
+        Awaitility.await()
+                .until(() -> ((ExceptionsBrokerInterceptor) interceptor)
+                                .getProducerCount()
+                                .get()
+                        == 1);
+        Awaitility.await()
+                .until(() -> ((ExceptionsBrokerInterceptor) interceptor)
+                                .getConsumerCount()
+                                .get()
+                        == 1);
 
-        for (int i = 0; i < messageNumber; i ++) {
+        for (int i = 0; i < messageNumber; i++) {
             producer.send("test".getBytes(StandardCharsets.UTF_8));
         }
 
         int receiveCounter = 0;
         Message message;
-        while((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
-            receiveCounter ++;
+        while ((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
+            receiveCounter++;
             consumer.acknowledge(message);
         }
         assertEquals(receiveCounter, 10);
-        Awaitility.await().until(()
-                -> ((ExceptionsBrokerInterceptor) interceptor).getMessageAckCount().get() == messageNumber);
+        Awaitility.await()
+                .until(() -> ((ExceptionsBrokerInterceptor) interceptor)
+                                .getMessageAckCount()
+                                .get()
+                        == messageNumber);
 
         ClientCnx clientCnx = consumer.getClientCnx();
         // no duplicated responses received from broker
         assertEquals(clientCnx.getDuplicatedResponseCount(), 0);
     }
-
 }

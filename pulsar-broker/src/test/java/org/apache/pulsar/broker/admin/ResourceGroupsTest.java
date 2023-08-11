@@ -45,7 +45,6 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "test-tenant";
     private final String testNameSpace = "test-tenant/test-namespace";
 
-
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -74,7 +73,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
             resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-invalid", null);
             fail("should have failed");
         } catch (RestException e) {
-            //Ok.
+            // Ok.
         }
 
         // create resourcegroup with default values
@@ -97,7 +96,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
             resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-one", null);
             fail("should have failed");
         } catch (RestException e) {
-            //Ok.
+            // Ok.
         }
 
         // update with some real values
@@ -113,7 +112,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
             resourcegroups.getResourceGroup("test-resourcegroup-invalid");
             fail("should have failed");
         } catch (RestException e) {
-            //Ok
+            // Ok
         }
 
         // get list of all resourcegroups
@@ -128,7 +127,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
             resourcegroups.deleteResourceGroup("test-resourcegroup-invalid");
             fail("should have failed");
         } catch (RestException e) {
-            //Ok
+            // Ok
         }
 
         // delete the ResourceGroups we created.
@@ -154,7 +153,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
             admin.namespaces().setNamespaceResourceGroup(testNameSpace, "test-resourcegroup-invalid");
             fail("should have failed");
         } catch (Exception e) {
-            //Ok.
+            // Ok.
         }
         // set resourcegroup in namespace
         admin.namespaces().setNamespaceResourceGroup(testNameSpace, "test-resourcegroup-three");
@@ -162,21 +161,20 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
         try {
             resourcegroups.deleteResourceGroup("test-resourcegroup-three");
         } catch (RestException e) {
-            //Ok
+            // Ok
         }
         // remove resourcegroup from namespace
         admin.namespaces().removeNamespaceResourceGroup(testNameSpace);
         resourcegroups.deleteResourceGroup("test-resourcegroup-three");
-
     }
 
     private void prepareData() throws PulsarAdminException {
         admin.clusters()
-                .createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant(
-                testTenant,
-                new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster))
-        );
+                .createCluster(
+                        testCluster,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster)));
     }
-
 }

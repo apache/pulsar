@@ -58,43 +58,62 @@ public class PulsarAdminTool {
     @Getter
     public static class RootParams {
 
-        @Parameter(names = { "--admin-url" }, description = "Admin Service URL to which to connect.")
+        @Parameter(
+                names = {"--admin-url"},
+                description = "Admin Service URL to which to connect.")
         String serviceUrl = null;
 
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
+        @Parameter(
+                names = {"--auth-plugin"},
+                description = "Authentication plugin class name.")
         String authPluginClassName = null;
 
-        @Parameter(names = { "--request-timeout" }, description = "Request time out in seconds for "
-                + "the pulsar admin client for any request")
+        @Parameter(
+                names = {"--request-timeout"},
+                description = "Request time out in seconds for " + "the pulsar admin client for any request")
         int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
 
         @Parameter(
-            names = { "--auth-params" },
+                names = {"--auth-params"},
                 description = "Authentication parameters, whose format is determined by the implementation "
                         + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
                         + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         String authParams = null;
 
-        @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
+        @Parameter(
+                names = {"--tls-allow-insecure"},
+                description = "Allow TLS insecure connection")
         Boolean tlsAllowInsecureConnection;
 
-        @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
+        @Parameter(
+                names = {"--tls-trust-cert-path"},
+                description = "Allow TLS trust cert file path")
         String tlsTrustCertsFilePath;
 
-        @Parameter(names = { "--tls-enable-hostname-verification" },
+        @Parameter(
+                names = {"--tls-enable-hostname-verification"},
                 description = "Enable TLS common name verification")
         Boolean tlsEnableHostnameVerification;
 
-        @Parameter(names = {"--tls-provider"}, description = "Set up TLS provider. "
-                + "When TLS authentication with CACert is used, the valid value is either OPENSSL or JDK. "
-                + "When TLS authentication with KeyStore is used, available options can be SunJSSE, Conscrypt "
-                + "and so on.")
+        @Parameter(
+                names = {"--tls-provider"},
+                description = "Set up TLS provider. "
+                        + "When TLS authentication with CACert is used, the valid value is either OPENSSL or JDK. "
+                        + "When TLS authentication with KeyStore is used, available options can be SunJSSE, Conscrypt "
+                        + "and so on.")
         String tlsProvider;
 
-        @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar admin client")
+        @Parameter(
+                names = {"-v", "--version"},
+                description = "Get version of pulsar admin client")
         boolean version;
 
-        @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
+        @Parameter(
+                names = {
+                    "-h", "--help",
+                },
+                help = true,
+                description = "Show this help.")
         boolean help;
     }
 
@@ -109,10 +128,8 @@ public class PulsarAdminTool {
         initJCommander();
     }
 
-
     private static PulsarAdminBuilder createAdminBuilderFromProperties(Properties properties) {
-        boolean useKeyStoreTls = Boolean
-                .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
+        boolean useKeyStoreTls = Boolean.parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
         String tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
         String tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
         String tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
@@ -122,14 +139,15 @@ public class PulsarAdminTool {
         String tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
         String tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
 
-        boolean tlsAllowInsecureConnection = Boolean.parseBoolean(properties
-                .getProperty("tlsAllowInsecureConnection", "false"));
+        boolean tlsAllowInsecureConnection =
+                Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
 
-        boolean tlsEnableHostnameVerification = Boolean.parseBoolean(properties
-                .getProperty("tlsEnableHostnameVerification", "false"));
+        boolean tlsEnableHostnameVerification =
+                Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
         final String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
 
-        return PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)
+        return PulsarAdmin.builder()
+                .allowTlsInsecureConnection(tlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(tlsEnableHostnameVerification)
                 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
                 .useKeyStoreTls(useKeyStoreTls)
@@ -194,15 +212,19 @@ public class PulsarAdminTool {
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
         if (c.getKey().equals("sources") || c.getKey().equals("source")) {
-            jcommander.addCommand("sources", c.getValue().getConstructor(Supplier.class).newInstance(admin), "source");
+            jcommander.addCommand(
+                    "sources", c.getValue().getConstructor(Supplier.class).newInstance(admin), "source");
         } else if (c.getKey().equals("sinks") || c.getKey().equals("sink")) {
-            jcommander.addCommand("sinks", c.getValue().getConstructor(Supplier.class).newInstance(admin), "sink");
+            jcommander.addCommand(
+                    "sinks", c.getValue().getConstructor(Supplier.class).newInstance(admin), "sink");
         } else if (c.getKey().equals("functions")) {
-            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
+            jcommander.addCommand(
+                    c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
         } else {
             // Other mode, all components are initialized.
             if (c.getValue() != null) {
-                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
+                jcommander.addCommand(
+                        c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
             }
         }
     }
@@ -224,7 +246,7 @@ public class PulsarAdminTool {
 
         try {
             jcommander.parse(Arrays.copyOfRange(args, 0, Math.min(cmdPos, args.length)));
-            //rootParams are populated by jcommander.parse
+            // rootParams are populated by jcommander.parse
             pulsarAdminSupplier.rootParamsUpdated(rootParams);
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -347,7 +369,6 @@ public class PulsarAdminTool {
         // Hidden deprecated "persistent" and "non-persistent" subcommands
         commandMap.put("persistent", CmdPersistentTopics.class);
         commandMap.put("non-persistent", CmdNonPersistentTopics.class);
-
 
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
         // pulsar-proxy cli

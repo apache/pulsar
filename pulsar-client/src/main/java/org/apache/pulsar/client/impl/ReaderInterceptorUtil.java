@@ -28,7 +28,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderInterceptor;
 
-
 /**
  * ReaderInterceptorUtil is used to wrap ReaderInterceptor by ConsumerInterceptor.
  */
@@ -64,8 +63,7 @@ public class ReaderInterceptorUtil {
             }
 
             @Override
-            public void onAcknowledgeCumulative(Consumer<T> consumer,
-                                                MessageId messageId, Throwable exception) {
+            public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception) {
                 // nothing to do
             }
 
@@ -85,5 +83,4 @@ public class ReaderInterceptorUtil {
             }
         };
     }
-
 }

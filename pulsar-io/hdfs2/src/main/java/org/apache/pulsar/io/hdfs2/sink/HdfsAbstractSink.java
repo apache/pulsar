@@ -52,40 +52,41 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
     private DateTimeFormatter subdirectoryFormatter;
 
     public abstract KeyValue<K, V> extractKeyValue(Record<V> record);
+
     protected abstract void createWriter() throws IOException;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-       hdfsSinkConfig = HdfsSinkConfig.load(config);
-       hdfsSinkConfig.validate();
-       connectorConfig = hdfsSinkConfig;
-       unackedRecords = new LinkedBlockingQueue<Record<V>> (hdfsSinkConfig.getMaxPendingRecords());
-       if (hdfsSinkConfig.getSubdirectoryPattern() != null) {
-           subdirectoryFormatter = DateTimeFormatter.ofPattern(hdfsSinkConfig.getSubdirectoryPattern());
-       }
-       connectToHdfs();
-       createWriter();
-       launchSyncThread();
+        hdfsSinkConfig = HdfsSinkConfig.load(config);
+        hdfsSinkConfig.validate();
+        connectorConfig = hdfsSinkConfig;
+        unackedRecords = new LinkedBlockingQueue<Record<V>>(hdfsSinkConfig.getMaxPendingRecords());
+        if (hdfsSinkConfig.getSubdirectoryPattern() != null) {
+            subdirectoryFormatter = DateTimeFormatter.ofPattern(hdfsSinkConfig.getSubdirectoryPattern());
+        }
+        connectToHdfs();
+        createWriter();
+        launchSyncThread();
     }
 
     @Override
     public void close() throws Exception {
-       syncThread.halt();
-       syncThread.join(0);
+        syncThread.halt();
+        syncThread.join(0);
     }
 
     protected final void connectToHdfs() throws IOException {
-       try {
-           HdfsResources resources = hdfsResources.get();
+        try {
+            HdfsResources resources = hdfsResources.get();
 
-           if (resources.getConfiguration() == null) {
-               resources = this.resetHDFSResources(hdfsSinkConfig);
-               hdfsResources.set(resources);
-           }
-       } catch (IOException ex) {
-          hdfsResources.set(new HdfsResources(null, null, null));
-          throw ex;
-       }
+            if (resources.getConfiguration() == null) {
+                resources = this.resetHDFSResources(hdfsSinkConfig);
+                hdfsResources.set(resources);
+            }
+        } catch (IOException ex) {
+            hdfsResources.set(new HdfsResources(null, null, null));
+            throw ex;
+        }
     }
 
     protected FSDataOutputStream getHdfsStream() throws IllegalArgumentException, IOException {
@@ -110,8 +111,8 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
             if (subdirectoryFormatter != null) {
                 directory = FilenameUtils.concat(directory, LocalDateTime.now().format(subdirectoryFormatter));
             }
-            path = new Path(FilenameUtils.concat(directory,
-                    hdfsSinkConfig.getFilenamePrefix() + "-" + System.currentTimeMillis() + ext));
+            path = new Path(FilenameUtils.concat(
+                    directory, hdfsSinkConfig.getFilenamePrefix() + "-" + System.currentTimeMillis() + ext));
             log.info("Create path: {}", path);
         }
         return path;

@@ -54,7 +54,6 @@ public class KafkaConnectData {
         return out;
     }
 
-
     public static Object getKafkaConnectDataFromSchema(Object nativeObject, Schema kafkaSchema) {
         if (kafkaSchema != null && nativeObject == null) {
             return null;
@@ -79,7 +78,7 @@ public class KafkaConnectData {
 
         switch (kafkaSchema.type()) {
             case ARRAY:
-                 if (nativeObject instanceof List) {
+                if (nativeObject instanceof List) {
                     List arr = (List) nativeObject;
                     return arr.stream()
                             .map(x -> getKafkaConnectData(x, kafkaSchema.valueSchema()))
@@ -87,8 +86,8 @@ public class KafkaConnectData {
                 } else if (nativeObject.getClass().isArray()) {
                     return arrayToList(nativeObject, kafkaSchema.valueSchema());
                 }
-                throw new IllegalStateException("Don't know how to convert " + nativeObject.getClass()
-                        + " into kafka ARRAY");
+                throw new IllegalStateException(
+                        "Don't know how to convert " + nativeObject.getClass() + " into kafka ARRAY");
             case MAP:
                 if (nativeObject instanceof Map) {
                     Map<Object, Object> map = (Map<Object, Object>) nativeObject;
@@ -108,8 +107,8 @@ public class KafkaConnectData {
                     responseMap.put(key, val);
                     return responseMap;
                 }
-                throw new IllegalStateException("Don't know how to convert " + nativeObject.getClass()
-                        + " into kafka MAP");
+                throw new IllegalStateException(
+                        "Don't know how to convert " + nativeObject.getClass() + " into kafka MAP");
             case STRUCT:
                 if (nativeObject instanceof GenericData.Record) {
                     GenericData.Record avroRecord = (GenericData.Record) nativeObject;
@@ -123,11 +122,11 @@ public class KafkaConnectData {
                     }
                     return pulsarGenericRecordAsConnectData(pulsarGenericRecord, kafkaSchema);
                 }
-                throw new IllegalStateException("Don't know how to convert " + nativeObject.getClass()
-                        + "into kafka STRUCT");
+                throw new IllegalStateException(
+                        "Don't know how to convert " + nativeObject.getClass() + "into kafka STRUCT");
             default:
-                Preconditions.checkArgument(kafkaSchema.type().isPrimitive(),
-                        "Expected primitive schema but got " + kafkaSchema.type());
+                Preconditions.checkArgument(
+                        kafkaSchema.type().isPrimitive(), "Expected primitive schema but got " + kafkaSchema.type());
                 return castToKafkaSchema(nativeObject, kafkaSchema);
         }
     }
@@ -157,8 +156,8 @@ public class KafkaConnectData {
                 }
                 return Decimal.toLogical(kafkaSchema, (byte[]) nativeObject);
             }
-            throw new IllegalStateException("Unsupported Kafka Logical Schema " + kafkaSchema.name()
-                    + " for value " + nativeObject);
+            throw new IllegalStateException(
+                    "Unsupported Kafka Logical Schema " + kafkaSchema.name() + " for value " + nativeObject);
         }
 
         if (nativeObject instanceof Number) {
@@ -256,7 +255,8 @@ public class KafkaConnectData {
             if (genericRecord == null) {
                 return null;
             }
-            throw new DataException("Don't know how to convert " + genericRecord + " to Connect data (schema is null).");
+            throw new DataException(
+                    "Don't know how to convert " + genericRecord + " to Connect data (schema is null).");
         }
 
         Struct struct = new Struct(kafkaSchema);
@@ -273,8 +273,7 @@ public class KafkaConnectData {
             if (jsonNode == null || jsonNode.isNull()) {
                 return null;
             }
-            throw new DataException("Don't know how to convert " + jsonNode
-                + " to Connect data (schema is null).");
+            throw new DataException("Don't know how to convert " + jsonNode + " to Connect data (schema is null).");
         }
 
         if (jsonNode == null || jsonNode.isNull()) {
@@ -303,8 +302,8 @@ public class KafkaConnectData {
                             + " for jsonNode " + jsonNode + " into Decimal");
                 }
             }
-            throw new IllegalStateException("Unsupported Kafka Logical Schema " + kafkaSchema.name()
-                    + " for jsonNode " + jsonNode);
+            throw new IllegalStateException(
+                    "Unsupported Kafka Logical Schema " + kafkaSchema.name() + " for jsonNode " + jsonNode);
         }
 
         switch (kafkaSchema.type()) {
@@ -323,7 +322,7 @@ public class KafkaConnectData {
                 return jsonNode.intValue();
             case INT64:
                 Preconditions.checkArgument(jsonNode.isNumber());
-                return  jsonNode.longValue();
+                return jsonNode.longValue();
             case FLOAT32:
                 Preconditions.checkArgument(jsonNode.isNumber());
                 return jsonNode.floatValue();
@@ -347,7 +346,7 @@ public class KafkaConnectData {
                 if (jsonNode.isTextual() && kafkaSchema.valueSchema().type() == Schema.Type.INT32) {
                     // char[] encoded as String in json
                     List<Object> list = new ArrayList<>();
-                    for (char ch: jsonNode.textValue().toCharArray()) {
+                    for (char ch : jsonNode.textValue().toCharArray()) {
                         list.add(Character.getNumericValue(ch));
                     }
                     return list;
@@ -355,24 +354,24 @@ public class KafkaConnectData {
 
                 Preconditions.checkArgument(jsonNode.isArray(), "jsonNode has to be an array");
                 List<Object> list = new ArrayList<>();
-                for (Iterator<JsonNode> it = jsonNode.elements(); it.hasNext();) {
+                for (Iterator<JsonNode> it = jsonNode.elements(); it.hasNext(); ) {
                     list.add(jsonAsConnectData(it.next(), kafkaSchema.valueSchema()));
                 }
                 return list;
             case MAP:
                 Preconditions.checkArgument(jsonNode.isObject(), "jsonNode has to be an Object node");
-                Preconditions.checkArgument(kafkaSchema.keySchema().type() == Schema.Type.STRING,
+                Preconditions.checkArgument(
+                        kafkaSchema.keySchema().type() == Schema.Type.STRING,
                         "kafka schema for json map is expected to be STRING");
                 Map<String, Object> map = new HashMap<>();
                 for (Iterator<Map.Entry<String, JsonNode>> it = jsonNode.fields(); it.hasNext(); ) {
                     Map.Entry<String, JsonNode> elem = it.next();
-                    map.put(elem.getKey(),
-                            jsonAsConnectData(elem.getValue(), kafkaSchema.valueSchema()));
+                    map.put(elem.getKey(), jsonAsConnectData(elem.getValue(), kafkaSchema.valueSchema()));
                 }
                 return map;
             case STRUCT:
                 Struct struct = new Struct(kafkaSchema);
-                for (Field field: kafkaSchema.fields()) {
+                for (Field field : kafkaSchema.fields()) {
                     struct.put(field, jsonAsConnectData(jsonNode.get(field.name()), field.schema()));
                 }
                 return struct;

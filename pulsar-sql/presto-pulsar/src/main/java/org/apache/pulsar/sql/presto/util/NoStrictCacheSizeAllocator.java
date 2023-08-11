@@ -79,5 +79,4 @@ public class NoStrictCacheSizeAllocator implements CacheSizeAllocator {
             lock.unlock();
         }
     }
-
 }

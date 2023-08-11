@@ -29,22 +29,25 @@ import org.slf4j.LoggerFactory;
 public class RetryUtil {
     private static final Logger log = LoggerFactory.getLogger(RetryUtil.class);
 
-    public static <T> void retryAsynchronously(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
-                                               ScheduledExecutorService scheduledExecutorService,
-                                               CompletableFuture<T> callback) {
+    public static <T> void retryAsynchronously(
+            Supplier<CompletableFuture<T>> supplier,
+            Backoff backoff,
+            ScheduledExecutorService scheduledExecutorService,
+            CompletableFuture<T> callback) {
         if (backoff.getMax() <= 0) {
             throw new IllegalArgumentException("Illegal max retry time");
         }
         if (backoff.getInitial() <= 0) {
             throw new IllegalArgumentException("Illegal initial time");
         }
-        scheduledExecutorService.execute(() ->
-                executeWithRetry(supplier, backoff, scheduledExecutorService, callback));
+        scheduledExecutorService.execute(() -> executeWithRetry(supplier, backoff, scheduledExecutorService, callback));
     }
 
-    private static <T> void executeWithRetry(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
-                                             ScheduledExecutorService scheduledExecutorService,
-                                             CompletableFuture<T> callback) {
+    private static <T> void executeWithRetry(
+            Supplier<CompletableFuture<T>> supplier,
+            Backoff backoff,
+            ScheduledExecutorService scheduledExecutorService,
+            CompletableFuture<T> callback) {
         supplier.get().whenComplete((result, e) -> {
             if (e != null) {
                 long next = backoff.next();
@@ -53,14 +56,14 @@ public class RetryUtil {
                     callback.completeExceptionally(e);
                 } else {
                     log.warn("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
-                    scheduledExecutorService.schedule(() ->
-                                    executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
-                            next, TimeUnit.MILLISECONDS);
+                    scheduledExecutorService.schedule(
+                            () -> executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
+                            next,
+                            TimeUnit.MILLISECONDS);
                 }
                 return;
             }
             callback.complete(result);
         });
     }
-
 }

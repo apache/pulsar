@@ -24,7 +24,7 @@ package org.apache.pulsar.common.tls;
  * @since 4.5
  */
 public enum DomainType {
-
-    UNKNOWN, ICANN, PRIVATE
-
+    UNKNOWN,
+    ICANN,
+    PRIVATE
 }

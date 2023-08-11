@@ -85,9 +85,9 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * Every public method must preserve these invariants.
      */
     private void checkInvariants() {
-        assert(wordsInUse == 0 || words[wordsInUse - 1] != 0);
-        assert(wordsInUse >= 0 && wordsInUse <= words.length);
-        assert(wordsInUse == words.length || words[wordsInUse] == 0);
+        assert (wordsInUse == 0 || words[wordsInUse - 1] != 0);
+        assert (wordsInUse >= 0 && wordsInUse <= words.length);
+        assert (wordsInUse == words.length || words[wordsInUse] == 0);
     }
 
     /**
@@ -98,11 +98,9 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     private void recalculateWordsInUse() {
         // Traverse the bitset until a used word is found
         int i;
-        for (i = wordsInUse-1; i >= 0; i--)
-            if (words[i] != 0)
-                break;
+        for (i = wordsInUse - 1; i >= 0; i--) if (words[i] != 0) break;
 
-        wordsInUse = i+1; // The new logical size
+        wordsInUse = i + 1; // The new logical size
     }
 
     /**
@@ -124,15 +122,14 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public BitSetRecyclable(int nbits) {
         // nbits can't be negative; size 0 is OK
-        if (nbits < 0)
-            throw new NegativeArraySizeException("nbits < 0: " + nbits);
+        if (nbits < 0) throw new NegativeArraySizeException("nbits < 0: " + nbits);
 
         initWords(nbits);
         sizeIsSticky = true;
     }
 
     private void initWords(int nbits) {
-        words = new long[wordIndex(nbits-1) + 1];
+        words = new long[wordIndex(nbits - 1) + 1];
     }
 
     /**
@@ -242,10 +239,8 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         long[] words = new long[(n + 7) / 8];
         bb.limit(n);
         int i = 0;
-        while (bb.remaining() >= 8)
-            words[i++] = bb.getLong();
-        for (int remaining = bb.remaining(), j = 0; j < remaining; j++)
-            words[i] |= (bb.get() & 0xffL) << (8 * j);
+        while (bb.remaining() >= 8) words[i++] = bb.getLong();
+        for (int remaining = bb.remaining(), j = 0; j < remaining; j++) words[i] |= (bb.get() & 0xffL) << (8 * j);
         return new BitSetRecyclable(words);
     }
 
@@ -264,17 +259,13 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public byte[] toByteArray() {
         int n = wordsInUse;
-        if (n == 0)
-            return new byte[0];
-        int len = 8 * (n-1);
-        for (long x = words[n - 1]; x != 0; x >>>= 8)
-            len++;
+        if (n == 0) return new byte[0];
+        int len = 8 * (n - 1);
+        for (long x = words[n - 1]; x != 0; x >>>= 8) len++;
         byte[] bytes = new byte[len];
         ByteBuffer bb = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-        for (int i = 0; i < n - 1; i++)
-            bb.putLong(words[i]);
-        for (long x = words[n - 1]; x != 0; x >>>= 8)
-            bb.put((byte) (x & 0xff));
+        for (int i = 0; i < n - 1; i++) bb.putLong(words[i]);
+        for (long x = words[n - 1]; x != 0; x >>>= 8) bb.put((byte) (x & 0xff));
         return bytes;
     }
 
@@ -316,7 +307,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @param wordIndex the index to be accommodated.
      */
     private void expandTo(int wordIndex) {
-        int wordsRequired = wordIndex+1;
+        int wordsRequired = wordIndex + 1;
         if (wordsInUse < wordsRequired) {
             ensureCapacity(wordsRequired);
             wordsInUse = wordsRequired;
@@ -327,13 +318,10 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * Checks that fromIndex ... toIndex is a valid range of bit indices.
      */
     private static void checkRange(int fromIndex, int toIndex) {
-        if (fromIndex < 0)
-            throw new IndexOutOfBoundsException("fromIndex < 0: " + fromIndex);
-        if (toIndex < 0)
-            throw new IndexOutOfBoundsException("toIndex < 0: " + toIndex);
+        if (fromIndex < 0) throw new IndexOutOfBoundsException("fromIndex < 0: " + fromIndex);
+        if (toIndex < 0) throw new IndexOutOfBoundsException("toIndex < 0: " + toIndex);
         if (fromIndex > toIndex)
-            throw new IndexOutOfBoundsException("fromIndex: " + fromIndex +
-                " > toIndex: " + toIndex);
+            throw new IndexOutOfBoundsException("fromIndex: " + fromIndex + " > toIndex: " + toIndex);
     }
 
     /**
@@ -345,8 +333,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since  1.4
      */
     public void flip(int bitIndex) {
-        if (bitIndex < 0)
-            throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
+        if (bitIndex < 0) throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
 
         int wordIndex = wordIndex(bitIndex);
         expandTo(wordIndex);
@@ -372,15 +359,14 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     public void flip(int fromIndex, int toIndex) {
         checkRange(fromIndex, toIndex);
 
-        if (fromIndex == toIndex)
-            return;
+        if (fromIndex == toIndex) return;
 
         int startWordIndex = wordIndex(fromIndex);
-        int endWordIndex   = wordIndex(toIndex - 1);
+        int endWordIndex = wordIndex(toIndex - 1);
         expandTo(endWordIndex);
 
         long firstWordMask = WORD_MASK << fromIndex;
-        long lastWordMask  = WORD_MASK >>> -toIndex;
+        long lastWordMask = WORD_MASK >>> -toIndex;
         if (startWordIndex == endWordIndex) {
             // Case 1: One word
             words[startWordIndex] ^= (firstWordMask & lastWordMask);
@@ -390,8 +376,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
             words[startWordIndex] ^= firstWordMask;
 
             // Handle intermediate words, if any
-            for (int i = startWordIndex+1; i < endWordIndex; i++)
-                words[i] ^= WORD_MASK;
+            for (int i = startWordIndex + 1; i < endWordIndex; i++) words[i] ^= WORD_MASK;
 
             // Handle last word
             words[endWordIndex] ^= lastWordMask;
@@ -409,8 +394,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since  JDK1.0
      */
     public void set(int bitIndex) {
-        if (bitIndex < 0)
-            throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
+        if (bitIndex < 0) throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
 
         int wordIndex = wordIndex(bitIndex);
         expandTo(wordIndex);
@@ -429,10 +413,8 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since  1.4
      */
     public void set(int bitIndex, boolean value) {
-        if (value)
-            set(bitIndex);
-        else
-            clear(bitIndex);
+        if (value) set(bitIndex);
+        else clear(bitIndex);
     }
 
     /**
@@ -449,16 +431,15 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     public void set(int fromIndex, int toIndex) {
         checkRange(fromIndex, toIndex);
 
-        if (fromIndex == toIndex)
-            return;
+        if (fromIndex == toIndex) return;
 
         // Increase capacity if necessary
         int startWordIndex = wordIndex(fromIndex);
-        int endWordIndex   = wordIndex(toIndex - 1);
+        int endWordIndex = wordIndex(toIndex - 1);
         expandTo(endWordIndex);
 
         long firstWordMask = WORD_MASK << fromIndex;
-        long lastWordMask  = WORD_MASK >>> -toIndex;
+        long lastWordMask = WORD_MASK >>> -toIndex;
         if (startWordIndex == endWordIndex) {
             // Case 1: One word
             words[startWordIndex] |= (firstWordMask & lastWordMask);
@@ -468,8 +449,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
             words[startWordIndex] |= firstWordMask;
 
             // Handle intermediate words, if any
-            for (int i = startWordIndex+1; i < endWordIndex; i++)
-                words[i] = WORD_MASK;
+            for (int i = startWordIndex + 1; i < endWordIndex; i++) words[i] = WORD_MASK;
 
             // Handle last word (restores invariants)
             words[endWordIndex] |= lastWordMask;
@@ -491,10 +471,8 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since  1.4
      */
     public void set(int fromIndex, int toIndex, boolean value) {
-        if (value)
-            set(fromIndex, toIndex);
-        else
-            clear(fromIndex, toIndex);
+        if (value) set(fromIndex, toIndex);
+        else clear(fromIndex, toIndex);
     }
 
     /**
@@ -505,12 +483,10 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since  JDK1.0
      */
     public void clear(int bitIndex) {
-        if (bitIndex < 0)
-            throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
+        if (bitIndex < 0) throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
 
         int wordIndex = wordIndex(bitIndex);
-        if (wordIndex >= wordsInUse)
-            return;
+        if (wordIndex >= wordsInUse) return;
 
         words[wordIndex] &= ~(1L << bitIndex);
 
@@ -532,12 +508,10 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     public void clear(int fromIndex, int toIndex) {
         checkRange(fromIndex, toIndex);
 
-        if (fromIndex == toIndex)
-            return;
+        if (fromIndex == toIndex) return;
 
         int startWordIndex = wordIndex(fromIndex);
-        if (startWordIndex >= wordsInUse)
-            return;
+        if (startWordIndex >= wordsInUse) return;
 
         int endWordIndex = wordIndex(toIndex - 1);
         if (endWordIndex >= wordsInUse) {
@@ -546,7 +520,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         }
 
         long firstWordMask = WORD_MASK << fromIndex;
-        long lastWordMask  = WORD_MASK >>> -toIndex;
+        long lastWordMask = WORD_MASK >>> -toIndex;
         if (startWordIndex == endWordIndex) {
             // Case 1: One word
             words[startWordIndex] &= ~(firstWordMask & lastWordMask);
@@ -556,8 +530,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
             words[startWordIndex] &= ~firstWordMask;
 
             // Handle intermediate words, if any
-            for (int i = startWordIndex+1; i < endWordIndex; i++)
-                words[i] = 0;
+            for (int i = startWordIndex + 1; i < endWordIndex; i++) words[i] = 0;
 
             // Handle last word
             words[endWordIndex] &= ~lastWordMask;
@@ -573,8 +546,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since 1.4
      */
     public void clear() {
-        while (wordsInUse > 0)
-            words[--wordsInUse] = 0;
+        while (wordsInUse > 0) words[--wordsInUse] = 0;
     }
 
     /**
@@ -588,14 +560,12 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @throws IndexOutOfBoundsException if the specified index is negative
      */
     public boolean get(int bitIndex) {
-        if (bitIndex < 0)
-            throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
+        if (bitIndex < 0) throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
 
         checkInvariants();
 
         int wordIndex = wordIndex(bitIndex);
-        return (wordIndex < wordsInUse)
-            && ((words[wordIndex] & (1L << bitIndex)) != 0);
+        return (wordIndex < wordsInUse) && ((words[wordIndex] & (1L << bitIndex)) != 0);
     }
 
     /**
@@ -618,12 +588,10 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         int len = length();
 
         // If no set bits in range return empty bitset
-        if (len <= fromIndex || fromIndex == toIndex)
-            return new BitSetRecyclable(0);
+        if (len <= fromIndex || fromIndex == toIndex) return new BitSetRecyclable(0);
 
         // An optimization
-        if (toIndex > len)
-            toIndex = len;
+        if (toIndex > len) toIndex = len;
 
         BitSetRecyclable result = new BitSetRecyclable(toIndex - fromIndex);
         int targetWords = wordIndex(toIndex - fromIndex - 1) + 1;
@@ -632,19 +600,16 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
 
         // Process all words but the last word
         for (int i = 0; i < targetWords - 1; i++, sourceIndex++)
-            result.words[i] = wordAligned ? words[sourceIndex] :
-                (words[sourceIndex] >>> fromIndex) |
-                    (words[sourceIndex+1] << -fromIndex);
+            result.words[i] = wordAligned
+                    ? words[sourceIndex]
+                    : (words[sourceIndex] >>> fromIndex) | (words[sourceIndex + 1] << -fromIndex);
 
         // Process the last word
         long lastWordMask = WORD_MASK >>> -toIndex;
-        result.words[targetWords - 1] =
-            ((toIndex-1) & BIT_INDEX_MASK) < (fromIndex & BIT_INDEX_MASK)
-                ? /* straddles source words */
-                ((words[sourceIndex] >>> fromIndex) |
-                    (words[sourceIndex+1] & lastWordMask) << -fromIndex)
-                :
-                ((words[sourceIndex] & lastWordMask) >>> fromIndex);
+        result.words[targetWords - 1] = ((toIndex - 1) & BIT_INDEX_MASK) < (fromIndex & BIT_INDEX_MASK)
+                ? /* straddles source words */ ((words[sourceIndex] >>> fromIndex)
+                        | (words[sourceIndex + 1] & lastWordMask) << -fromIndex)
+                : ((words[sourceIndex] & lastWordMask) >>> fromIndex);
 
         // Set wordsInUse correctly
         result.wordsInUse = targetWords;
@@ -677,22 +642,18 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since  1.4
      */
     public int nextSetBit(int fromIndex) {
-        if (fromIndex < 0)
-            throw new IndexOutOfBoundsException("fromIndex < 0: " + fromIndex);
+        if (fromIndex < 0) throw new IndexOutOfBoundsException("fromIndex < 0: " + fromIndex);
 
         checkInvariants();
 
         int u = wordIndex(fromIndex);
-        if (u >= wordsInUse)
-            return -1;
+        if (u >= wordsInUse) return -1;
 
         long word = words[u] & (WORD_MASK << fromIndex);
 
         while (true) {
-            if (word != 0)
-                return (u * BITS_PER_WORD) + Long.numberOfTrailingZeros(word);
-            if (++u == wordsInUse)
-                return -1;
+            if (word != 0) return (u * BITS_PER_WORD) + Long.numberOfTrailingZeros(word);
+            if (++u == wordsInUse) return -1;
             word = words[u];
         }
     }
@@ -709,22 +670,18 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     public int nextClearBit(int fromIndex) {
         // Neither spec nor implementation handle bitsets of maximal length.
         // See 4816253.
-        if (fromIndex < 0)
-            throw new IndexOutOfBoundsException("fromIndex < 0: " + fromIndex);
+        if (fromIndex < 0) throw new IndexOutOfBoundsException("fromIndex < 0: " + fromIndex);
 
         checkInvariants();
 
         int u = wordIndex(fromIndex);
-        if (u >= wordsInUse)
-            return fromIndex;
+        if (u >= wordsInUse) return fromIndex;
 
         long word = ~words[u] & (WORD_MASK << fromIndex);
 
         while (true) {
-            if (word != 0)
-                return (u * BITS_PER_WORD) + Long.numberOfTrailingZeros(word);
-            if (++u == wordsInUse)
-                return wordsInUse * BITS_PER_WORD;
+            if (word != 0) return (u * BITS_PER_WORD) + Long.numberOfTrailingZeros(word);
+            if (++u == wordsInUse) return wordsInUse * BITS_PER_WORD;
             word = ~words[u];
         }
     }
@@ -752,25 +709,20 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public int previousSetBit(int fromIndex) {
         if (fromIndex < 0) {
-            if (fromIndex == -1)
-                return -1;
-            throw new IndexOutOfBoundsException(
-                "fromIndex < -1: " + fromIndex);
+            if (fromIndex == -1) return -1;
+            throw new IndexOutOfBoundsException("fromIndex < -1: " + fromIndex);
         }
 
         checkInvariants();
 
         int u = wordIndex(fromIndex);
-        if (u >= wordsInUse)
-            return length() - 1;
+        if (u >= wordsInUse) return length() - 1;
 
-        long word = words[u] & (WORD_MASK >>> -(fromIndex+1));
+        long word = words[u] & (WORD_MASK >>> -(fromIndex + 1));
 
         while (true) {
-            if (word != 0)
-                return (u+1) * BITS_PER_WORD - 1 - Long.numberOfLeadingZeros(word);
-            if (u-- == 0)
-                return -1;
+            if (word != 0) return (u + 1) * BITS_PER_WORD - 1 - Long.numberOfLeadingZeros(word);
+            if (u-- == 0) return -1;
             word = words[u];
         }
     }
@@ -790,25 +742,20 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public int previousClearBit(int fromIndex) {
         if (fromIndex < 0) {
-            if (fromIndex == -1)
-                return -1;
-            throw new IndexOutOfBoundsException(
-                "fromIndex < -1: " + fromIndex);
+            if (fromIndex == -1) return -1;
+            throw new IndexOutOfBoundsException("fromIndex < -1: " + fromIndex);
         }
 
         checkInvariants();
 
         int u = wordIndex(fromIndex);
-        if (u >= wordsInUse)
-            return fromIndex;
+        if (u >= wordsInUse) return fromIndex;
 
-        long word = ~words[u] & (WORD_MASK >>> -(fromIndex+1));
+        long word = ~words[u] & (WORD_MASK >>> -(fromIndex + 1));
 
         while (true) {
-            if (word != 0)
-                return (u+1) * BITS_PER_WORD -1 - Long.numberOfLeadingZeros(word);
-            if (u-- == 0)
-                return -1;
+            if (word != 0) return (u + 1) * BITS_PER_WORD - 1 - Long.numberOfLeadingZeros(word);
+            if (u-- == 0) return -1;
             word = ~words[u];
         }
     }
@@ -822,11 +769,9 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @since  1.2
      */
     public int length() {
-        if (wordsInUse == 0)
-            return 0;
+        if (wordsInUse == 0) return 0;
 
-        return BITS_PER_WORD * (wordsInUse - 1) +
-            (BITS_PER_WORD - Long.numberOfLeadingZeros(words[wordsInUse - 1]));
+        return BITS_PER_WORD * (wordsInUse - 1) + (BITS_PER_WORD - Long.numberOfLeadingZeros(words[wordsInUse - 1]));
     }
 
     /**
@@ -851,8 +796,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public boolean intersects(BitSetRecyclable set) {
         for (int i = Math.min(wordsInUse, set.wordsInUse) - 1; i >= 0; i--)
-            if ((words[i] & set.words[i]) != 0)
-                return true;
+            if ((words[i] & set.words[i]) != 0) return true;
         return false;
     }
 
@@ -864,8 +808,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public int cardinality() {
         int sum = 0;
-        for (int i = 0; i < wordsInUse; i++)
-            sum += Long.bitCount(words[i]);
+        for (int i = 0; i < wordsInUse; i++) sum += Long.bitCount(words[i]);
         return sum;
     }
 
@@ -879,15 +822,12 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @param set a bit set
      */
     public void and(BitSetRecyclable set) {
-        if (this == set)
-            return;
+        if (this == set) return;
 
-        while (wordsInUse > set.wordsInUse)
-            words[--wordsInUse] = 0;
+        while (wordsInUse > set.wordsInUse) words[--wordsInUse] = 0;
 
         // Perform logical AND on words in common
-        for (int i = 0; i < wordsInUse; i++)
-            words[i] &= set.words[i];
+        for (int i = 0; i < wordsInUse; i++) words[i] &= set.words[i];
 
         recalculateWordsInUse();
         checkInvariants();
@@ -903,8 +843,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @param set a bit set
      */
     public void or(BitSetRecyclable set) {
-        if (this == set)
-            return;
+        if (this == set) return;
 
         int wordsInCommon = Math.min(wordsInUse, set.wordsInUse);
 
@@ -914,14 +853,11 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         }
 
         // Perform logical OR on words in common
-        for (int i = 0; i < wordsInCommon; i++)
-            words[i] |= set.words[i];
+        for (int i = 0; i < wordsInCommon; i++) words[i] |= set.words[i];
 
         // Copy any remaining words
         if (wordsInCommon < set.wordsInUse)
-            System.arraycopy(set.words, wordsInCommon,
-                words, wordsInCommon,
-                wordsInUse - wordsInCommon);
+            System.arraycopy(set.words, wordsInCommon, words, wordsInCommon, wordsInUse - wordsInCommon);
 
         // recalculateWordsInUse() is unnecessary
         checkInvariants();
@@ -950,14 +886,11 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         }
 
         // Perform logical XOR on words in common
-        for (int i = 0; i < wordsInCommon; i++)
-            words[i] ^= set.words[i];
+        for (int i = 0; i < wordsInCommon; i++) words[i] ^= set.words[i];
 
         // Copy any remaining words
         if (wordsInCommon < set.wordsInUse)
-            System.arraycopy(set.words, wordsInCommon,
-                words, wordsInCommon,
-                set.wordsInUse - wordsInCommon);
+            System.arraycopy(set.words, wordsInCommon, words, wordsInCommon, set.wordsInUse - wordsInCommon);
 
         recalculateWordsInUse();
         checkInvariants();
@@ -973,8 +906,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public void andNot(BitSetRecyclable set) {
         // Perform logical (a & !b) on words in common
-        for (int i = Math.min(wordsInUse, set.wordsInUse) - 1; i >= 0; i--)
-            words[i] &= ~set.words[i];
+        for (int i = Math.min(wordsInUse, set.wordsInUse) - 1; i >= 0; i--) words[i] &= ~set.words[i];
 
         recalculateWordsInUse();
         checkInvariants();
@@ -1000,10 +932,9 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public int hashCode() {
         long h = 1234;
-        for (int i = wordsInUse; --i >= 0; )
-            h ^= words[i] * (i + 1);
+        for (int i = wordsInUse; --i >= 0; ) h ^= words[i] * (i + 1);
 
-        return (int)((h >> 32) ^ h);
+        return (int) ((h >> 32) ^ h);
     }
 
     /**
@@ -1032,23 +963,18 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @see    #size()
      */
     public boolean equals(Object obj) {
-        if (!(obj instanceof BitSetRecyclable))
-            return false;
-        if (this == obj)
-            return true;
+        if (!(obj instanceof BitSetRecyclable)) return false;
+        if (this == obj) return true;
 
         BitSetRecyclable set = (BitSetRecyclable) obj;
 
         checkInvariants();
         set.checkInvariants();
 
-        if (wordsInUse != set.wordsInUse)
-            return false;
+        if (wordsInUse != set.wordsInUse) return false;
 
         // Check words in use by both BitSets
-        for (int i = 0; i < wordsInUse; i++)
-            if (words[i] != set.words[i])
-                return false;
+        for (int i = 0; i < wordsInUse; i++) if (words[i] != set.words[i]) return false;
 
         return true;
     }
@@ -1063,8 +989,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * @see    #size()
      */
     public Object clone() {
-        if (! sizeIsSticky)
-            trimToSize();
+        if (!sizeIsSticky) trimToSize();
 
         try {
             BitSetRecyclable result = (BitSetRecyclable) super.clone();
@@ -1092,13 +1017,11 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * Save the state of the {@code BitSet} instance to a stream (i.e.,
      * serialize it).
      */
-    private void writeObject(ObjectOutputStream s)
-        throws IOException {
+    private void writeObject(ObjectOutputStream s) throws IOException {
 
         checkInvariants();
 
-        if (! sizeIsSticky)
-            trimToSize();
+        if (!sizeIsSticky) trimToSize();
 
         ObjectOutputStream.PutField fields = s.putFields();
         fields.put("bits", words);
@@ -1109,8 +1032,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      * Reconstitute the {@code BitSet} instance from a stream (i.e.,
      * deserialize it).
      */
-    private void readObject(ObjectInputStream s)
-        throws IOException, ClassNotFoundException {
+    private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException {
 
         ObjectInputStream.GetField fields = s.readFields();
         words = (long[]) fields.get("bits", null);
@@ -1120,7 +1042,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         // or reduction in logical size
         wordsInUse = words.length;
         recalculateWordsInUse();
-        sizeIsSticky = (words.length > 0 && words[words.length-1] == 0L); // heuristic
+        sizeIsSticky = (words.length > 0 && words[words.length - 1] == 0L); // heuristic
         checkInvariants();
     }
 
@@ -1150,9 +1072,8 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     public String toString() {
         checkInvariants();
 
-        int numBits = (wordsInUse > 128) ?
-            cardinality() : wordsInUse * BITS_PER_WORD;
-        StringBuilder b = new StringBuilder(6*numBits + 2);
+        int numBits = (wordsInUse > 128) ? cardinality() : wordsInUse * BITS_PER_WORD;
+        StringBuilder b = new StringBuilder(6 * numBits + 2);
         b.append('{');
 
         int i = nextSetBit(0);
@@ -1162,8 +1083,9 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
                 if (++i < 0) break;
                 if ((i = nextSetBit(i)) < 0) break;
                 int endOfRun = nextClearBit(i);
-                do { b.append(", ").append(i); }
-                while (++i != endOfRun);
+                do {
+                    b.append(", ").append(i);
+                } while (++i != endOfRun);
             }
         }
 

@@ -70,54 +70,90 @@ public class PrometheusMetricsGenerator {
     static {
         DefaultExports.initialize();
 
-        Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return getJvmDirectMemoryUsed();
-            }
-        }).register(CollectorRegistry.defaultRegistry);
-
-        Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return DirectMemoryUtils.jvmMaxDirectMemory();
-            }
-        }).register(CollectorRegistry.defaultRegistry);
-
-        // metric to export pulsar version info
-        Gauge.build("pulsar_version_info", "-")
-                .labelNames("version", "commit").create()
+        Gauge.build("jvm_memory_direct_bytes_used", "-")
+                .create()
                 .setChild(new Child() {
                     @Override
                     public double get() {
-                        return 1.0;
+                        return getJvmDirectMemoryUsed();
                     }
-                }, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+                })
+                .register(CollectorRegistry.defaultRegistry);
+
+        Gauge.build("jvm_memory_direct_bytes_max", "-")
+                .create()
+                .setChild(new Child() {
+                    @Override
+                    public double get() {
+                        return DirectMemoryUtils.jvmMaxDirectMemory();
+                    }
+                })
+                .register(CollectorRegistry.defaultRegistry);
+
+        // metric to export pulsar version info
+        Gauge.build("pulsar_version_info", "-")
+                .labelNames("version", "commit")
+                .create()
+                .setChild(
+                        new Child() {
+                            @Override
+                            public double get() {
+                                return 1.0;
+                            }
+                        },
+                        PulsarVersion.getVersion(),
+                        PulsarVersion.getGitSha())
                 .register(CollectorRegistry.defaultRegistry);
     }
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                boolean includeProducerMetrics, OutputStream out) throws IOException {
+    public static void generate(
+            PulsarService pulsar,
+            boolean includeTopicMetrics,
+            boolean includeConsumerMetrics,
+            boolean includeProducerMetrics,
+            OutputStream out)
+            throws IOException {
         generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, false, out, null);
     }
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
-                                OutputStream out) throws IOException {
-        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
-                splitTopicAndPartitionIndexLabel, out, null);
+    public static void generate(
+            PulsarService pulsar,
+            boolean includeTopicMetrics,
+            boolean includeConsumerMetrics,
+            boolean includeProducerMetrics,
+            boolean splitTopicAndPartitionIndexLabel,
+            OutputStream out)
+            throws IOException {
+        generate(
+                pulsar,
+                includeTopicMetrics,
+                includeConsumerMetrics,
+                includeProducerMetrics,
+                splitTopicAndPartitionIndexLabel,
+                out,
+                null);
     }
 
-    public static synchronized void generate(PulsarService pulsar, boolean includeTopicMetrics,
-                                             boolean includeConsumerMetrics, boolean includeProducerMetrics,
-                                             boolean splitTopicAndPartitionIndexLabel, OutputStream out,
-                                             List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
+    public static synchronized void generate(
+            PulsarService pulsar,
+            boolean includeTopicMetrics,
+            boolean includeConsumerMetrics,
+            boolean includeProducerMetrics,
+            boolean splitTopicAndPartitionIndexLabel,
+            OutputStream out,
+            List<PrometheusRawMetricsProvider> metricsProviders)
+            throws IOException {
         ByteBuf buffer;
         boolean exposeBufferMetrics = pulsar.getConfiguration().isMetricsBufferResponse();
 
         if (!exposeBufferMetrics) {
-            buffer = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
-                    splitTopicAndPartitionIndexLabel, metricsProviders);
+            buffer = generate0(
+                    pulsar,
+                    includeTopicMetrics,
+                    includeConsumerMetrics,
+                    includeProducerMetrics,
+                    splitTopicAndPartitionIndexLabel,
+                    metricsProviders);
         } else {
             if (null == timeWindow) {
                 int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
@@ -131,13 +167,18 @@ public class PrometheusMetricsGenerator {
                 }
 
                 try {
-                    ByteBuf buf = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
-                            splitTopicAndPartitionIndexLabel, metricsProviders);
+                    ByteBuf buf = generate0(
+                            pulsar,
+                            includeTopicMetrics,
+                            includeConsumerMetrics,
+                            includeProducerMetrics,
+                            splitTopicAndPartitionIndexLabel,
+                            metricsProviders);
                     log.debug("Generated metrics buffer size {}", buf.readableBytes());
                     return buf;
                 } catch (IOException e) {
                     log.error("Generate metrics failed", e);
-                    //return empty buffer if exception happens
+                    // return empty buffer if exception happens
                     return PulsarByteBufAllocator.DEFAULT.heapBuffer(0);
                 }
             });
@@ -152,14 +193,14 @@ public class PrometheusMetricsGenerator {
         try {
             if (out instanceof HttpOutput) {
                 HttpOutput output = (HttpOutput) out;
-                //no mem_copy and memory allocations here
+                // no mem_copy and memory allocations here
                 ByteBuffer[] buffers = buffer.nioBuffers();
                 for (ByteBuffer buffer0 : buffers) {
                     output.write(buffer0);
                 }
             } else {
-                //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
-                //not modify buffer readIndex/writeIndex here.
+                // read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
+                // not modify buffer readIndex/writeIndex here.
                 int readIndex = buffer.readerIndex();
                 int readableBytes = buffer.readableBytes();
                 for (int i = 0; i < readableBytes; i++) {
@@ -174,22 +215,32 @@ public class PrometheusMetricsGenerator {
         }
     }
 
-    private static ByteBuf generate0(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                     boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
-                                     List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
-        //Use unpooled buffers here to avoid direct buffer usage increasing.
-        //when write out 200MB data, MAX_COMPONENTS = 64 needn't mem_copy. see: CompositeByteBuf#consolidateIfNeeded()
+    private static ByteBuf generate0(
+            PulsarService pulsar,
+            boolean includeTopicMetrics,
+            boolean includeConsumerMetrics,
+            boolean includeProducerMetrics,
+            boolean splitTopicAndPartitionIndexLabel,
+            List<PrometheusRawMetricsProvider> metricsProviders)
+            throws IOException {
+        // Use unpooled buffers here to avoid direct buffer usage increasing.
+        // when write out 200MB data, MAX_COMPONENTS = 64 needn't mem_copy. see: CompositeByteBuf#consolidateIfNeeded()
         ByteBuf buf = UnpooledByteBufAllocator.DEFAULT.compositeDirectBuffer(MAX_COMPONENTS);
         boolean exceptionHappens = false;
-        //Used in namespace/topic and transaction aggregators as share metric names
+        // Used in namespace/topic and transaction aggregators as share metric names
         PrometheusMetricStreams metricStreams = new PrometheusMetricStreams();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
-            NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, metricStreams);
+            NamespaceStatsAggregator.generate(
+                    pulsar,
+                    includeTopicMetrics,
+                    includeConsumerMetrics,
+                    includeProducerMetrics,
+                    splitTopicAndPartitionIndexLabel,
+                    metricStreams);
 
             if (pulsar.getWorkerServiceOpt().isPresent()) {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
@@ -216,9 +267,9 @@ public class PrometheusMetricsGenerator {
             exceptionHappens = true;
             throw t;
         } finally {
-            //release all the metrics buffers
+            // release all the metrics buffers
             metricStreams.releaseAll();
-            //if exception happens, release buffer
+            // if exception happens, release buffer
             if (exceptionHappens) {
                 buf.release();
             }
@@ -228,32 +279,37 @@ public class PrometheusMetricsGenerator {
     private static void generateBrokerBasicMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
         String clusterName = pulsar.getConfiguration().getClusterName();
         // generate managedLedgerCache metrics
-        parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+        parseMetricsToPrometheusMetrics(
+                new ManagedLedgerCacheMetrics(pulsar).generate(), clusterName, Collector.Type.GAUGE, stream);
 
         if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
             // generate managedLedger metrics
-            parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
-                    clusterName, Collector.Type.GAUGE, stream);
+            parseMetricsToPrometheusMetrics(
+                    new ManagedLedgerMetrics(pulsar).generate(), clusterName, Collector.Type.GAUGE, stream);
         }
 
         if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
             // generate managedCursor metrics
-            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                    clusterName, Collector.Type.GAUGE, stream);
+            parseMetricsToPrometheusMetrics(
+                    new ManagedCursorMetrics(pulsar).generate(), clusterName, Collector.Type.GAUGE, stream);
         }
 
-        parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
-                        .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
-                clusterName, Collector.Type.GAUGE, stream);
+        parseMetricsToPrometheusMetrics(
+                Collections.singletonList(pulsar.getBrokerService()
+                        .getPulsarStats()
+                        .getBrokerOperabilityMetrics()
+                        .generateConnectionMetrics()),
+                clusterName,
+                Collector.Type.GAUGE,
+                stream);
 
         // generate loadBalance metrics
-        parseMetricsToPrometheusMetrics(pulsar.getLoadManager().get().getLoadBalancingMetrics(),
-                clusterName, Collector.Type.GAUGE, stream);
+        parseMetricsToPrometheusMetrics(
+                pulsar.getLoadManager().get().getLoadBalancingMetrics(), clusterName, Collector.Type.GAUGE, stream);
     }
 
-    private static void parseMetricsToPrometheusMetrics(Collection<Metrics> metrics, String cluster,
-                                                        Collector.Type metricType, SimpleTextOutputStream stream) {
+    private static void parseMetricsToPrometheusMetrics(
+            Collection<Metrics> metrics, String cluster, Collector.Type metricType, SimpleTextOutputStream stream) {
         Set<String> names = new HashSet<>();
         for (Metrics metrics1 : metrics) {
             for (Map.Entry<String, Object> entry : metrics1.getMetrics().entrySet()) {
@@ -270,35 +326,48 @@ public class PrometheusMetricsGenerator {
                         String name = key.substring(0, nameIndex);
                         value = key.substring(nameIndex + 1);
                         if (!names.contains(name)) {
-                            stream.write("# TYPE ").write(name.replace("brk_", "pulsar_")).write(' ')
-                                    .write(getTypeStr(metricType)).write("\n");
+                            stream.write("# TYPE ")
+                                    .write(name.replace("brk_", "pulsar_"))
+                                    .write(' ')
+                                    .write(getTypeStr(metricType))
+                                    .write("\n");
                             names.add(name);
                         }
                         stream.write(name.replace("brk_", "pulsar_"))
-                                .write("{cluster=\"").write(cluster).write('"');
+                                .write("{cluster=\"")
+                                .write(cluster)
+                                .write('"');
                     } catch (Exception e) {
                         continue;
                     }
                 } else {
 
-
                     String name = entry.getKey();
                     if (!names.contains(name)) {
-                        stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
-                                .write(getTypeStr(metricType)).write('\n');
+                        stream.write("# TYPE ")
+                                .write(entry.getKey().replace("brk_", "pulsar_"))
+                                .write(' ')
+                                .write(getTypeStr(metricType))
+                                .write('\n');
                         names.add(name);
                     }
                     stream.write(name.replace("brk_", "pulsar_"))
-                            .write("{cluster=\"").write(cluster).write('"');
+                            .write("{cluster=\"")
+                            .write(cluster)
+                            .write('"');
                 }
 
-                //to avoid quantile label duplicated
+                // to avoid quantile label duplicated
                 boolean appendedQuantile = false;
                 for (Map.Entry<String, String> metric : metrics1.getDimensions().entrySet()) {
                     if (metric.getKey().isEmpty() || "cluster".equals(metric.getKey())) {
                         continue;
                     }
-                    stream.write(", ").write(metric.getKey()).write("=\"").write(metric.getValue()).write('"');
+                    stream.write(", ")
+                            .write(metric.getKey())
+                            .write("=\"")
+                            .write(metric.getValue())
+                            .write('"');
                     if (value != null && !value.isEmpty() && !appendedQuantile) {
                         stream.write(", ").write("quantile=\"").write(value).write('"');
                         appendedQuantile = true;

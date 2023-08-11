@@ -83,6 +83,5 @@ public class ReplicationMetrics {
         dMetrics.put("brk_max_replication_delay_second", maxMsgReplDelayInSeconds);
 
         return dMetrics;
-
     }
 }

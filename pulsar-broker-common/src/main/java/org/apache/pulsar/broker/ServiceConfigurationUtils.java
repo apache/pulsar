@@ -60,10 +60,10 @@ public class ServiceConfigurationUtils {
      * @return
      */
     @Deprecated
-    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration,
-                                                     boolean ignoreAdvertisedListener) {
-        Map<String, AdvertisedListener> result = MultipleListenerValidator
-                .validateAndAnalysisAdvertisedListener(configuration);
+    public static String getAppliedAdvertisedAddress(
+            ServiceConfiguration configuration, boolean ignoreAdvertisedListener) {
+        Map<String, AdvertisedListener> result =
+                MultipleListenerValidator.validateAndAnalysisAdvertisedListener(configuration);
 
         String advertisedAddress = configuration.getAdvertisedAddress();
         if (advertisedAddress != null) {
@@ -86,8 +86,8 @@ public class ServiceConfigurationUtils {
      * @return a non-null advertised listener
      */
     public static AdvertisedListener getInternalListener(ServiceConfiguration config, String protocol) {
-        Map<String, AdvertisedListener> result = MultipleListenerValidator
-                .validateAndAnalysisAdvertisedListener(config);
+        Map<String, AdvertisedListener> result =
+                MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
         AdvertisedListener internal = result.get(config.getInternalListenerName());
         if (internal == null || !internal.hasUriForProtocol(protocol)) {
             // Search for an advertised listener for same protocol
@@ -106,13 +106,13 @@ public class ServiceConfigurationUtils {
                     .brokerServiceUrl(createUriOrNull("pulsar", host, config.getBrokerServicePort()))
                     .brokerServiceUrlTls(createUriOrNull("pulsar+ssl", host, config.getBrokerServicePortTls()))
                     .build();
-
         }
         return internal;
     }
 
     private static URI createUriOrNull(String scheme, String hostname, Optional<Integer> port) {
-        return port.map(p -> URI.create(String.format("%s://%s:%d", scheme, hostname, p))).orElse(null);
+        return port.map(p -> URI.create(String.format("%s://%s:%d", scheme, hostname, p)))
+                .orElse(null);
     }
 
     /**

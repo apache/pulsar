@@ -150,10 +150,13 @@ public class TopicStatsImpl implements TopicStats {
     public String ownerBroker;
 
     public List<? extends PublisherStats> getPublishers() {
-        return Stream.concat(publishers.stream().sorted(
-                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))),
-                        publishersMap.values().stream().sorted(
-                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))))
+        return Stream.concat(
+                        publishers.stream()
+                                .sorted(Comparator.comparing(
+                                        PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))),
+                        publishersMap.values().stream()
+                                .sorted(Comparator.comparing(
+                                        PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -260,28 +263,29 @@ public class TopicStatsImpl implements TopicStats {
         });
 
         for (int index = 0; index < stats.getPublishers().size(); index++) {
-           PublisherStats s = stats.getPublishers().get(index);
-           if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
-               this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
-                   final PublisherStatsImpl newStats = new PublisherStatsImpl();
-                   newStats.setSupportsPartialProducer(true);
-                   newStats.setProducerName(s.getProducerName());
-                   return newStats;
-               }).add((PublisherStatsImpl) s);
-           } else {
-               // Add a publisher stat entry to this.publishers
-               // if this.publishers.size() is smaller than
-               // the input stats.publishers.size().
-               // Here, index == this.publishers.size() means
-               // this.publishers.size() is smaller than the input stats.publishers.size()
-               if (index == this.publishers.size()) {
-                   PublisherStatsImpl newStats = new PublisherStatsImpl();
-                   newStats.setSupportsPartialProducer(false);
-                   this.publishers.add(newStats);
-               }
-               this.publishers.get(index)
-                       .add((PublisherStatsImpl) s);
-           }
+            PublisherStats s = stats.getPublishers().get(index);
+            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
+                this.publishersMap
+                        .computeIfAbsent(s.getProducerName(), key -> {
+                            final PublisherStatsImpl newStats = new PublisherStatsImpl();
+                            newStats.setSupportsPartialProducer(true);
+                            newStats.setProducerName(s.getProducerName());
+                            return newStats;
+                        })
+                        .add((PublisherStatsImpl) s);
+            } else {
+                // Add a publisher stat entry to this.publishers
+                // if this.publishers.size() is smaller than
+                // the input stats.publishers.size().
+                // Here, index == this.publishers.size() means
+                // this.publishers.size() is smaller than the input stats.publishers.size()
+                if (index == this.publishers.size()) {
+                    PublisherStatsImpl newStats = new PublisherStatsImpl();
+                    newStats.setSupportsPartialProducer(false);
+                    this.publishers.add(newStats);
+                }
+                this.publishers.get(index).add((PublisherStatsImpl) s);
+            }
         }
 
         if (this.subscriptions.size() != stats.subscriptions.size()) {
@@ -317,15 +321,11 @@ public class TopicStatsImpl implements TopicStats {
             }
         }
         if (earliestMsgPublishTimeInBacklogs != 0 && ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs != 0) {
-            earliestMsgPublishTimeInBacklogs = Math.min(
-                    earliestMsgPublishTimeInBacklogs,
-                    ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs
-            );
+            earliestMsgPublishTimeInBacklogs =
+                    Math.min(earliestMsgPublishTimeInBacklogs, ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs);
         } else {
-            earliestMsgPublishTimeInBacklogs = Math.max(
-                    earliestMsgPublishTimeInBacklogs,
-                    ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs
-            );
+            earliestMsgPublishTimeInBacklogs =
+                    Math.max(earliestMsgPublishTimeInBacklogs, ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs);
         }
         return this;
     }

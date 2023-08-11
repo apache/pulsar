@@ -37,5 +37,4 @@ public class ConnectionStats {
                 ? outboundChannel.remoteAddress().toString()
                 : null;
     }
-
 }

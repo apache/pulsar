@@ -27,8 +27,7 @@ import org.apache.flume.lifecycle.LifecycleState;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class TestPollingZooKeeperConfigurationProvider extends
-        TestAbstractZooKeeperConfigurationProvider {
+public class TestPollingZooKeeperConfigurationProvider extends TestAbstractZooKeeperConfigurationProvider {
 
     private EventBus eb;
 
@@ -63,8 +62,7 @@ public class TestPollingZooKeeperConfigurationProvider extends
         es = new EventSync();
         es.reset();
         eb.register(es);
-        cp = new PollingZooKeeperConfigurationProvider(AGENT_NAME, "localhost:"
-                + zkServer.getPort(), null, eb);
+        cp = new PollingZooKeeperConfigurationProvider(AGENT_NAME, "localhost:" + zkServer.getPort(), null, eb);
         cp.start();
         LifecycleController.waitForOneOf(cp, LifecycleState.START_OR_ERROR);
     }

@@ -1441,8 +1441,8 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setSubscriptionTypesEnabled(String namespace,
-                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+    void setSubscriptionTypesEnabled(String namespace, Set<SubscriptionType> subscriptionTypesEnabled)
+            throws PulsarAdminException;
 
     /**
      * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
@@ -1462,8 +1462,8 @@ public interface Namespaces {
      * @param subscriptionTypesEnabled
      *            is enable subscription types
      */
-    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
-                                                        Set<SubscriptionType> subscriptionTypesEnabled);
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(
+            String namespace, Set<SubscriptionType> subscriptionTypesEnabled);
 
     /**
      * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
@@ -1678,8 +1678,8 @@ public interface Namespaces {
      * @param backlogQuota
      *            the new BacklogQuota
      */
-    CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota,
-                                                 BacklogQuota.BacklogQuotaType backlogQuotaType);
+    CompletableFuture<Void> setBacklogQuotaAsync(
+            String namespace, BacklogQuota backlogQuota, BacklogQuota.BacklogQuotaType backlogQuotaType);
 
     default CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota) {
         return setBacklogQuotaAsync(namespace, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
@@ -1724,7 +1724,6 @@ public interface Namespaces {
     default CompletableFuture<Void> removeBacklogQuotaAsync(String namespace) {
         return removeBacklogQuotaAsync(namespace, BacklogQuota.BacklogQuotaType.destination_storage);
     }
-
 
     /**
      * Remove the persistence configuration on a namespace.
@@ -2103,7 +2102,6 @@ public interface Namespaces {
      */
     void unloadNamespaceBundle(String namespace, String bundle, String destinationBroker) throws PulsarAdminException;
 
-
     /**
      * Unload namespace bundle asynchronously.
      *
@@ -2161,8 +2159,13 @@ public interface Namespaces {
      * @param splitBoundaries
      * @throws PulsarAdminException
      */
-    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
-                              String splitAlgorithmName, List<Long> splitBoundaries) throws PulsarAdminException;
+    void splitNamespaceBundle(
+            String namespace,
+            String bundle,
+            boolean unloadSplitBundles,
+            String splitAlgorithmName,
+            List<Long> splitBoundaries)
+            throws PulsarAdminException;
 
     /**
      * Split namespace bundle asynchronously.
@@ -2173,8 +2176,12 @@ public interface Namespaces {
      * @param splitAlgorithmName
      * @param splitBoundaries
      */
-    CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle, boolean unloadSplitBundles,
-                                                      String splitAlgorithmName, List<Long> splitBoundaries);
+    CompletableFuture<Void> splitNamespaceBundleAsync(
+            String namespace,
+            String bundle,
+            boolean unloadSplitBundles,
+            String splitAlgorithmName,
+            List<Long> splitBoundaries);
 
     /**
      * Get positions for topic list in a bundle.
@@ -2185,8 +2192,8 @@ public interface Namespaces {
      * @return hash positions for all topics in topicList
      * @throws PulsarAdminException
      */
-    TopicHashPositions getTopicHashPositions(String namespace,
-                                             String bundle, List<String> topics) throws PulsarAdminException;
+    TopicHashPositions getTopicHashPositions(String namespace, String bundle, List<String> topics)
+            throws PulsarAdminException;
 
     /**
      * Get positions for topic list in a bundle.
@@ -2197,8 +2204,8 @@ public interface Namespaces {
      * @return hash positions for all topics in topicList
      * @throws PulsarAdminException
      */
-    CompletableFuture<TopicHashPositions> getTopicHashPositionsAsync(String namespace,
-                                                                     String bundle, List<String> topics);
+    CompletableFuture<TopicHashPositions> getTopicHashPositionsAsync(
+            String namespace, String bundle, List<String> topics);
 
     /**
      * Set message-publish-rate (topics under this namespace can publish this many messages per second).
@@ -2567,8 +2574,8 @@ public interface Namespaces {
      *
      * @return a future that can be used to track when the bundle is cleared
      */
-    CompletableFuture<Void> clearNamespaceBundleBacklogForSubscriptionAsync(String namespace, String bundle,
-            String subscription);
+    CompletableFuture<Void> clearNamespaceBundleBacklogForSubscriptionAsync(
+            String namespace, String bundle, String subscription);
 
     /**
      * Unsubscribe the given subscription on all topics on a namespace.
@@ -2827,8 +2834,8 @@ public interface Namespaces {
      * @param namespace
      * @param inactiveTopicPolicies
      */
-    void setInactiveTopicPolicies(
-            String namespace, InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException;
+    void setInactiveTopicPolicies(String namespace, InactiveTopicPolicies inactiveTopicPolicies)
+            throws PulsarAdminException;
 
     /**
      * You can set the inactive deletion strategy at the namespace level.
@@ -3324,16 +3331,14 @@ public interface Namespaces {
      * @param namespace
      * @throws PulsarAdminException
      */
-    void removeMaxUnackedMessagesPerConsumer(String namespace)
-            throws PulsarAdminException;
+    void removeMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
 
     /**
      * Remove maxUnackedMessagesPerConsumer for a namespace asynchronously.
      * @param namespace
      * @return
      */
-    CompletableFuture<Void> removeMaxUnackedMessagesPerConsumerAsync(
-            String namespace);
+    CompletableFuture<Void> removeMaxUnackedMessagesPerConsumerAsync(String namespace);
     /**
      * Get the maxUnackedMessagesPerSubscription for a namespace.
      * <p/>
@@ -3415,16 +3420,14 @@ public interface Namespaces {
      * @param namespace
      * @throws PulsarAdminException
      */
-    void removeMaxUnackedMessagesPerSubscription(String namespace)
-            throws PulsarAdminException;
+    void removeMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
      * Remove maxUnackedMessagesPerSubscription for a namespace asynchronously.
      * @param namespace
      * @return
      */
-    CompletableFuture<Void> removeMaxUnackedMessagesPerSubscriptionAsync(
-            String namespace);
+    CompletableFuture<Void> removeMaxUnackedMessagesPerSubscriptionAsync(String namespace);
 
     /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
@@ -3559,7 +3562,6 @@ public interface Namespaces {
      */
     CompletableFuture<Long> getOffloadThresholdAsync(String namespace);
 
-
     /**
      * Get the offloadThresholdInSeconds for a namespace.
      *
@@ -3581,7 +3583,6 @@ public interface Namespaces {
      *             Unexpected error
      */
     long getOffloadThresholdInSeconds(String namespace) throws PulsarAdminException;
-
 
     /**
      * Get the offloadThresholdInSeconds for a namespace.
@@ -3646,7 +3647,6 @@ public interface Namespaces {
      *            maximum number of bytes stored before offloading is triggered
      */
     CompletableFuture<Void> setOffloadThresholdAsync(String namespace, long offloadThreshold);
-
 
     /**
      * Set the offloadThresholdInSeconds for a namespace.
@@ -3845,8 +3845,7 @@ public interface Namespaces {
      *             Unexpected error
      */
     @Deprecated
-    void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
-                                                  SchemaAutoUpdateCompatibilityStrategy strategy)
+    void setSchemaAutoUpdateCompatibilityStrategy(String namespace, SchemaAutoUpdateCompatibilityStrategy strategy)
             throws PulsarAdminException;
 
     /**
@@ -3908,8 +3907,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setSchemaValidationEnforced(String namespace, boolean schemaValidationEnforced)
-            throws PulsarAdminException;
+    void setSchemaValidationEnforced(String namespace, boolean schemaValidationEnforced) throws PulsarAdminException;
 
     /**
      * Set schema validation enforced for namespace asynchronously.
@@ -3935,8 +3933,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String namespace)
-            throws PulsarAdminException;
+    SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String namespace) throws PulsarAdminException;
 
     /**
      * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
@@ -3960,8 +3957,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setSchemaCompatibilityStrategy(String namespace,
-                                               SchemaCompatibilityStrategy strategy)
+    void setSchemaCompatibilityStrategy(String namespace, SchemaCompatibilityStrategy strategy)
             throws PulsarAdminException;
 
     /**
@@ -3971,8 +3967,7 @@ public interface Namespaces {
      * @param namespace The namespace in whose policy should be set
      * @param strategy The schema compatibility strategy
      */
-    CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String namespace,
-                                        SchemaCompatibilityStrategy strategy);
+    CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String namespace, SchemaCompatibilityStrategy strategy);
 
     /**
      * Get whether allow auto update schema.
@@ -3986,8 +3981,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    boolean getIsAllowAutoUpdateSchema(String namespace)
-            throws PulsarAdminException;
+    boolean getIsAllowAutoUpdateSchema(String namespace) throws PulsarAdminException;
 
     /**
      * Get whether allow auto update schema asynchronously.
@@ -4012,8 +4006,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
-            throws PulsarAdminException;
+    void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema) throws PulsarAdminException;
 
     /**
      * Set whether to allow automatic schema updates asynchronously.

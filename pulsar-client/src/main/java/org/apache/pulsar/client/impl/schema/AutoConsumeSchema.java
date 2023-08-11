@@ -80,7 +80,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     private void ensureSchemaInitialized(SchemaVersion schemaVersion) {
-        checkState(schemaMap.containsKey(schemaVersion),
+        checkState(
+                schemaMap.containsKey(schemaVersion),
                 "Schema version " + schemaVersion + " is not initialized before used");
     }
 
@@ -160,16 +161,17 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public void configureSchemaInfo(String topicName,
-                                    String componentName,
-                                    SchemaInfo schemaInfo) {
+    public void configureSchemaInfo(String topicName, String componentName, SchemaInfo schemaInfo) {
         this.topicName = topicName;
         this.componentName = componentName;
         if (schemaInfo != null) {
             Schema<?> genericSchema = generateSchema(schemaInfo);
             setSchema(SchemaVersion.Latest, genericSchema);
-            log.info("Configure {} schema for topic {} : {}",
-                    componentName, topicName, schemaInfo.getSchemaDefinition());
+            log.info(
+                    "Configure {} schema for topic {} : {}",
+                    componentName,
+                    topicName,
+                    schemaInfo.getSchemaDefinition());
         }
     }
 
@@ -198,8 +200,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
     }
 
-    private static Schema<?> extractFromAvroSchema(SchemaInfo schemaInfo,
-                                                   final boolean useProvidedSchemaAsReaderSchema) {
+    private static Schema<?> extractFromAvroSchema(
+            SchemaInfo schemaInfo, final boolean useProvidedSchemaAsReaderSchema) {
         org.apache.avro.Schema avroSchema = SchemaUtil.parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
         // if avroSchema type is RECORD we can use GenericSchema, otherwise use its own schema and decode return
         // `GenericObjectWrapper`
@@ -212,10 +214,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             if (schemaInfo.getType() == SchemaType.JSON) {
                 // It should be generated and used POJO, otherwise json cannot be parsed correctly
                 return Schema.JSON(SchemaDefinition.builder()
-                        .withPojo(ReflectData.get().getClass(avroSchema)).build());
+                        .withPojo(ReflectData.get().getClass(avroSchema))
+                        .build());
             } else {
                 return Schema.AVRO(SchemaDefinition.builder()
-                        .withJsonDef(new String(schemaInfo.getSchema(), UTF_8)).build());
+                        .withJsonDef(new String(schemaInfo.getSchema(), UTF_8))
+                        .build());
             }
         }
     }
@@ -261,12 +265,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             case PROTOBUF_NATIVE:
                 return GenericProtobufNativeSchema.of(schemaInfo);
             case KEY_VALUE:
-                KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
-                        KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
+                KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
                 Schema<?> keySchema = getSchema(kvSchemaInfo.getKey());
                 Schema<?> valueSchema = getSchema(kvSchemaInfo.getValue());
-                return KeyValueSchemaImpl.of(keySchema, valueSchema,
-                        KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo));
+                return KeyValueSchemaImpl.of(
+                        keySchema, valueSchema, KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo));
             default:
                 throw new IllegalArgumentException("Retrieve schema instance from schema info for type '"
                         + schemaInfo.getType() + "' is not supported yet");
@@ -341,7 +344,9 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             } else {
                 SchemaInfo schemaInfo = null;
                 try {
-                    schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion.bytes()).get();
+                    schemaInfo = schemaInfoProvider
+                            .getSchemaByVersion(schemaVersion.bytes())
+                            .get();
                     if (schemaInfo == null) {
                         // schemaless topic
                         schemaInfo = BytesSchema.of().getSchemaInfo();
@@ -357,8 +362,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 Schema<?> schema = generateSchema(schemaInfo);
                 schema.setSchemaInfoProvider(schemaInfoProvider);
                 setSchema(schemaVersion, schema);
-                log.info("Configure {} schema {} for topic {} : {}",
-                        componentName, schemaVersion, topicName, schemaInfo.getSchemaDefinition());
+                log.info(
+                        "Configure {} schema {} for topic {} : {}",
+                        componentName,
+                        schemaVersion,
+                        topicName,
+                        schemaInfo.getSchemaDefinition());
             }
         }
     }
@@ -377,12 +386,13 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
         StringBuilder sb = new StringBuilder("AUTO_CONSUME(");
         for (Map.Entry<SchemaVersion, Schema<?>> entry : schemaMap.entrySet()) {
-            sb.append("{schemaVersion=").append(entry.getKey())
-                    .append(",schemaType=").append(entry.getValue().getSchemaInfo().getType())
+            sb.append("{schemaVersion=")
+                    .append(entry.getKey())
+                    .append(",schemaType=")
+                    .append(entry.getValue().getSchemaInfo().getType())
                     .append("}");
         }
         sb.append(")");
         return sb.toString();
     }
-
 }

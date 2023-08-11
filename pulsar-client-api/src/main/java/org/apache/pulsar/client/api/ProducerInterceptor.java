@@ -101,7 +101,5 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * @param topicName topic name
      * @param partitions new updated partitions
      */
-    default void onPartitionsChange(String topicName, int partitions) {
-    }
-
+    default void onPartitionsChange(String topicName, int partitions) {}
 }

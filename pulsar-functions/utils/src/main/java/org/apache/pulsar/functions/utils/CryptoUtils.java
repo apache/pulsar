@@ -36,12 +36,11 @@ import org.apache.pulsar.functions.proto.Function;
 public final class CryptoUtils {
 
     public static Function.CryptoSpec convert(CryptoConfig config) {
-        Function.CryptoSpec.Builder bldr = Function.CryptoSpec.newBuilder()
-                .setCryptoKeyReaderClassName(config.getCryptoKeyReaderClassName());
+        Function.CryptoSpec.Builder bldr =
+                Function.CryptoSpec.newBuilder().setCryptoKeyReaderClassName(config.getCryptoKeyReaderClassName());
 
         if (config.getCryptoKeyReaderConfig() != null) {
-            Type type = new TypeToken<Map<String, Object>>() {
-            }.getType();
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
             String readerConfigString = new Gson().toJson(config.getCryptoKeyReaderConfig(), type);
             bldr.setCryptoKeyReaderConfig(readerConfigString);
         }
@@ -68,8 +67,7 @@ public final class CryptoUtils {
 
         CryptoConfig.CryptoConfigBuilder bldr = CryptoConfig.builder();
 
-        Type type = new TypeToken<Map<String, Object>>() {
-        }.getType();
+        Type type = new TypeToken<Map<String, Object>>() {}.getType();
         Map<String, Object> cryptoReaderConfig = new Gson().fromJson(spec.getCryptoKeyReaderConfig(), type);
 
         bldr.cryptoKeyReaderClassName(spec.getCryptoKeyReaderClassName())
@@ -81,14 +79,13 @@ public final class CryptoUtils {
         return bldr.build();
     }
 
-    public static CryptoKeyReader getCryptoKeyReaderInstance(String className, Map<String, Object> configs,
-                                                             ClassLoader classLoader) {
+    public static CryptoKeyReader getCryptoKeyReaderInstance(
+            String className, Map<String, Object> configs, ClassLoader classLoader) {
         Class<?> cryptoClass;
         try {
             cryptoClass = ClassLoaderUtils.loadClass(className, classLoader);
         } catch (ClassNotFoundException e) {
-            throw new RuntimeException(
-                    String.format("Failed to load crypto key reader class %sx", className));
+            throw new RuntimeException(String.format("Failed to load crypto key reader class %sx", className));
         }
 
         try {
@@ -108,8 +105,8 @@ public final class CryptoUtils {
             case SEND:
                 return ProducerCryptoFailureAction.SEND;
             default:
-                throw new RuntimeException(
-                        "Unknown producer protobuf failure action " + action.getValueDescriptor().getName());
+                throw new RuntimeException("Unknown producer protobuf failure action "
+                        + action.getValueDescriptor().getName());
         }
     }
 
@@ -122,8 +119,8 @@ public final class CryptoUtils {
             case CONSUME:
                 return ConsumerCryptoFailureAction.CONSUME;
             default:
-                throw new RuntimeException(
-                        "Unknown consumer protobuf failure action " + action.getValueDescriptor().getName());
+                throw new RuntimeException("Unknown consumer protobuf failure action "
+                        + action.getValueDescriptor().getName());
         }
     }
 
@@ -150,5 +147,4 @@ public final class CryptoUtils {
                 throw new RuntimeException("Unknown consumer crypto failure action " + action);
         }
     }
-
 }

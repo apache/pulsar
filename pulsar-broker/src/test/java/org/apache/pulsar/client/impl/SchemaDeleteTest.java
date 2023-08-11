@@ -19,18 +19,15 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
-
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
@@ -48,10 +45,16 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         this.conf.setBrokerDeleteInactiveTopicsFrequencySeconds(5);
 
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
@@ -78,20 +81,25 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         // creating a subscriber will check the schema against the latest
         // schema, which in this case should be a tombstone, which should
         // behave as if the schema never existed
-        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-                .topic(topic).startMessageId(MessageId.latest).create()) {
-        }
+        try (Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .create()) {}
 
-        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
-                SchemaAutoUpdateCompatibilityStrategy.BackwardTransitive);
+        admin.namespaces()
+                .setSchemaAutoUpdateCompatibilityStrategy(
+                        namespace, SchemaAutoUpdateCompatibilityStrategy.BackwardTransitive);
         admin.topics().delete(topic);
         admin.schemas().deleteSchema(topic);
 
         // with a transitive policy we should check all previous schemas. But we
         // shouldn't check against those that were there before we deleted the schema.
-        try (Reader<DummyPojo> reader = pulsarClient.newReader(Schema.AVRO(DummyPojo.class))
-                .topic(topic).startMessageId(MessageId.latest).create()) {
-        }
+        try (Reader<DummyPojo> reader = pulsarClient
+                .newReader(Schema.AVRO(DummyPojo.class))
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .create()) {}
     }
 
     @Test
@@ -101,7 +109,7 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         String foobar = "foo";
 
         try (Producer<String> producer =
-                     pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
             producer.send(foobar);
         }
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topic);

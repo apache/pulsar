@@ -20,12 +20,9 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Producer;
@@ -58,8 +55,8 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
 
-        AuthenticationService authenticationService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authenticationService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
         proxyService = Mockito.spy(new ProxyService(proxyConfig, authenticationService));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
@@ -89,12 +86,14 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
 
         @Cleanup
-        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/producer-topic")
                 .create();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         try {
             @Cleanup
-            Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+            Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
+                    .topic("persistent://sample/test/local/producer-topic")
                     .create();
             Assert.fail("Should have failed since can't acquire LookupRequestSemaphore");
         } catch (Exception ex) {
@@ -104,7 +103,8 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyService.getLookupRequestSemaphore().release();
         try {
             @Cleanup
-            Producer<byte[]> producer3 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+            Producer<byte[]> producer3 = client.newProducer(Schema.BYTES)
+                    .topic("persistent://sample/test/local/producer-topic")
                     .create();
         } catch (Exception ex) {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");

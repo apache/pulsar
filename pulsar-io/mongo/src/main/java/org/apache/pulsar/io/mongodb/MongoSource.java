@@ -53,8 +53,7 @@ import org.reactivestreams.Subscription;
         name = "mongo",
         type = IOType.SOURCE,
         help = "A source connector that sends mongodb documents to pulsar",
-        configClass = MongoSourceConfig.class
-)
+        configClass = MongoSourceConfig.class)
 @Slf4j
 public class MongoSource extends PushSource<byte[]> {
 
@@ -65,7 +64,6 @@ public class MongoSource extends PushSource<byte[]> {
     private MongoClient mongoClient;
 
     private ChangeStreamPublisher<Document> stream;
-
 
     public MongoSource() {
         this(null);
@@ -110,8 +108,7 @@ public class MongoSource extends PushSource<byte[]> {
             }
         }
 
-        stream.batchSize(mongoSourceConfig.getBatchSize())
-                .fullDocument(FullDocument.UPDATE_LOOKUP);
+        stream.batchSize(mongoSourceConfig.getBatchSize()).fullDocument(FullDocument.UPDATE_LOOKUP);
 
         if (mongoSourceConfig.getSyncType() == SyncType.FULL_SYNC) {
             // sync currently existing messages
@@ -167,7 +164,6 @@ public class MongoSource extends PushSource<byte[]> {
                 log.info("Subscriber complete");
             }
         });
-
     }
 
     @Override

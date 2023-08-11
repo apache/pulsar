@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 
 public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
-    static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
+    static final String[] ARGS = new String[] {"-c", "./src/test/resources/proxy.conf"};
 
     protected ProxyServiceStarter serviceStarter;
     protected String serviceUrl;
@@ -73,15 +73,15 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     }
 
     private String computeWsBasePath() {
-        return String.format("ws://localhost:%d/ws", serviceStarter.getServer().getListenPortHTTP().get());
+        return String.format(
+                "ws://localhost:%d/ws",
+                serviceStarter.getServer().getListenPortHTTP().get());
     }
-
 
     @Test
     public void testProducer() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl)
-                .build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
@@ -113,9 +113,13 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         String consumeUri = computeWsBasePath() + "/consumer/persistent/sample/test/local/websocket-topic/my-sub";
         Future<Session> consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
         consumerSession.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        producerSession.get().getRemote().sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
+        producerSession
+                .get()
+                .getRemote()
+                .sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
         assertTrue(consumerSocket.getResponse().contains("ping"));
-        ProducerMessage message = ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
+        ProducerMessage message =
+                ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
         assertEquals(new String(Base64.getDecoder().decode(message.getPayload())), "my payload");
     }
 
@@ -130,20 +134,16 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         }
 
         @Override
-        public void onWebSocketClose(int i, String s) {
-        }
+        public void onWebSocketClose(int i, String s) {}
 
         @Override
-        public void onWebSocketConnect(Session session) {
-        }
+        public void onWebSocketConnect(Session session) {}
 
         @Override
-        public void onWebSocketError(Throwable throwable) {
-        }
+        public void onWebSocketError(Throwable throwable) {}
 
         @Override
-        public void onWebSocketPing(ByteBuffer payload) {
-        }
+        public void onWebSocketPing(ByteBuffer payload) {}
 
         @Override
         public void onWebSocketPong(ByteBuffer payload) {
@@ -154,5 +154,4 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
             return incomingMessages.take();
         }
     }
-
 }

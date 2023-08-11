@@ -35,5 +35,4 @@ public interface KVRecord<K, V> extends Record {
     Schema<V> getValueSchema();
 
     KeyValueEncodingType getKeyValueEncodingType();
-
 }

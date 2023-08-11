@@ -18,40 +18,29 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.apache.pulsar.io.core.BatchPushSource;
-import org.apache.pulsar.io.core.SourceContext;
-import org.testng.annotations.Test;
-
 import java.util.Map;
 import java.util.function.Consumer;
+import org.testng.annotations.Test;
 
 public class BatchPushSourceTest {
 
-  BatchPushSource testBatchSource = new BatchPushSource() {
-    @Override
-    public void open(Map config, SourceContext context) throws Exception {
+    BatchPushSource testBatchSource = new BatchPushSource() {
+        @Override
+        public void open(Map config, SourceContext context) throws Exception {}
 
+        @Override
+        public void discover(Consumer taskEater) throws Exception {}
+
+        @Override
+        public void prepare(byte[] task) throws Exception {}
+
+        @Override
+        public void close() throws Exception {}
+    };
+
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "test exception")
+    public void testNotifyErrors() throws Exception {
+        testBatchSource.notifyError(new RuntimeException("test exception"));
+        testBatchSource.readNext();
     }
-
-    @Override
-    public void discover(Consumer taskEater) throws Exception {
-
-    }
-
-    @Override
-    public void prepare(byte[] task) throws Exception {
-
-    }
-
-    @Override
-    public void close() throws Exception {
-
-    }
-  };
-
-  @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "test exception")
-  public void testNotifyErrors() throws Exception {
-    testBatchSource.notifyError(new RuntimeException("test exception"));
-    testBatchSource.readNext();
-  }
 }

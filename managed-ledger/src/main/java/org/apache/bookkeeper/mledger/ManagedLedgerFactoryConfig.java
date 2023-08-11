@@ -109,12 +109,12 @@ public class ManagedLedgerFactoryConfig {
     private long managedCursorInfoCompressionThresholdInBytes = 0;
 
     public MetadataCompressionConfig getCompressionConfigForManagedLedgerInfo() {
-        return new MetadataCompressionConfig(managedLedgerInfoCompressionType,
-                managedLedgerInfoCompressionThresholdInBytes);
+        return new MetadataCompressionConfig(
+                managedLedgerInfoCompressionType, managedLedgerInfoCompressionThresholdInBytes);
     }
 
     public MetadataCompressionConfig getCompressionConfigForManagedCursorInfo() {
-        return new MetadataCompressionConfig(managedCursorInfoCompressionType,
-                managedCursorInfoCompressionThresholdInBytes);
+        return new MetadataCompressionConfig(
+                managedCursorInfoCompressionType, managedCursorInfoCompressionThresholdInBytes);
     }
 }

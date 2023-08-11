@@ -21,9 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
-
 import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -51,10 +49,10 @@ import org.testng.annotations.Test;
 public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorConcurrencyTest.class);
-    
+
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     private final AsyncCallbacks.DeleteCallback deleteCallback = new AsyncCallbacks.DeleteCallback() {
@@ -71,7 +69,8 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     @Test(dataProvider = "useOpenRangeSet")
     public void testMarkDeleteAndRead(boolean useOpenRangeSet) throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
+        ManagedLedgerConfig config = new ManagedLedgerConfig()
+                .setMaxEntriesPerLedger(2)
                 .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
 
@@ -130,8 +129,8 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCloseAndRead() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_test_close_and_read",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger =
+                factory.open("my_test_ledger_test_close_and_read", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
 
         final ManagedCursor cursor = ledger.openCursor("c1");
         final CompletableFuture<String> closeFuture = new CompletableFuture<>();
@@ -178,19 +177,21 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                     // Thread.sleep(2,200);
                     Thread.sleep(2, 195);
                 }
-                cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
-                    @Override
-                    public void closeComplete(Object ctx) {
-                        log.info("Successfully closed cursor ledger");
-                        closeFuture.complete(CLOSED);
-                    }
+                cursor.asyncClose(
+                        new AsyncCallbacks.CloseCallback() {
+                            @Override
+                            public void closeComplete(Object ctx) {
+                                log.info("Successfully closed cursor ledger");
+                                closeFuture.complete(CLOSED);
+                            }
 
-                    @Override
-                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("Error closing cursor: ", exception);
-                        closeFuture.completeExceptionally(new Exception(exception));
-                    }
-                }, null);
+                            @Override
+                            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                                log.error("Error closing cursor: ", exception);
+                                closeFuture.completeExceptionally(new Exception(exception));
+                            }
+                        },
+                        null);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -211,8 +212,8 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testAckAndClose() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_test_ack_and_close",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger =
+                factory.open("my_test_ledger_test_ack_and_close", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
@@ -363,7 +364,8 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testConcurrentIndividualDeletesWithGetNthEntry() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger",
+        ManagedLedger ledger = factory.open(
+                "my_test_ledger",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(100).setThrottleMarkDelete(0.5));
 
         final ManagedCursor cursor = ledger.openCursor("c1");
@@ -384,18 +386,21 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < deleteEntries; i++) {
             executor.submit(() -> {
                 try {
-                    cursor.asyncDelete(addedEntries.get(iteration.getAndIncrement()), new DeleteCallback() {
-                        @Override
-                        public void deleteComplete(Object ctx) {
-                            // Ok
-                        }
+                    cursor.asyncDelete(
+                            addedEntries.get(iteration.getAndIncrement()),
+                            new DeleteCallback() {
+                                @Override
+                                public void deleteComplete(Object ctx) {
+                                    // Ok
+                                }
 
-                        @Override
-                        public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                            exception.printStackTrace();
-                            gotException.set(true);
-                        }
-                    }, null);
+                                @Override
+                                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                                    exception.printStackTrace();
+                                    gotException.set(true);
+                                }
+                            },
+                            null);
                 } catch (Exception e) {
                     e.printStackTrace();
                     gotException.set(true);
@@ -412,20 +417,24 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final AtomicInteger successReadEntries = new AtomicInteger(0);
         for (int i = 1; i <= readEntries; i++) {
             try {
-                cursor.asyncGetNthEntry(i, IndividualDeletedEntries.Exclude, new ReadEntryCallback() {
-                    @Override
-                    public void readEntryComplete(Entry entry, Object ctx) {
-                        successReadEntries.getAndIncrement();
-                        entry.release();
-                        readCounter.countDown();
-                    }
+                cursor.asyncGetNthEntry(
+                        i,
+                        IndividualDeletedEntries.Exclude,
+                        new ReadEntryCallback() {
+                            @Override
+                            public void readEntryComplete(Entry entry, Object ctx) {
+                                successReadEntries.getAndIncrement();
+                                entry.release();
+                                readCounter.countDown();
+                            }
 
-                    @Override
-                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                        exception.printStackTrace();
-                        gotException.set(true);
-                    }
-                }, null);
+                            @Override
+                            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                exception.printStackTrace();
+                                gotException.set(true);
+                            }
+                        },
+                        null);
             } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);

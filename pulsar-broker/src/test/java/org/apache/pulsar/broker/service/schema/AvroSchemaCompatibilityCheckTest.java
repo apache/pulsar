@@ -21,11 +21,10 @@ package org.apache.pulsar.broker.service.schema;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class AvroSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
+public class AvroSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest {
 
     @Override
     public SchemaCompatibilityCheck getSchemaCheck() {
         return new AvroSchemaCompatibilityCheck();
     }
-
 }

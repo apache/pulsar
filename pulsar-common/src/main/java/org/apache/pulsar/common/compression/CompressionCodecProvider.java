@@ -55,38 +55,38 @@ public class CompressionCodecProvider {
     public static org.apache.pulsar.common.api.proto.CompressionType convertToWireProtocol(
             CompressionType compressionType) {
         switch (compressionType) {
-        case NONE:
-            return org.apache.pulsar.common.api.proto.CompressionType.NONE;
-        case LZ4:
-            return org.apache.pulsar.common.api.proto.CompressionType.LZ4;
-        case ZLIB:
-            return org.apache.pulsar.common.api.proto.CompressionType.ZLIB;
-        case ZSTD:
-            return org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
-        case SNAPPY:
-            return org.apache.pulsar.common.api.proto.CompressionType.SNAPPY;
+            case NONE:
+                return org.apache.pulsar.common.api.proto.CompressionType.NONE;
+            case LZ4:
+                return org.apache.pulsar.common.api.proto.CompressionType.LZ4;
+            case ZLIB:
+                return org.apache.pulsar.common.api.proto.CompressionType.ZLIB;
+            case ZSTD:
+                return org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
+            case SNAPPY:
+                return org.apache.pulsar.common.api.proto.CompressionType.SNAPPY;
 
-        default:
-            throw new RuntimeException("Invalid compression type");
+            default:
+                throw new RuntimeException("Invalid compression type");
         }
     }
 
     public static CompressionType convertFromWireProtocol(
             org.apache.pulsar.common.api.proto.CompressionType compressionType) {
         switch (compressionType) {
-        case NONE:
-            return CompressionType.NONE;
-        case LZ4:
-            return CompressionType.LZ4;
-        case ZLIB:
-            return CompressionType.ZLIB;
-        case ZSTD:
-            return CompressionType.ZSTD;
-        case SNAPPY:
-            return CompressionType.SNAPPY;
+            case NONE:
+                return CompressionType.NONE;
+            case LZ4:
+                return CompressionType.LZ4;
+            case ZLIB:
+                return CompressionType.ZLIB;
+            case ZSTD:
+                return CompressionType.ZSTD;
+            case SNAPPY:
+                return CompressionType.SNAPPY;
 
-        default:
-            throw new RuntimeException("Invalid compression type");
+            default:
+                throw new RuntimeException("Invalid compression type");
         }
     }
 }

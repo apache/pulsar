@@ -48,8 +48,8 @@ public class TimeAverageBrokerData {
      * @param defaultStats
      *            The stats to use when a bundle belonging to this broker is not found in the bundle data map.
      */
-    public TimeAverageBrokerData(final Set<String> bundles, final Map<String, BundleData> data,
-            final NamespaceBundleStats defaultStats) {
+    public TimeAverageBrokerData(
+            final Set<String> bundles, final Map<String, BundleData> data, final NamespaceBundleStats defaultStats) {
         reset(bundles, data, defaultStats);
     }
 
@@ -63,8 +63,8 @@ public class TimeAverageBrokerData {
      * @param defaultStats
      *            The stats to use when a bundle belonging to this broker is not found in the bundle data map.
      */
-    public void reset(final Set<String> bundles, final Map<String, BundleData> data,
-            final NamespaceBundleStats defaultStats) {
+    public void reset(
+            final Set<String> bundles, final Map<String, BundleData> data, final NamespaceBundleStats defaultStats) {
         shortTermMsgThroughputIn = 0;
         shortTermMsgThroughputOut = 0;
         shortTermMsgRateIn = 0;

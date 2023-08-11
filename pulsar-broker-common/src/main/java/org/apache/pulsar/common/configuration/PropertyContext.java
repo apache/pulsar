@@ -36,5 +36,4 @@ public @interface PropertyContext {
      * @return documentation of the property.
      */
     FieldContext doc();
-
 }

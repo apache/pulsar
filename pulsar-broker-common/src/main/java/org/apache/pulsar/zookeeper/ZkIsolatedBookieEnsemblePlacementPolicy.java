@@ -23,6 +23,4 @@ import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPol
 /**
  * Retained for compatibility since this class can be referred to from config files.
  */
-public class ZkIsolatedBookieEnsemblePlacementPolicy extends IsolatedBookieEnsemblePlacementPolicy {
-
-}
+public class ZkIsolatedBookieEnsemblePlacementPolicy extends IsolatedBookieEnsemblePlacementPolicy {}

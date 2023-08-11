@@ -31,6 +31,7 @@ import org.apache.pulsar.common.protocol.Commands;
 public class EntryAndMetadata implements Entry {
 
     private final Entry entry;
+
     @Getter
     @Nullable
     private final MessageMetadata metadata;

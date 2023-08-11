@@ -28,7 +28,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
-
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.net.InetSocketAddress;
@@ -131,7 +130,6 @@ public class ProtocolHandlerWithClassLoaderTest {
         assertTrue(wrapper.accept(protocol));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
 
-
         ServiceConfiguration conf = new ServiceConfiguration();
         expectThrows(Exception.class, () -> wrapper.initialize(conf));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
@@ -142,7 +140,6 @@ public class ProtocolHandlerWithClassLoaderTest {
         BrokerService service = mock(BrokerService.class);
         wrapper.start(service);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-
 
         assertNull(wrapper.newChannelInitializers());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);

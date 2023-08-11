@@ -91,7 +91,7 @@ public interface Dispatcher {
     }
 
     default void updateRateLimiter() {
-        //No-op
+        // No-op
     }
 
     default boolean initializeDispatchRateLimiterIfNeeded() {
@@ -115,7 +115,7 @@ public interface Dispatcher {
     }
 
     default void cursorIsReset() {
-        //No-op
+        // No-op
     }
 
     default void markDeletePositionMoveForward() {
@@ -128,7 +128,6 @@ public interface Dispatcher {
     default boolean checkAndUnblockIfStuck() {
         return false;
     }
-
 
     default long getFilterProcessedMsgCount() {
         return 0;
@@ -145,5 +144,4 @@ public interface Dispatcher {
     default long getFilterRescheduledMsgCount() {
         return 0;
     }
-
 }

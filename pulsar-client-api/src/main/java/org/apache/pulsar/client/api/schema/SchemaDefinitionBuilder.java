@@ -131,5 +131,4 @@ public interface SchemaDefinitionBuilder<T> {
      * @return the schema definition.
      */
     SchemaDefinition<T> build();
-
 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -48,14 +47,18 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
     private final MultiTopicsConsumerImpl<T> multiTopicsConsumer;
 
-    public MultiTopicsReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                                 ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture,
-                                 Schema<T> schema) {
+    public MultiTopicsReaderImpl(
+            PulsarClientImpl client,
+            ReaderConfigurationData<T> readerConfiguration,
+            ExecutorProvider executorProvider,
+            CompletableFuture<Consumer<T>> consumerFuture,
+            Schema<T> schema) {
         String subscription;
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionName())) {
             subscription = readerConfiguration.getSubscriptionName();
         } else {
-            subscription = "multiTopicsReader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
+            subscription = "multiTopicsReader-"
+                    + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
             if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
                 subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
             }
@@ -86,8 +89,12 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                     final MessageId messageId = msg.getMessageId();
                     readerListener.received(MultiTopicsReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
-                        log.error("[{}][{}] auto acknowledge message {} cumulative fail.", getTopic(),
-                                getMultiTopicsConsumer().getSubscription(), messageId, ex);
+                        log.error(
+                                "[{}][{}] auto acknowledge message {} cumulative fail.",
+                                getTopic(),
+                                getMultiTopicsConsumer().getSubscription(),
+                                messageId,
+                                ex);
                         return null;
                     });
                 }
@@ -115,22 +122,23 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         }
         if (readerConfiguration.getKeyHashRanges() != null) {
             consumerConfiguration.setKeySharedPolicy(
-                    KeySharedPolicy
-                            .stickyHashRange()
-                            .ranges(readerConfiguration.getKeyHashRanges())
-            );
+                    KeySharedPolicy.stickyHashRange().ranges(readerConfiguration.getKeyHashRanges()));
         }
         if (readerConfiguration.isAutoUpdatePartitions()) {
             consumerConfiguration.setAutoUpdatePartitionsIntervalSeconds(
-                    readerConfiguration.getAutoUpdatePartitionsIntervalSeconds()
-            );
+                    readerConfiguration.getAutoUpdatePartitionsIntervalSeconds());
         }
 
-        ConsumerInterceptors<T> consumerInterceptors =
-                ReaderInterceptorUtil.convertToConsumerInterceptors(
-                        this, readerConfiguration.getReaderInterceptorList());
-        multiTopicsConsumer = new MultiTopicsConsumerImpl<>(client, consumerConfiguration, executorProvider,
-                consumerFuture, schema, consumerInterceptors, true,
+        ConsumerInterceptors<T> consumerInterceptors = ReaderInterceptorUtil.convertToConsumerInterceptors(
+                this, readerConfiguration.getReaderInterceptorList());
+        multiTopicsConsumer = new MultiTopicsConsumerImpl<>(
+                client,
+                consumerConfiguration,
+                executorProvider,
+                consumerFuture,
+                schema,
+                consumerInterceptors,
+                true,
                 readerConfiguration.getStartMessageId(),
                 readerConfiguration.getStartMessageFromRollbackDurationInSec());
     }
@@ -158,12 +166,15 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     public CompletableFuture<Message<T>> readNextAsync() {
         CompletableFuture<Message<T>> originalFuture = multiTopicsConsumer.receiveAsync();
         CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
-            multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
-                    .exceptionally(ex -> {
-                        log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                                getMultiTopicsConsumer().getSubscription(), msg.getMessageId(), ex);
-                        return null;
-                    });
+            multiTopicsConsumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                log.warn(
+                        "[{}][{}] acknowledge message {} cumulative fail.",
+                        getTopic(),
+                        getMultiTopicsConsumer().getSubscription(),
+                        msg.getMessageId(),
+                        ex);
+                return null;
+            });
             return msg;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();

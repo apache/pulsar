@@ -43,7 +43,7 @@ public class FileRecord implements Record<byte[]> {
 
     private final Optional<String> key;
     private final byte[] value;
-    private final HashMap<String, String> userProperties = new HashMap<String, String> ();
+    private final HashMap<String, String> userProperties = new HashMap<String, String>();
 
     public FileRecord(File srcFile, int lineNumber, byte[] value) {
         this.key = Optional.of(srcFile.getName() + "_" + lineNumber);

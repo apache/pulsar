@@ -47,8 +47,10 @@ public class PulsarLoadReportImpl implements LoadReport {
         return requestPerServiceUnit;
     }
 
-    private static final ObjectReader LOAD_REPORT_READER = ObjectMapperFactory.getMapper().reader()
+    private static final ObjectReader LOAD_REPORT_READER = ObjectMapperFactory.getMapper()
+            .reader()
             .forType(org.apache.pulsar.policies.data.loadbalancer.LoadReport.class);
+
     public static LoadReport parse(String loadReportJson) {
         PulsarLoadReportImpl pulsarLoadReport = new PulsarLoadReportImpl();
         try {
@@ -69,8 +71,8 @@ public class PulsarLoadReportImpl implements LoadReport {
             if (sru.cpu != null) {
                 pulsarLoadReport.resourceDescription.put("cpu", sru.cpu);
             }
-            pulsarLoadReport.resourceUnit = new SimpleResourceUnit(resourceUnitName,
-                    pulsarLoadReport.resourceDescription);
+            pulsarLoadReport.resourceUnit =
+                    new SimpleResourceUnit(resourceUnitName, pulsarLoadReport.resourceDescription);
 
         } catch (Exception e) {
             log.warn("Failed Parsing Load Report from JSON string", e);
@@ -87,5 +89,4 @@ public class PulsarLoadReportImpl implements LoadReport {
     public ResourceDescription getResourceUnitDescription() {
         return resourceDescription;
     }
-
 }

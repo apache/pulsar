@@ -38,10 +38,11 @@ public interface CoordinationService extends AutoCloseable {
      *            a listener that will be passed all the state changes
      * @return
      */
-    <T> LeaderElection<T> getLeaderElection(Class<T> clazz, String path,
-            Consumer<LeaderElectionState> stateChangesListener);
+    <T> LeaderElection<T> getLeaderElection(
+            Class<T> clazz, String path, Consumer<LeaderElectionState> stateChangesListener);
 
     <T> LockManager<T> getLockManager(Class<T> clazz);
+
     <T> LockManager<T> getLockManager(MetadataSerde<T> serde);
 
     /**
@@ -59,5 +60,4 @@ public interface CoordinationService extends AutoCloseable {
      *             if there's a failure in incrementing the counter
      */
     CompletableFuture<Long> getNextCounterValue(String path);
-
 }

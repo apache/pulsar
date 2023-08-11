@@ -50,7 +50,6 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<Optional<GetResult>> get(String path);
 
-
     /**
      * Ensure that the next value read from  the local client will be up-to-date with the latest version of the value
      * as it can be seen by all the other clients.

@@ -54,7 +54,8 @@ public final class BookieInfoImpl implements BookieInfo {
         }
 
         public BookieInfoImpl build() {
-            checkArgument(rack != null && !rack.isEmpty() && !rack.equals(PATH_SEPARATOR),
+            checkArgument(
+                    rack != null && !rack.isEmpty() && !rack.equals(PATH_SEPARATOR),
                     "rack name is invalid, it should not be null, empty or '/'");
             return new BookieInfoImpl(rack, hostname);
         }

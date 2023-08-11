@@ -46,9 +46,8 @@ import org.testng.annotations.Test;
 public abstract class AbstractDeliveryTrackerTest {
 
     // Create a single shared timer for the test.
-    protected final Timer timer =
-            new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
-                    500, TimeUnit.MILLISECONDS);
+    protected final Timer timer = new HashedWheelTimer(
+            new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"), 500, TimeUnit.MILLISECONDS);
     protected PersistentDispatcherMultipleConsumers dispatcher;
     protected Clock clock;
 
@@ -192,8 +191,8 @@ public abstract class AbstractDeliveryTrackerTest {
         verify(dispatcher, times(1)).readMoreEntries();
 
         // Not wait for the message delivery to get triggered.
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> verify(dispatcher)
+                .readMoreEntries());
 
         tracker.close();
     }
@@ -211,8 +210,8 @@ public abstract class AbstractDeliveryTrackerTest {
 
         // Wait long enough for the runnable to run, but not longer than the tick time. The point is that the delivery
         // should get scheduled early when the tick duration has passed since the last tick.
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> verify(dispatcher)
+                .readMoreEntries());
 
         tracker.close();
     }
@@ -232,8 +231,8 @@ public abstract class AbstractDeliveryTrackerTest {
         Thread.sleep(1000);
 
         // Not wait for the message delivery to get triggered.
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> verify(dispatcher)
+                .readMoreEntries());
 
         tracker.close();
     }

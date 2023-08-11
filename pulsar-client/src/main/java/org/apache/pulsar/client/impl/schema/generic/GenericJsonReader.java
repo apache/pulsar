@@ -41,19 +41,19 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
     private final List<Field> fields;
     private SchemaInfo schemaInfo;
 
-    public GenericJsonReader(List<Field> fields, SchemaInfo schemaInfo){
+    public GenericJsonReader(List<Field> fields, SchemaInfo schemaInfo) {
         this(null, fields, schemaInfo);
     }
 
-    public GenericJsonReader(List<Field> fields){
+    public GenericJsonReader(List<Field> fields) {
         this(fields, null);
     }
 
-    public GenericJsonReader(byte[] schemaVersion, List<Field> fields){
+    public GenericJsonReader(byte[] schemaVersion, List<Field> fields) {
         this(schemaVersion, fields, null);
     }
 
-    public GenericJsonReader(byte[] schemaVersion, List<Field> fields, SchemaInfo schemaInfo){
+    public GenericJsonReader(byte[] schemaVersion, List<Field> fields, SchemaInfo schemaInfo) {
         this.fields = fields;
         this.schemaVersion = schemaVersion;
         this.schemaInfo = schemaInfo;

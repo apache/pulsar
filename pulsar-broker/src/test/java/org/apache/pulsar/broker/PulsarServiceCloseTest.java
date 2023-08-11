@@ -72,5 +72,4 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
             assertTrue(loadSheddingFuture.isCancelled());
         }
     }
-
 }

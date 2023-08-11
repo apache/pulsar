@@ -29,13 +29,13 @@ public class WorkerContainer extends PulsarContainer<WorkerContainer> {
 
     public WorkerContainer(String clusterName, String hostname) {
         super(
-            clusterName,
-            hostname,
-            hostname,
-            "bin/run-functions-worker.sh",
-            -1,
-            BROKER_HTTP_PORT,
-            "/admin/v2/worker/cluster");
+                clusterName,
+                hostname,
+                hostname,
+                "bin/run-functions-worker.sh",
+                -1,
+                BROKER_HTTP_PORT,
+                "/admin/v2/worker/cluster");
     }
 
     @Override
@@ -43,10 +43,7 @@ public class WorkerContainer extends PulsarContainer<WorkerContainer> {
         super.beforeStop();
         if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
-                    getDockerClient(),
-                    getContainerId(),
-                    "/pulsar/logs/functions"
-            );
+                    getDockerClient(), getContainerId(), "/pulsar/logs/functions");
         }
     }
 }

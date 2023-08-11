@@ -77,7 +77,8 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     public SchemaInfo getBackwardsCompatibleJsonSchemaInfo() {
         SchemaInfo backwardsCompatibleSchemaInfo;
         try {
-            ObjectWriter objectWriter = ObjectMapperFactory.getMapperWithIncludeAlways().writer();
+            ObjectWriter objectWriter =
+                    ObjectMapperFactory.getMapperWithIncludeAlways().writer();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectWriter);
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = SchemaInfoImpl.builder()
@@ -93,12 +94,13 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
-        SchemaReader<T> reader = schemaDefinition.getSchemaReaderOpt()
+        SchemaReader<T> reader = schemaDefinition
+                .getSchemaReaderOpt()
                 .orElseGet(() -> new JacksonJsonReader<>(jsonMapper(), schemaDefinition.getPojo()));
-        SchemaWriter<T> writer = schemaDefinition.getSchemaWriterOpt()
-                .orElseGet(() -> new JacksonJsonWriter<>(jsonMapper()));
-        return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo(),
-                reader, writer);
+        SchemaWriter<T> writer =
+                schemaDefinition.getSchemaWriterOpt().orElseGet(() -> new JacksonJsonWriter<>(jsonMapper()));
+        return new JSONSchema<>(
+                parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo(), reader, writer);
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo) {
@@ -106,7 +108,10 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build());
+        return JSONSchema.of(SchemaDefinition.<T>builder()
+                .withPojo(pojo)
+                .withProperties(properties)
+                .build());
     }
 
     /**

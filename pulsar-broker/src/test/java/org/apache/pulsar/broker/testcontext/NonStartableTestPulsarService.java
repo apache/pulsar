@@ -57,17 +57,25 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
 
     private final NamespaceService namespaceService;
 
-    public NonStartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                         MetadataStoreExtended localMetadataStore,
-                                         MetadataStoreExtended configurationMetadataStore,
-                                         CompactionServiceFactory compactionServiceFactory,
-                                         BrokerInterceptor brokerInterceptor,
-                                         BookKeeperClientFactory bookKeeperClientFactory,
-                                         PulsarResources pulsarResources,
-                                         ManagedLedgerStorage managedLedgerClientFactory,
-                                         Function<BrokerService, BrokerService> brokerServiceCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory);
+    public NonStartableTestPulsarService(
+            SpyConfig spyConfig,
+            ServiceConfiguration config,
+            MetadataStoreExtended localMetadataStore,
+            MetadataStoreExtended configurationMetadataStore,
+            CompactionServiceFactory compactionServiceFactory,
+            BrokerInterceptor brokerInterceptor,
+            BookKeeperClientFactory bookKeeperClientFactory,
+            PulsarResources pulsarResources,
+            ManagedLedgerStorage managedLedgerClientFactory,
+            Function<BrokerService, BrokerService> brokerServiceCustomizer) {
+        super(
+                spyConfig,
+                config,
+                localMetadataStore,
+                configurationMetadataStore,
+                compactionServiceFactory,
+                brokerInterceptor,
+                bookKeeperClientFactory);
         setPulsarResources(pulsarResources);
         setManagedLedgerClientFactory(managedLedgerClientFactory);
         try {
@@ -86,14 +94,14 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         }
         if (config.isTransactionCoordinatorEnabled()) {
             try {
-                setTransactionBufferProvider(TransactionBufferProvider
-                        .newProvider(config.getTransactionBufferProviderClassName()));
+                setTransactionBufferProvider(
+                        TransactionBufferProvider.newProvider(config.getTransactionBufferProviderClassName()));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             try {
-                setTransactionPendingAckStoreProvider(TransactionPendingAckStoreProvider
-                        .newProvider(config.getTransactionPendingAckStoreProviderClassName()));
+                setTransactionPendingAckStoreProvider(TransactionPendingAckStoreProvider.newProvider(
+                        config.getTransactionPendingAckStoreProviderClassName()));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -118,6 +126,7 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
             throw new PulsarClientException(e);
         }
     }
+
     @Override
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return getBrokerService();
@@ -140,8 +149,11 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         private final TopicResources topicResources;
         private final NamespaceResources namespaceResources;
 
-        public TestPulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
-                                   TopicResources topicResources, NamespaceResources namespaceResources) {
+        public TestPulsarResources(
+                MetadataStore localMetadataStore,
+                MetadataStore configurationMetadataStore,
+                TopicResources topicResources,
+                NamespaceResources namespaceResources) {
             super(localMetadataStore, configurationMetadataStore);
             this.topicResources = topicResources;
             this.namespaceResources = namespaceResources;

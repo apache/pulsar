@@ -216,5 +216,4 @@ public interface BaseContext {
     default ClientBuilder getPulsarClientBuilder() {
         throw new UnsupportedOperationException("not implemented");
     }
-
 }

@@ -51,18 +51,25 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties) throws IOException {
+    public BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties)
+            throws IOException {
         return mockedBk;
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
+    public BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties,
+            StatsLogger statsLogger)
+            throws IOException {
         return mockedBk;
     }
 

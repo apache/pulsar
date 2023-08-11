@@ -34,11 +34,10 @@ import org.testcontainers.utility.DockerImageName;
 
 public class OpenSearchSinkTester extends ElasticSearchSinkTester {
 
-    public static final String OPENSEARCH = Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE"))
-            .orElse("opensearchproject/opensearch:1.2.4");
+    public static final String OPENSEARCH =
+            Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE")).orElse("opensearchproject/opensearch:1.2.4");
 
     private RestHighLevelClient elasticClient;
-
 
     public OpenSearchSinkTester(boolean schemaEnable) {
         super(schemaEnable);
@@ -60,11 +59,8 @@ public class OpenSearchSinkTester extends ElasticSearchSinkTester {
 
     @Override
     public void prepareSink() throws Exception {
-        RestClientBuilder builder = RestClient.builder(
-                new HttpHost(
-                        "localhost",
-                        serviceContainer.getMappedPort(9200),
-                        "http"));
+        RestClientBuilder builder =
+                RestClient.builder(new HttpHost("localhost", serviceContainer.getMappedPort(9200), "http"));
         elasticClient = new RestHighLevelClient(builder);
     }
 

@@ -39,8 +39,7 @@ import org.apache.pulsar.io.core.Source;
 public class ValidatorUtils {
     private static final String DEFAULT_SERDE = "org.apache.pulsar.functions.api.utils.DefaultSerDe";
 
-    public static void validateSchema(String schemaType, Class<?> typeArg, ClassLoader clsLoader,
-                                      boolean input) {
+    public static void validateSchema(String schemaType, Class<?> typeArg, ClassLoader clsLoader, boolean input) {
         if (isEmpty(schemaType) || getBuiltinSchemaType(schemaType) != null) {
             // If it's empty, we use the default schema and no need to validate
             // If it's built-in, no need to validate
@@ -59,7 +58,6 @@ public class ValidatorUtils {
         }
     }
 
-
     public static void validateCryptoKeyReader(CryptoConfig conf, ClassLoader classLoader, boolean isProducer) {
         if (isEmpty(conf.getCryptoKeyReaderClassName())) {
             return;
@@ -77,9 +75,9 @@ public class ValidatorUtils {
         try {
             cryptoClass.getConstructor(Map.class);
         } catch (NoSuchMethodException ex) {
-            throw new IllegalArgumentException(
-                    String.format("The crypto key reader class %s does not implement the desired constructor.",
-                            conf.getCryptoKeyReaderClassName()));
+            throw new IllegalArgumentException(String.format(
+                    "The crypto key reader class %s does not implement the desired constructor.",
+                    conf.getCryptoKeyReaderClassName()));
 
         } catch (SecurityException e) {
             throw new IllegalArgumentException("Failed to access crypto key reader class", e);
@@ -90,8 +88,7 @@ public class ValidatorUtils {
         }
     }
 
-    public static void validateSerde(String inputSerializer, Class<?> typeArg, ClassLoader clsLoader,
-                                     boolean deser) {
+    public static void validateSerde(String inputSerializer, Class<?> typeArg, ClassLoader clsLoader, boolean deser) {
         if (isEmpty(inputSerializer)) {
             return;
         }
@@ -102,15 +99,13 @@ public class ValidatorUtils {
             Class<?> serdeClass = ClassLoaderUtils.loadClass(inputSerializer, clsLoader);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
-                    String.format("The input serialization/deserialization class %s does not exist",
-                            inputSerializer));
+                    String.format("The input serialization/deserialization class %s does not exist", inputSerializer));
         }
         ClassLoaderUtils.implementsClass(inputSerializer, SerDe.class, clsLoader);
 
         SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, clsLoader);
         if (serDe == null) {
-            throw new IllegalArgumentException(String.format("The SerDe class %s does not exist",
-                    inputSerializer));
+            throw new IllegalArgumentException(String.format("The SerDe class %s does not exist", inputSerializer));
         }
         Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
 
@@ -136,12 +131,11 @@ public class ValidatorUtils {
         }
     }
 
-    private static void validateSchemaType(String schemaClassName, Class<?> typeArg, ClassLoader clsLoader,
-                                           boolean input) {
+    private static void validateSchemaType(
+            String schemaClassName, Class<?> typeArg, ClassLoader clsLoader, boolean input) {
         Schema<?> schema = (Schema<?>) Reflections.createInstance(schemaClassName, clsLoader);
         if (schema == null) {
-            throw new IllegalArgumentException(String.format("The Schema class %s does not exist",
-                    schemaClassName));
+            throw new IllegalArgumentException(String.format("The Schema class %s does not exist", schemaClassName));
         }
         Class<?>[] schemaTypes = TypeResolver.resolveRawArguments(Schema.class, schema.getClass());
 
@@ -158,20 +152,17 @@ public class ValidatorUtils {
 
         if (input) {
             if (!fnInputClass.isAssignableFrom(schemaInputClass)) {
-                throw new IllegalArgumentException(
-                        "Schema type mismatch " + typeArg + " vs " + schemaTypes[0]);
+                throw new IllegalArgumentException("Schema type mismatch " + typeArg + " vs " + schemaTypes[0]);
             }
         } else {
             if (!schemaInputClass.isAssignableFrom(fnInputClass)) {
-                throw new IllegalArgumentException(
-                        "Schema type mismatch " + typeArg + " vs " + schemaTypes[0]);
+                throw new IllegalArgumentException("Schema type mismatch " + typeArg + " vs " + schemaTypes[0]);
             }
         }
     }
 
-
-    public static void validateFunctionClassTypes(ClassLoader classLoader,
-                                                  Function.FunctionDetails.Builder functionDetailsBuilder) {
+    public static void validateFunctionClassTypes(
+            ClassLoader classLoader, Function.FunctionDetails.Builder functionDetailsBuilder) {
 
         // validate only if classLoader is provided
         if (classLoader == null) {
@@ -197,18 +188,21 @@ public class ValidatorUtils {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
 
-        if (functionDetailsBuilder.hasSource() && functionDetailsBuilder.getSource() != null
+        if (functionDetailsBuilder.hasSource()
+                && functionDetailsBuilder.getSource() != null
                 && isNotBlank(functionDetailsBuilder.getSource().getClassName())) {
             try {
                 String sourceClassName = functionDetailsBuilder.getSource().getClassName();
-                String argClassName = FunctionCommon.getTypeArg(sourceClassName, Source.class, classLoader).getName();
-                functionDetailsBuilder
-                        .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
+                String argClassName = FunctionCommon.getTypeArg(sourceClassName, Source.class, classLoader)
+                        .getName();
+                functionDetailsBuilder.setSource(
+                        functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
 
                 // if sink-class not present then set same arg as source
-                if (!functionDetailsBuilder.hasSink() || isBlank(functionDetailsBuilder.getSink().getClassName())) {
-                    functionDetailsBuilder
-                            .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
+                if (!functionDetailsBuilder.hasSink()
+                        || isBlank(functionDetailsBuilder.getSink().getClassName())) {
+                    functionDetailsBuilder.setSink(
+                            functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
                 }
 
             } catch (IllegalArgumentException ie) {
@@ -219,21 +213,25 @@ public class ValidatorUtils {
             }
         } else if (isBlank(functionDetailsBuilder.getSourceBuilder().getTypeClassName())) {
             // if function-src-class is not present then set function-src type-class according to function class
-            functionDetailsBuilder
-                    .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(typeArgs[0].getName()));
+            functionDetailsBuilder.setSource(
+                    functionDetailsBuilder.getSourceBuilder().setTypeClassName(typeArgs[0].getName()));
         }
 
-        if (functionDetailsBuilder.hasSink() && functionDetailsBuilder.getSink() != null
+        if (functionDetailsBuilder.hasSink()
+                && functionDetailsBuilder.getSink() != null
                 && isNotBlank(functionDetailsBuilder.getSink().getClassName())) {
             try {
                 String sinkClassName = functionDetailsBuilder.getSink().getClassName();
-                String argClassName = FunctionCommon.getTypeArg(sinkClassName, Sink.class, classLoader).getName();
-                functionDetailsBuilder.setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
+                String argClassName = FunctionCommon.getTypeArg(sinkClassName, Sink.class, classLoader)
+                        .getName();
+                functionDetailsBuilder.setSink(
+                        functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
 
                 // if source-class not present then set same arg as sink
-                if (!functionDetailsBuilder.hasSource() || isBlank(functionDetailsBuilder.getSource().getClassName())) {
-                    functionDetailsBuilder
-                            .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
+                if (!functionDetailsBuilder.hasSource()
+                        || isBlank(functionDetailsBuilder.getSource().getClassName())) {
+                    functionDetailsBuilder.setSource(
+                            functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
                 }
 
             } catch (IllegalArgumentException ie) {
@@ -244,8 +242,8 @@ public class ValidatorUtils {
             }
         } else if (isBlank(functionDetailsBuilder.getSinkBuilder().getTypeClassName())) {
             // if function-sink-class is not present then set function-sink type-class according to function class
-            functionDetailsBuilder
-                    .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(typeArgs[1].getName()));
+            functionDetailsBuilder.setSink(
+                    functionDetailsBuilder.getSinkBuilder().setTypeClassName(typeArgs[1].getName()));
         }
     }
 }

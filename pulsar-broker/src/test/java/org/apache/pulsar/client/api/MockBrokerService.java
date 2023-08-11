@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -29,16 +28,13 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
@@ -136,8 +132,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void messageReceived() {
-        }
+        protected void messageReceived() {}
 
         @Override
         protected void handleConnect(CommandConnect connect) {
@@ -166,8 +161,8 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newLookupResponse(getBrokerAddress(), null, true,
-                    LookupType.Connect, lookup.getRequestId(), false));
+            ctx.writeAndFlush(Commands.newLookupResponse(
+                    getBrokerAddress(), null, true, LookupType.Connect, lookup.getRequestId(), false));
         }
 
         @Override
@@ -188,7 +183,8 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(
+                    Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
         }
 
         @Override
@@ -255,9 +251,8 @@ public class MockBrokerService {
             }
 
             // default
-            ctx.writeAndFlush(
-                    Commands.newGetOrCreateSchemaResponse(commandGetOrCreateSchema.getRequestId(),
-                            SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponse(
+                    commandGetOrCreateSchema.getRequestId(), SchemaVersion.Empty));
         }
 
         @Override
@@ -267,14 +262,13 @@ public class MockBrokerService {
         }
 
         @Override
-        final protected void handlePing(CommandPing ping) {
+        protected final void handlePing(CommandPing ping) {
             // Immediately reply success to ping requests
             ctx.writeAndFlush(Commands.newPong());
         }
 
         @Override
-        final protected void handlePong(CommandPong pong) {
-        }
+        protected final void handlePong(CommandPong pong) {}
     }
 
     private final Server server;
@@ -307,8 +301,7 @@ public class MockBrokerService {
             startMockBrokerService();
             log.info("Started mock Pulsar service on {}", getBrokerAddress());
 
-            lookupData = new LookupData(getBrokerAddress(), null,
-                    getHttpAddress(), null);
+            lookupData = new LookupData(getBrokerAddress(), null, getHttpAddress(), null);
         } catch (Exception e) {
             log.error("Error starting mock service", e);
         }
@@ -324,7 +317,8 @@ public class MockBrokerService {
     }
 
     public void startMockBrokerService() throws Exception {
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("mock-pulsar-%s").build();
+        ThreadFactory threadFactory =
+                new ThreadFactoryBuilder().setNameFormat("mock-pulsar-%s").build();
         final int numThreads = 2;
 
         final int MaxMessageSize = 5 * 1024 * 1024;

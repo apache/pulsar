@@ -89,12 +89,12 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     @DataProvider(name = "ackReceiptEnabledWithMaxMessageSize")
     public Object[][] ackReceiptEnabledWithMaxMessageSize() {
-        return new Object[][] { { true, true }, { true, false }, { false, true }, { false, false } };
+        return new Object[][] {{true, true}, {true, false}, {false, true}, {false, false}};
     }
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test
@@ -103,7 +103,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
         // batching and chunking can't be enabled together
         try {
-            Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(true).create();
+            Producer<byte[]> producer =
+                    producerBuilder.enableChunking(true).enableBatching(true).create();
             fail("producer creation should have fail");
         } catch (IllegalArgumentException ie) {
             // Ok
@@ -122,19 +123,27 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
                 .isAckReceiptEnabled(ackReceiptEnabled)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
         if (clientSizeMaxMessageSize) {
             producerBuilder.chunkMaxMessageSize(35);
         }
 
-        Producer<byte[]> producer = producerBuilder.compressionType(CompressionType.LZ4).enableChunking(true)
-                .enableBatching(false).create();
+        Producer<byte[]> producer = producerBuilder
+                .compressionType(CompressionType.LZ4)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
         List<String> publishedMessages = new ArrayList<>();
         for (int i = 0; i < totalMessages; i++) {
@@ -157,20 +166,25 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         pulsar.getBrokerService().updateRates();
 
-        PublisherStats producerStats = topic.getStats(false, false, false).getPublishers().get(0);
+        PublisherStats producerStats =
+                topic.getStats(false, false, false).getPublishers().get(0);
 
         assertTrue(producerStats.getChunkedMessageRate() > 0);
 
-        ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
+        ManagedCursorImpl mcursor = (ManagedCursorImpl)
+                topic.getManagedLedger().getCursors().iterator().next();
         PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
 
         for (MessageId msgId : msgIds) {
             consumer.acknowledge(msgId);
         }
 
-        retryStrategically((test) -> {
-            return mcursor.getMarkDeletedPosition().getNext().equals(readPosition);
-        }, 5, 200);
+        retryStrategically(
+                (test) -> {
+                    return mcursor.getMarkDeletedPosition().getNext().equals(readPosition);
+                },
+                5,
+                200);
 
         assertEquals(readPosition, mcursor.getMarkDeletedPosition().getNext());
 
@@ -179,7 +193,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         log.info("-- Exiting {} test --", methodName);
-
     }
 
     @Test
@@ -189,12 +202,20 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/testChunkingWithOrderingKey";
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableChunking(true)
-                .enableBatching(false).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
 
         byte[] data = RandomUtils.nextBytes(200);
         byte[] ok = RandomUtils.nextBytes(50);
@@ -213,18 +234,28 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-subscriber-name").acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .isAckReceiptEnabled(ackReceiptEnabled)
-                .ackTimeout(5, TimeUnit.SECONDS).subscribe();
+                .ackTimeout(5, TimeUnit.SECONDS)
+                .subscribe();
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .create();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
 
-        Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(false).create();
+        Producer<byte[]> producer =
+                producerBuilder.enableChunking(true).enableBatching(false).create();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
         List<String> publishedMessages = new ArrayList<>();
         for (int i = 0; i < totalMessages; i++) {
@@ -252,7 +283,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
 
-        retryStrategically((test) -> consumer.getUnAckedMessageTracker().messageIdPartitionMap.isEmpty(), 10,
+        retryStrategically(
+                (test) -> consumer.getUnAckedMessageTracker()
+                        .messageIdPartitionMap
+                        .isEmpty(),
+                10,
                 TimeUnit.SECONDS.toMillis(1));
 
         msg = null;
@@ -267,14 +302,18 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
 
-        ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
+        ManagedCursorImpl mcursor = (ManagedCursorImpl)
+                topic.getManagedLedger().getCursors().iterator().next();
         PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
 
         consumer.acknowledgeCumulative(lastMsgId);
 
-        retryStrategically((test) -> {
-            return mcursor.getMarkDeletedPosition().getNext().equals(readPosition);
-        }, 5, 200);
+        retryStrategically(
+                (test) -> {
+                    return mcursor.getMarkDeletedPosition().getNext().equals(readPosition);
+                },
+                5,
+                200);
 
         assertEquals(readPosition, mcursor.getMarkDeletedPosition().getNext());
 
@@ -282,7 +321,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
         reader.close();
         log.info("-- Exiting {} test --", methodName);
-
     }
 
     @Test
@@ -293,8 +331,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
 
-        Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(false)
-                .create();
+        Producer<byte[]> producer =
+                producerBuilder.enableChunking(true).enableBatching(false).create();
 
         stopBroker();
 
@@ -309,10 +347,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     private void sendSingleChunk(Producer<String> producer, String uuid, int chunkId, int totalChunks)
             throws PulsarClientException {
-        TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
-                .value(String.format("chunk-%s-%d|", uuid, chunkId));
+        TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>)
+                producer.newMessage().value(String.format("chunk-%s-%d|", uuid, chunkId));
         MessageMetadata msgMetadata = msg.getMetadataBuilder();
-        msgMetadata.setUuid(uuid)
+        msgMetadata
+                .setUuid(uuid)
                 .setChunkId(chunkId)
                 .setNumChunksFromMsg(totalChunks)
                 .setTotalChunkMsgSize(100);
@@ -325,14 +364,16 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/maxPending";
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("my-subscriber-name")
                 .maxPendingChunkedMessage(1)
                 .autoAckOldestChunkedMessageOnQueueFull(true)
                 .subscribe();
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topicName)
                 .chunkMaxMessageSize(100)
                 .enableChunking(true)
@@ -371,7 +412,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
 
         try {
-            Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(true).create();
+            Producer<byte[]> producer =
+                    producerBuilder.enableChunking(true).enableBatching(true).create();
             fail("it should have failied because chunking can't be used with batching enabled");
         } catch (IllegalArgumentException ie) {
             // Ok
@@ -381,39 +423,56 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testExpireIncompleteChunkMessage() throws Exception{
+    public void testExpireIncompleteChunkMessage() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/expireMsg";
 
         // 1. producer connect
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .sendTimeout(10, TimeUnit.MINUTES)
-            .create();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .sendTimeout(10, TimeUnit.MINUTES)
+                .create();
         Field producerIdField = ProducerImpl.class.getDeclaredField("producerId");
         producerIdField.setAccessible(true);
         long producerId = (long) producerIdField.get(producer);
         producer.cnx().registerProducer(producerId, producer); // registered spy ProducerImpl
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-sub").subscribe();
-        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
-                .startMessageId(MessageId.earliest).create();
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe();
+        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient
+                .newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .create();
 
-        TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
+        TypedMessageBuilderImpl<byte[]> msg =
+                (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
         MessageMetadata msgMetadata = msg.getMetadataBuilder();
-        msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L)
-                .setUuid("123").setNumChunksFromMsg(2).setChunkId(0).setTotalChunkMsgSize(100);
+        msgMetadata
+                .setProducerName("test")
+                .setSequenceId(1)
+                .setPublishTime(10L)
+                .setUuid("123")
+                .setNumChunksFromMsg(2)
+                .setChunkId(0)
+                .setTotalChunkMsgSize(100);
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         MessageImpl msgImpl = ((MessageImpl<byte[]>) msg.getMessage());
         msgImpl.setSchemaState(SchemaState.Ready);
         OpSendMsg op = OpSendMsg.create(msgImpl, cmd, 1, null);
         producer.processOpSendMsg(op);
 
-        retryStrategically((test) -> {
-            return reader.getConsumer().chunkedMessagesMap.size() > 0 && consumer.chunkedMessagesMap.size() > 0;
-        }, 5, 500);
+        retryStrategically(
+                (test) -> {
+                    return reader.getConsumer().chunkedMessagesMap.size() > 0 && consumer.chunkedMessagesMap.size() > 0;
+                },
+                5,
+                500);
         assertEquals(consumer.chunkedMessagesMap.size(), 1);
         assertEquals(reader.getConsumer().chunkedMessagesMap.size(), 1);
 
@@ -443,7 +502,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final int maxPendingMessages = 10;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .maxPendingMessages(maxPendingMessages)
                 .enableChunking(true)
@@ -478,18 +538,18 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
 
-        Producer<byte[]> producer = producerBuilder
-                .enableChunking(true)
-                .enableBatching(false)
-                .create();
+        Producer<byte[]> producer =
+                producerBuilder.enableChunking(true).enableBatching(false).create();
 
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName("inclusive-seek")
                 .startMessageIdInclusive()
                 .subscribe();
 
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName("default-seek")
                 .subscribe();
@@ -520,7 +580,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(topicName)
                 .startMessageIdInclusive()
                 .startMessageId(msgIds.get(1))
@@ -540,10 +601,14 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     public void testReaderChunkingConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = "persistent://my-property/my-ns/my-topic1";
-        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
-                .startMessageId(MessageId.earliest).maxPendingChunkedMessage(12)
+        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient
+                .newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .maxPendingChunkedMessage(12)
                 .autoAckOldestChunkedMessageOnQueueFull(true)
-                .expireTimeOfIncompleteChunkedMessage(12, TimeUnit.MILLISECONDS).create();
+                .expireTimeOfIncompleteChunkedMessage(12, TimeUnit.MILLISECONDS)
+                .create();
         ConsumerImpl<byte[]> consumer = reader.getConsumer();
         assertEquals(consumer.conf.getMaxPendingChunkedMessage(), 12);
         assertTrue(consumer.conf.isAutoAckOldestChunkedMessageOnQueueFull());
@@ -553,10 +618,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     @Test
     public void testChunkSize() throws Exception {
         final int maxMessageSize = 50;
-        final int payloadChunkSize = maxMessageSize - 32/* the default message metadata size for string schema */;
+        final int payloadChunkSize = maxMessageSize - 32 /* the default message metadata size for string schema */;
         this.conf.setMaxMessageSize(maxMessageSize);
 
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        final Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("my-property/my-ns/test-chunk-size")
                 .enableChunking(true)
                 .enableBatching(false)
@@ -577,7 +643,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         this.conf.setMaxMessageSize(50);
 
         @Cleanup
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        final Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("my-property/my-ns/test-chunk-size")
                 .enableChunking(true)
                 .enableBatching(false)
@@ -629,5 +696,4 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
         return str.toString();
     }
-
 }

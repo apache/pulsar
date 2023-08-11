@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
-
 @Slf4j
 public class BrokerIsolationPoliciesFilter implements BrokerFilter {
 
@@ -44,10 +43,10 @@ public class BrokerIsolationPoliciesFilter implements BrokerFilter {
     }
 
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> availableBrokers,
-                                                                        ServiceUnitId serviceUnit,
-                                                                        LoadManagerContext context) {
-        return isolationPoliciesHelper.applyIsolationPoliciesAsync(availableBrokers, serviceUnit)
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(
+            Map<String, BrokerLookupData> availableBrokers, ServiceUnitId serviceUnit, LoadManagerContext context) {
+        return isolationPoliciesHelper
+                .applyIsolationPoliciesAsync(availableBrokers, serviceUnit)
                 .thenApply(brokerCandidateCache -> {
                     availableBrokers.keySet().retainAll(brokerCandidateCache);
                     return availableBrokers;

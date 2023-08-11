@@ -94,7 +94,6 @@ public class WindowFunctionExecutorTest {
         }
     }
 
-
     private TestWindowFunctionExecutor testWindowedPulsarFunction;
     private Context context;
     private WindowConfig windowConfig;
@@ -119,7 +118,8 @@ public class WindowFunctionExecutorTest {
         // trigger manually to avoid timing issues
         windowConfig.setWatermarkEmitIntervalMs(100000L);
         windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+                .when(context)
                 .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
@@ -134,7 +134,8 @@ public class WindowFunctionExecutorTest {
     @Test
     public void testWindowFunctionWithAtmostOnce() throws Exception {
         windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATMOST_ONCE);
-        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+                .when(context)
                 .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
         Record record = mock(Record.class);
         when(context.getCurrentRecord()).thenReturn(record);
@@ -171,12 +172,14 @@ public class WindowFunctionExecutorTest {
             verify(tuple.get(), times(1)).ack();
         }
     }
+
     @Test(expectedExceptions = RuntimeException.class)
     public void testExecuteWithWrongWrongTimestampExtractorType() throws Exception {
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setTimestampExtractorClassName(TestWrongTimestampExtractor.class.getName());
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+                .when(context)
+                .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         testWindowedPulsarFunction.process(10L, context);
     }
@@ -186,7 +189,8 @@ public class WindowFunctionExecutorTest {
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setActualWindowFunctionClassName(TestWrongFunction.class.getName());
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+                .when(context)
+                .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         testWindowedPulsarFunction.process(10L, context);
     }
@@ -204,20 +208,24 @@ public class WindowFunctionExecutorTest {
         testWindowedPulsarFunction.waterMarkEventGenerator.run();
         assertEquals(3, testWindowedPulsarFunction.windows.size());
         Window<Record<Long>> first = testWindowedPulsarFunction.windows.get(0);
-        assertArrayEquals(
-                new long[]{603, 605, 607},
-                new long[]{first.get().get(0).getValue(), first.get().get(1).getValue(),
-                        first.get().get(2).getValue()});
+        assertArrayEquals(new long[] {603, 605, 607}, new long[] {
+            first.get().get(0).getValue(),
+            first.get().get(1).getValue(),
+            first.get().get(2).getValue()
+        });
 
         Window<Record<Long>> second = testWindowedPulsarFunction.windows.get(1);
-        assertArrayEquals(
-                new long[]{603, 605, 607, 618},
-                new long[]{second.get().get(0).getValue(), second.get().get(1).getValue(),
-                        second.get().get(2).getValue(), second.get().get(3).getValue()});
+        assertArrayEquals(new long[] {603, 605, 607, 618}, new long[] {
+            second.get().get(0).getValue(),
+            second.get().get(1).getValue(),
+            second.get().get(2).getValue(),
+            second.get().get(3).getValue()
+        });
 
         Window<Record<Long>> third = testWindowedPulsarFunction.windows.get(2);
-        assertArrayEquals(new long[]{618, 626},
-                new long[]{third.get().get(0).getValue(), third.get().get(1).getValue()});
+        assertArrayEquals(
+                new long[] {618, 626},
+                new long[] {third.get().get(0).getValue(), third.get().get(1).getValue()});
     }
 
     @Test
@@ -236,14 +244,16 @@ public class WindowFunctionExecutorTest {
         windowConfig.setWatermarkEmitIntervalMs(10L);
         windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+                .when(context)
+                .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         try {
             testWindowedPulsarFunction.process(10L, context);
             fail();
         } catch (IllegalArgumentException e) {
-            assertEquals(e.getMessage(), "Late data topic can be defined only when specifying a "
-                    + "timestamp extractor class");
+            assertEquals(
+                    e.getMessage(),
+                    "Late data topic can be defined only when specifying a " + "timestamp extractor class");
         }
     }
 
@@ -252,7 +262,8 @@ public class WindowFunctionExecutorTest {
 
         windowConfig.setLateDataTopic("$late");
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
-                .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+                .when(context)
+                .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
         TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
         when(typedMessageBuilder.value(any())).thenReturn(typedMessageBuilder);
         when(typedMessageBuilder.sendAsync()).thenReturn(CompletableFuture.anyOf());
@@ -269,7 +280,7 @@ public class WindowFunctionExecutorTest {
             doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
 
-            //Update the watermark to this timestamp
+            // Update the watermark to this timestamp
             testWindowedPulsarFunction.waterMarkEventGenerator.run();
         }
         System.out.println(testWindowedPulsarFunction.windows);

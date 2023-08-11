@@ -41,10 +41,15 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     private final Subscription subscription;
     private final RedeliveryTracker redeliveryTracker;
 
-    public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-                                                       NonPersistentTopic topic, Subscription subscription) {
-        super(subscriptionType, partitionIndex, topic.getName(), subscription,
-                topic.getBrokerService().pulsar().getConfiguration(), null);
+    public NonPersistentDispatcherSingleActiveConsumer(
+            SubType subscriptionType, int partitionIndex, NonPersistentTopic topic, Subscription subscription) {
+        super(
+                subscriptionType,
+                partitionIndex,
+                topic.getName(),
+                subscription,
+                topic.getBrokerService().pulsar().getConfiguration(),
+                null);
         this.topic = topic;
         this.subscription = subscription;
         this.msgDrop = new Rate();
@@ -58,8 +63,14 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, currentConsumer);
-            currentConsumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+            currentConsumer.sendMessages(
+                    entries,
+                    batchSizes,
+                    null,
+                    sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(),
+                    getRedeliveryTracker());
         } else {
             entries.forEach(entry -> {
                 int totalMsgs = Commands.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription.toString(), -1);
@@ -83,7 +94,8 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
 
     @Override
     public boolean hasPermits() {
-        return ACTIVE_CONSUMER_UPDATER.get(this) != null && ACTIVE_CONSUMER_UPDATER.get(this).getAvailablePermits() > 0;
+        return ACTIVE_CONSUMER_UPDATER.get(this) != null
+                && ACTIVE_CONSUMER_UPDATER.get(this).getAvailablePermits() > 0;
     }
 
     @Override

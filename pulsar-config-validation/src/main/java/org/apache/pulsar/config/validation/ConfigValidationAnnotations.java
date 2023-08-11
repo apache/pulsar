@@ -91,7 +91,6 @@ public class ConfigValidationAnnotations {
         Class<?>[] entryValidatorClasses();
     }
 
-
     /**
      * Validates the type of each key and value in a map Validator with
      * fields: validatorClass, keyValidatorClass, valueValidatorClass.

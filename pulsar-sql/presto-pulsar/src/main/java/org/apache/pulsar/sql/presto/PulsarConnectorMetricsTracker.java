@@ -28,7 +28,7 @@ import org.apache.bookkeeper.stats.StatsProvider;
 /**
  * This class helps to track metrics related to the connector.
  */
-public class PulsarConnectorMetricsTracker implements AutoCloseable{
+public class PulsarConnectorMetricsTracker implements AutoCloseable {
 
     private final StatsLogger statsLogger;
 
@@ -135,8 +135,7 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     private long recordDeserializeTimeSum = 0L;
 
     public PulsarConnectorMetricsTracker(StatsProvider statsProvider) {
-        this.statsLogger = statsProvider instanceof NullStatsProvider
-                ? null : statsProvider.getStatsLogger(SCOPE);
+        this.statsLogger = statsProvider instanceof NullStatsProvider ? null : statsProvider.getStatsLogger(SCOPE);
 
         if (this.statsLogger != null) {
             statsLoggerEntryQueueDequeueWaitTime = statsLogger.getOpStatsLogger(ENTRY_QUEUE_DEQUEUE_WAIT_TIME);
@@ -144,8 +143,8 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
             statsLoggerEntryDeserializeTime = statsLogger.getOpStatsLogger(ENTRY_DESERIALIZE_TIME);
             statsLoggerMessageQueueEnqueueWaitTime = statsLogger.getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME);
             statsLoggerNumMessagesDeserialized = statsLogger.getCounter(NUM_MESSAGES_DERSERIALIZED);
-            statsLoggerNumMessagesDeserializedPerEntry = statsLogger
-                .getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_ENTRY);
+            statsLoggerNumMessagesDeserializedPerEntry =
+                    statsLogger.getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_ENTRY);
             statsLoggerReadAttempts = statsLogger.getOpStatsLogger(READ_ATTEMPTS);
             statsLoggerReadLatencyPerBatch = statsLogger.getOpStatsLogger(READ_LATENCY_PER_BATCH);
             statsLoggerNumEntriesPerBatch = statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_BATCH);
@@ -309,47 +308,51 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     public void close() {
         if (statsLogger != null) {
             // register total entry dequeue wait time for query
-            statsLogger.getOpStatsLogger(ENTRY_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(ENTRY_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
                     .registerSuccessfulEvent(entryQueueDequeueWaitTimeSum, TimeUnit.NANOSECONDS);
 
-            //register bytes read per query
-            statsLogger.getOpStatsLogger(BYTES_READ_PER_QUERY)
-                    .registerSuccessfulValue(bytesReadSum);
+            // register bytes read per query
+            statsLogger.getOpStatsLogger(BYTES_READ_PER_QUERY).registerSuccessfulValue(bytesReadSum);
 
             // register total time spent deserializing entries for query
-            statsLogger.getOpStatsLogger(ENTRY_DESERIALIZE_TIME_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(ENTRY_DESERIALIZE_TIME_PER_QUERY)
                     .registerSuccessfulEvent(entryDeserializeTimeSum, TimeUnit.NANOSECONDS);
 
             // register time spent waiting for message queue enqueue because message queue is full per query
-            statsLogger.getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_PER_QUERY)
                     .registerSuccessfulEvent(messageQueueEnqueueWaitTimeSum, TimeUnit.NANOSECONDS);
 
             // register number of messages deserialized per query
-            statsLogger.getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_QUERY)
                     .registerSuccessfulValue(numMessagesDerserializedSum);
 
             // register number of read attempts per query
-            statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY)
-                    .registerSuccessfulValue(readAttemptsSuccessSum);
-            statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY)
-                    .registerFailedValue(readAttemptsFailSum);
+            statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY).registerSuccessfulValue(readAttemptsSuccessSum);
+            statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY).registerFailedValue(readAttemptsFailSum);
 
             // register total read latency for query
-            statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(READ_LATENCY_PER_QUERY)
                     .registerSuccessfulEvent(readLatencySuccessSum, TimeUnit.NANOSECONDS);
-            statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(READ_LATENCY_PER_QUERY)
                     .registerFailedEvent(readLatencyFailSum, TimeUnit.NANOSECONDS);
 
             // register number of entries per query
-            statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_QUERY)
-                    .registerSuccessfulValue(numEntriesPerBatchSum);
+            statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_QUERY).registerSuccessfulValue(numEntriesPerBatchSum);
 
             // register time spent waiting to read for message queue per query
-            statsLogger.getOpStatsLogger(MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
                     .registerSuccessfulEvent(messageQueueDequeueWaitTimeSum, TimeUnit.MILLISECONDS);
 
             // register time spent deserializing records per query
-            statsLogger.getOpStatsLogger(RECORD_DESERIALIZE_TIME_PER_QUERY)
+            statsLogger
+                    .getOpStatsLogger(RECORD_DESERIALIZE_TIME_PER_QUERY)
                     .registerSuccessfulEvent(recordDeserializeTimeSum, TimeUnit.NANOSECONDS);
         }
     }

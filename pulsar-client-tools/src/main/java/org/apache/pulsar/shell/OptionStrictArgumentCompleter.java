@@ -64,7 +64,6 @@ public class OptionStrictArgumentCompleter implements Completer {
             completer = completers.get(line.wordIndex());
         }
 
-
         // ensure that all the previous completers are successful
         // before allowing this completer to pass (only if strict).
         for (int i = 0; i < line.wordIndex(); i++) {
@@ -91,7 +90,6 @@ public class OptionStrictArgumentCompleter implements Completer {
                 sub.complete(reader, new ArgumentCompleter.ArgumentLine(arg, arg.length()), subCandidates);
             }
 
-
             boolean found = false;
             for (Candidate cand : subCandidates) {
                 if (cand.value().equals(arg)) {
@@ -105,5 +103,4 @@ public class OptionStrictArgumentCompleter implements Completer {
         }
         completer.complete(reader, line, candidates);
     }
-
 }

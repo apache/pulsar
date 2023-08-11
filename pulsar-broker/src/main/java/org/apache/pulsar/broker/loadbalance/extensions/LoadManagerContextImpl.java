@@ -37,7 +37,6 @@ public class LoadManagerContextImpl implements LoadManagerContext {
 
     private ServiceConfiguration configuration;
 
-
     @Override
     public ServiceConfiguration brokerConfiguration() {
         return this.configuration;

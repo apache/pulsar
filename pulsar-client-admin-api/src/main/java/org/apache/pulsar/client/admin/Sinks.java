@@ -200,8 +200,7 @@ public interface Sinks {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions)
-            throws PulsarAdminException;
+    void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
      * Update the configuration for a sink asynchronously.
@@ -212,8 +211,7 @@ public interface Sinks {
      * @param updateOptions
      *            options for the update operations
      */
-    CompletableFuture<Void> updateSinkAsync(SinkConfig sinkConfig, String fileName,
-                                            UpdateOptions updateOptions);
+    CompletableFuture<Void> updateSinkAsync(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions);
 
     /**
      * Update the configuration for a sink.
@@ -290,8 +288,7 @@ public interface Sinks {
      * @param updateOptions
      *            options for the update operations
      */
-    CompletableFuture<Void> updateSinkWithUrlAsync(SinkConfig sinkConfig, String pkgUrl,
-                                                   UpdateOptions updateOptions);
+    CompletableFuture<Void> updateSinkWithUrlAsync(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions);
 
     /**
      * Delete an existing sink.
@@ -372,8 +369,7 @@ public interface Sinks {
      * @throws PulsarAdminException
      */
     SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(
-            String tenant, String namespace, String sink, int id)
-            throws PulsarAdminException;
+            String tenant, String namespace, String sink, int id) throws PulsarAdminException;
 
     /**
      * Gets the current status of a sink instance asynchronously.

@@ -31,32 +31,43 @@ public class PulsarResources {
 
     @Getter
     private final TenantResources tenantResources;
+
     @Getter
     private final ClusterResources clusterResources;
+
     @Getter
     private final ResourceGroupResources resourcegroupResources;
+
     @Getter
     private final NamespaceResources namespaceResources;
+
     @Getter
     private final DynamicConfigurationResources dynamicConfigResources;
+
     @Getter
     private final LocalPoliciesResources localPolicies;
+
     @Getter
     private final LoadManagerReportResources loadReportResources;
+
     @Getter
     private final BookieResources bookieResources;
+
     @Getter
     private final TopicResources topicResources;
+
     @Getter
     private final Optional<MetadataStore> localMetadataStore;
+
     @Getter
     private final Optional<MetadataStore> configurationMetadataStore;
 
     public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
         this(localMetadataStore, configurationMetadataStore, DEFAULT_OPERATION_TIMEOUT_SEC);
     }
-    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
-            int operationTimeoutSec) {
+
+    public PulsarResources(
+            MetadataStore localMetadataStore, MetadataStore configurationMetadataStore, int operationTimeoutSec) {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
@@ -65,7 +76,7 @@ public class PulsarResources {
         } else {
             tenantResources = null;
             clusterResources = null;
-            namespaceResources  = null;
+            namespaceResources = null;
             resourcegroupResources = null;
         }
 
@@ -87,19 +98,25 @@ public class PulsarResources {
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);
     }
 
-    public static MetadataStoreExtended createLocalMetadataStore(String serverUrls, int sessionTimeoutMs,
-                                                                 boolean allowReadOnlyOperations)
-            throws MetadataStoreException {
-        return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(allowReadOnlyOperations)
-                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
+    public static MetadataStoreExtended createLocalMetadataStore(
+            String serverUrls, int sessionTimeoutMs, boolean allowReadOnlyOperations) throws MetadataStoreException {
+        return MetadataStoreExtended.create(
+                serverUrls,
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(sessionTimeoutMs)
+                        .allowReadOnlyOperations(allowReadOnlyOperations)
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .build());
     }
 
-    public static MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs,
-                                                                  boolean allowReadOnlyOperations)
-            throws MetadataStoreException {
-        return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(allowReadOnlyOperations)
-                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
+    public static MetadataStoreExtended createConfigMetadataStore(
+            String serverUrls, int sessionTimeoutMs, boolean allowReadOnlyOperations) throws MetadataStoreException {
+        return MetadataStoreExtended.create(
+                serverUrls,
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(sessionTimeoutMs)
+                        .allowReadOnlyOperations(allowReadOnlyOperations)
+                        .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                        .build());
     }
 }

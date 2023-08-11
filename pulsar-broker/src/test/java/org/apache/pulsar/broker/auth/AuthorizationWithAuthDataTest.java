@@ -65,12 +65,12 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String ADMIN_ROLE = "admin";
-    private static final String ADMIN_TOKEN = Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
+    private static final String ADMIN_TOKEN =
+            Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
 
     public static class MyAuthorizationProvider implements AuthorizationProvider {
 
-        public MyAuthorizationProvider() {
-        }
+        public MyAuthorizationProvider() {}
 
         private void assertRoleAndAuthenticationData(String role, AuthenticationDataSource authenticationData) {
             assertEquals(role, ADMIN_ROLE);
@@ -83,125 +83,127 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
         }
 
         @Override
-        public CompletableFuture<Boolean> isSuperUser(String role, AuthenticationDataSource authenticationData,
-                                                      ServiceConfiguration serviceConfiguration) {
+        public CompletableFuture<Boolean> isSuperUser(
+                String role, AuthenticationDataSource authenticationData, ServiceConfiguration serviceConfiguration) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
-                                                        AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> isTenantAdmin(
+                String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-                                                          AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> canProduceAsync(
+                TopicName topicName, String role, AuthenticationDataSource authenticationData) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                          AuthenticationDataSource authenticationData,
-                                                          String subscription) {
+        public CompletableFuture<Boolean> canConsumeAsync(
+                TopicName topicName, String role, AuthenticationDataSource authenticationData, String subscription) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-                                                         AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> canLookupAsync(
+                TopicName topicName, String role, AuthenticationDataSource authenticationData) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
-                                                                AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowFunctionOpsAsync(
+                NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
-                                                              AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSourceOpsAsync(
+                NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
-                                                            AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSinkOpsAsync(
+                NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions,
-                                                            String role, String authDataJson) {
+        public CompletableFuture<Void> grantPermissionAsync(
+                NamespaceName namespace, Set<AuthAction> actions, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                        String subscriptionName, Set<String> roles,
-                                                                        String authDataJson) {
+        public CompletableFuture<Void> grantSubscriptionPermissionAsync(
+                NamespaceName namespace, String subscriptionName, Set<String> roles, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                         String subscriptionName, String role,
-                                                                         String authDataJson) {
+        public CompletableFuture<Void> revokeSubscriptionPermissionAsync(
+                NamespaceName namespace, String subscriptionName, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
-                                                            String authDataJson) {
+        public CompletableFuture<Void> grantPermissionAsync(
+                TopicName topicName, Set<AuthAction> actions, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String role,
-                                                                    TenantOperation operation,
-                                                                    AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowTenantOperationAsync(
+                String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
             assertRoleAndAuthenticationData(role, authData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String role,
-                                                                       NamespaceOperation operation,
-                                                                       AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowNamespaceOperationAsync(
+                NamespaceName namespaceName,
+                String role,
+                NamespaceOperation operation,
+                AuthenticationDataSource authData) {
             assertRoleAndAuthenticationData(role, authData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
-                                                                             PolicyName policy,
-                                                                             PolicyOperation operation, String role,
-                                                                             AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(
+                NamespaceName namespaceName,
+                PolicyName policy,
+                PolicyOperation operation,
+                String role,
+                AuthenticationDataSource authData) {
             assertRoleAndAuthenticationData(role, authData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String role,
-                                                                   TopicOperation operation,
-                                                                   AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowTopicOperationAsync(
+                TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
             assertRoleAndAuthenticationData(role, authData);
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic, String role,
-                                                                         PolicyName policy, PolicyOperation operation,
-                                                                         AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(
+                TopicName topic,
+                String role,
+                PolicyName policy,
+                PolicyOperation operation,
+                AuthenticationDataSource authData) {
             assertRoleAndAuthenticationData(role, authData);
             return CompletableFuture.completedFuture(true);
         }
@@ -216,8 +218,10 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
     protected void doInitConf() throws Exception {
         super.doInitConf();
         conf.setAuthenticationEnabled(true);
-        conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
-                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+        conf.getProperties()
+                .setProperty(
+                        "tokenSecretKey",
+                        "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -261,11 +265,15 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAdmin() throws PulsarAdminException {
-        admin.tenants().createTenant("test-tenant-1",
-                TenantInfo.builder().allowedClusters(Set.of(configClusterName)).build());
+        admin.tenants()
+                .createTenant(
+                        "test-tenant-1",
+                        TenantInfo.builder()
+                                .allowedClusters(Set.of(configClusterName))
+                                .build());
         admin.namespaces().createNamespace("test-tenant-1/test-namespace-1");
         String partitionedTopic = UUID.randomUUID().toString();
-        admin.topics().createPartitionedTopic(partitionedTopic,3);
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
         String nonPartitionedTopic = UUID.randomUUID().toString();
         admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
         admin.lookups().lookupPartitionedTopic(partitionedTopic);
@@ -282,9 +290,12 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
         producer.send(msg);
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test").subscribe();
+                .subscriptionName("test")
+                .subscribe();
         Message<byte[]> receive = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(receive);
         assertEquals(receive.getData(), msg);

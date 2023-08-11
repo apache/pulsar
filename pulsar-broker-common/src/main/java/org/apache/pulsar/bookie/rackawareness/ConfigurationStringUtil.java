@@ -43,5 +43,4 @@ public class ConfigurationStringUtil {
             return obj.toString();
         }
     }
-
 }

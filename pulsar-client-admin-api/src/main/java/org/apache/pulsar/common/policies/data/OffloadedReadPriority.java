@@ -61,8 +61,8 @@ public enum OffloadedReadPriority {
 
         throw new IllegalArgumentException("--offloadedReadPriority parameter must be one of "
                 + Arrays.stream(OffloadedReadPriority.values())
-                .map(OffloadedReadPriority::toString)
-                .collect(Collectors.joining(","))
+                        .map(OffloadedReadPriority::toString)
+                        .collect(Collectors.joining(","))
                 + " but got: " + str);
     }
 

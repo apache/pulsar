@@ -53,8 +53,12 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     private final Supplier<Boolean> isLeader;
 
     public ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader) {
-        this(workerId, leaderService, isLeader, Executors.newSingleThreadScheduledExecutor(
-                new ExecutorProvider.ExtendedThreadFactory("cluster-service-coordinator-timer")));
+        this(
+                workerId,
+                leaderService,
+                isLeader,
+                Executors.newSingleThreadScheduledExecutor(
+                        new ExecutorProvider.ExtendedThreadFactory("cluster-service-coordinator-timer")));
     }
 
     @VisibleForTesting
@@ -62,8 +66,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
             String workerId,
             LeaderService leaderService,
             Supplier<Boolean> isLeader,
-            ScheduledExecutorService executor
-    ) {
+            ScheduledExecutorService executor) {
         this.workerId = workerId;
         this.leaderService = leaderService;
         this.isLeader = isLeader;
@@ -79,15 +82,19 @@ public class ClusterServiceCoordinator implements AutoCloseable {
         for (Map.Entry<String, TimerTaskInfo> entry : this.tasks.entrySet()) {
             TimerTaskInfo timerTaskInfo = entry.getValue();
             String taskName = entry.getKey();
-            this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
-                if (isLeader.get()) {
-                    try {
-                        timerTaskInfo.getTask().run();
-                    } catch (Exception e) {
-                        log.error("Cluster timer task {} failed with exception.", taskName, e);
-                    }
-                }
-            }), timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
+            this.executor.scheduleAtFixedRate(
+                    catchingAndLoggingThrowables(() -> {
+                        if (isLeader.get()) {
+                            try {
+                                timerTaskInfo.getTask().run();
+                            } catch (Exception e) {
+                                log.error("Cluster timer task {} failed with exception.", taskName, e);
+                            }
+                        }
+                    }),
+                    timerTaskInfo.getInterval(),
+                    timerTaskInfo.getInterval(),
+                    TimeUnit.MILLISECONDS);
         }
     }
 

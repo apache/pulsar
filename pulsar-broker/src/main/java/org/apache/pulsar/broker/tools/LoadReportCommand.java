@@ -50,28 +50,24 @@ public class LoadReportCommand extends CliCommand<CliFlags, Flags> {
     public static class Flags extends CliFlags {
 
         @Parameter(
-            names = {
-                "-i", "--interval-ms"
-            },
-            description = "Interval to collect load report, in milliseconds"
-        )
+                names = {"-i", "--interval-ms"},
+                description = "Interval to collect load report, in milliseconds")
         public int intervalMilliseconds = 100;
-
     }
 
     public LoadReportCommand() {
         super(CliSpec.<Flags>newBuilder()
-            .withName(NAME)
-            .withDescription(DESC)
-            .withFlags(new Flags())
-            .build());
+                .withName(NAME)
+                .withDescription(DESC)
+                .withFlags(new Flags())
+                .build());
     }
 
     @Override
     public Boolean apply(CliFlags globalFlags, String[] args) {
         CliSpec<Flags> newSpec = CliSpec.newBuilder(spec)
-            .withRunFunc(cmdFlags -> apply(cmdFlags))
-            .build();
+                .withRunFunc(cmdFlags -> apply(cmdFlags))
+                .build();
         return 0 == Cli.runCli(newSpec, args);
     }
 
@@ -89,18 +85,14 @@ public class LoadReportCommand extends CliCommand<CliFlags, Flags> {
         spec.console().println("--------------------------------------");
         spec.console().println();
 
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-                new ExecutorProvider.ExtendedThreadFactory("load-report"));
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("load-report"));
         BrokerHostUsage hostUsage;
         try {
             if (isLinux) {
-                hostUsage = new LinuxBrokerHostUsageImpl(
-                    Integer.MAX_VALUE, Optional.empty(), scheduler
-                );
+                hostUsage = new LinuxBrokerHostUsageImpl(Integer.MAX_VALUE, Optional.empty(), scheduler);
             } else {
-                hostUsage = new GenericBrokerHostUsageImpl(
-                    Integer.MAX_VALUE, scheduler
-                );
+                hostUsage = new GenericBrokerHostUsageImpl(Integer.MAX_VALUE, scheduler);
             }
 
             hostUsage.calculateBrokerHostUsage();

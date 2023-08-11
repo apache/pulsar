@@ -65,5 +65,4 @@ public class AuthenticationMetrics {
     public static void authenticateFailure(String providerName, String authMethod, Enum<?> errorCode) {
         authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
     }
-
 }

@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.stats;
 import static org.testng.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
@@ -34,8 +34,7 @@ import org.testng.annotations.Test;
 public class LedgerOffloaderMetricsTest extends BrokerTestBase {
 
     @Override
-    protected void setup() throws Exception {
-    }
+    protected void setup() throws Exception {}
 
     @Override
     protected ServiceConfiguration getDefaultConf() {
@@ -134,5 +133,4 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
             assertEquals(offloaderStats.getWriteStorageError(topicName), 6);
         }
     }
-
 }

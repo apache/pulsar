@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
+import java.math.BigInteger;
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
@@ -35,14 +41,6 @@ import org.apache.pulsar.io.kafka.connect.schema.PulsarSchemaToKafkaSchema;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.math.BigInteger;
-import java.util.List;
-import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
 /**
  * Test the conversion of PulsarSchema To KafkaSchema\.
  */
@@ -58,8 +56,7 @@ public class PulsarSchemaToKafkaSchemaTest {
             "intField",
             "longField",
             "floatField",
-            "doubleField"
-        );
+            "doubleField");
     static final List<String> COMPLEX_STRUCT_FIELDS = Lists.newArrayList(
             "stringArr",
             "stringList",
@@ -81,28 +78,34 @@ public class PulsarSchemaToKafkaSchemaTest {
             "longArr",
             "floatArr",
             "doubleArr",
-            "charArr"
-        );
+            "charArr");
 
     @Data
     @Accessors(chain = true)
     static class StructWithAnnotations {
         int field1;
+
         @Nullable
         String field2;
+
         @AvroDefault("1000")
         Long field3;
 
         @AvroDefault("0")
         byte byteField;
+
         @AvroDefault("0")
         short shortField;
+
         @AvroDefault("0")
         int intField;
+
         @AvroDefault("0")
         long longField;
+
         @AvroDefault("0")
         float floatField;
+
         @AvroDefault("0")
         double doubleField;
     }
@@ -137,10 +140,7 @@ public class PulsarSchemaToKafkaSchemaTest {
 
     @DataProvider(name = "useOptionalPrimitives")
     public static Object[][] useOptionalPrimitives() {
-        return new Object[][] {
-                {true},
-                {false}
-        };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(dataProvider = "useOptionalPrimitives")
@@ -150,8 +150,7 @@ public class PulsarSchemaToKafkaSchemaTest {
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
         assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
 
-        kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BYTEBUFFER, useOptionalPrimitives);
+        kafkaSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BYTEBUFFER, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
         assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
@@ -258,10 +257,11 @@ public class PulsarSchemaToKafkaSchemaTest {
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, true);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), STRUCT_FIELDS.size());
-        for (String name: STRUCT_FIELDS) {
+        for (String name : STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
             // set by avro schema
-            assertEquals(kafkaSchema.field(name).schema().isOptional(),
+            assertEquals(
+                    kafkaSchema.field(name).schema().isOptional(),
                     kafkaSchemaOpt.field(name).schema().isOptional());
         }
     }
@@ -275,18 +275,18 @@ public class PulsarSchemaToKafkaSchemaTest {
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, true);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), COMPLEX_STRUCT_FIELDS.size());
-        for (String name: COMPLEX_STRUCT_FIELDS) {
+        for (String name : COMPLEX_STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
             // set by avro schema
-            assertEquals(kafkaSchema.field(name).schema().isOptional(),
+            assertEquals(
+                    kafkaSchema.field(name).schema().isOptional(),
                     kafkaSchemaOpt.field(name).schema().isOptional());
         }
     }
 
     @Test
     public void jsonSchemaTest() {
-        JSONSchema<StructWithAnnotations> jsonSchema = JSONSchema
-                .of(SchemaDefinition.<StructWithAnnotations>builder()
+        JSONSchema<StructWithAnnotations> jsonSchema = JSONSchema.of(SchemaDefinition.<StructWithAnnotations>builder()
                 .withPojo(StructWithAnnotations.class)
                 .withAlwaysAllowNull(false)
                 .build());
@@ -296,41 +296,41 @@ public class PulsarSchemaToKafkaSchemaTest {
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, true);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), STRUCT_FIELDS.size());
-        for (String name: STRUCT_FIELDS) {
+        for (String name : STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
             // set by schema
-            assertEquals(kafkaSchema.field(name).schema().isOptional(),
+            assertEquals(
+                    kafkaSchema.field(name).schema().isOptional(),
                     kafkaSchemaOpt.field(name).schema().isOptional());
         }
     }
 
     @Test
     public void jsonComplexSchemaTest() {
-        JSONSchema<ComplexStruct> jsonSchema = JSONSchema
-                .of(SchemaDefinition.<ComplexStruct>builder()
-                        .withPojo(ComplexStruct.class)
-                        .withAlwaysAllowNull(false)
-                        .build());
+        JSONSchema<ComplexStruct> jsonSchema = JSONSchema.of(SchemaDefinition.<ComplexStruct>builder()
+                .withPojo(ComplexStruct.class)
+                .withAlwaysAllowNull(false)
+                .build());
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, false);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), COMPLEX_STRUCT_FIELDS.size());
-        for (String name: COMPLEX_STRUCT_FIELDS) {
+        for (String name : COMPLEX_STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
             assertFalse(kafkaSchema.field(name).schema().isOptional());
         }
 
-        kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, true);
+        kafkaSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, true);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), COMPLEX_STRUCT_FIELDS.size());
-        for (String name: COMPLEX_STRUCT_FIELDS) {
+        for (String name : COMPLEX_STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
             assertFalse(kafkaSchema.field(name).schema().isOptional());
 
             if (kafkaSchema.field(name).schema().type().isPrimitive()) {
                 // false because .withAlwaysAllowNull(false), avroschema values are used
-                assertFalse(kafkaSchema.field(name).schema().isOptional(),
+                assertFalse(
+                        kafkaSchema.field(name).schema().isOptional(),
                         kafkaSchema.field(name).schema().type().getName());
             }
         }
@@ -338,33 +338,41 @@ public class PulsarSchemaToKafkaSchemaTest {
 
     @Test
     public void castToKafkaSchemaTest() {
-        assertEquals(Byte.class,
-                KafkaConnectData.castToKafkaSchema(100L,
-                        org.apache.kafka.connect.data.Schema.INT8_SCHEMA).getClass());
+        assertEquals(
+                Byte.class,
+                KafkaConnectData.castToKafkaSchema(100L, org.apache.kafka.connect.data.Schema.INT8_SCHEMA)
+                        .getClass());
 
-        assertEquals(Short.class,
-                KafkaConnectData.castToKafkaSchema(100.0d,
-                        org.apache.kafka.connect.data.Schema.INT16_SCHEMA).getClass());
+        assertEquals(
+                Short.class,
+                KafkaConnectData.castToKafkaSchema(100.0d, org.apache.kafka.connect.data.Schema.INT16_SCHEMA)
+                        .getClass());
 
-        assertEquals(Integer.class,
-                KafkaConnectData.castToKafkaSchema((byte)5,
-                        org.apache.kafka.connect.data.Schema.INT32_SCHEMA).getClass());
+        assertEquals(
+                Integer.class,
+                KafkaConnectData.castToKafkaSchema((byte) 5, org.apache.kafka.connect.data.Schema.INT32_SCHEMA)
+                        .getClass());
 
-        assertEquals(Long.class,
-                KafkaConnectData.castToKafkaSchema((short)5,
-                        org.apache.kafka.connect.data.Schema.INT64_SCHEMA).getClass());
+        assertEquals(
+                Long.class,
+                KafkaConnectData.castToKafkaSchema((short) 5, org.apache.kafka.connect.data.Schema.INT64_SCHEMA)
+                        .getClass());
 
-        assertEquals(Float.class,
-                KafkaConnectData.castToKafkaSchema(1.0d,
-                        org.apache.kafka.connect.data.Schema.FLOAT32_SCHEMA).getClass());
+        assertEquals(
+                Float.class,
+                KafkaConnectData.castToKafkaSchema(1.0d, org.apache.kafka.connect.data.Schema.FLOAT32_SCHEMA)
+                        .getClass());
 
-        assertEquals(Double.class,
-                KafkaConnectData.castToKafkaSchema(1.5f,
-                        org.apache.kafka.connect.data.Schema.FLOAT64_SCHEMA).getClass());
+        assertEquals(
+                Double.class,
+                KafkaConnectData.castToKafkaSchema(1.5f, org.apache.kafka.connect.data.Schema.FLOAT64_SCHEMA)
+                        .getClass());
 
-        assertEquals(Double.class,
-                KafkaConnectData.castToKafkaSchema(new BigInteger("100"),
-                        org.apache.kafka.connect.data.Schema.FLOAT64_SCHEMA).getClass());
+        assertEquals(
+                Double.class,
+                KafkaConnectData.castToKafkaSchema(
+                                new BigInteger("100"), org.apache.kafka.connect.data.Schema.FLOAT64_SCHEMA)
+                        .getClass());
     }
 
     @Test
@@ -405,5 +413,4 @@ public class PulsarSchemaToKafkaSchemaTest {
     public void localDatetimeSchemaTest() {
         PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_DATE_TIME, false);
     }
-
 }

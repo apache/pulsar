@@ -42,7 +42,7 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         set(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), modifyFunction);
     }
 
-    public Optional<LocalPolicies> getLocalPolicies(NamespaceName ns) throws MetadataStoreException{
+    public Optional<LocalPolicies> getLocalPolicies(NamespaceName ns) throws MetadataStoreException {
         return get(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
@@ -50,8 +50,9 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         return getCache().get(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
-    public void setLocalPoliciesWithCreate(NamespaceName ns, Function<Optional<LocalPolicies>,
-            LocalPolicies> createFunction) throws MetadataStoreException {
+    public void setLocalPoliciesWithCreate(
+            NamespaceName ns, Function<Optional<LocalPolicies>, LocalPolicies> createFunction)
+            throws MetadataStoreException {
         setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
     }
 
@@ -63,11 +64,12 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         return getCache().getWithStats(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
-    public CompletableFuture<Void> setLocalPoliciesWithVersion(NamespaceName ns, LocalPolicies policies,
-                                                               Optional<Long> version) {
+    public CompletableFuture<Void> setLocalPoliciesWithVersion(
+            NamespaceName ns, LocalPolicies policies, Optional<Long> version) {
         try {
             byte[] content = ObjectMapperFactory.getMapper().writer().writeValueAsBytes(policies);
-            return getStore().put(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), content, version)
+            return getStore()
+                    .put(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), content, version)
                     .thenApply(__ -> null);
         } catch (JsonProcessingException e) {
             return FutureUtil.failedFuture(e);

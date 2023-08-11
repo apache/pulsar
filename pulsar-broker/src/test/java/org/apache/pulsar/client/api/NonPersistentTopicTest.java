@@ -83,13 +83,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     @DataProvider(name = "subscriptionType")
     public Object[][] getSubscriptionType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Exclusive } };
+        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Exclusive}};
     }
 
     @DataProvider(name = "loadManager")
     public Object[][] getLoadManager() {
-        return new Object[][] { { SimpleLoadManagerImpl.class.getCanonicalName() },
-                { ModularLoadManagerImpl.class.getCanonicalName() } };
+        return new Object[][] {
+            {SimpleLoadManagerImpl.class.getCanonicalName()}, {ModularLoadManagerImpl.class.getCanonicalName()}
+        };
     }
 
     @BeforeMethod
@@ -117,8 +118,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             final String topicPartitionName = "non-persistent://public/default/issue-9173-partition-0";
 
             // Then error when subscribe to a partition of a non-persistent topic that does not exist
-            assertThrows(PulsarClientException.NotFoundException.class,
-                    () -> pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe());
+            assertThrows(PulsarClientException.NotFoundException.class, () -> pulsarClient
+                    .newConsumer()
+                    .topic(topicPartitionName)
+                    .subscriptionName("sub-issue-9173")
+                    .subscribe());
 
             // Then error when produce to a partition of a non-persistent topic that does not exist
             try {
@@ -146,12 +150,16 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             admin.topics().createPartitionedTopic(topic, 3);
 
             // When subscribe, then a sub-consumer is created for each partition which means the partitions are created
-            final MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
-                    .topic(topic).subscriptionName("sub-issue-9173").subscribe();
+            final MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+                    .newConsumer()
+                    .topic(topic)
+                    .subscriptionName("sub-issue-9173")
+                    .subscribe();
             assertEquals(consumer.getConsumers().size(), 3);
 
             // When produce, a sub-producer is created for each partition which means the partitions are created
-            PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic).create();
+            PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>)
+                    pulsarClient.newProducer().topic(topic).create();
             assertEquals(producer.getProducers().size(), 3);
 
             consumer.close();
@@ -166,8 +174,12 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final String topic = "non-persistent://my-property/my-ns/unacked-topic";
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
-                .subscriptionName("subscriber-1").subscriptionType(type).subscribe();
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("subscriber-1")
+                .subscriptionType(type)
+                .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
@@ -197,7 +209,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
-
     }
 
     @Test(dataProvider = "subscriptionType")
@@ -206,13 +217,19 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 5);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
-                .subscriptionType(type).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("subscriber-1")
+                .subscriptionType(type)
+                .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         int totalProduceMsg = 500;
         for (int i = 0; i < totalProduceMsg; i++) {
@@ -240,7 +257,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
-
     }
 
     @Test(dataProvider = "subscriptionType")
@@ -256,13 +272,18 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("subscriber-1")
-                .subscriptionType(type).subscribe();
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName("subscriber-1")
+                .subscriptionType(type)
+                .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // Ensure all partitions exist
         for (int i = 0; i < numPartitions; i++) {
@@ -307,8 +328,13 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         final int queueSize = 10;
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
-                .receiverQueueSize(queueSize).subscriptionName("subscriber-1").subscriptionType(type).subscribe();
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .receiverQueueSize(queueSize)
+                .subscriptionName("subscriber-1")
+                .subscriptionType(type)
+                .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
@@ -338,7 +364,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
-
     }
 
     /**
@@ -357,7 +382,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newFixedThreadPool(5);
             AtomicBoolean failed = new AtomicBoolean(false);
-            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
+            Consumer<byte[]> consumer = pulsarClient
+                    .newConsumer()
+                    .topic(topic)
+                    .subscriptionName("subscriber-1")
                     .subscribe();
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
             byte[] msgData = "testData".getBytes();
@@ -408,17 +436,33 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final String topic = "non-persistent://my-property/my-ns/unacked-topic";
-        ConsumerImpl<byte[]> consumer1Shared = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
-                .subscriptionName("subscriber-shared").subscriptionType(SubscriptionType.Shared).subscribe();
+        ConsumerImpl<byte[]> consumer1Shared = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("subscriber-shared")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
 
-        ConsumerImpl<byte[]> consumer2Shared = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
-                .subscriptionName("subscriber-shared").subscriptionType(SubscriptionType.Shared).subscribe();
+        ConsumerImpl<byte[]> consumer2Shared = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("subscriber-shared")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
 
-        ConsumerImpl<byte[]> consumer1FailOver = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
-                .subscriptionName("subscriber-fo").subscriptionType(SubscriptionType.Failover).subscribe();
+        ConsumerImpl<byte[]> consumer1FailOver = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("subscriber-fo")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
 
-        ConsumerImpl<byte[]> consumer2FailOver = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
-                .subscriptionName("subscriber-fo").subscriptionType(SubscriptionType.Failover).subscribe();
+        ConsumerImpl<byte[]> consumer2FailOver = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("subscriber-fo")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
@@ -476,7 +520,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         consumer1FailOver.close();
         consumer2FailOver.close();
         log.info("-- Exiting {} test --", methodName);
-
     }
 
     /**
@@ -492,11 +535,16 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         NonPersistentTopicStats stats;
         SubscriptionStats subStats;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionType(SubscriptionType.Shared).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
+                .subscribe();
         Thread.sleep(timeWaitToSync);
 
-        NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        NonPersistentTopic topicRef = (NonPersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats(pulsar);
@@ -531,7 +579,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         assertEquals(subStats.getMsgRateRedeliver(), 0.0);
         producer.close();
         consumer.close();
-
     }
 
     /**
@@ -550,34 +597,52 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             SubscriptionStats subStats;
 
             @Cleanup
-            PulsarClient client1 = PulsarClient.builder().serviceUrl(replication.url1.toString()).build();
+            PulsarClient client1 = PulsarClient.builder()
+                    .serviceUrl(replication.url1.toString())
+                    .build();
             @Cleanup
-            PulsarClient client2 = PulsarClient.builder().serviceUrl(replication.url2.toString()).build();
+            PulsarClient client2 = PulsarClient.builder()
+                    .serviceUrl(replication.url2.toString())
+                    .build();
             @Cleanup
-            PulsarClient client3 = PulsarClient.builder().serviceUrl(replication.url3.toString()).build();
+            PulsarClient client3 = PulsarClient.builder()
+                    .serviceUrl(replication.url3.toString())
+                    .build();
 
-            ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) client1.newConsumer().topic(globalTopicName)
-                    .subscriptionName("subscriber-1").subscribe();
-            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) client1.newConsumer().topic(globalTopicName)
-                    .subscriptionName("subscriber-2").subscribe();
+            ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) client1.newConsumer()
+                    .topic(globalTopicName)
+                    .subscriptionName("subscriber-1")
+                    .subscribe();
+            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) client1.newConsumer()
+                    .topic(globalTopicName)
+                    .subscriptionName("subscriber-2")
+                    .subscribe();
 
-            ConsumerImpl<byte[]> repl2Consumer = (ConsumerImpl<byte[]>) client2.newConsumer().topic(globalTopicName)
-                    .subscriptionName("subscriber-1").subscribe();
-            ConsumerImpl<byte[]> repl3Consumer = (ConsumerImpl<byte[]>) client3.newConsumer().topic(globalTopicName)
-                    .subscriptionName("subscriber-1").subscribe();
+            ConsumerImpl<byte[]> repl2Consumer = (ConsumerImpl<byte[]>) client2.newConsumer()
+                    .topic(globalTopicName)
+                    .subscriptionName("subscriber-1")
+                    .subscribe();
+            ConsumerImpl<byte[]> repl3Consumer = (ConsumerImpl<byte[]>) client3.newConsumer()
+                    .topic(globalTopicName)
+                    .subscriptionName("subscriber-1")
+                    .subscribe();
 
-            Producer<byte[]> producer = client1.newProducer().topic(globalTopicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
+            Producer<byte[]> producer = client1.newProducer()
+                    .topic(globalTopicName)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .create();
 
             Thread.sleep(timeWaitToSync);
 
             PulsarService replicationPulasr = replication.pulsar1;
 
             // Replicator for r1 -> r2,r3
-            NonPersistentTopic topicRef = (NonPersistentTopic) replication.pulsar1.getBrokerService()
-                    .getTopicReference(globalTopicName).get();
+            NonPersistentTopic topicRef = (NonPersistentTopic) replication
+                    .pulsar1
+                    .getBrokerService()
+                    .getTopicReference(globalTopicName)
+                    .get();
             NonPersistentReplicator replicatorR2 = (NonPersistentReplicator) topicRef.getPersistentReplicator("r2");
             NonPersistentReplicator replicatorR3 = (NonPersistentReplicator) topicRef.getPersistentReplicator("r3");
             assertNotNull(topicRef);
@@ -675,7 +740,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         } finally {
             replication.shutdownReplicationCluster();
         }
-
     }
 
     /**
@@ -714,8 +778,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertNull(broker);
 
             try {
-                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
-                        TimeUnit.SECONDS);
+                Producer<byte[]> producer = pulsarClient
+                        .newProducer()
+                        .topic(topicName)
+                        .createAsync()
+                        .get(1, TimeUnit.SECONDS);
                 producer.close();
                 fail("topic loading should have failed");
             } catch (Exception e) {
@@ -727,7 +794,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setEnableNonPersistentTopics(defaultENableNonPersistentTopic);
             conf.setLoadManagerClassName(defaultLoadManagerName);
         }
-
     }
 
     /**
@@ -747,8 +813,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             stopBroker();
             startBroker();
             try {
-                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
-                        TimeUnit.SECONDS);
+                Producer<byte[]> producer = pulsarClient
+                        .newProducer()
+                        .topic(topicName)
+                        .createAsync()
+                        .get(1, TimeUnit.SECONDS);
                 producer.close();
                 fail("topic loading should have failed");
             } catch (Exception e) {
@@ -794,8 +863,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertNull(broker);
 
             try {
-                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
-                        TimeUnit.SECONDS);
+                Producer<byte[]> producer = pulsarClient
+                        .newProducer()
+                        .topic(topicName)
+                        .createAsync()
+                        .get(1, TimeUnit.SECONDS);
                 producer.close();
                 fail("topic loading should have failed");
             } catch (Exception e) {
@@ -809,7 +881,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setEnableNonPersistentTopics(defaultEnableNonPersistentTopic);
             conf.setLoadManagerClassName(defaultLoadManagerName);
         }
-
     }
 
     /**
@@ -831,18 +902,29 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             pulsar.getBrokerService().updateRates();
 
             @Cleanup
-            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-1")
-                    .receiverQueueSize(1).subscribe();
+            Consumer<byte[]> consumer = pulsarClient
+                    .newConsumer()
+                    .topic(topicName)
+                    .subscriptionName("subscriber-1")
+                    .receiverQueueSize(1)
+                    .subscribe();
 
             @Cleanup
-            Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-2")
-                    .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared).subscribe();
+            Consumer<byte[]> consumer2 = pulsarClient
+                    .newConsumer()
+                    .topic(topicName)
+                    .subscriptionName("subscriber-2")
+                    .receiverQueueSize(1)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
 
             @Cleanup
-            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
+            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                    .newProducer()
+                    .topic(topicName)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .create();
             @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newFixedThreadPool(5);
             byte[] msgData = "testData".getBytes();
@@ -857,7 +939,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                         // a non-persistent message will return entryId as -1 when it has been dropped
                         // due to setMaxConcurrentNonPersistentMessagePerConnection limit
                         // also ensure that it has happened before the latch is signalled
-                        if (count > totalProduceMessages * 0.2 && msgId != null
+                        if (count > totalProduceMessages * 0.2
+                                && msgId != null
                                 && ((MessageIdImpl) msgId).getEntryId() == -1) {
                             latch.countDown();
                         }
@@ -867,15 +950,17 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             }
             assertTrue(latch.await(5, TimeUnit.SECONDS));
 
-            NonPersistentTopic topic =
-                    (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+            NonPersistentTopic topic = (NonPersistentTopic)
+                    pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
             Awaitility.await().ignoreExceptions().untilAsserted(() -> {
                 pulsar.getBrokerService().updateRates();
                 NonPersistentTopicStats stats = topic.getStats(false, false, false);
                 NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
-                NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
-                NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
+                NonPersistentSubscriptionStats sub1Stats =
+                        stats.getSubscriptions().get("subscriber-1");
+                NonPersistentSubscriptionStats sub2Stats =
+                        stats.getSubscriptions().get("subscriber-2");
                 assertTrue(npStats.getMsgDropRate() > 0);
                 assertTrue(sub1Stats.getMsgDropRate() > 0);
                 assertTrue(sub2Stats.getMsgDropRate() > 0);
@@ -910,8 +995,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         ZookeeperServerTest globalZkS;
 
-        ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>());
+        ExecutorService executor =
+                new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 
         static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
@@ -1011,28 +1096,44 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
             // Provision the global namespace
-            admin1.clusters().createCluster("r1", ClusterData.builder()
-                    .serviceUrl(url1.toString())
-                    .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
-                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
-                    .build());
-            admin1.clusters().createCluster("r2", ClusterData.builder()
-                    .serviceUrl(url2.toString())
-                    .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
-                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
-                    .build());
-            admin1.clusters().createCluster("r3", ClusterData.builder()
-                    .serviceUrl(url3.toString())
-                    .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
-                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
-                    .build());
+            admin1.clusters()
+                    .createCluster(
+                            "r1",
+                            ClusterData.builder()
+                                    .serviceUrl(url1.toString())
+                                    .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
+                                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                                    .build());
+            admin1.clusters()
+                    .createCluster(
+                            "r2",
+                            ClusterData.builder()
+                                    .serviceUrl(url2.toString())
+                                    .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
+                                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                                    .build());
+            admin1.clusters()
+                    .createCluster(
+                            "r3",
+                            ClusterData.builder()
+                                    .serviceUrl(url3.toString())
+                                    .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
+                                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                                    .build());
 
-            admin1.clusters().createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
-            admin1.tenants().createTenant("pulsar", new TenantInfoImpl(
-                    Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+            admin1.clusters()
+                    .createCluster(
+                            "global",
+                            ClusterData.builder()
+                                    .serviceUrl("http://global:8080")
+                                    .build());
+            admin1.tenants()
+                    .createTenant(
+                            "pulsar",
+                            new TenantInfoImpl(
+                                    Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
             admin1.namespaces().createNamespace("pulsar/global/ns");
-            admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
-                    Sets.newHashSet("r1", "r2", "r3"));
+            admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
 
             assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
             assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
@@ -1042,7 +1143,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
             Thread.sleep(100);
             log.info("--- ReplicatorTestBase::setup completed ---");
-
         }
 
         private int inSec(int time, TimeUnit unit) {
@@ -1075,7 +1175,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     private void rolloverPerIntervalStats(PulsarService pulsar) {
         try {
-            pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
+            pulsar.getExecutor()
+                    .submit(() -> pulsar.getBrokerService().updateRates())
+                    .get();
         } catch (Exception e) {
             log.error("Stats executor error", e);
         }

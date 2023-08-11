@@ -58,14 +58,16 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
                 .numBookies(2)
                 .numBrokers(1)
                 .clusterName(clusterName)
-                .classPathVolumeMounts(
-                        ImmutableMap.<String, String> builder()
-                                .put("zk-3.5-test-data", "/pulsar/data/zookeeper/version-2/version-2")
-                                .build())
+                .classPathVolumeMounts(ImmutableMap.<String, String>builder()
+                        .put("zk-3.5-test-data", "/pulsar/data/zookeeper/version-2/version-2")
+                        .build())
                 .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info(
+                "Setting up cluster {} with {} bookies, {} brokers",
+                spec.clusterName(),
+                spec.numBookies(),
+                spec.numBrokers());
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
@@ -86,9 +88,8 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
         int numMessages = 10;
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -97,9 +98,8 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
                 .subscribe();
 
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
+        Producer<String> producer =
+                client.newProducer(Schema.STRING).topic(topicName).create();
 
         for (int i = 0; i < numMessages; i++) {
             producer.send("smoke-message-" + i);
@@ -109,6 +109,5 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
             Message<String> m = consumer.receive();
             assertEquals("smoke-message-" + i, m.getValue());
         }
-
     }
 }

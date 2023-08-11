@@ -54,14 +54,14 @@ public abstract class HdfsAbstractTextFileSink<K, V> extends HdfsAbstractSink<K,
 
     @Override
     public void write(Record<V> record) {
-       try {
-           KeyValue<K, V> kv = extractKeyValue(record);
-           writer.write(kv.getValue().toString());
+        try {
+            KeyValue<K, V> kv = extractKeyValue(record);
+            writer.write(kv.getValue().toString());
 
-           if (hdfsSinkConfig.getSeparator() != '\u0000') {
-              writer.write(hdfsSinkConfig.getSeparator());
-           }
-           unackedRecords.put(record);
+            if (hdfsSinkConfig.getSeparator() != '\u0000') {
+                writer.write(hdfsSinkConfig.getSeparator());
+            }
+            unackedRecords.put(record);
         } catch (IOException | InterruptedException e) {
             LOG.error("Unable to write to file " + getPath(), e);
             record.fail();
@@ -69,10 +69,10 @@ public abstract class HdfsAbstractTextFileSink<K, V> extends HdfsAbstractSink<K,
     }
 
     private OutputStream openHdfsStream() throws IOException {
-       if (hdfsSinkConfig.getCompression() != null) {
-          return getCompressionCodec().createOutputStream(getHdfsStream());
-       } else {
-          return getHdfsStream();
-       }
+        if (hdfsSinkConfig.getCompression() != null) {
+            return getCompressionCodec().createOutputStream(getHdfsStream());
+        } else {
+            return getHdfsStream();
+        }
     }
 }

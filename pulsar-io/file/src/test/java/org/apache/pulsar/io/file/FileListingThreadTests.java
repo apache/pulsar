@@ -18,26 +18,23 @@
  */
 package org.apache.pulsar.io.file;
 
-import static org.testng.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
+import static org.testng.Assert.fail;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-
 import org.testng.annotations.Test;
-
 
 public class FileListingThreadTests extends AbstractFileTests {
 
     @Test
     public final void singleFileTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<> ();
+        Map<String, Object> map = new HashMap<>();
         map.put("inputDirectory", directory.toString());
 
         try {
@@ -60,7 +57,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void fiftyFileTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
 
         try {
@@ -82,7 +79,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void minimumSizeTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
 
         try {
@@ -100,7 +97,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void maximumSizeTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("maximumSize", "1000");
 
@@ -122,7 +119,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void minimumAgeTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("minimumFileAge", "5000");
 
@@ -143,7 +140,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void maximumAgeTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("maximumFileAge", "5000");
 
@@ -168,7 +165,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void doRecurseTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("recurse", Boolean.TRUE);
 
@@ -192,7 +189,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void doNotRecurseTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("recurse", Boolean.FALSE);
 
@@ -216,7 +213,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void pathFilterTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("recurse", Boolean.TRUE);
         map.put("pathFilter", "sub-.*");
@@ -240,7 +237,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     public final void processedFileFilterTest() throws IOException {
 
         String processedFileSuffix = ".file_process_done";
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
         map.put("processedFileSuffix", processedFileSuffix);
@@ -263,7 +260,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     public final void processedFileFilterTest2() throws IOException {
 
         String processedFileSuffix = ".file_process_done";
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.TRUE);
         map.put("processedFileSuffix", processedFileSuffix);

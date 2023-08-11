@@ -43,8 +43,7 @@ public class StoredSchema {
             return false;
         }
         StoredSchema that = (StoredSchema) o;
-        return Arrays.equals(data, that.data)
-                && Objects.equals(version, that.version);
+        return Arrays.equals(data, that.data) && Objects.equals(version, that.version);
     }
 
     @Override
@@ -58,8 +57,8 @@ public class StoredSchema {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-            .add("data", data)
-            .add("version", version)
-            .toString();
+                .add("data", data)
+                .add("version", version)
+                .toString();
     }
 }

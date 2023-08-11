@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.List;
 
 /**
  * org.apache.pulsar.client.impl.schema.GenericObjectWrapper is not public

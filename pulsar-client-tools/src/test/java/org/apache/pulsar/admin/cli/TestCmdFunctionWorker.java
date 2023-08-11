@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.Worker;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.Worker;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TestCmdFunctionWorker {
 
@@ -49,7 +47,7 @@ public class TestCmdFunctionWorker {
 
     @Test
     public void testCmdRebalance() throws Exception {
-        cmdFunctionWorker.run(new String[]{"rebalance"});
+        cmdFunctionWorker.run(new String[] {"rebalance"});
         verify(pulsarAdmin.worker(), times(1)).rebalance();
     }
 }

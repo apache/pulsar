@@ -47,7 +47,9 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
     public Void process(GenericObject genericObject, Context context) throws Exception {
         Record<?> currentRecord = context.getCurrentRecord();
         log.info("apply to {} {}", genericObject, genericObject.getNativeObject());
-        log.info("record with schema {} version {} {}", currentRecord.getSchema(),
+        log.info(
+                "record with schema {} version {} {}",
+                currentRecord.getSchema(),
                 currentRecord.getMessage().get().getSchemaVersion(),
                 currentRecord);
         Object nativeObject = genericObject.getNativeObject();
@@ -56,7 +58,7 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
         Schema outputSchema = schema;
         Object outputObject = genericObject.getNativeObject();
         boolean someThingDone = false;
-        if (schema instanceof KeyValueSchema && nativeObject instanceof KeyValue)  {
+        if (schema instanceof KeyValueSchema && nativeObject instanceof KeyValue) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
 
             Schema keySchema = kvSchema.getKeySchema();
@@ -64,7 +66,8 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
             // remove a column "age" from the "valueSchema"
             if (valueSchema.getSchemaInfo().getType() == SchemaType.AVRO) {
 
-                org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) valueSchema.getNativeSchema().get();
+                org.apache.avro.Schema avroSchema =
+                        (org.apache.avro.Schema) valueSchema.getNativeSchema().get();
                 if (avroSchema.getField(FIELD_TO_REMOVE) != null) {
                     org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
                     org.apache.avro.Schema originalAvroSchema = parser.parse(avroSchema.toString(false));
@@ -73,10 +76,9 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
                             originalAvroSchema.getDoc(),
                             originalAvroSchema.getNamespace(),
                             originalAvroSchema.isError(),
-                            originalAvroSchema.getFields().
-                                    stream()
-                                    .filter(f->!f.name().equals(FIELD_TO_REMOVE))
-                                    .map(f-> new org.apache.avro.Schema.Field(
+                            originalAvroSchema.getFields().stream()
+                                    .filter(f -> !f.name().equals(FIELD_TO_REMOVE))
+                                    .map(f -> new org.apache.avro.Schema.Field(
                                             f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
                                     .collect(Collectors.toList()));
 
@@ -103,7 +105,8 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
                 }
             }
         } else if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
-            org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) schema.getNativeSchema().get();
+            org.apache.avro.Schema avroSchema =
+                    (org.apache.avro.Schema) schema.getNativeSchema().get();
             if (avroSchema.getField(FIELD_TO_REMOVE) != null) {
                 org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
                 org.apache.avro.Schema originalAvroSchema = parser.parse(avroSchema.toString(false));
@@ -112,8 +115,7 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
                         originalAvroSchema.getDoc(),
                         originalAvroSchema.getNamespace(),
                         originalAvroSchema.isError(),
-                        originalAvroSchema.getFields().
-                                stream()
+                        originalAvroSchema.getFields().stream()
                                 .filter(f -> !f.name().equals(FIELD_TO_REMOVE))
                                 .map(f -> new org.apache.avro.Schema.Field(
                                         f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
@@ -160,7 +162,8 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
         }
         log.info("output {} schema {}", outputObject, outputSchema);
         context.newOutputMessage(context.getOutputTopic(), outputSchema)
-                .value(outputObject).send();
+                .value(outputObject)
+                .send();
         return null;
     }
 }

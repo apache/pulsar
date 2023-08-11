@@ -48,8 +48,8 @@ public class InfluxDBBuilderImpl implements InfluxDBBuilder {
         try {
             logLevel = InfluxDB.LogLevel.valueOf(config.getLogLevel().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Illegal Log Level, valid values are: "
-                + Arrays.asList(InfluxDB.LogLevel.values()));
+            throw new IllegalArgumentException(
+                    "Illegal Log Level, valid values are: " + Arrays.asList(InfluxDB.LogLevel.values()));
         }
         influxDB.setLogLevel(logLevel);
 

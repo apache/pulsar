@@ -101,39 +101,53 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void createDefaultTenantsAndClustersAndNamespace() throws Exception {
-        admin1.clusters().createCluster(cluster1, ClusterData.builder()
-                .serviceUrl(url1.toString())
-                .serviceUrlTls(urlTls1.toString())
-                .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
-                .brokerClientTlsEnabled(false)
-                .build());
-        admin1.clusters().createCluster(cluster2, ClusterData.builder()
-                .serviceUrl(url2.toString())
-                .serviceUrlTls(urlTls2.toString())
-                .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
-                .brokerClientTlsEnabled(false)
-                .build());
-        admin2.clusters().createCluster(cluster1, ClusterData.builder()
-                .serviceUrl(url1.toString())
-                .serviceUrlTls(urlTls1.toString())
-                .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
-                .brokerClientTlsEnabled(false)
-                .build());
-        admin2.clusters().createCluster(cluster2, ClusterData.builder()
-                .serviceUrl(url2.toString())
-                .serviceUrlTls(urlTls2.toString())
-                .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
-                .brokerClientTlsEnabled(false)
-                .build());
+        admin1.clusters()
+                .createCluster(
+                        cluster1,
+                        ClusterData.builder()
+                                .serviceUrl(url1.toString())
+                                .serviceUrlTls(urlTls1.toString())
+                                .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                                .brokerClientTlsEnabled(false)
+                                .build());
+        admin1.clusters()
+                .createCluster(
+                        cluster2,
+                        ClusterData.builder()
+                                .serviceUrl(url2.toString())
+                                .serviceUrlTls(urlTls2.toString())
+                                .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
+                                .brokerClientTlsEnabled(false)
+                                .build());
+        admin2.clusters()
+                .createCluster(
+                        cluster1,
+                        ClusterData.builder()
+                                .serviceUrl(url1.toString())
+                                .serviceUrlTls(urlTls1.toString())
+                                .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                                .brokerClientTlsEnabled(false)
+                                .build());
+        admin2.clusters()
+                .createCluster(
+                        cluster2,
+                        ClusterData.builder()
+                                .serviceUrl(url2.toString())
+                                .serviceUrlTls(urlTls2.toString())
+                                .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
+                                .brokerClientTlsEnabled(false)
+                                .build());
 
-        admin1.tenants().createTenant(defaultTenant, new TenantInfoImpl(Collections.emptySet(),
-                Sets.newHashSet(cluster1, cluster2)));
-        admin2.tenants().createTenant(defaultTenant, new TenantInfoImpl(Collections.emptySet(),
-                Sets.newHashSet(cluster1, cluster2)));
+        admin1.tenants()
+                .createTenant(
+                        defaultTenant, new TenantInfoImpl(Collections.emptySet(), Sets.newHashSet(cluster1, cluster2)));
+        admin2.tenants()
+                .createTenant(
+                        defaultTenant, new TenantInfoImpl(Collections.emptySet(), Sets.newHashSet(cluster1, cluster2)));
 
         admin1.namespaces().createNamespace(defaultNamespace, Sets.newHashSet(cluster1, cluster2));
         admin2.namespaces().createNamespace(defaultNamespace);
@@ -166,8 +180,11 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         log.info("--- OneWayReplicatorTestBase::setup completed ---");
     }
 
-    private void setConfigDefaults(ServiceConfiguration config, String clusterName,
-                                   LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
+    private void setConfigDefaults(
+            ServiceConfiguration config,
+            String clusterName,
+            LocalBookkeeperEnsemble bookkeeperEnsemble,
+            ZookeeperServerTest brokerConfigZk) {
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
         config.setWebServicePort(Optional.of(0));

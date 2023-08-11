@@ -84,15 +84,14 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     @Override
     public void update(Policies policies, String clusterName) {
-        final PublishRate maxPublishRate = policies.publishMaxMessageRate != null
-                ? policies.publishMaxMessageRate.get(clusterName)
-                : null;
+        final PublishRate maxPublishRate =
+                policies.publishMaxMessageRate != null ? policies.publishMaxMessageRate.get(clusterName) : null;
         update(maxPublishRate);
     }
 
     public void update(PublishRate maxPublishRate) {
         if (maxPublishRate != null
-            && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
+                && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
             this.publishThrottlingEnabled = true;
             this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
             this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);

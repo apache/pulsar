@@ -33,25 +33,34 @@ public class PulsarInitialNamespaceSetup {
 
     private static class Arguments {
 
-        @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
+        @Parameter(
+                names = {"-c", "--cluster"},
+                description = "Cluster name",
+                required = true)
         private String cluster;
 
-        @Parameter(names = { "-cs",
-                "--configuration-store" }, description = "Configuration Store connection string", required = true)
+        @Parameter(
+                names = {"-cs", "--configuration-store"},
+                description = "Configuration Store connection string",
+                required = true)
         private String configurationStore;
 
-        @Parameter(names = {
-                "--zookeeper-session-timeout-ms"
-        }, description = "Local zookeeper session timeout ms")
+        @Parameter(
+                names = {"--zookeeper-session-timeout-ms"},
+                description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
         @Parameter(description = "tenant/namespace", required = true)
         private List<String> namespaces;
 
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 
@@ -82,8 +91,8 @@ public class PulsarInitialNamespaceSetup {
             return 1;
         }
 
-        try (MetadataStore configStore = PulsarClusterMetadataSetup
-                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+        try (MetadataStore configStore = PulsarClusterMetadataSetup.initConfigMetadataStore(
+                arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
             PulsarResources pulsarResources = new PulsarResources(null, configStore);
             for (String namespace : arguments.namespaces) {
                 NamespaceName namespaceName = null;
@@ -95,12 +104,11 @@ public class PulsarInitialNamespaceSetup {
                 }
 
                 // Create specified tenant
-                PulsarClusterMetadataSetup
-                        .createTenantIfAbsent(pulsarResources, namespaceName.getTenant(), arguments.cluster);
+                PulsarClusterMetadataSetup.createTenantIfAbsent(
+                        pulsarResources, namespaceName.getTenant(), arguments.cluster);
 
                 // Create specified namespace
-                PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, namespaceName,
-                        arguments.cluster);
+                PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, namespaceName, arguments.cluster);
             }
         }
 

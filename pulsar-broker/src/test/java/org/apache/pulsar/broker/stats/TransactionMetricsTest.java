@@ -83,14 +83,17 @@ public class TransactionMetricsTest extends BrokerTestBase {
     }
 
     protected void afterSetup() throws Exception {
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                TenantInfo.builder()
-                        .adminRoles(Sets.newHashSet("appid1"))
-                        .allowedClusters(Sets.newHashSet("test"))
-                        .build());
+        admin.tenants()
+                .createTenant(
+                        NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                        TenantInfo.builder()
+                                .adminRoles(Sets.newHashSet("appid1"))
+                                .allowedClusters(Sets.newHashSet("test"))
+                                .build());
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         createTransactionCoordinatorAssign();
-        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
+        replacePulsarClient(
+                PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -108,14 +111,24 @@ public class TransactionMetricsTest extends BrokerTestBase {
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDTwo);
 
-        Awaitility.await().until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
-        pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(timeout, null).get();
-        pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout, null).get();
-        pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout, null).get();
+        Awaitility.await()
+                .until(() ->
+                        pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
+        pulsar.getTransactionMetadataStoreService()
+                .getStores()
+                .get(transactionCoordinatorIDOne)
+                .newTransaction(timeout, null)
+                .get();
+        pulsar.getTransactionMetadataStoreService()
+                .getStores()
+                .get(transactionCoordinatorIDTwo)
+                .newTransaction(timeout, null)
+                .get();
+        pulsar.getTransactionMetadataStoreService()
+                .getStores()
+                .get(transactionCoordinatorIDTwo)
+                .newTransaction(timeout, null)
+                .get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -143,42 +156,57 @@ public class TransactionMetricsTest extends BrokerTestBase {
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
-        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
+        Awaitility.await()
+                .atMost(2000, TimeUnit.MILLISECONDS)
+                .until(() ->
+                        pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
 
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .subscriptionName(subName).topic(topic).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .subscriptionName(subName)
+                .topic(topic)
+                .subscribe();
 
         List<TxnID> list = new ArrayList<>();
         for (int i = 0; i < txnCount; i++) {
-            TransactionImpl transaction =
-                    (TransactionImpl) pulsarClient.newTransaction()
-                            .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            TransactionImpl transaction = (TransactionImpl) pulsarClient
+                    .newTransaction()
+                    .withTransactionTimeout(10, TimeUnit.SECONDS)
+                    .build()
+                    .get();
             TxnID txnID = new TxnID(transaction.getTxnIdMostBits(), transaction.getTxnIdLeastBits());
             list.add(txnID);
             if (i == 1) {
-                consumer.acknowledgeAsync(new MessageIdImpl(1000, 1000, -1), transaction).get();
+                consumer.acknowledgeAsync(new MessageIdImpl(1000, 1000, -1), transaction)
+                        .get();
                 continue;
             }
 
             if (i % 2 == 0) {
                 pulsar.getTransactionMetadataStoreService()
-                        .addProducedPartitionToTxn(list.get(i), Collections.singletonList(topic)).get();
+                        .addProducedPartitionToTxn(list.get(i), Collections.singletonList(topic))
+                        .get();
             } else {
-                pulsar.getTransactionMetadataStoreService().addAckedPartitionToTxn(list.get(i),
-                        Collections.singletonList(TransactionSubscription.builder().topic(topic)
-                                .subscription(subName).build())).get();
+                pulsar.getTransactionMetadataStoreService()
+                        .addAckedPartitionToTxn(
+                                list.get(i),
+                                Collections.singletonList(TransactionSubscription.builder()
+                                        .topic(topic)
+                                        .subscription(subName)
+                                        .build()))
+                        .get();
             }
         }
 
         for (int i = 0; i < txnCount; i++) {
             if (i % 2 == 0) {
-                pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.COMMIT_VALUE,
-                        false).get();
+                pulsar.getTransactionMetadataStoreService()
+                        .endTransaction(list.get(i), TxnAction.COMMIT_VALUE, false)
+                        .get();
             } else {
-                pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.ABORT_VALUE,
-                        false).get();
+                pulsar.getTransactionMetadataStoreService()
+                        .endTransaction(list.get(i), TxnAction.ABORT_VALUE, false)
+                        .get();
             }
         }
 
@@ -201,13 +229,19 @@ public class TransactionMetricsTest extends BrokerTestBase {
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, txnCount / 2));
 
-        TxnID txnID = pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(1000, null).get();
+        TxnID txnID = pulsar.getTransactionMetadataStoreService()
+                .getStores()
+                .get(transactionCoordinatorIDOne)
+                .newTransaction(1000, null)
+                .get();
 
         Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
             try {
                 pulsar.getTransactionMetadataStoreService()
-                        .getStores().get(transactionCoordinatorIDOne).getTxnMeta(txnID).get();
+                        .getStores()
+                        .get(transactionCoordinatorIDOne)
+                        .getTxnMeta(txnID)
+                        .get();
             } catch (Exception e) {
                 return true;
             }
@@ -230,7 +264,6 @@ public class TransactionMetricsTest extends BrokerTestBase {
         metric = metrics.get("pulsar_txn_execution_latency_le_5000");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, 1));
-
     }
 
     @Test
@@ -249,27 +282,34 @@ public class TransactionMetricsTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topic);
         admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
-        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne).get();
+        pulsar.getTransactionMetadataStoreService()
+                .handleTcClientConnect(transactionCoordinatorIDOne)
+                .get();
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
 
-        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
+        Awaitility.await()
+                .atMost(2000, TimeUnit.MILLISECONDS)
+                .until(() ->
+                        pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .receiverQueueSize(10)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
-        Transaction transaction =
-                pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
         producer.send("hello pulsar".getBytes());
-        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction)
+                .get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -310,28 +350,35 @@ public class TransactionMetricsTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topic);
         admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
-        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne).get();
+        pulsar.getTransactionMetadataStoreService()
+                .handleTcClientConnect(transactionCoordinatorIDOne)
+                .get();
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
         admin.topics().createSubscription(topic, subName2, MessageId.earliest);
 
-        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
+        Awaitility.await()
+                .atMost(2000, TimeUnit.MILLISECONDS)
+                .until(() ->
+                        pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .receiverQueueSize(10)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
-        Transaction transaction =
-                pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
         producer.send("hello pulsar".getBytes());
-        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction)
+                .get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -340,22 +387,27 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
         Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_storage_size");
         checkManagedLedgerMetrics(subName, 32, metric);
-        //No statistics of the pendingAck are generated when the pendingAck is not initialized.
+        // No statistics of the pendingAck are generated when the pendingAck is not initialized.
         for (PrometheusMetricsTest.Metric metric1 : metric) {
             if (metric1.tags.containsValue(subName2)) {
                 Assert.fail();
             }
         }
 
-        consumer = pulsarClient.newConsumer()
+        consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .receiverQueueSize(10)
                 .subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
-        transaction =
-                pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
-        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction)
+                .get();
 
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -373,8 +425,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDTwo);
 
-        Awaitility.await().until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
+        Awaitility.await()
+                .until(() ->
+                        pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
         Producer<byte[]> p1 = pulsarClient
                 .newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
@@ -387,9 +440,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
                 .get();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
-            p1.newMessage(transaction)
-                    .value(message.getBytes())
-                    .send();
+            p1.newMessage(transaction).value(message.getBytes()).send();
         }
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
@@ -416,7 +467,6 @@ public class TransactionMetricsTest extends BrokerTestBase {
                 } else {
                     log.warn(metricsStr);
                     fail("Duplicate type definition found for TYPE definition " + metricName);
-
                 }
                 // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
                 // "The TYPE line for a metric name must appear before the first sample is reported for that metric
@@ -424,11 +474,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
                 if (metricNames.containsKey(metricName)) {
                     log.info(metricsStr);
                     fail("TYPE definition for " + metricName + " appears after first sample");
-
                 }
             }
         });
-
     }
 
     private void checkManagedLedgerMetrics(String tag, double value, Collection<PrometheusMetricsTest.Metric> metrics) {

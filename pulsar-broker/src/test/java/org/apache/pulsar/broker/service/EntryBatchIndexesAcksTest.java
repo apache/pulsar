@@ -49,5 +49,4 @@ public class EntryBatchIndexesAcksTest {
         // then there should be no previous state and totalAckedIndexCount should be 0
         assertEquals(acks.getTotalAckedIndexCount(), 0);
     }
-
 }

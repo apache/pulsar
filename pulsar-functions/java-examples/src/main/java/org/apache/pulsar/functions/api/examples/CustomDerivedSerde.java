@@ -39,4 +39,3 @@ public class CustomDerivedSerde implements SerDe<CustomDerivedObject> {
         return buffer.array();
     }
 }
-

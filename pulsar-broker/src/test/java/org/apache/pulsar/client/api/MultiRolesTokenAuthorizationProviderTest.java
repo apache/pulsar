@@ -59,20 +59,14 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         roles.add("user1");
         roles.add("superUser");
         claims.put("roles", roles);
-        superUserToken = Jwts.builder()
-                .setClaims(claims)
-                .signWith(secretKey)
-                .compact();
+        superUserToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
 
         roles = new HashSet<>();
         roles.add("normalUser");
         roles.add("user2");
         roles.add("user5");
         claims.put("roles", roles);
-        normalUserToken = Jwts.builder()
-                .setClaims(claims)
-                .signWith(secretKey)
-                .compact();
+        normalUserToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
     }
 
     @Override
@@ -87,8 +81,8 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         conf.setSuperUserRoles(superUserRoles);
 
         Properties properties = new Properties();
-        properties.setProperty("tokenSecretKey",
-                "data:;base64," + Base64.getEncoder().encodeToString(secretKey.getEncoded()));
+        properties.setProperty(
+                "tokenSecretKey", "data:;base64," + Base64.getEncoder().encodeToString(secretKey.getEncoded()));
         properties.setProperty("tokenAuthClaim", "roles");
         conf.setProperties(properties);
 
@@ -109,11 +103,10 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
     protected void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster(configClusterName,
-                ClusterData.builder()
-                        .serviceUrl(brokerUrl.toString())
-                        .build()
-        );
+        admin.clusters()
+                .createCluster(
+                        configClusterName,
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
     }
 
     @BeforeClass
@@ -151,10 +144,13 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
     @Test
     public void testAdminRequestWithSuperUserToken() throws Exception {
         String tenant = "superuser-admin-tenant";
-        @Cleanup
-        PulsarAdmin admin = newPulsarAdmin(superUserToken);
-        admin.tenants().createTenant(tenant, TenantInfo.builder()
-                .allowedClusters(Sets.newHashSet(configClusterName)).build());
+        @Cleanup PulsarAdmin admin = newPulsarAdmin(superUserToken);
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        TenantInfo.builder()
+                                .allowedClusters(Sets.newHashSet(configClusterName))
+                                .build());
         String namespace = "superuser-admin-namespace";
         admin.namespaces().createNamespace(tenant + "/" + namespace);
         admin.brokers().getAllDynamicConfigurations();
@@ -165,23 +161,25 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
     @Test
     public void testProduceAndConsumeWithSuperUserToken() throws Exception {
         String tenant = "superuser-client-tenant";
-        @Cleanup
-        PulsarAdmin admin = newPulsarAdmin(superUserToken);
-        admin.tenants().createTenant(tenant, TenantInfo.builder()
-                .allowedClusters(Sets.newHashSet(configClusterName)).build());
+        @Cleanup PulsarAdmin admin = newPulsarAdmin(superUserToken);
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        TenantInfo.builder()
+                                .allowedClusters(Sets.newHashSet(configClusterName))
+                                .build());
         String namespace = "superuser-client-namespace";
         admin.namespaces().createNamespace(tenant + "/" + namespace);
         String topic = tenant + "/" + namespace + "/" + "test-topic";
 
-        @Cleanup
-        PulsarClient client = newPulsarClient(superUserToken);
-        @Cleanup
-        Producer<byte[]> producer = client.newProducer().topic(topic).create();
+        @Cleanup PulsarClient client = newPulsarClient(superUserToken);
+        @Cleanup Producer<byte[]> producer = client.newProducer().topic(topic).create();
         byte[] body = "hello".getBytes(StandardCharsets.UTF_8);
         producer.send(body);
 
         @Cleanup
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("test")
                 .subscribe();
@@ -193,27 +191,31 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
     @Test
     public void testAdminRequestWithNormalUserToken() throws Exception {
         String tenant = "normaluser-admin-tenant";
-        @Cleanup
-        PulsarAdmin admin = newPulsarAdmin(normalUserToken);
+        @Cleanup PulsarAdmin admin = newPulsarAdmin(normalUserToken);
 
-        assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> admin.tenants().createTenant(tenant, TenantInfo.builder()
-                        .allowedClusters(Sets.newHashSet(configClusterName)).build()));
+        assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> admin.tenants()
+                .createTenant(
+                        tenant,
+                        TenantInfo.builder()
+                                .allowedClusters(Sets.newHashSet(configClusterName))
+                                .build()));
     }
 
     @Test
     public void testProduceAndConsumeWithNormalUserToken() throws Exception {
         String tenant = "normaluser-client-tenant";
-        @Cleanup
-        PulsarAdmin admin = newPulsarAdmin(superUserToken);
-        admin.tenants().createTenant(tenant, TenantInfo.builder()
-                .allowedClusters(Sets.newHashSet(configClusterName)).build());
+        @Cleanup PulsarAdmin admin = newPulsarAdmin(superUserToken);
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        TenantInfo.builder()
+                                .allowedClusters(Sets.newHashSet(configClusterName))
+                                .build());
         String namespace = "normaluser-client-namespace";
         admin.namespaces().createNamespace(tenant + "/" + namespace);
         String topic = tenant + "/" + namespace + "/" + "test-topic";
 
-        @Cleanup
-        PulsarClient client = newPulsarClient(normalUserToken);
+        @Cleanup PulsarClient client = newPulsarClient(normalUserToken);
         assertThrows(PulsarClientException.AuthorizationException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored = client.newProducer().topic(topic).create();
@@ -221,7 +223,8 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
 
         assertThrows(PulsarClientException.AuthorizationException.class, () -> {
             @Cleanup
-            Consumer<byte[]> ignored = client.newConsumer().topic(topic)
+            Consumer<byte[]> ignored = client.newConsumer()
+                    .topic(topic)
                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .subscriptionName("test")
                     .subscribe();

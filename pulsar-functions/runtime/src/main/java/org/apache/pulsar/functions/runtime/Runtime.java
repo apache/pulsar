@@ -29,9 +29,7 @@ public interface Runtime {
 
     void start() throws Exception;
 
-    default void reinitialize() {
-
-    }
+    default void reinitialize() {}
 
     void join() throws Exception;
 

@@ -79,7 +79,7 @@ public class BatchMessageContainerImplTest {
 
         // test big and small message alternating occurrence
         for (int i = 0; i < SHRINK_COOLING_OFF_PERIOD * 3; ++i) {
-            if (i % 2 ==0) {
+            if (i % 2 == 0) {
                 messageContainer.updateMaxBatchSize(2);
             } else {
                 messageContainer.updateMaxBatchSize(2000);
@@ -111,16 +111,18 @@ public class BatchMessageContainerImplTest {
             Field clientFiled = HandlerState.class.getDeclaredField("client");
             clientFiled.setAccessible(true);
             clientFiled.set(producer, pulsarClient);
-        } catch (Exception e){
+        } catch (Exception e) {
             fail(e.getMessage());
         }
 
         when(producer.getConfiguration()).thenReturn(producerConfigurationData);
         final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
         doAnswer((ignore) -> {
-            called.set(true);
-            throw new OutOfMemoryError("test");
-        }).when(mockAllocator).buffer(anyInt());
+                    called.set(true);
+                    throw new OutOfMemoryError("test");
+                })
+                .when(mockAllocator)
+                .buffer(anyInt());
         final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
         batchMessageContainer.setProducer(producer);
         MessageMetadata messageMetadata1 = new MessageMetadata();
@@ -154,14 +156,15 @@ public class BatchMessageContainerImplTest {
             Field clientFiled = HandlerState.class.getDeclaredField("client");
             clientFiled.setAccessible(true);
             clientFiled.set(producer, pulsarClient);
-        } catch (Exception e){
+        } catch (Exception e) {
             fail(e.getMessage());
         }
 
         ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));
 
         when(producer.getConfiguration()).thenReturn(producerConfigurationData);
-        when(producer.encryptMessage(any(), any())).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(payload));
+        when(producer.encryptMessage(any(), any()))
+                .thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(payload));
 
         final int initNum = 32;
         BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(producer);
@@ -178,7 +181,7 @@ public class BatchMessageContainerImplTest {
     }
 
     private void addMessagesAndCreateOpSendMsg(BatchMessageContainerImpl batchMessageContainer, int num)
-            throws Exception{
+            throws Exception {
         ArrayList<MessageImpl<?>> messages = new ArrayList<>();
         for (int i = 0; i < num; ++i) {
             MessageMetadata messageMetadata = new MessageMetadata();

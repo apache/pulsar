@@ -32,8 +32,16 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  */
 @Data
 @JsonInclude(JsonInclude.Include.ALWAYS)
-@JsonPropertyOrder({"receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal",
-        "avgProcessLatency", "1min", "lastInvocation", "instances"})
+@JsonPropertyOrder({
+    "receivedTotal",
+    "processedSuccessfullyTotal",
+    "systemExceptionsTotal",
+    "userExceptionsTotal",
+    "avgProcessLatency",
+    "1min",
+    "lastInvocation",
+    "instances"
+})
 public class FunctionStatsImpl implements FunctionStats {
 
     /**
@@ -62,8 +70,7 @@ public class FunctionStatsImpl implements FunctionStats {
     public Double avgProcessLatency;
 
     @JsonProperty("1min")
-    public FunctionInstanceStatsDataBaseImpl oneMin =
-            new FunctionInstanceStatsDataBaseImpl();
+    public FunctionInstanceStatsDataBaseImpl oneMin = new FunctionInstanceStatsDataBaseImpl();
 
     /**
      * Timestamp of when the function was last invoked by any instance.
@@ -99,16 +106,16 @@ public class FunctionStatsImpl implements FunctionStats {
             oneMin.setReceivedTotal(oneMin.getReceivedTotal() + functionInstanceStatsData.oneMin.getReceivedTotal());
             oneMin.setProcessedSuccessfullyTotal(oneMin.getProcessedSuccessfullyTotal()
                     + functionInstanceStatsData.oneMin.getProcessedSuccessfullyTotal());
-            oneMin.setSystemExceptionsTotal(oneMin.getSystemExceptionsTotal()
-                    + functionInstanceStatsData.oneMin.getSystemExceptionsTotal());
-            oneMin.setUserExceptionsTotal(oneMin.getUserExceptionsTotal()
-                    + functionInstanceStatsData.oneMin.getUserExceptionsTotal());
+            oneMin.setSystemExceptionsTotal(
+                    oneMin.getSystemExceptionsTotal() + functionInstanceStatsData.oneMin.getSystemExceptionsTotal());
+            oneMin.setUserExceptionsTotal(
+                    oneMin.getUserExceptionsTotal() + functionInstanceStatsData.oneMin.getUserExceptionsTotal());
             if (functionInstanceStatsData.oneMin.getAvgProcessLatency() != null) {
                 if (oneMin.getAvgProcessLatency() == null) {
                     oneMin.setAvgProcessLatency(0.0);
                 }
-                oneMin.setAvgProcessLatency(oneMin.getAvgProcessLatency()
-                        + functionInstanceStatsData.oneMin.getAvgProcessLatency());
+                oneMin.setAvgProcessLatency(
+                        oneMin.getAvgProcessLatency() + functionInstanceStatsData.oneMin.getAvgProcessLatency());
                 nonNullInstancesOneMin++;
             }
 
@@ -136,7 +143,7 @@ public class FunctionStatsImpl implements FunctionStats {
         return this;
     }
 
-    public static FunctionStatsImpl decode (String json) throws IOException {
+    public static FunctionStatsImpl decode(String json) throws IOException {
         return ObjectMapperFactory.getMapper().reader().readValue(json, FunctionStatsImpl.class);
     }
 }

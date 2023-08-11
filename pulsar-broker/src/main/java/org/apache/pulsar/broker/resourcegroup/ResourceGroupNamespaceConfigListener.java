@@ -48,8 +48,8 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
     private final TenantResources tenantResources;
     private final ResourceGroupConfigListener rgConfigListener;
 
-    public ResourceGroupNamespaceConfigListener(ResourceGroupService rgService, PulsarService pulsarService,
-            ResourceGroupConfigListener rgConfigListener) {
+    public ResourceGroupNamespaceConfigListener(
+            ResourceGroupService rgService, PulsarService pulsarService, ResourceGroupConfigListener rgConfigListener) {
         this.rgService = rgService;
         this.pulsarService = pulsarService;
         this.namespaceResources = pulsarService.getPulsarResources().getNamespaceResources();
@@ -76,19 +76,18 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
                 LOG.error("Exception when fetching tenants", ex);
                 return;
             }
-            for (String ts: tenantList) {
+            for (String ts : tenantList) {
                 namespaceResources.listNamespacesAsync(ts).whenComplete((nsList, ex1) -> {
                     if (ex1 != null) {
                         LOG.error("Exception when fetching namespaces", ex1);
                     } else {
                         for (String ns : nsList) {
                             NamespaceName nsn = NamespaceName.get(ts, ns);
-                            namespaceResources.namespaceExistsAsync(nsn)
-                                    .thenAccept(exists -> {
-                                        if (exists) {
-                                            updateNamespaceResourceGroup(NamespaceName.get(ts, ns));
-                                        }
-                                    });
+                            namespaceResources.namespaceExistsAsync(nsn).thenAccept(exists -> {
+                                if (exists) {
+                                    updateNamespaceResourceGroup(NamespaceName.get(ts, ns));
+                                }
+                            });
                         }
                     }
                 });
@@ -102,8 +101,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
 
     public void reconcileNamespaceResourceGroup(NamespaceName ns, Policies policy) {
         boolean delete = false, add = false;
-        org.apache.pulsar.broker.resourcegroup.ResourceGroup current = rgService
-                .getNamespaceResourceGroup(ns);
+        org.apache.pulsar.broker.resourcegroup.ResourceGroup current = rgService.getNamespaceResourceGroup(ns);
 
         if (policy == null || policy.resource_group_name == null) {
             if (current != null) {
@@ -127,8 +125,12 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
                 rgService.registerNameSpace(policy.resource_group_name, ns);
             }
         } catch (PulsarAdminException e) {
-            LOG.error("Failed to {} namespace {} with resource group {}",
-                    delete ? "unregister" : "register", ns, policy.resource_group_name, e);
+            LOG.error(
+                    "Failed to {} namespace {} with resource group {}",
+                    delete ? "unregister" : "register",
+                    ns,
+                    policy.resource_group_name,
+                    e);
         }
     }
 
@@ -158,8 +160,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
                 }
                 case Deleted: {
                     NamespaceName nsName = NamespaceResources.namespaceFromPath(notifyPath);
-                    ResourceGroup rg = rgService
-                            .getNamespaceResourceGroup(nsName);
+                    ResourceGroup rg = rgService.getNamespaceResourceGroup(nsName);
                     if (rg != null) {
                         try {
                             rgService.unRegisterNameSpace(rg.resourceGroupName, nsName);
@@ -169,8 +170,8 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
                     }
                     break;
                 }
-            default:
-                break;
+                default:
+                    break;
             }
         }
     }

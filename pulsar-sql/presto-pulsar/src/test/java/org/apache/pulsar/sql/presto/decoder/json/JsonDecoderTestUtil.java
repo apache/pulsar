@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.sql.presto.decoder.json;
 
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.lang.String.format;
+import static org.testng.Assert.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterators;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.*;
-import org.apache.pulsar.sql.presto.decoder.DecoderTestUtil;
-
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
-
-import static io.trino.spi.type.VarcharType.VARCHAR;
-import static java.lang.String.format;
-import static org.testng.Assert.*;
+import org.apache.pulsar.sql.presto.decoder.DecoderTestUtil;
 
 /**
  *
@@ -56,7 +54,9 @@ public class JsonDecoderTestUtil extends DecoderTestUtil {
             try {
                 assertEquals(((SqlVarbinary) actual).getBytes(), ((JsonNode) expected).binaryValue());
             } catch (IOException e) {
-                fail(format("JsonNode %s formate binary Value failed", ((JsonNode) expected).getNodeType().name()));
+                fail(format(
+                        "JsonNode %s formate binary Value failed",
+                        ((JsonNode) expected).getNodeType().name()));
             }
         } else if (isIntegralType(actual)) {
             assertEquals(((Number) actual).longValue(), ((JsonNode) expected).asLong());
@@ -120,7 +120,9 @@ public class JsonDecoderTestUtil extends DecoderTestUtil {
         } else {
             for (int index = 0; index < block.getPositionCount(); index += 2) {
                 String actualKey = VARCHAR.getSlice(block, index).toStringUtf8();
-                Map.Entry<String, JsonNode> entry = Iterators.tryFind(fields, e -> e.getKey().equals(actualKey)).get();
+                Map.Entry<String, JsonNode> entry = Iterators.tryFind(
+                                fields, e -> e.getKey().equals(actualKey))
+                        .get();
                 assertNotNull(entry);
                 assertNotNull(entry.getKey());
                 checkPrimitiveValue(getObjectValue(valueType, block, index + 1), entry.getValue());
@@ -195,5 +197,4 @@ public class JsonDecoderTestUtil extends DecoderTestUtil {
             }
         }
     }
-
 }

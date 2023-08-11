@@ -72,8 +72,8 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(TEST_CLUSTER);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -81,8 +81,8 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
 
         proxyService.addPrometheusRawMetricsProvider(stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n"));
 
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         proxyWebServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null);
@@ -142,9 +142,11 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
     }
 
     private Multimap<String, Metric> getMetrics() {
-        @Cleanup
-        Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/metrics").request()
+        @Cleanup Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Response r = httpClient
+                .target(proxyWebServer.getServiceUri())
+                .path("/metrics")
+                .request()
                 .get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         String response = r.readEntity(String.class).trim();
@@ -203,8 +205,10 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
 
         @Override
         public String toString() {
-            return MoreObjects.toStringHelper(this).add("tags", tags).add("value", value).toString();
+            return MoreObjects.toStringHelper(this)
+                    .add("tags", tags)
+                    .add("value", value)
+                    .toString();
         }
     }
-
 }

@@ -253,13 +253,13 @@ public class BrokerServiceException extends Exception {
             return ServerError.TooManyRequests;
         } else if (t instanceof TopicTerminatedException) {
             return ServerError.TopicTerminatedError;
-        } else if (t instanceof ServiceUnitNotReadyException || t instanceof TopicFencedException
+        } else if (t instanceof ServiceUnitNotReadyException
+                || t instanceof TopicFencedException
                 || t instanceof SubscriptionFencedException) {
             return ServerError.ServiceNotReady;
         } else if (t instanceof TopicNotFoundException) {
             return ServerError.TopicNotFound;
-        } else if (t instanceof IncompatibleSchemaException
-            || t instanceof InvalidSchemaDataException) {
+        } else if (t instanceof IncompatibleSchemaException || t instanceof InvalidSchemaDataException) {
             // for backward compatible with old clients, invalid schema data
             // is treated as "incompatible schema".
             return ServerError.IncompatibleSchema;

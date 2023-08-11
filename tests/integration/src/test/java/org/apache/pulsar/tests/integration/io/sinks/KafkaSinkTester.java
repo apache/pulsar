@@ -86,19 +86,18 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
                 "1",
                 "--topic",
                 kafkaTopicName);
-        assertTrue(
-                execResult.getStdout().contains("Created topic"),
-                execResult.getStdout());
+        assertTrue(execResult.getStdout().contains("Created topic"), execResult.getStdout());
 
         kafkaConsumer = new KafkaConsumer<>(
                 ImmutableMap.of(
-                        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, serviceContainer.getBootstrapServers(),
-                        ConsumerConfig.GROUP_ID_CONFIG, "sink-test-" + randomName(8),
-                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
-                ),
+                        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                        serviceContainer.getBootstrapServers(),
+                        ConsumerConfig.GROUP_ID_CONFIG,
+                        "sink-test-" + randomName(8),
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                        "earliest"),
                 new StringDeserializer(),
-                new StringDeserializer()
-        );
+                new StringDeserializer());
         kafkaConsumer.subscribe(Arrays.asList(kafkaTopicName));
         log.info("Successfully subscribe to kafka topic {}", kafkaTopicName);
     }
@@ -108,8 +107,7 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
         Iterator<Map.Entry<String, String>> kvIter = kvs.entrySet().iterator();
         while (kvIter.hasNext()) {
             ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofSeconds(1L));
-            log.info("Received {} records from kafka topic {}",
-                    records.count(), kafkaTopicName);
+            log.info("Received {} records from kafka topic {}", records.count(), kafkaTopicName);
             if (records.isEmpty()) {
                 continue;
             }

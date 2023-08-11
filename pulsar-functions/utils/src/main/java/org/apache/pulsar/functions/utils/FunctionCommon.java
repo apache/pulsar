@@ -180,7 +180,6 @@ public class FunctionCommon {
             throw new RuntimeException("User class constructor throws exception", e);
         }
         return result;
-
     }
 
     public static Runtime convertRuntime(FunctionConfig.Runtime runtime) {
@@ -204,8 +203,7 @@ public class FunctionCommon {
     public static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees convertProcessingGuarantee(
             FunctionConfig.ProcessingGuarantees processingGuarantees) {
         for (org.apache.pulsar.functions.proto.Function.ProcessingGuarantees type :
-                org.apache.pulsar.functions.proto.Function.ProcessingGuarantees
-                .values()) {
+                org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.values()) {
             if (type.name().equals(processingGuarantees.name())) {
                 return type;
             }
@@ -235,8 +233,7 @@ public class FunctionCommon {
             return TypeResolver.resolveRawArgument(BatchSource.class, sourceClass);
         } else {
             throw new IllegalArgumentException(
-              String.format("Source class %s does not implement the correct interface",
-                sourceClass.getName()));
+                    String.format("Source class %s does not implement the correct interface", sourceClass.getName()));
         }
     }
 
@@ -269,8 +266,7 @@ public class FunctionCommon {
         try {
             return ClassLoaderUtils.loadJar(file);
         } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(
-                    "Corrupt User PackageFile " + file + " with error " + e.getMessage());
+            throw new IllegalArgumentException("Corrupt User PackageFile " + file + " with error " + e.getMessage());
         }
     }
 
@@ -292,13 +288,12 @@ public class FunctionCommon {
             downloadFromHttpUrl(destPkgUrl, tempFile);
             return tempFile;
         } else {
-            throw new IllegalArgumentException("Unsupported url protocol "
-                    + destPkgUrl + ", supported url protocols: [file/http/https]");
+            throw new IllegalArgumentException(
+                    "Unsupported url protocol " + destPkgUrl + ", supported url protocols: [file/http/https]");
         }
     }
 
-    public static NarClassLoader extractNarClassLoader(File packageFile,
-                                                       String narExtractionDirectory) {
+    public static NarClassLoader extractNarClassLoader(File packageFile, String narExtractionDirectory) {
         if (packageFile != null) {
             try {
                 return NarClassLoaderBuilder.builder()
@@ -320,8 +315,8 @@ public class FunctionCommon {
                 instance.getInstanceId());
     }
 
-    public static String getFullyQualifiedInstanceId(String tenant, String namespace,
-                                                     String functionName, int instanceId) {
+    public static String getFullyQualifiedInstanceId(
+            String tenant, String namespace, String functionName, int instanceId) {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
     }
 
@@ -348,7 +343,7 @@ public class FunctionCommon {
     public static byte[] toByteArray(Object obj) throws IOException {
         byte[] bytes = null;
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+                ObjectOutputStream oos = new ObjectOutputStream(bos)) {
             oos.writeObject(obj);
             oos.flush();
             bytes = bos.toByteArray();
@@ -368,15 +363,13 @@ public class FunctionCommon {
      * @return state storage namespace
      */
     public static String getStateNamespace(String tenant, String namespace) {
-        return String.format("%s_%s", tenant, namespace)
-                .replace("-", "_");
+        return String.format("%s_%s", tenant, namespace).replace("-", "_");
     }
 
     public static String getFullyQualifiedName(
             org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails) {
-        return getFullyQualifiedName(functionDetails.getTenant(), functionDetails.getNamespace(),
-                functionDetails.getName());
-
+        return getFullyQualifiedName(
+                functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
     }
 
     public static String getFullyQualifiedName(String tenant, String namespace, String functionName) {
@@ -419,10 +412,7 @@ public class FunctionCommon {
     }
 
     public static ClassLoader getClassLoaderFromPackage(
-            ComponentType componentType,
-            String className,
-            File packageFile,
-            String narExtractionDirectory) {
+            ComponentType componentType, String className, File packageFile, String narExtractionDirectory) {
         String connectorClassName = className;
         ClassLoader jarClassLoader = null;
         boolean keepJarClassLoader = false;
@@ -447,11 +437,13 @@ public class FunctionCommon {
             // if connector class name is not provided, we can only try to load archive as a NAR
             if (isEmpty(connectorClassName)) {
                 if (narClassLoader == null) {
-                    throw new IllegalArgumentException(String.format("%s package does not have the correct format. "
-                                    + "Pulsar cannot determine if the package is a NAR package or JAR package. "
-                                    + "%s classname is not provided and attempts to load it as a NAR package produced "
-                                    + "the following error.",
-                            capFirstLetter(componentType), capFirstLetter(componentType)),
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "%s package does not have the correct format. "
+                                            + "Pulsar cannot determine if the package is a NAR package or JAR package. "
+                                            + "%s classname is not provided and attempts to load it as a NAR package produced "
+                                            + "the following error.",
+                                    capFirstLetter(componentType), capFirstLetter(componentType)),
                             narClassLoaderException);
                 }
                 try {
@@ -463,8 +455,11 @@ public class FunctionCommon {
                         connectorClassName = ConnectorUtils.getIOSinkClass((NarClassLoader) narClassLoader);
                     }
                 } catch (IOException e) {
-                    throw new IllegalArgumentException(String.format("Failed to extract %s class from archive",
-                            componentType.toString().toLowerCase()), e);
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Failed to extract %s class from archive",
+                                    componentType.toString().toLowerCase()),
+                            e);
                 }
 
                 try {
@@ -473,8 +468,10 @@ public class FunctionCommon {
                     return narClassLoader;
                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     throw new IllegalArgumentException(
-                            String.format("%s class %s must be in class path", capFirstLetter(componentType),
-                                    connectorClassName), e);
+                            String.format(
+                                    "%s class %s must be in class path",
+                                    capFirstLetter(componentType), connectorClassName),
+                            e);
                 }
 
             } else {
@@ -494,13 +491,17 @@ public class FunctionCommon {
                                 return narClassLoader;
                             } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                                 throw new IllegalArgumentException(
-                                        String.format("%s class %s must be in class path",
-                                                capFirstLetter(componentType), connectorClassName), e1);
+                                        String.format(
+                                                "%s class %s must be in class path",
+                                                capFirstLetter(componentType), connectorClassName),
+                                        e1);
                             }
                         } else {
                             throw new IllegalArgumentException(
-                                    String.format("%s class %s must be in class path", capFirstLetter(componentType),
-                                            connectorClassName), e);
+                                    String.format(
+                                            "%s class %s must be in class path",
+                                            capFirstLetter(componentType), connectorClassName),
+                                    e);
                         }
                     }
                 } else if (narClassLoader != null) {
@@ -510,8 +511,10 @@ public class FunctionCommon {
                         return narClassLoader;
                     } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                         throw new IllegalArgumentException(
-                                String.format("%s class %s must be in class path",
-                                        capFirstLetter(componentType), connectorClassName), e1);
+                                String.format(
+                                        "%s class %s must be in class path",
+                                        capFirstLetter(componentType), connectorClassName),
+                                e1);
                     }
                 } else {
                     StringBuilder errorMsg = new StringBuilder(capFirstLetter(componentType)
@@ -519,15 +522,13 @@ public class FunctionCommon {
                             + " Pulsar cannot determine if the package is a NAR package or JAR package.");
 
                     if (jarClassLoaderException != null) {
-                        errorMsg.append(
-                                " Attempts to load it as a JAR package produced error: " + jarClassLoaderException
-                                        .getMessage());
+                        errorMsg.append(" Attempts to load it as a JAR package produced error: "
+                                + jarClassLoaderException.getMessage());
                     }
 
                     if (narClassLoaderException != null) {
-                        errorMsg.append(
-                                " Attempts to load it as a NAR package produced error: " + narClassLoaderException
-                                        .getMessage());
+                        errorMsg.append(" Attempts to load it as a NAR package produced error: "
+                                + narClassLoaderException.getMessage());
                     }
 
                     throw new IllegalArgumentException(errorMsg.toString());
@@ -601,7 +602,7 @@ public class FunctionCommon {
     }
 
     public static org.apache.pulsar.functions.proto.Function.CompressionType convertFromCompressionType(
-       CompressionType compressionType) {
+            CompressionType compressionType) {
         if (compressionType == null) {
             return org.apache.pulsar.functions.proto.Function.CompressionType.LZ4;
         }

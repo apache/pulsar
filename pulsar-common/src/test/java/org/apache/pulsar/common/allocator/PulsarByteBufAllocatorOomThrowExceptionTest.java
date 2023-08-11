@@ -42,8 +42,8 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
 
         AtomicBoolean called = new AtomicBoolean();
         System.setProperty("pulsar.allocator.out_of_memory_policy", "ThrowException");
-        try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
-                (mock, context) -> {
+        try (MockedConstruction<ByteBufAllocatorImpl> ignored =
+                Mockito.mockConstruction(ByteBufAllocatorImpl.class, (mock, context) -> {
                     called.set(true);
                     final List<?> arguments = context.arguments();
                     assertTrue(arguments.get(0) instanceof ByteBufAllocator);
@@ -58,5 +58,4 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
             System.clearProperty("pulsar.allocator.out_of_memory_policy");
         }
     }
-
 }

@@ -55,7 +55,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
                 // unknown schema format
                 throw new IncompatibleSchemaException("Unknown schema format");
             }
-        } else if (isJsonSchema(from)){
+        } else if (isJsonSchema(from)) {
 
             if (isAvroSchema(to)) {
                 // if broker have the schema in old json format but producer sent a schema in the avro format
@@ -76,12 +76,14 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
 
     private static final ObjectReader JSON_SCHEMA_READER =
             ObjectMapperFactory.getMapper().reader().forType(JsonSchema.class);
+
     private void isCompatibleJsonSchema(SchemaData from, SchemaData to) throws IncompatibleSchemaException {
         try {
             JsonSchema fromSchema = JSON_SCHEMA_READER.readValue(from.getData());
             JsonSchema toSchema = JSON_SCHEMA_READER.readValue(to.getData());
             if (!fromSchema.getId().equals(toSchema.getId())) {
-                throw new IncompatibleSchemaException(String.format("Incompatible Schema from %s + to %s",
+                throw new IncompatibleSchemaException(String.format(
+                        "Incompatible Schema from %s + to %s",
                         new String(from.getData(), UTF_8), new String(to.getData(), UTF_8)));
             }
         } catch (IOException e) {
@@ -106,8 +108,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
             JsonSchema fromSchema = JSON_SCHEMA_READER.readValue(schemaData.getData());
             return true;
         } catch (IOException e) {
-           return false;
+            return false;
         }
     }
-
 }

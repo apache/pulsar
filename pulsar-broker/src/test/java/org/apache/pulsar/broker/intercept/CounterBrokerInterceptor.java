@@ -47,7 +47,6 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.eclipse.jetty.server.Response;
 
-
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
@@ -99,43 +98,33 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void producerCreated(ServerCnx cnx, Producer producer,
-                                Map<String, String> metadata) {
+    public void producerCreated(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
         if (log.isDebugEnabled()) {
-            log.debug("Producer created with name={}, id={}",
-                    producer.getProducerName(), producer.getProducerId());
+            log.debug("Producer created with name={}, id={}", producer.getProducerName(), producer.getProducerId());
         }
         producerCount.incrementAndGet();
     }
 
     @Override
-    public void producerClosed(ServerCnx cnx, Producer producer,
-                                Map<String, String> metadata) {
+    public void producerClosed(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
         if (log.isDebugEnabled()) {
-            log.debug("Producer with name={}, id={} closed",
-                    producer.getProducerName(), producer.getProducerId());
+            log.debug("Producer with name={}, id={} closed", producer.getProducerName(), producer.getProducerId());
         }
         producerCount.decrementAndGet();
     }
 
     @Override
-    public void consumerCreated(ServerCnx cnx,
-                                 Consumer consumer,
-                                 Map<String, String> metadata) {
+    public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         if (log.isDebugEnabled()) {
-            log.debug("Consumer created with name={}, id={}",
-                    consumer.consumerName(), consumer.consumerId());
+            log.debug("Consumer created with name={}, id={}", consumer.consumerName(), consumer.consumerId());
         }
         consumerCount.incrementAndGet();
     }
 
     @Override
-    public void consumerClosed(ServerCnx cnx,
-                                Consumer consumer,
-                                Map<String, String> metadata) {
+    public void consumerClosed(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         if (log.isDebugEnabled()) {
-            log.debug("Consumer with name={}, id={} closed",
-                    consumer.consumerName(), consumer.consumerId());
+            log.debug("Consumer with name={}, id={} closed", consumer.consumerName(), consumer.consumerId());
         }
         consumerCount.decrementAndGet();
     }
@@ -143,60 +132,65 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {
         if (log.isDebugEnabled()) {
-            log.debug("Message broker received topic={}, producer={}",
-                    producer.getTopic().getName(), producer.getProducerName());
+            log.debug(
+                    "Message broker received topic={}, producer={}",
+                    producer.getTopic().getName(),
+                    producer.getProducerName());
         }
         messagePublishCount.incrementAndGet();
     }
 
     @Override
-    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
-                                 long entryId,
-                                 Topic.PublishContext publishContext) {
+    public void messageProduced(
+            ServerCnx cnx,
+            Producer producer,
+            long startTimeNs,
+            long ledgerId,
+            long entryId,
+            Topic.PublishContext publishContext) {
         if (log.isDebugEnabled()) {
-            log.debug("Message published topic={}, producer={}",
-                    producer.getTopic().getName(), producer.getProducerName());
+            log.debug(
+                    "Message published topic={}, producer={}",
+                    producer.getTopic().getName(),
+                    producer.getProducerName());
         }
         messageCount.incrementAndGet();
     }
 
     @Override
-    public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
-                                   long entryId, ByteBuf headersAndPayload) {
+    public void messageDispatched(
+            ServerCnx cnx, Consumer consumer, long ledgerId, long entryId, ByteBuf headersAndPayload) {
         if (log.isDebugEnabled()) {
-            log.debug("Message dispatched topic={}, consumer={}",
-                    consumer.getSubscription().getTopic().getName(), consumer.consumerName());
+            log.debug(
+                    "Message dispatched topic={}, consumer={}",
+                    consumer.getSubscription().getTopic().getName(),
+                    consumer.consumerName());
         }
         messageDispatchCount.incrementAndGet();
     }
 
     @Override
-    public void messageAcked(ServerCnx cnx, Consumer consumer,
-                              CommandAck ack) {
+    public void messageAcked(ServerCnx cnx, Consumer consumer, CommandAck ack) {
         messageAckCount.incrementAndGet();
     }
 
     @Override
-    public void beforeSendMessage(Subscription subscription,
-                                  Entry entry,
-                                  long[] ackSet,
-                                  MessageMetadata msgMetadata) {
+    public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
         if (log.isDebugEnabled()) {
-            log.debug("Send message to topic {}, subscription {}",
-                    subscription.getTopic(), subscription.getName());
+            log.debug("Send message to topic {}, subscription {}", subscription.getTopic(), subscription.getName());
         }
         beforeSendCount.incrementAndGet();
     }
 
     @Override
-    public void beforeSendMessage(Subscription subscription,
-                                  Entry entry,
-                                  long[] ackSet,
-                                  MessageMetadata msgMetadata,
-                                  Consumer consumer) {
+    public void beforeSendMessage(
+            Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {
         if (log.isDebugEnabled()) {
-            log.debug("Send message to topic {}, subscription {}, consumer {}",
-                    subscription.getTopic(), subscription.getName(), consumer.consumerName());
+            log.debug(
+                    "Send message to topic {}, subscription {}, consumer {}",
+                    subscription.getTopic(),
+                    subscription.getName(),
+                    consumer.consumerName());
         }
         beforeSendCountAtConsumerLevel.incrementAndGet();
     }
@@ -239,15 +233,17 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count.incrementAndGet();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Webservice response {}",
-                    count, ((HttpServletRequest) request).getRequestURL().toString(), response);
+            log.debug(
+                    "[{}] On [{}] Webservice response {}",
+                    count,
+                    ((HttpServletRequest) request).getRequestURL().toString(),
+                    response);
         }
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
         }
     }
-
 
     @Override
     public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -263,7 +259,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void txnEnded(String txnID, long txnAction) {
-        if(txnAction == TxnAction.COMMIT_VALUE) {
+        if (txnAction == TxnAction.COMMIT_VALUE) {
             committedTxnCount.incrementAndGet();
         } else {
             abortedTxnCount.incrementAndGet();
@@ -271,14 +267,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void initialize(PulsarService pulsarService) throws Exception {
-
-    }
+    public void initialize(PulsarService pulsarService) throws Exception {}
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 
     public int getHandleAckCount() {
         return handleAckCount.get();
@@ -299,6 +291,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public int getMessagePublishCount() {
         return messagePublishCount.get();
     }
+
     public int getMessageProducedCount() {
         return messageCount.get();
     }

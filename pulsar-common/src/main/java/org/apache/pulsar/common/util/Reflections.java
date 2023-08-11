@@ -37,8 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Reflections {
 
-    private static final Map<Class<?>, Constructor<?>> constructorCache =
-        new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Constructor<?>> constructorCache = new ConcurrentHashMap<>();
 
     private static final Map PRIMITIVE_NAME_TYPE_MAP = new HashMap();
 
@@ -62,9 +61,7 @@ public class Reflections {
      * @param classLoader class loader to load the class.
      * @return the instance
      */
-    public static <T> T createInstance(String userClassName,
-                                       Class<T> xface,
-                                       ClassLoader classLoader) {
+    public static <T> T createInstance(String userClassName, Class<T> xface, ClassLoader classLoader) {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
@@ -94,7 +91,6 @@ public class Reflections {
             throw new RuntimeException("User class constructor throws exception", e);
         }
         return result;
-
     }
 
     /**
@@ -104,8 +100,7 @@ public class Reflections {
      * @param classLoader class loader to load the class.
      * @return the instance
      */
-    public static Object createInstance(String userClassName,
-                                        ClassLoader classLoader) {
+    public static Object createInstance(String userClassName, ClassLoader classLoader) {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
@@ -131,11 +126,10 @@ public class Reflections {
             throw new RuntimeException("User class constructor throws exception", e);
         }
         return result;
-
     }
 
-    public static Object createInstance(String userClassName,
-                                        ClassLoader classLoader, Object[] params, Class[] paramTypes) {
+    public static Object createInstance(
+            String userClassName, ClassLoader classLoader, Object[] params, Class[] paramTypes) {
         if (params.length != paramTypes.length) {
             throw new RuntimeException(
                     "Unequal number of params and paramTypes. Each param must have a corresponding param type");
@@ -165,7 +159,6 @@ public class Reflections {
             throw new RuntimeException("User class constructor throws exception", e);
         }
         return result;
-
     }
 
     public static Object createInstance(String userClassName, java.io.File jar) {
@@ -213,7 +206,7 @@ public class Reflections {
             Class.forName(fqcn);
             return true;
         } catch (ClassNotFoundException e) {
-           return false;
+            return false;
         }
     }
 
@@ -229,7 +222,7 @@ public class Reflections {
         java.net.URLClassLoader loader = null;
         try {
             loader = (URLClassLoader) ClassLoaderUtils.loadJar(jar);
-            if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
+            if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))) {
                 ret = true;
             }
         } catch (ClassNotFoundException | NoClassDefFoundError | IOException e) {
@@ -256,7 +249,7 @@ public class Reflections {
     public static boolean classImplementsIface(String fqcn, Class xface) {
         boolean ret = false;
         try {
-            if (xface.isAssignableFrom(Class.forName(fqcn))){
+            if (xface.isAssignableFrom(Class.forName(fqcn))) {
                 ret = true;
             }
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
@@ -314,12 +307,12 @@ public class Reflections {
                 } else {
                     // CHECKSTYLE.OFF: EmptyStatement
                     int arrayDimension;
-                    for (arrayDimension = 0; className.charAt(arrayDimension) == '['; ++arrayDimension) {
-                    }
+                    for (arrayDimension = 0; className.charAt(arrayDimension) == '['; ++arrayDimension) {}
                     // CHECKSTYLE.ON: EmptyStatement
 
                     Class componentType = loadClass(className.substring(arrayDimension), classLoader);
-                    return Array.newInstance(componentType, new int[arrayDimension]).getClass();
+                    return Array.newInstance(componentType, new int[arrayDimension])
+                            .getClass();
                 }
             }
         }

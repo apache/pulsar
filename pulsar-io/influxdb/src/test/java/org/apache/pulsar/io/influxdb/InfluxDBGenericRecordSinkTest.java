@@ -27,7 +27,6 @@ import org.apache.pulsar.io.influxdb.v2.InfluxDBSink;
 import org.influxdb.InfluxDBIOException;
 import org.testng.annotations.Test;
 
-
 public class InfluxDBGenericRecordSinkTest {
 
     @Test
@@ -62,8 +61,7 @@ public class InfluxDBGenericRecordSinkTest {
         assertTrue(sink.sink instanceof InfluxDBSink);
     }
 
-    @Test(expectedExceptions = Exception.class,
-            expectedExceptionsMessageRegExp = "For InfluxDB V2:.*")
+    @Test(expectedExceptions = Exception.class, expectedExceptionsMessageRegExp = "For InfluxDB V2:.*")
     public void openInvalidInfluxConfig() throws Exception {
         InfluxDBGenericRecordSink sink = new InfluxDBGenericRecordSink();
         sink.open(new HashMap<>(), mock(SinkContext.class));

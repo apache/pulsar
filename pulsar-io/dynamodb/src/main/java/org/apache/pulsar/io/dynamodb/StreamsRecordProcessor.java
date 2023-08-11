@@ -42,6 +42,7 @@ public class StreamsRecordProcessor implements IRecordProcessor {
     private final LinkedBlockingQueue<StreamsRecord> queue;
     private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
+
     public StreamsRecordProcessor(LinkedBlockingQueue<StreamsRecord> queue, DynamoDBSourceConfig config) {
         this.queue = queue;
         this.checkpointInterval = config.getCheckpointInterval();
@@ -86,7 +87,10 @@ public class StreamsRecordProcessor implements IRecordProcessor {
     @Override
     public void processRecords(ProcessRecordsInput processRecordsInput) {
 
-        log.debug("Processing {} records from {}", processRecordsInput.getRecords().size(), kinesisShardId);
+        log.debug(
+                "Processing {} records from {}",
+                processRecordsInput.getRecords().size(),
+                kinesisShardId);
 
         for (Record record : processRecordsInput.getRecords()) {
             try {

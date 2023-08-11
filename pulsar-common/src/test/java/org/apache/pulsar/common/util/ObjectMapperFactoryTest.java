@@ -49,5 +49,4 @@ public class ObjectMapperFactoryTest {
             Assert.fail("shouldn't have thrown exception", ex);
         }
     }
-
 }

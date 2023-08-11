@@ -44,8 +44,7 @@ public class PulsarAvroRowDecoder implements PulsarRowDecoder {
 
     public PulsarAvroRowDecoder(GenericAvroSchema genericAvroSchema, Set<DecoderColumnHandle> columns) {
         this.genericAvroSchema = requireNonNull(genericAvroSchema, "genericAvroSchema is null");
-        columnDecoders = columns.stream()
-                .collect(toImmutableMap(identity(), this::createColumnDecoder));
+        columnDecoders = columns.stream().collect(toImmutableMap(identity(), this::createColumnDecoder));
     }
 
     private PulsarAvroColumnDecoder createColumnDecoder(DecoderColumnHandle columnHandle) {
@@ -67,9 +66,8 @@ public class PulsarAvroRowDecoder implements PulsarRowDecoder {
             e.printStackTrace();
             throw new TrinoException(GENERIC_INTERNAL_ERROR, "Decoding avro record failed.", e);
         }
-        return Optional.of(columnDecoders.entrySet().stream()
-                .collect(toImmutableMap(
-                        Map.Entry::getKey,
-                        entry -> entry.getValue().decodeField(avroRecord))));
+        return Optional.of(
+                columnDecoders.entrySet().stream().collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue()
+                        .decodeField(avroRecord))));
     }
 }

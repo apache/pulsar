@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-
 import java.time.Duration;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 
@@ -31,23 +30,11 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
     public static final String NAME = "standalone";
 
     public StandaloneContainer(String clusterName) {
-        super(clusterName,
-            NAME,
-            NAME + "-cluster",
-            "bin/pulsar",
-            BROKER_PORT,
-            BROKER_HTTP_PORT);
+        super(clusterName, NAME, NAME + "-cluster", "bin/pulsar", BROKER_PORT, BROKER_HTTP_PORT);
     }
 
     public StandaloneContainer(String clusterName, String pulsarImageName) {
-        super(clusterName,
-                NAME,
-                NAME + "-cluster",
-                "bin/pulsar",
-                BROKER_PORT,
-                BROKER_HTTP_PORT,
-                "",
-                pulsarImageName);
+        super(clusterName, NAME, NAME + "-cluster", "bin/pulsar", BROKER_PORT, BROKER_HTTP_PORT, "", pulsarImageName);
     }
 
     @Override

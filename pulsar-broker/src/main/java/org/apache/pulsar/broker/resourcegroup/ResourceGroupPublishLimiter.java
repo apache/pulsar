@@ -30,7 +30,7 @@ import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.util.RateLimitFunction;
 import org.apache.pulsar.common.util.RateLimiter;
 
-public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimitFunction, AutoCloseable  {
+public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimitFunction, AutoCloseable {
     protected volatile long publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
     protected volatile boolean publishThrottlingEnabled = false;
@@ -67,12 +67,12 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
 
     @Override
     public void update(Policies policies, String clusterName) {
-      // No-op
+        // No-op
     }
 
     @Override
     public void update(PublishRate maxPublishRate) {
-      // No-op
+        // No-op
     }
 
     public void update(BytesAndMessagesCount maxPublishRate) {
@@ -89,10 +89,10 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     public void update(ResourceGroup resourceGroup) {
         long publishRateInMsgs = 0, publishRateInBytes = 0;
         if (resourceGroup != null) {
-            publishRateInBytes = resourceGroup.getPublishRateInBytes() == null
-                    ? -1 : resourceGroup.getPublishRateInBytes();
-            publishRateInMsgs = resourceGroup.getPublishRateInMsgs() == null
-                    ? -1 : resourceGroup.getPublishRateInMsgs();
+            publishRateInBytes =
+                    resourceGroup.getPublishRateInBytes() == null ? -1 : resourceGroup.getPublishRateInBytes();
+            publishRateInMsgs =
+                    resourceGroup.getPublishRateInMsgs() == null ? -1 : resourceGroup.getPublishRateInMsgs();
         }
 
         update(publishRateInMsgs, publishRateInBytes);
@@ -114,8 +114,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
                             .build();
                 }
                 if (this.publishMaxByteRate > 0) {
-                    publishRateLimiterOnByte =
-                    RateLimiter.builder()
+                    publishRateLimiterOnByte = RateLimiter.builder()
                             .scheduledExecutorService(scheduledExecutorService)
                             .permits(publishMaxByteRate)
                             .rateTime(1L)
@@ -135,7 +134,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
 
     public boolean tryAcquire(int numbers, long bytes) {
         return (publishRateLimiterOnMessage == null || publishRateLimiterOnMessage.tryAcquire(numbers))
-            && (publishRateLimiterOnByte == null || publishRateLimiterOnByte.tryAcquire(bytes));
+                && (publishRateLimiterOnByte == null || publishRateLimiterOnByte.tryAcquire(bytes));
     }
 
     public void registerRateLimitFunction(String name, RateLimitFunction func) {
@@ -182,13 +181,13 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
         RateLimiter currentTopicPublishRateLimiterOnMessage = publishRateLimiterOnMessage;
         RateLimiter currentTopicPublishRateLimiterOnByte = publishRateLimiterOnByte;
         if ((currentTopicPublishRateLimiterOnMessage != null
-                && currentTopicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
-            || (currentTopicPublishRateLimiterOnByte != null
-                && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
+                        && currentTopicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
+                || (currentTopicPublishRateLimiterOnByte != null
+                        && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
             return;
         }
 
-        for (Map.Entry<String, RateLimitFunction> entry: rateLimitFunctionMap.entrySet()) {
+        for (Map.Entry<String, RateLimitFunction> entry : rateLimitFunctionMap.entrySet()) {
             entry.getValue().apply();
         }
     }

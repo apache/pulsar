@@ -29,8 +29,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
-import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 public class MessageRedeliveryControllerTest {
     @DataProvider(name = "allowOutOfOrderDelivery")
     public Object[][] dataProvider() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
@@ -52,8 +52,8 @@ public class MessageRedeliveryControllerTest {
 
         Field hashesToBeBlockedField = MessageRedeliveryController.class.getDeclaredField("hashesToBeBlocked");
         hashesToBeBlockedField.setAccessible(true);
-        ConcurrentLongLongPairHashMap hashesToBeBlocked = (ConcurrentLongLongPairHashMap) hashesToBeBlockedField
-                .get(controller);
+        ConcurrentLongLongPairHashMap hashesToBeBlocked =
+                (ConcurrentLongLongPairHashMap) hashesToBeBlockedField.get(controller);
 
         Field hashesRefCountField = MessageRedeliveryController.class.getDeclaredField("hashesRefCount");
         hashesRefCountField.setAccessible(true);
@@ -225,7 +225,7 @@ public class MessageRedeliveryControllerTest {
         if (allowOutOfOrderDelivery) {
             // The entries are sorted by ledger ID but not by entry ID
             PositionImpl[] actual1 = controller.getMessagesToReplayNow(3).toArray(new PositionImpl[3]);
-            PositionImpl[] expected1 = { PositionImpl.get(1, 1), PositionImpl.get(1, 2), PositionImpl.get(1, 3) };
+            PositionImpl[] expected1 = {PositionImpl.get(1, 1), PositionImpl.get(1, 2), PositionImpl.get(1, 3)};
             assertEqualsNoOrder(actual1, expected1);
         } else {
             // The entries are completely sorted

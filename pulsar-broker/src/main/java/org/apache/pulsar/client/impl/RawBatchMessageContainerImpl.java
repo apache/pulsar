@@ -55,6 +55,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         this.maxNumMessagesInBatch = maxNumMessagesInBatch;
         this.maxBytesInBatch = maxBytesInBatch;
     }
+
     private ByteBuf encrypt(ByteBuf compressedPayload) {
         if (msgCrypto == null) {
             return compressedPayload;
@@ -64,8 +65,12 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         ByteBuffer targetBuffer = encryptedPayload.nioBuffer(0, maxSize);
 
         try {
-            msgCrypto.encrypt(encryptionKeys, cryptoKeyReader, () -> messageMetadata,
-                    compressedPayload.nioBuffer(), targetBuffer);
+            msgCrypto.encrypt(
+                    encryptionKeys,
+                    cryptoKeyReader,
+                    () -> messageMetadata,
+                    compressedPayload.nioBuffer(),
+                    targetBuffer);
         } catch (PulsarClientException e) {
             encryptedPayload.release();
             compressedPayload.release();
@@ -121,7 +126,8 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         this.compressor = CompressionCodecProvider.getCompressionCodec(lastMessageMetadata.getCompression());
 
         if (!lastMessage.getEncryptionCtx().isEmpty()) {
-            EncryptionContext encryptionContext = (EncryptionContext) lastMessage.getEncryptionCtx().get();
+            EncryptionContext encryptionContext =
+                    (EncryptionContext) lastMessage.getEncryptionCtx().get();
 
             if (cryptoKeyReader == null) {
                 IllegalStateException ex =
@@ -133,8 +139,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
             encryptionKeys = encryptionContext.getKeys().keySet();
             if (msgCrypto == null) {
                 msgCrypto =
-                        new MessageCryptoBc(String.format(
-                                "[%s] [%s]", topicName, "RawBatchMessageContainer"), true);
+                        new MessageCryptoBc(String.format("[%s] [%s]", topicName, "RawBatchMessageContainer"), true);
                 try {
                     msgCrypto.addPublicKeyCipher(encryptionKeys, cryptoKeyReader);
                 } catch (PulsarClientException.CryptoException e) {
@@ -146,8 +151,8 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
 
         ByteBuf encryptedPayload = encrypt(getCompressedBatchMetadataAndPayload());
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
-        ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
-                messageMetadata, encryptedPayload);
+        ByteBuf metadataAndPayload =
+                Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, encryptedPayload);
 
         MessageIdData idData = new MessageIdData();
         idData.setLedgerId(lastMessageId.getLedgerId());

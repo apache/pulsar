@@ -54,7 +54,10 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final double maxUsage = brokerData.getLocalData().getMaxResourceUsage();
         if (maxUsage > overloadThreshold) {
-            log.warn("Broker {} is overloaded: max usage={}", brokerData.getLocalData().getWebServiceUrl(), maxUsage);
+            log.warn(
+                    "Broker {} is overloaded: max usage={}",
+                    brokerData.getLocalData().getWebServiceUrl(),
+                    maxUsage);
             return Double.POSITIVE_INFINITY;
         }
 
@@ -66,13 +69,15 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
 
         // calculate estimated score
         final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
-        final double timeAverageLongTermMessageRate = timeAverageData.getLongTermMsgRateIn()
-                + timeAverageData.getLongTermMsgRateOut();
+        final double timeAverageLongTermMessageRate =
+                timeAverageData.getLongTermMsgRateIn() + timeAverageData.getLongTermMsgRateOut();
         final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
 
         if (log.isDebugEnabled()) {
-            log.debug("Broker {} has long term message rate {}",
-                    brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
+            log.debug(
+                    "Broker {} has long term message rate {}",
+                    brokerData.getLocalData().getWebServiceUrl(),
+                    totalMessageRateEstimate);
         }
         return totalMessageRateEstimate;
     }
@@ -91,9 +96,11 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign,
-                                         final LoadData loadData,
-                                         final ServiceConfiguration conf) {
+    public Optional<String> selectBroker(
+            final Set<String> candidates,
+            final BundleData bundleToAssign,
+            final LoadData loadData,
+            final ServiceConfiguration conf) {
         bestBrokers.clear();
         double minScore = Double.POSITIVE_INFINITY;
         // Maintain of list of all the best scoring brokers and then randomly
@@ -106,10 +113,12 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
                 log.warn(
                         "Broker {} is overloaded: CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
                                 + "BANDWIDTH OUT: {}%",
-                        broker, localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
-                        localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
+                        broker,
+                        localData.getCpu().percentUsage(),
+                        localData.getMemory().percentUsage(),
+                        localData.getDirectMemory().percentUsage(),
+                        localData.getBandwidthIn().percentUsage(),
                         localData.getBandwidthOut().percentUsage());
-
             }
             if (score < minScore) {
                 // Clear best brokers since this score beats the other brokers.

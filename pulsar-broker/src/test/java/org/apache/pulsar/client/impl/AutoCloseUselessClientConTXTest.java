@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSupports {
 
-    private static final String topicName = UUID.randomUUID().toString().replaceAll("-","");
+    private static final String topicName = UUID.randomUUID().toString().replaceAll("-", "");
     private static final String topicFullName = "persistent://public/default/" + topicName;
 
     @BeforeMethod
@@ -56,7 +56,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
         List<String> topicList_defaultNamespace = pulsarAdmin_0.topics().getList("public/default");
         if (!topicList_defaultNamespace.contains(topicName)
                 && !topicList_defaultNamespace.contains(topicFullName + "-partition-0")
-                && !topicList_defaultNamespace.contains(topicFullName)){
+                && !topicList_defaultNamespace.contains(topicFullName)) {
             pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName);
         }
     }
@@ -80,12 +80,16 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
     @Override
     protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
         try {
-            if (!admin.clusters().getClusters().contains("test")){
+            if (!admin.clusters().getClusters().contains("test")) {
                 admin.clusters().createCluster("test", ClusterData.builder().build());
             }
-            if (!admin.tenants().getTenants().contains("pulsar")){
-                admin.tenants().createTenant("pulsar",
-                        TenantInfo.builder().allowedClusters(Collections.singleton("test")).build());
+            if (!admin.tenants().getTenants().contains("pulsar")) {
+                admin.tenants()
+                        .createTenant(
+                                "pulsar",
+                                TenantInfo.builder()
+                                        .allowedClusters(Collections.singleton("test"))
+                                        .build());
             }
             if (!admin.namespaces().getNamespaces("pulsar").contains("pulsar/system")) {
                 admin.namespaces().createNamespace("pulsar/system");
@@ -95,15 +99,15 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
                 if (!pulsar.getPulsarResources()
                         .getNamespaceResources()
                         .getPartitionedTopicResources()
-                        .partitionedTopicExists(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)){
+                        .partitionedTopicExists(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)) {
                     pulsar.getPulsarResources()
                             .getNamespaceResources()
                             .getPartitionedTopicResources()
-                            .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                                    new PartitionedTopicMetadata(2));
+                            .createPartitionedTopic(
+                                    SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, new PartitionedTopicMetadata(2));
                 }
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             log.warn("create namespace failure", e);
         }
         return clientBuilder.enableTransaction(true).build();
@@ -125,11 +129,13 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
     public void testConnectionAutoReleaseUnPartitionedTopicWithTransaction() throws Exception {
         PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
         // Init clients
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName("my-subscription-x")
                 .subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topicName)
                 .create();
@@ -140,7 +146,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
         Assert.assertTrue(pulsarClient.getCnxPool().getPoolSize() >= 5);
         // Assert "auto release works"
         trigReleaseConnection(pulsarClient);
-        Awaitility.waitAtMost(Duration.ofSeconds(5)).until(()-> {
+        Awaitility.waitAtMost(Duration.ofSeconds(5)).until(() -> {
             // Wait for async task done, then assert auto release success
             return pulsarClient.getCnxPool().getPoolSize() <= 3;
         });

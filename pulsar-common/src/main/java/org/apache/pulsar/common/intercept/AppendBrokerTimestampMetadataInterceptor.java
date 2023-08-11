@@ -32,9 +32,7 @@ public class AppendBrokerTimestampMetadataInterceptor implements BrokerEntryMeta
     }
 
     @Override
-    public BrokerEntryMetadata interceptWithNumberOfMessages(
-            BrokerEntryMetadata brokerMetadata,
-            int numberOfMessages) {
+    public BrokerEntryMetadata interceptWithNumberOfMessages(BrokerEntryMetadata brokerMetadata, int numberOfMessages) {
         // do nothing, just return brokerMetadata
         return brokerMetadata;
     }

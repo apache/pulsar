@@ -66,14 +66,14 @@ public class PulsarDispatchingRowDecoderFactory {
         };
     }
 
-    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
-                                             Set<DecoderColumnHandle> columns) {
+    public PulsarRowDecoder createRowDecoder(
+            TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
         PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
         return rowDecoderFactory.createRowDecoder(topicName, schemaInfo, columns);
     }
 
-    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
-                                                      PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(
+            TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
         return rowDecoderFactory.extractColumnMetadata(topicName, schemaInfo, handleKeyValueType);
     }
@@ -81,8 +81,8 @@ public class PulsarDispatchingRowDecoderFactory {
     private PulsarRowDecoderFactory createDecoderFactory(SchemaInfo schemaInfo) {
         PulsarRowDecoderFactory decoderFactory = decoderFactories.apply(schemaInfo.getType());
         if (decoderFactory == null) {
-            throw new RuntimeException(format("'%s' is unsupported type '%s'",
-                    schemaInfo.getName(), schemaInfo.getType()));
+            throw new RuntimeException(
+                    format("'%s' is unsupported type '%s'", schemaInfo.getName(), schemaInfo.getType()));
         }
         return decoderFactory;
     }

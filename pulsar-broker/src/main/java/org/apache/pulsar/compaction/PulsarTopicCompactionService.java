@@ -36,7 +36,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 
-
 public class PulsarTopicCompactionService implements TopicCompactionService {
 
     private final String topic;
@@ -45,8 +44,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
 
     private final Supplier<Compactor> compactorSupplier;
 
-    public PulsarTopicCompactionService(String topic, BookKeeper bookKeeper,
-                                        Supplier<Compactor> compactorSupplier) {
+    public PulsarTopicCompactionService(String topic, BookKeeper bookKeeper, Supplier<Compactor> compactorSupplier) {
         this.topic = topic;
         this.compactedTopic = new CompactedTopicImpl(bookKeeper);
         this.compactorSupplier = compactorSupplier;
@@ -64,23 +62,25 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition,
-                                                               int numberOfEntriesToRead) {
+    public CompletableFuture<List<Entry>> readCompactedEntries(
+            @Nonnull Position startPosition, int numberOfEntriesToRead) {
         Objects.requireNonNull(startPosition);
         checkArgument(numberOfEntriesToRead > 0);
 
         CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
-        Objects.requireNonNull(compactedTopic.getCompactedTopicContextFuture()).thenCompose(
-                (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
-                        context.cache).thenCompose((startPoint) -> {
-                    if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
-                        return CompletableFuture.completedFuture(Collections.emptyList());
-                    }
-                    long endPoint =
-                            Math.min(context.ledger.getLastAddConfirmed(), startPoint + numberOfEntriesToRead);
-                    return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint);
-                })).whenComplete((result, ex) -> {
+        Objects.requireNonNull(compactedTopic.getCompactedTopicContextFuture())
+                .thenCompose((context) -> findStartPoint(
+                                (PositionImpl) startPosition, context.ledger.getLastAddConfirmed(), context.cache)
+                        .thenCompose((startPoint) -> {
+                            if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
+                                return CompletableFuture.completedFuture(Collections.emptyList());
+                            }
+                            long endPoint =
+                                    Math.min(context.ledger.getLastAddConfirmed(), startPoint + numberOfEntriesToRead);
+                            return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint);
+                        }))
+                .whenComplete((result, ex) -> {
                     if (ex == null) {
                         resultFuture.complete(result);
                     } else {
@@ -103,7 +103,8 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
 
     @Override
     public CompletableFuture<Position> getLastCompactedPosition() {
-        return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon().orElse(null));
+        return CompletableFuture.completedFuture(
+                compactedTopic.getCompactionHorizon().orElse(null));
     }
 
     public CompactedTopicImpl getCompactedTopic() {

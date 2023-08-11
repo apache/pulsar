@@ -19,7 +19,6 @@
 package org.apache.pulsar.client;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
@@ -75,8 +74,11 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
             pulsarClient.close();
         }
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .enableTls(true)
+                .allowTlsInsecureConnection(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         if (addCertificates) {
             Map<String, String> authParams = new HashMap<>();
@@ -96,17 +98,24 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
             admin.close();
         }
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
-                .authentication(AuthenticationTls.class.getName(), authParams).build());
-        admin.clusters().createCluster(clusterName, ClusterData.builder()
-                .serviceUrl(brokerUrl.toString())
-                .serviceUrlTls(brokerUrlTls.toString())
-                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .authentication(AuthenticationTls.class.getName(), authParams)
                 .build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.clusters()
+                .createCluster(
+                        clusterName,
+                        ClusterData.builder()
+                                .serviceUrl(brokerUrl.toString())
+                                .serviceUrlTls(brokerUrlTls.toString())
+                                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/my-ns");
     }
 }

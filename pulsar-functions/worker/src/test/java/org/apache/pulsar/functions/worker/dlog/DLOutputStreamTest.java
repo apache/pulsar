@@ -72,5 +72,4 @@ public class DLOutputStreamTest {
         out.write(data);
         verify(writer, times(1)).write(data);
     }
-
 }

@@ -37,5 +37,4 @@ public class NettyUDPChannelInitializer extends ChannelInitializer<Channel> {
     protected void initChannel(Channel channel) throws Exception {
         channel.pipeline().addLast(this.handler);
     }
-
 }

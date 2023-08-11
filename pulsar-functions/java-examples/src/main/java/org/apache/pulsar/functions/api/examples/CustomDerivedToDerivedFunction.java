@@ -31,4 +31,3 @@ public class CustomDerivedToDerivedFunction implements Function<CustomDerivedObj
         return new CustomDerivedObject(input.getBaseValue() + 101, input.getDerivedValue() + 150);
     }
 }
-

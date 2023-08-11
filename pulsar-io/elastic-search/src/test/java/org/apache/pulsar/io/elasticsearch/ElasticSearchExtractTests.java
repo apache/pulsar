@@ -20,7 +20,6 @@ package org.apache.pulsar.io.elasticsearch;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
 import com.google.common.collect.ImmutableMap;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.Pair;
@@ -41,7 +40,7 @@ public class ElasticSearchExtractTests {
 
     @DataProvider(name = "schemaType")
     public Object[] schemaType() {
-        return new Object[]{SchemaType.JSON, SchemaType.AVRO};
+        return new Object[] {SchemaType.JSON, SchemaType.AVRO};
     }
 
     @Test(dataProvider = "schemaType")
@@ -57,20 +56,28 @@ public class ElasticSearchExtractTests {
         udtSchemaBuilder.field("i").type(SchemaType.INT32).optional().defaultValue(null);
         udtSchemaBuilder.field("l").type(SchemaType.INT64).optional().defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
-        valueSchemaBuilder.field("e", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        valueSchemaBuilder
+                .field("e", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
+        GenericRecord valueGenericRecord = valueSchema
+                .newRecordBuilder()
                 .set("c", "1")
                 .set("d", 1)
-                .set("e", udtGenericSchema.newRecordBuilder()
-                        .set("a", "a")
-                        .set("b", true)
-                        .set("d", 1.0)
-                        .set("f", 1.0f)
-                        .set("i", 1)
-                        .set("l", 10L)
-                        .build())
+                .set(
+                        "e",
+                        udtGenericSchema
+                                .newRecordBuilder()
+                                .set("a", "a")
+                                .set("b", true)
+                                .set("d", 1.0)
+                                .set("f", 1.0f)
+                                .set("i", 1)
+                                .set("l", 10L)
+                                .build())
                 .build();
 
         Record<GenericObject> genericObjectRecord = new Record<GenericObject>() {
@@ -80,7 +87,7 @@ public class ElasticSearchExtractTests {
             }
 
             @Override
-            public org.apache.pulsar.client.api.Schema  getSchema() {
+            public org.apache.pulsar.client.api.Schema getSchema() {
                 return valueSchema;
             }
 
@@ -92,42 +99,64 @@ public class ElasticSearchExtractTests {
 
         // single field PK
         ElasticSearchSink elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "primaryFields","c",
-                "schemaEnable", "true",
-                "keyIgnore", "true"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "primaryFields", "c",
+                        "schemaEnable", "true",
+                        "keyIgnore", "true"),
+                null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getLeft(), "1");
-        assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        assertEquals(
+                pair.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         // two fields PK
         ElasticSearchSink elasticSearchSink2 = new ElasticSearchSink();
-        elasticSearchSink2.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "primaryFields","c,d",
-                "schemaEnable", "true",
-                "keyIgnore", "true"), null);
+        elasticSearchSink2.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "primaryFields", "c,d",
+                        "schemaEnable", "true",
+                        "keyIgnore", "true"),
+                null);
         Pair<String, String> pair2 = elasticSearchSink2.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair2.getLeft(), "[\"1\",1]");
-        assertEquals(pair2.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        assertEquals(
+                pair2.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         // default config with null PK => indexed with auto generated _id
         ElasticSearchSink elasticSearchSink3 = new ElasticSearchSink();
-        elasticSearchSink3.open(ImmutableMap.of("elasticSearchUrl", "http://localhost:9200",
-                "schemaEnable", "true",
-                "compatibilityMode", "ELASTICSEARCH"), null);
+        elasticSearchSink3.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl",
+                        "http://localhost:9200",
+                        "schemaEnable",
+                        "true",
+                        "compatibilityMode",
+                        "ELASTICSEARCH"),
+                null);
         Pair<String, String> pair3 = elasticSearchSink3.extractIdAndDocument(genericObjectRecord);
         assertNull(pair3.getLeft());
-        assertEquals(pair3.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        assertEquals(
+                pair3.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         // default config with null PK + null value
         ElasticSearchSink elasticSearchSink4 = new ElasticSearchSink();
-        elasticSearchSink4.open(ImmutableMap.of("elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true"), null);
+        elasticSearchSink4.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl",
+                        "http://localhost:9200",
+                        "compatibilityMode",
+                        "ELASTICSEARCH",
+                        "schemaEnable",
+                        "true"),
+                null);
         Pair<String, String> pair4 = elasticSearchSink3.extractIdAndDocument(new Record<GenericObject>() {
             @Override
             public Optional<String> getTopicName() {
@@ -135,7 +164,7 @@ public class ElasticSearchExtractTests {
             }
 
             @Override
-            public org.apache.pulsar.client.api.Schema  getSchema() {
+            public org.apache.pulsar.client.api.Schema getSchema() {
                 return valueSchema;
             }
 
@@ -154,10 +183,8 @@ public class ElasticSearchExtractTests {
         keySchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);
         keySchemaBuilder.field("b").type(SchemaType.INT32).optional().defaultValue(null);
         GenericSchema<GenericRecord> keySchema = Schema.generic(keySchemaBuilder.build(schemaType));
-        GenericRecord keyGenericRecord = keySchema.newRecordBuilder()
-                .set("a", "1")
-                .set("b", 1)
-                .build();
+        GenericRecord keyGenericRecord =
+                keySchema.newRecordBuilder().set("a", "1").set("b", 1).build();
 
         RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
         valueSchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
@@ -170,23 +197,32 @@ public class ElasticSearchExtractTests {
         udtSchemaBuilder.field("i").type(SchemaType.INT32).optional().defaultValue(null);
         udtSchemaBuilder.field("l").type(SchemaType.INT64).optional().defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
-        valueSchemaBuilder.field("e", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        valueSchemaBuilder
+                .field("e", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
+        GenericRecord valueGenericRecord = valueSchema
+                .newRecordBuilder()
                 .set("c", "1")
                 .set("d", 1)
-                .set("e", udtGenericSchema.newRecordBuilder()
-                        .set("a", "a")
-                        .set("b", true)
-                        .set("d", 1.0)
-                        .set("f", 1.0f)
-                        .set("i", 1)
-                        .set("l", 10L)
-                        .build())
+                .set(
+                        "e",
+                        udtGenericSchema
+                                .newRecordBuilder()
+                                .set("a", "a")
+                                .set("b", true)
+                                .set("d", 1.0)
+                                .set("f", 1.0f)
+                                .set("i", 1)
+                                .set("l", 10L)
+                                .build())
                 .build();
 
-        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema = Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema =
+                Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
         KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyGenericRecord, valueGenericRecord);
         GenericObject genericObject = new GenericObject() {
             @Override
@@ -206,7 +242,7 @@ public class ElasticSearchExtractTests {
             }
 
             @Override
-            public org.apache.pulsar.client.api.Schema  getSchema() {
+            public org.apache.pulsar.client.api.Schema getSchema() {
                 return keyValueSchema;
             }
 
@@ -217,52 +253,75 @@ public class ElasticSearchExtractTests {
         };
 
         ElasticSearchSink elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true",
-                "keyIgnore", "false"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true",
+                        "keyIgnore", "false"),
+                null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getLeft(), "[\"1\",1]");
-        assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        assertEquals(
+                pair.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true",
-                "keyIgnore", "false",
-                "copyKeyFields", "true"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true",
+                        "keyIgnore", "false",
+                        "copyKeyFields", "true"),
+                null);
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getLeft(), "[\"1\",1]");
-        assertEquals(pair.getRight(), "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        assertEquals(
+                pair.getRight(),
+                "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true"),
+                null);
 
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertNull(pair.getLeft());
-        assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        assertEquals(
+                pair.getRight(),
+                "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of("elasticSearchUrl", "http://localhost:9200",
-                "schemaEnable", "true",
-                "compatibilityMode", "ELASTICSEARCH",
-                "copyKeyFields", "true"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl",
+                        "http://localhost:9200",
+                        "schemaEnable",
+                        "true",
+                        "compatibilityMode",
+                        "ELASTICSEARCH",
+                        "copyKeyFields",
+                        "true"),
+                null);
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertNull(pair.getLeft());
-        assertEquals(pair.getRight(), "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        assertEquals(
+                pair.getRight(),
+                "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         // test null value
         elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true",
-                "keyIgnore", "false"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true",
+                        "keyIgnore", "false"),
+                null);
         pair = elasticSearchSink.extractIdAndDocument(new Record<GenericObject>() {
             @Override
             public Optional<String> getTopicName() {
@@ -298,45 +357,63 @@ public class ElasticSearchExtractTests {
         RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("key");
 
         RecordSchemaBuilder udtSchemaBuilder = SchemaBuilder.record("type1");
-        udtSchemaBuilder.field("b_inside_inner").type(SchemaType.STRING).optional().defaultValue(null);
-        udtSchemaBuilder.field("a_inside_inner").type(SchemaType.STRING).optional().defaultValue(null);
+        udtSchemaBuilder
+                .field("b_inside_inner")
+                .type(SchemaType.STRING)
+                .optional()
+                .defaultValue(null);
+        udtSchemaBuilder
+                .field("a_inside_inner")
+                .type(SchemaType.STRING)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
 
-        keySchemaBuilder.field("singleKey", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        keySchemaBuilder
+                .field("singleKey", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> keySchema = Schema.generic(keySchemaBuilder.build(schemaType));
 
-        final GenericRecord innerRecord = udtGenericSchema.newRecordBuilder()
+        final GenericRecord innerRecord = udtGenericSchema
+                .newRecordBuilder()
                 .set("b_inside_inner", "0b_value_from_inner")
                 .set("a_inside_inner", "a_value_from_inner")
                 .build();
 
-        GenericRecord keyGenericRecord = keySchema.newRecordBuilder()
-                .set("singleKey", innerRecord)
-                .build();
+        GenericRecord keyGenericRecord =
+                keySchema.newRecordBuilder().set("singleKey", innerRecord).build();
 
         Record<GenericObject> genericObjectRecord = getKeyValueGenericObject(schemaType, keySchema, keyGenericRecord);
 
-
         ElasticSearchSink elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true",
-                "canonicalKeyFields", "false",
-                "keyIgnore", "false"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true",
+                        "canonicalKeyFields", "false",
+                        "keyIgnore", "false"),
+                null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
-        assertEquals(pair.getKey(), "{\"b_inside_inner\":\"0b_value_from_inner\",\"a_inside_inner\":\"a_value_from_inner\"}");
+        assertEquals(
+                pair.getKey(),
+                "{\"b_inside_inner\":\"0b_value_from_inner\",\"a_inside_inner\":\"a_value_from_inner\"}");
 
         elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true",
-                "canonicalKeyFields", "true",
-                "keyIgnore", "false"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true",
+                        "canonicalKeyFields", "true",
+                        "keyIgnore", "false"),
+                null);
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
-        assertEquals(pair.getKey(), "{\"a_inside_inner\":\"a_value_from_inner\",\"b_inside_inner\":\"0b_value_from_inner\"}");
-
+        assertEquals(
+                pair.getKey(),
+                "{\"a_inside_inner\":\"a_value_from_inner\",\"b_inside_inner\":\"0b_value_from_inner\"}");
     }
 
     @Test(dataProvider = "schemaType")
@@ -347,19 +424,33 @@ public class ElasticSearchExtractTests {
         keySchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
 
         RecordSchemaBuilder udtSchemaBuilder = SchemaBuilder.record("type1");
-        udtSchemaBuilder.field("b_inside_inner").type(SchemaType.STRING).optional().defaultValue(null);
-        udtSchemaBuilder.field("a_inside_inner").type(SchemaType.STRING).optional().defaultValue(null);
+        udtSchemaBuilder
+                .field("b_inside_inner")
+                .type(SchemaType.STRING)
+                .optional()
+                .defaultValue(null);
+        udtSchemaBuilder
+                .field("a_inside_inner")
+                .type(SchemaType.STRING)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
 
-        keySchemaBuilder.field("inner", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        keySchemaBuilder
+                .field("inner", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> keySchema = Schema.generic(keySchemaBuilder.build(schemaType));
 
-        final GenericRecord innerRecord = udtGenericSchema.newRecordBuilder()
+        final GenericRecord innerRecord = udtGenericSchema
+                .newRecordBuilder()
                 .set("b_inside_inner", "0b_value_from_inner")
                 .set("a_inside_inner", "a_value_from_inner")
                 .build();
 
-        GenericRecord keyGenericRecord = keySchema.newRecordBuilder()
+        GenericRecord keyGenericRecord = keySchema
+                .newRecordBuilder()
                 .set("c", "c_key")
                 .set("b", "0b_key")
                 .set("a", "a_key")
@@ -368,36 +459,43 @@ public class ElasticSearchExtractTests {
 
         Record<GenericObject> genericObjectRecord = getKeyValueGenericObject(schemaType, keySchema, keyGenericRecord);
 
-
         ElasticSearchSink elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true",
-                "canonicalKeyFields", "false",
-                "keyIgnore", "false"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true",
+                        "canonicalKeyFields", "false",
+                        "keyIgnore", "false"),
+                null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
-        assertEquals(pair.getKey(), "[\"a_key\",\"0b_key\",\"c_key\",{\"b_inside_inner\":\"0b_value_from_inner\",\"a_inside_inner\":\"a_value_from_inner\"}]");
+        assertEquals(
+                pair.getKey(),
+                "[\"a_key\",\"0b_key\",\"c_key\",{\"b_inside_inner\":\"0b_value_from_inner\",\"a_inside_inner\":\"a_value_from_inner\"}]");
 
         elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of(
-                "elasticSearchUrl", "http://localhost:9200",
-                "compatibilityMode", "ELASTICSEARCH",
-                "schemaEnable", "true",
-                "canonicalKeyFields", "true",
-                "keyIgnore", "false"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl", "http://localhost:9200",
+                        "compatibilityMode", "ELASTICSEARCH",
+                        "schemaEnable", "true",
+                        "canonicalKeyFields", "true",
+                        "keyIgnore", "false"),
+                null);
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
-        assertEquals(pair.getKey(), "[\"a_key\",\"0b_key\",\"c_key\",{\"a_inside_inner\":\"a_value_from_inner\",\"b_inside_inner\":\"0b_value_from_inner\"}]");
+        assertEquals(
+                pair.getKey(),
+                "[\"a_key\",\"0b_key\",\"c_key\",{\"a_inside_inner\":\"a_value_from_inner\",\"b_inside_inner\":\"0b_value_from_inner\"}]");
     }
 
-    private Record<GenericObject> getKeyValueGenericObject(SchemaType schemaType, GenericSchema<GenericRecord> keySchema, GenericRecord keyGenericRecord) {
+    private Record<GenericObject> getKeyValueGenericObject(
+            SchemaType schemaType, GenericSchema<GenericRecord> keySchema, GenericRecord keyGenericRecord) {
         RecordSchemaBuilder valueSchemaBuilder = SchemaBuilder.record("value");
         valueSchemaBuilder.field("value").type(SchemaType.STRING);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
-                .set("value", "value")
-                .build();
+        GenericRecord valueGenericRecord =
+                valueSchema.newRecordBuilder().set("value", "value").build();
 
         Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema =
                 Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
@@ -420,7 +518,7 @@ public class ElasticSearchExtractTests {
             }
 
             @Override
-            public Schema  getSchema() {
+            public Schema getSchema() {
                 return keyValueSchema;
             }
 

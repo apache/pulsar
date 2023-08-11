@@ -121,7 +121,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public synchronized void register() throws MetadataStoreException {
         if (this.state == State.Started) {
             try {
-                this.brokerLookupDataLock = brokerLookupDataLockManager.acquireLock(keyPath(brokerId), brokerLookupData)
+                this.brokerLookupDataLock = brokerLookupDataLockManager
+                        .acquireLock(keyPath(brokerId), brokerLookupData)
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
                 this.state = State.Registered;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -134,7 +135,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public synchronized void unregister() throws MetadataStoreException {
         if (this.state == State.Registered) {
             try {
-                this.brokerLookupDataLock.release()
+                this.brokerLookupDataLock
+                        .release()
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
                 this.state = State.Started;
             } catch (CompletionException | InterruptedException | ExecutionException | TimeoutException e) {
@@ -227,8 +229,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @VisibleForTesting
     protected static boolean isVerifiedNotification(Notification t) {
-       return t.getPath().startsWith(LOADBALANCE_BROKERS_ROOT + "/")
-               && t.getPath().length() > LOADBALANCE_BROKERS_ROOT.length() + 1;
+        return t.getPath().startsWith(LOADBALANCE_BROKERS_ROOT + "/")
+                && t.getPath().length() > LOADBALANCE_BROKERS_ROOT.length() + 1;
     }
 
     @VisibleForTesting

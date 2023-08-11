@@ -38,33 +38,19 @@ public class HbaseSinkConfig extends HbaseAbstractConfig {
 
     private static final long serialVersionUID = 1245636479605735555L;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The hbase table rowkey name")
+    @FieldDoc(required = true, defaultValue = "", help = "The hbase table rowkey name")
     private String rowKeyName;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The hbase table column family name")
+    @FieldDoc(required = true, defaultValue = "", help = "The hbase table column family name")
     private String familyName;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The hbase table column qualifier names")
+    @FieldDoc(required = true, defaultValue = "", help = "The hbase table column qualifier names")
     private List<String> qualifierNames;
 
-    @FieldDoc(
-       defaultValue = "1000l",
-       help = "The hbase operation time in milliseconds")
+    @FieldDoc(defaultValue = "1000l", help = "The hbase operation time in milliseconds")
     private long batchTimeMs = 1000L;
 
-    @FieldDoc(
-        defaultValue = "200",
-        help = "The batch size of write to the hbase table"
-    )
+    @FieldDoc(defaultValue = "200", help = "The batch size of write to the hbase table")
     private int batchSize = 200;
 
     public static HbaseSinkConfig load(String yamlFile) throws IOException {

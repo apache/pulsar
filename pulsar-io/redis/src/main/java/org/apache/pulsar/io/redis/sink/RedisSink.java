@@ -42,11 +42,10 @@ import org.apache.pulsar.io.redis.RedisSession;
  * This class expects records from Pulsar to have a key and value that are stored as bytes or a string.
  */
 @Connector(
-    name = "redis",
-    type = IOType.SINK,
-    help = "A sink connector is used for moving messages from Pulsar to Redis.",
-    configClass = RedisSinkConfig.class
-)
+        name = "redis",
+        type = IOType.SINK,
+        help = "A sink connector is used for moving messages from Pulsar to Redis.",
+        configClass = RedisSinkConfig.class)
 @Slf4j
 public class RedisSink implements Sink<byte[]> {
 
@@ -118,10 +117,11 @@ public class RedisSink implements Sink<byte[]> {
         }
 
         if (CollectionUtils.isNotEmpty(recordsToFlush)) {
-            for (Record<byte[]> record: recordsToFlush) {
+            for (Record<byte[]> record : recordsToFlush) {
                 try {
                     // use an empty string as key when the key is null
-                    String recordKey = record.getKey().isPresent() ? record.getKey().get() : "";
+                    String recordKey =
+                            record.getKey().isPresent() ? record.getKey().get() : "";
                     byte[] key = recordKey.getBytes(StandardCharsets.UTF_8);
                     byte[] value = record.getValue();
                     recordsToSet.put(key, value);
@@ -142,7 +142,9 @@ public class RedisSink implements Sink<byte[]> {
                 RedisFuture<?> future = redisSession.asyncCommands().mset(recordsToSet);
 
                 if (!future.await(operationTimeoutMs, TimeUnit.MILLISECONDS) || future.getError() != null) {
-                    log.warn("Operation failed with error {} or timeout {} is exceeded", future.getError(),
+                    log.warn(
+                            "Operation failed with error {} or timeout {} is exceeded",
+                            future.getError(),
                             operationTimeoutMs);
                     recordsToFlush.forEach(Record::fail);
                     return;

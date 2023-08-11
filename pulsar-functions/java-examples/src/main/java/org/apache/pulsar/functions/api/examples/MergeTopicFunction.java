@@ -35,15 +35,17 @@ public class MergeTopicFunction implements Function<GenericRecord, byte[]> {
     @Override
     public byte[] process(GenericRecord genericRecord, Context context) throws Exception {
         if (context.getCurrentRecord().getMessage().isPresent()) {
-            Message<?> msg =  context.getCurrentRecord().getMessage().get();
+            Message<?> msg = context.getCurrentRecord().getMessage().get();
             if (!msg.getReaderSchema().isPresent()) {
                 log.warn("The reader schema is null.");
                 return null;
             }
-            log.info("process message with reader schema {}", msg.getReaderSchema().get());
-            TypedMessageBuilder<byte[]> messageBuilder =
-                    context.newOutputMessage(context.getOutputTopic(),
-                            Schema.AUTO_PRODUCE_BYTES(msg.getReaderSchema().get()));
+            log.info(
+                    "process message with reader schema {}",
+                    msg.getReaderSchema().get());
+            TypedMessageBuilder<byte[]> messageBuilder = context.newOutputMessage(
+                    context.getOutputTopic(),
+                    Schema.AUTO_PRODUCE_BYTES(msg.getReaderSchema().get()));
 
             messageBuilder
                     .value(msg.getData())
@@ -52,7 +54,7 @@ public class MergeTopicFunction implements Function<GenericRecord, byte[]> {
                     .property("__sequence_id", String.valueOf(msg.getSequenceId()))
                     .property("__producer_name", msg.getProducerName());
 
-            if (msg.getKeyBytes() != null)  {
+            if (msg.getKeyBytes() != null) {
                 messageBuilder.keyBytes(msg.getKeyBytes());
             }
 

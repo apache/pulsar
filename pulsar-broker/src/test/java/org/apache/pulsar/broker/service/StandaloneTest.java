@@ -18,31 +18,25 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.PulsarStandaloneStarter;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.testng.annotations.Test;
-
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
+import org.apache.pulsar.PulsarStandaloneStarter;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class StandaloneTest extends MockedPulsarServiceBaseTest {
 
     @Override
-    protected void setup() throws Exception {
-
-    }
+    protected void setup() throws Exception {}
 
     @Override
-    protected void cleanup() throws Exception {
-
-    }
+    protected void cleanup() throws Exception {}
 
     @Test
     public void testWithoutMetadataStoreUrlInConfFile() throws Exception {
-        String[] args = new String[]{"--config",
-                "../conf/standalone.conf"};
+        String[] args = new String[] {"--config", "../conf/standalone.conf"};
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         assertNotNull(standalone.getConfig().getProperties().getProperty("metadataStoreUrl"));
         assertNotNull(standalone.getConfig().getProperties().getProperty("configurationMetadataStoreUrl"));
@@ -50,11 +44,12 @@ public class StandaloneTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAdvertised() throws Exception {
-        String[] args = new String[]{"--config",
-                "./src/test/resources/configurations/pulsar_broker_test_standalone.conf"};
+        String[] args =
+                new String[] {"--config", "./src/test/resources/configurations/pulsar_broker_test_standalone.conf"};
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         assertNull(standalone.getConfig().getAdvertisedAddress());
-        assertEquals(standalone.getConfig().getAdvertisedListeners(),
+        assertEquals(
+                standalone.getConfig().getAdvertisedListeners(),
                 "internal:pulsar://192.168.1.11:6660,internal:pulsar+ssl://192.168.1.11:6651");
     }
 }

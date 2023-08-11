@@ -38,6 +38,7 @@ public class UnloadDecision {
         Skip,
         Failure
     }
+
     public enum Reason {
         Overloaded,
         Underloaded,
@@ -72,5 +73,4 @@ public class UnloadDecision {
         this.label = Success;
         this.reason = reason;
     }
-
 }

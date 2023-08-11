@@ -55,8 +55,8 @@ public class TrustManagerProxy extends X509ExtendedTrustManager {
             log.warn("Failed to init trust-store", e);
             throw new IllegalArgumentException(e);
         }
-        executor.scheduleWithFixedDelay(() -> updateTrustManagerSafely(), refreshDurationSec, refreshDurationSec,
-                TimeUnit.SECONDS);
+        executor.scheduleWithFixedDelay(
+                () -> updateTrustManagerSafely(), refreshDurationSec, refreshDurationSec, TimeUnit.SECONDS);
     }
 
     private void updateTrustManagerSafely() {
@@ -67,8 +67,9 @@ public class TrustManagerProxy extends X509ExtendedTrustManager {
         }
     }
 
-    private void updateTrustManager() throws CertificateException, KeyStoreException, NoSuchAlgorithmException,
-            IOException, KeyManagementException {
+    private void updateTrustManager()
+            throws CertificateException, KeyStoreException, NoSuchAlgorithmException, IOException,
+                    KeyManagementException {
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         keyStore.load(null);
         X509Certificate[] certificates = SecurityUtility.loadCertificatesFromPemFile(certFile.getFileName());
@@ -76,8 +77,8 @@ public class TrustManagerProxy extends X509ExtendedTrustManager {
             String alias = certificate.getSubjectX500Principal().getName();
             keyStore.setCertificateEntry(alias, certificate);
         }
-        final TrustManagerFactory trustManagerFactory = TrustManagerFactory
-                .getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        final TrustManagerFactory trustManagerFactory =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         trustManagerFactory.init(keyStore);
         trustManager = (X509ExtendedTrustManager) trustManagerFactory.getTrustManagers()[0];
     }

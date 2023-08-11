@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.api;
 
 public interface MetadataStoreProvider {
 
-
     /**
      * Scheme of the urls that MetadataSores provided by this object can handle.
      */
@@ -30,8 +29,6 @@ public interface MetadataStoreProvider {
      * Creates a new MetadataStore.
      * @throws MetadataStoreException if any exception happens while creating the metadata store.
      */
-    MetadataStore create(
-            String metadataURL,
-            MetadataStoreConfig metadataStoreConfig,
-            boolean enableSessionWatcher) throws MetadataStoreException;
+    MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+            throws MetadataStoreException;
 }

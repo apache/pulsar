@@ -51,8 +51,9 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     protected final String name;
     protected final Rate msgDrop;
     protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers>
-            TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
+            TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+                    NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
+
     @SuppressWarnings("unused")
     private volatile int totalAvailablePermits = 0;
 
@@ -190,8 +191,14 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, consumer);
-            consumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+            consumer.sendMessages(
+                    entries,
+                    batchSizes,
+                    null,
+                    sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(),
+                    getRedeliveryTracker());
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
         } else {
@@ -226,5 +233,4 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherMultipleConsumers.class);
-
 }

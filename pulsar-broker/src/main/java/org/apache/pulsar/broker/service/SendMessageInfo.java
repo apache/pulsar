@@ -42,7 +42,7 @@ public class SendMessageInfo {
     private static final FastThreadLocal<SendMessageInfo> THREAD_LOCAL = new FastThreadLocal<SendMessageInfo>() {
         protected SendMessageInfo initialValue() throws Exception {
             return new SendMessageInfo();
-        };
+        }
+        ;
     };
-
 }

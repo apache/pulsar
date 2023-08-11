@@ -131,7 +131,6 @@ public class ConcurrentSortedLongPairSetTest {
             });
             set.removeIf((item1, item2) -> item1 == firstKey);
         }
-
     }
 
     @Test
@@ -146,8 +145,14 @@ public class ConcurrentSortedLongPairSetTest {
 
         List<LongPair> values = new ArrayList<>(set.items());
         values.sort(null);
-        assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
-                new LongPair(6, 6), new LongPair(7, 7)));
+        assertEquals(
+                values,
+                Lists.newArrayList(
+                        new LongPair(0, 0),
+                        new LongPair(1, 1),
+                        new LongPair(3, 3),
+                        new LongPair(6, 6),
+                        new LongPair(7, 7)));
 
         set.forEach((first, second) -> {
             if (first < 5) {
@@ -172,8 +177,14 @@ public class ConcurrentSortedLongPairSetTest {
 
         List<LongPair> values = new ArrayList<>(set.items());
         values.sort(null);
-        assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
-                new LongPair(6, 6), new LongPair(7, 7)));
+        assertEquals(
+                values,
+                Lists.newArrayList(
+                        new LongPair(0, 0),
+                        new LongPair(1, 1),
+                        new LongPair(3, 3),
+                        new LongPair(6, 6),
+                        new LongPair(7, 7)));
 
         int removeItems = set.removeIf((first, second) -> first < 5);
 
@@ -192,8 +203,11 @@ public class ConcurrentSortedLongPairSetTest {
         set.add(1, 2);
         set.add(1, 1);
         removeItems = set.removeIf((ledgerId, entryId) -> {
-            return ComparisonChain.start().compare(ledgerId, 1).compare(entryId, 3)
-                    .result() <= 0;
+            return ComparisonChain.start()
+                            .compare(ledgerId, 1)
+                            .compare(entryId, 3)
+                            .result()
+                    <= 0;
         });
         assertEquals(removeItems, 3);
     }

@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.topics;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.fail;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -29,22 +35,14 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.fail;
-
 /**
  * Test cases for compaction.
  */
 @Slf4j
 public class TestTopicDeletion extends PulsarTestSuite {
 
-    final private boolean unload = false;
-    final private int numBrokers = 2;
+    private final boolean unload = false;
+    private final int numBrokers = 2;
 
     public void setupCluster() throws Exception {
         brokerEnvs.put("managedLedgerMaxEntriesPerLedger", "10");
@@ -54,14 +52,13 @@ public class TestTopicDeletion extends PulsarTestSuite {
     }
 
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
-            String clusterName,
-            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+            String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         specBuilder.numBrokers(numBrokers);
         specBuilder.enableContainerLog(true);
         return specBuilder;
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
     public void testPartitionedTopicForceDeletion(Supplier<String> serviceUrl) throws Exception {
 
         log.info("Creating tenant and namespace");
@@ -77,15 +74,16 @@ public class TestTopicDeletion extends PulsarTestSuite {
 
         this.createNamespace(namespace);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-clusters", "--clusters", pulsarCluster.getClusterName(), namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "set-clusters", "--clusters", pulsarCluster.getClusterName(), namespace);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-retention", "--size", "100M", "--time", "100m", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "set-retention", "--size", "100M", "--time", "100m", namespace);
 
         this.createPartitionedTopic(topic, numPartitions);
 
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
+        try (PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
 
             log.info("Creating consumer");
             Consumer<byte[]> consumer = client.newConsumer()
@@ -94,15 +92,12 @@ public class TestTopicDeletion extends PulsarTestSuite {
                     .subscribe();
 
             log.info("Producing messages");
-            try(Producer<byte[]> producer = client.newProducer()
-                .topic(topic)
-                .create()
-            ) {
+            try (Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
                 for (int i = 0; i < numKeys; i++) {
                     producer.newMessage()
-                        .key("" + i)
-                        .value(("value-" + i).getBytes(UTF_8))
-                        .sendAsync();
+                            .key("" + i)
+                            .value(("value-" + i).getBytes(UTF_8))
+                            .sendAsync();
                 }
                 producer.flush();
                 log.info("Successfully wrote {} values", numKeys);
@@ -116,15 +111,13 @@ public class TestTopicDeletion extends PulsarTestSuite {
 
             if (unload) {
                 log.info("Unloading topic");
-                pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                        "unload", topic);
+                pulsarCluster.runAdminCommandOnAnyBroker("topics", "unload", topic);
             }
 
             ContainerExecResult res;
             log.info("Deleting the topic");
             try {
-                res = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                        "delete-partitioned-topic", "--force", topic);
+                res = pulsarCluster.runAdminCommandOnAnyBroker("topics", "delete-partitioned-topic", "--force", topic);
                 assertNotEquals(0, res.getExitCode());
             } catch (ContainerExecException e) {
                 log.info("Second delete failed with ContainerExecException, could be ok", e);
@@ -136,8 +129,7 @@ public class TestTopicDeletion extends PulsarTestSuite {
             log.info("Close the consumer and delete the topic again");
             consumer.close();
 
-            res = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "delete-partitioned-topic", "--force", topic);
+            res = pulsarCluster.runAdminCommandOnAnyBroker("topics", "delete-partitioned-topic", "--force", topic);
             assertNotEquals(0, res.getExitCode());
 
             Thread.sleep(5000);
@@ -147,23 +139,23 @@ public class TestTopicDeletion extends PulsarTestSuite {
         }
     }
 
-
-    private ContainerExecResult createTenantName(final String tenantName,
-                                                 final String allowedClusterName,
-                                                 final String adminRoleName) throws Exception {
+    private ContainerExecResult createTenantName(
+            final String tenantName, final String allowedClusterName, final String adminRoleName) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
-            "tenants", "create", "--allowed-clusters", allowedClusterName,
-            "--admin-roles", adminRoleName, tenantName);
+                "tenants",
+                "create",
+                "--allowed-clusters",
+                allowedClusterName,
+                "--admin-roles",
+                adminRoleName,
+                tenantName);
         assertEquals(0, result.getExitCode());
         return result;
     }
 
     private ContainerExecResult createNamespace(final String Ns) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces",
-                "create",
-                "--clusters",
-                pulsarCluster.getClusterName(), Ns);
+                "namespaces", "create", "--clusters", pulsarCluster.getClusterName(), Ns);
         assertEquals(0, result.getExitCode());
         return result;
     }
@@ -171,13 +163,8 @@ public class TestTopicDeletion extends PulsarTestSuite {
     private ContainerExecResult createPartitionedTopic(final String partitionedTopicName, int numPartitions)
             throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
-            "topics",
-            "create-partitioned-topic",
-            "--partitions", "" + numPartitions,
-            partitionedTopicName);
+                "topics", "create-partitioned-topic", "--partitions", "" + numPartitions, partitionedTopicName);
         assertEquals(0, result.getExitCode());
         return result;
     }
-
-
 }

@@ -54,12 +54,14 @@ public class SubscribeDispatchLimiterTest extends BrokerTestBase {
         final String subscribeName = "cg_testDispatchRateLimiterPerSubscriptionInMsgOnlyBrokerLevel";
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-            .topic(topicName)
-            .subscriptionName(subscribeName)
-            .subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscribeName)
+                .subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         assertNotNull(topic);
 
         PersistentSubscription subscription = topic.getSubscriptions().get(subscribeName);
@@ -67,11 +69,12 @@ public class SubscribeDispatchLimiterTest extends BrokerTestBase {
         assertFalse(subscription.getDispatcher().getRateLimiter().isPresent());
 
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg", "100");
-        Awaitility.await().untilAsserted(() ->
-            assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerSubscriptionInMsg(), 100)
-        );
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerSubscriptionInMsg(), 100));
         Awaitility.await().untilAsserted(() -> {
-            Optional<DispatchRateLimiter> limiterOpt = subscription.getDispatcher().getRateLimiter();
+            Optional<DispatchRateLimiter> limiterOpt =
+                    subscription.getDispatcher().getRateLimiter();
             assertTrue(limiterOpt.isPresent());
             assertEquals(limiterOpt.get().getDispatchRateOnMsg(), 100);
         });
@@ -83,12 +86,14 @@ public class SubscribeDispatchLimiterTest extends BrokerTestBase {
         final String subscribeName = "testDispatchRateLimiterPerSubscriptionInByteOnlyBrokerLevel";
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-            .topic(topicName)
-            .subscriptionName(subscribeName)
-            .subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscribeName)
+                .subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         assertNotNull(topic);
 
         PersistentSubscription subscription = topic.getSubscriptions().get(subscribeName);
@@ -96,11 +101,12 @@ public class SubscribeDispatchLimiterTest extends BrokerTestBase {
         assertFalse(subscription.getDispatcher().getRateLimiter().isPresent());
 
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInByte", "1000");
-        Awaitility.await().untilAsserted(() ->
-            assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerSubscriptionInByte(), 1000)
-        );
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerSubscriptionInByte(), 1000));
         Awaitility.await().untilAsserted(() -> {
-            Optional<DispatchRateLimiter> limiterOpt = subscription.getDispatcher().getRateLimiter();
+            Optional<DispatchRateLimiter> limiterOpt =
+                    subscription.getDispatcher().getRateLimiter();
             assertTrue(limiterOpt.isPresent());
             assertEquals(limiterOpt.get().getDispatchRateOnByte(), 1000);
         });

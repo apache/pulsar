@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -42,11 +46,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
-
 @Test(groups = "broker")
 public class NonPersistentTopicTest extends BrokerTestBase {
 
@@ -68,13 +67,23 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         final String sharedSubName = "shared";
         final String failoverSubName = "failOver";
 
-        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionType(SubscriptionType.Shared).subscriptionName(sharedSubName).subscribe();
-        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionType(SubscriptionType.Failover).subscriptionName(failoverSubName).subscribe();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        Consumer<String> consumer1 = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(sharedSubName)
+                .subscribe();
+        Consumer<String> consumer2 = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscriptionName(failoverSubName)
+                .subscribe();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
 
-        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        NonPersistentTopic topic = (NonPersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
 
         // stats are at zero before any activity
         TopicStats stats = topic.getStats(false, false, false);
@@ -118,16 +127,14 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         TopicName partition = TopicName.get(topicName).getPartition(4);
         try {
             @Cleanup
-            Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic(partition.toString())
-                    .create();
+            Producer<byte[]> producer =
+                    pulsarClient.newProducer().topic(partition.toString()).create();
             fail("unexpected behaviour");
         } catch (PulsarClientException.TopicDoesNotExistException ignored) {
 
         }
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
-
 
     @Test
     public void testSubscriptionsOnNonPersistentTopic() throws Exception {
@@ -138,28 +145,29 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         final String keySharedSubName = "key_shared";
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
 
         producer.send("This is a message");
-        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        NonPersistentTopic topic = (NonPersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
 
         NonPersistentTopic mockTopic = Mockito.spy(topic);
         pulsar.getBrokerService().getTopics().put(topicName, CompletableFuture.completedFuture(Optional.of(mockTopic)));
-        Mockito
-                .doAnswer(inv -> {
+        Mockito.doAnswer(inv -> {
                     SubscriptionOption option = inv.getArgument(0);
                     if (option.isDurable()) {
-                        return CompletableFuture.failedFuture(
-                                new IllegalArgumentException("isDurable cannot be true when subscribe " +
-                                        "on non-persistent topic"));
+                        return CompletableFuture.failedFuture(new IllegalArgumentException(
+                                "isDurable cannot be true when subscribe " + "on non-persistent topic"));
                     }
                     return inv.callRealMethod();
-                }).when(mockTopic).subscribe(Mockito.any());
+                })
+                .when(mockTopic)
+                .subscribe(Mockito.any());
 
         @Cleanup
-        Consumer<String> exclusiveConsumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> exclusiveConsumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(exclusiveSubName)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -167,28 +175,32 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                 .subscribe();
 
         @Cleanup
-        Consumer<String> failoverConsumer1 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> failoverConsumer1 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(failoverSubName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscribe();
         @Cleanup
-        Consumer<String> failoverConsumer2 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> failoverConsumer2 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(failoverSubName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscribe();
         @Cleanup
-        Consumer<String> sharedConsumer1 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> sharedConsumer1 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(sharedSubName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscribe();
         @Cleanup
-        Consumer<String> sharedConsumer2 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> sharedConsumer2 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(sharedSubName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -196,14 +208,16 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                 .subscribe();
 
         @Cleanup
-        Consumer<String> keySharedConsumer1 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> keySharedConsumer1 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(keySharedSubName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscribe();
         @Cleanup
-        Consumer<String> keySharedConsumer2 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> keySharedConsumer2 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(keySharedSubName)
                 .subscriptionType(SubscriptionType.Key_Shared)
@@ -217,7 +231,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         NonPersistentSubscription exclusiveSub = subscriptionMap.get(exclusiveSubName);
         assertNotNull(exclusiveSub);
         exclusiveConsumer.close();
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(exclusiveSubName) == null);
 
         // Check failover subscription
@@ -227,7 +242,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         failoverSub = subscriptionMap.get(failoverSubName);
         assertNotNull(failoverSub);
         failoverConsumer2.close();
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(failoverSubName) == null);
 
         // Check shared subscription
@@ -237,7 +253,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         sharedSub = subscriptionMap.get(sharedSubName);
         assertNotNull(sharedSub);
         sharedConsumer2.close();
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(sharedSubName) == null);
 
         // Check KeyShared subscription
@@ -247,7 +264,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         keySharedSub = subscriptionMap.get(keySharedSubName);
         assertNotNull(keySharedSub);
         keySharedConsumer2.close();
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(keySharedSubName) == null);
     }
 }

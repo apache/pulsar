@@ -25,27 +25,24 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class BatchMetadataStoreStats implements AutoCloseable {
-    private static final double[] BUCKETS = new double[]{1, 5, 10, 20, 50, 100, 200, 500, 1000};
+    private static final double[] BUCKETS = new double[] {1, 5, 10, 20, 50, 100, 200, 500, 1000};
     private static final String NAME = "name";
 
-    private static final Gauge EXECUTOR_QUEUE_SIZE = Gauge
-            .build("pulsar_batch_metadata_store_executor_queue_size", "-")
+    private static final Gauge EXECUTOR_QUEUE_SIZE = Gauge.build("pulsar_batch_metadata_store_executor_queue_size", "-")
             .labelNames(NAME)
             .register();
-    private static final Histogram OPS_WAITING = Histogram
-            .build("pulsar_batch_metadata_store_queue_wait_time", "-")
+    private static final Histogram OPS_WAITING = Histogram.build("pulsar_batch_metadata_store_queue_wait_time", "-")
             .unit("ms")
             .labelNames(NAME)
             .buckets(BUCKETS)
             .register();
-    private static final Histogram BATCH_EXECUTE_TIME = Histogram
-            .build("pulsar_batch_metadata_store_batch_execute_time", "-")
+    private static final Histogram BATCH_EXECUTE_TIME = Histogram.build(
+                    "pulsar_batch_metadata_store_batch_execute_time", "-")
             .unit("ms")
             .labelNames(NAME)
             .buckets(BUCKETS)
             .register();
-    private static final Histogram OPS_PER_BATCH = Histogram
-            .build("pulsar_batch_metadata_store_batch_size", "-")
+    private static final Histogram OPS_PER_BATCH = Histogram.build("pulsar_batch_metadata_store_batch_size", "-")
             .labelNames(NAME)
             .buckets(BUCKETS)
             .register();
@@ -66,18 +63,23 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
         }
         this.metadataStoreName = metadataStoreName;
 
-        EXECUTOR_QUEUE_SIZE.setChild(new Gauge.Child() {
-            @Override
-            public double get() {
-                return BatchMetadataStoreStats.this.executor == null ? 0 :
-                        BatchMetadataStoreStats.this.executor.getQueue().size();
-            }
-        }, metadataStoreName);
+        EXECUTOR_QUEUE_SIZE.setChild(
+                new Gauge.Child() {
+                    @Override
+                    public double get() {
+                        return BatchMetadataStoreStats.this.executor == null
+                                ? 0
+                                : BatchMetadataStoreStats.this
+                                        .executor
+                                        .getQueue()
+                                        .size();
+                    }
+                },
+                metadataStoreName);
 
         this.batchOpsWaitingChild = OPS_WAITING.labels(metadataStoreName);
         this.batchExecuteTimeChild = BATCH_EXECUTE_TIME.labels(metadataStoreName);
         this.opsPerBatchChild = OPS_PER_BATCH.labels(metadataStoreName);
-
     }
 
     public void recordOpWaiting(long millis) {

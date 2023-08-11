@@ -26,7 +26,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import java.time.Duration;
 import java.util.HashSet;
@@ -73,11 +72,16 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         conf.setAllowAutoTopicCreation(true);
         super.internalSetup(conf);
 
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         // so that clients can test short names
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants()
+                .createTenant(
+                        "public", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
         admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
     }
@@ -90,14 +94,15 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "topicDomain")
     public static Object[] topicDomain() {
-       return new Object[]{ TopicDomain.persistent.value(), TopicDomain.non_persistent.value()};
+        return new Object[] {TopicDomain.persistent.value(), TopicDomain.non_persistent.value()};
     }
 
     private Set<String> publishMessages(String topic, int count, boolean enableBatch) throws Exception {
         return publishMessages(topic, count, enableBatch, false);
     }
 
-    private Set<String> publishMessages(String topic, int count, boolean enableBatch, boolean enableEncryption) throws Exception {
+    private Set<String> publishMessages(String topic, int count, boolean enableBatch, boolean enableEncryption)
+            throws Exception {
         Set<String> keys = new HashSet<>();
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.SinglePartition);
@@ -112,13 +117,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             builder.enableBatching(false);
         }
         if (enableEncryption) {
-            builder.addEncryptionKey("client-ecdsa.pem")
-                .defaultCryptoKeyReader("file:./" + ECDSA_PUBLIC_KEY);
+            builder.addEncryptionKey("client-ecdsa.pem").defaultCryptoKeyReader("file:./" + ECDSA_PUBLIC_KEY);
         }
         try (Producer<byte[]> producer = builder.create()) {
             CompletableFuture<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
-                String key = "key"+ i;
+                String key = "key" + i;
                 byte[] data = ("my-message-" + i).getBytes();
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
@@ -136,7 +140,8 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         int count = 20;
         Set<String> keys = this.publishMessages(topic, count, false);
         @Cleanup
-        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient
+                .newTableViewBuilder(Schema.BYTES)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
@@ -183,7 +188,8 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
         Set<String> keys = this.publishMessages(topic, 10, false);
         @Cleanup
-        TableView<byte[]> tv = pulsarClient.newTableView()
+        TableView<byte[]> tv = pulsarClient
+                .newTableView()
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
@@ -203,7 +209,8 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         // For non-persistent topic, this keys will never be received.
         Set<String> keys = this.publishMessages(topic, count, false);
         @Cleanup
-        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient
+                .newTableViewBuilder(Schema.BYTES)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -227,8 +234,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             TimeUnit.SECONDS.sleep(6);
         }
         // Send more data to partition 3, which is not in the current TableView, need update partitions
-        Set<String> keys2 =
-                this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
+        Set<String> keys2 = this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             log.info("Current tv size: {}", tv.size());
             assertEquals(tv.size(), count * 2);
@@ -241,12 +247,14 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         String topic = topicDomain + "://public/default/tableview-test-publish-null-value";
         admin.topics().createPartitionedTopic(topic, 3);
 
-        final TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+        final TableView<String> tv = pulsarClient
+                .newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         producer.newMessage().key("key1").value("value1").send();
 
@@ -264,7 +272,8 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         tv.close();
 
         @Cleanup
-        TableView<String> tv1 = pulsarClient.newTableView(Schema.STRING)
+        TableView<String> tv1 = pulsarClient
+                .newTableView(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -294,27 +303,29 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
 
         @Cleanup
-        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tv1 = pulsarClient
+                .newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
 
         ConsumerBase consumerBase;
         if (partitionedTopic) {
-            MultiTopicsReaderImpl<String> reader =
-                    ((CompletableFuture<MultiTopicsReaderImpl<String>>) FieldUtils
-                            .readDeclaredField(tv1, "reader", true)).get();
+            MultiTopicsReaderImpl<String> reader = ((CompletableFuture<MultiTopicsReaderImpl<String>>)
+                            FieldUtils.readDeclaredField(tv1, "reader", true))
+                    .get();
             consumerBase = spy(reader.getMultiTopicsConsumer());
             FieldUtils.writeDeclaredField(reader, "multiTopicsConsumer", consumerBase, true);
         } else {
-            ReaderImpl<String> reader = ((CompletableFuture<ReaderImpl<String>>) FieldUtils
-                    .readDeclaredField(tv1, "reader", true)).get();
+            ReaderImpl<String> reader =
+                    ((CompletableFuture<ReaderImpl<String>>) FieldUtils.readDeclaredField(tv1, "reader", true)).get();
             consumerBase = spy(reader.getConsumer());
             FieldUtils.writeDeclaredField(reader, "consumer", consumerBase, true);
         }
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         int msgCount = 20;
         for (int i = 0; i < msgCount; i++) {
@@ -324,10 +335,8 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .pollInterval(1, TimeUnit.SECONDS)
                 .atMost(Duration.ofMillis(5000))
-                .untilAsserted(()
-                        -> verify(consumerBase, times(msgCount)).acknowledgeCumulativeAsync(any(MessageId.class)));
-
-
+                .untilAsserted(
+                        () -> verify(consumerBase, times(msgCount)).acknowledgeCumulativeAsync(any(MessageId.class)));
     }
 
     @Test(timeOut = 30 * 1000)
@@ -336,20 +345,23 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         for (int i = 0; i < 5; i++) {
             producer.newMessage().key("key:" + i).value("value" + i).send();
         }
 
         @Cleanup
-        TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tv = pulsarClient
+                .newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
 
         class MockAction implements BiConsumer<String, String> {
             int acceptedCount = 0;
+
             @Override
             public void accept(String s, String s2) {
                 acceptedCount++;
@@ -388,11 +400,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         // TableView can read them using the private key
         @Cleanup
-        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
-            .topic(topic)
-            .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
-            .defaultCryptoKeyReader("file:" + ECDSA_PRIVATE_KEY)
-            .create();
+        TableView<byte[]> tv = pulsarClient
+                .newTableViewBuilder(Schema.BYTES)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+                .defaultCryptoKeyReader("file:" + ECDSA_PRIVATE_KEY)
+                .create();
         log.info("start tv size: {}", tv.size());
         tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
         Awaitility.await().untilAsserted(() -> {
@@ -407,33 +420,32 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://public/default/tableview-is-interrupted-test";
         admin.topics().createNonPartitionedTopic(topic);
         @Cleanup
-        TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient
+                .newTableView(Schema.BYTES)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
 
         // inject failure on consumer.receiveAsync()
-        var reader = ((CompletableFuture<Reader<byte[]>>)
-                FieldUtils.readDeclaredField(tv, "reader", true)).join();
-        var consumer = spy((ConsumerImpl<byte[]>)
-                FieldUtils.readDeclaredField(reader, "consumer", true));
+        var reader = ((CompletableFuture<Reader<byte[]>>) FieldUtils.readDeclaredField(tv, "reader", true)).join();
+        var consumer = spy((ConsumerImpl<byte[]>) FieldUtils.readDeclaredField(reader, "consumer", true));
 
         var errorCnt = new AtomicInteger(3);
         doAnswer(invocationOnMock -> {
-            if (errorCnt.decrementAndGet() > 0) {
-                return CompletableFuture.failedFuture(new RuntimeException());
-            }
-            // Call the real method
-            reset(consumer);
-            return consumer.receiveAsync();
-        }).when(consumer).receiveAsync();
+                    if (errorCnt.decrementAndGet() > 0) {
+                        return CompletableFuture.failedFuture(new RuntimeException());
+                    }
+                    // Call the real method
+                    reset(consumer);
+                    return consumer.receiveAsync();
+                })
+                .when(consumer)
+                .receiveAsync();
         FieldUtils.writeDeclaredField(reader, "consumer", consumer, true);
 
         int msgCnt = 2;
         this.publishMessages(topic, msgCnt, false, false);
-        Awaitility.await()
-                .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             assertEquals(tv.size(), msgCnt);
         });
         verify(consumer, times(msgCnt)).receiveAsync();

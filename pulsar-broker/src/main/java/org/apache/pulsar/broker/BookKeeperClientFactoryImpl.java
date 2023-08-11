@@ -53,19 +53,25 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties) throws IOException {
-        return create(conf, store, eventLoopGroup, ensemblePlacementPolicyClass, properties,
-                NullStatsLogger.INSTANCE);
+    public BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties)
+            throws IOException {
+        return create(conf, store, eventLoopGroup, ensemblePlacementPolicyClass, properties, NullStatsLogger.INSTANCE);
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
+    public BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties,
+            StatsLogger statsLogger)
+            throws IOException {
         PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
@@ -78,15 +84,19 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
         try {
-            return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+            return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf)
+                    .build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }
     }
 
     @VisibleForTesting
-    BookKeeper.Builder getBookKeeperBuilder(ServiceConfiguration conf, EventLoopGroup eventLoopGroup,
-                                            StatsLogger statsLogger, ClientConfiguration bkConf) {
+    BookKeeper.Builder getBookKeeperBuilder(
+            ServiceConfiguration conf,
+            EventLoopGroup eventLoopGroup,
+            StatsLogger statsLogger,
+            ClientConfiguration bkConf) {
         BookKeeper.Builder builder = BookKeeper.forConfig(bkConf)
                 .allocator(PulsarByteBufAllocator.DEFAULT)
                 .statsLogger(statsLogger);
@@ -102,7 +112,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         if (conf.getBookkeeperClientAuthenticationPlugin() != null
                 && conf.getBookkeeperClientAuthenticationPlugin().trim().length() > 0) {
             bkConf.setClientAuthProviderFactoryClass(conf.getBookkeeperClientAuthenticationPlugin());
-            bkConf.setProperty(conf.getBookkeeperClientAuthenticationParametersName(),
+            bkConf.setProperty(
+                    conf.getBookkeeperClientAuthenticationParametersName(),
                     conf.getBookkeeperClientAuthenticationParameters());
         }
 
@@ -142,11 +153,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
-            bkConf.setBookieHealthCheckInterval((int) conf.getBookkeeperClientHealthCheckIntervalSeconds(),
-                    TimeUnit.SECONDS);
+            bkConf.setBookieHealthCheckInterval(
+                    (int) conf.getBookkeeperClientHealthCheckIntervalSeconds(), TimeUnit.SECONDS);
             bkConf.setBookieErrorThresholdPerInterval(conf.getBookkeeperClientHealthCheckErrorThresholdPerInterval());
-            bkConf.setBookieQuarantineTime((int) conf.getBookkeeperClientHealthCheckQuarantineTimeInSeconds(),
-                    TimeUnit.SECONDS);
+            bkConf.setBookieQuarantineTime(
+                    (int) conf.getBookkeeperClientHealthCheckQuarantineTimeInSeconds(), TimeUnit.SECONDS);
             bkConf.setBookieQuarantineRatio(conf.getBookkeeperClientQuarantineRatio());
         }
 
@@ -166,10 +177,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     }
 
     static void setDefaultEnsemblePlacementPolicy(
-            ClientConfiguration bkConf,
-            ServiceConfiguration conf,
-            MetadataStore store
-    ) {
+            ClientConfiguration bkConf, ServiceConfiguration conf, MetadataStore store) {
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
 
         if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
@@ -177,21 +185,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 bkConf.setEnsemblePlacementPolicy(RegionAwareEnsemblePlacementPolicy.class);
 
                 bkConf.setProperty(
-                        REPP_ENABLE_VALIDATION,
-                        conf.getProperties().getProperty(REPP_ENABLE_VALIDATION, "true")
-                );
+                        REPP_ENABLE_VALIDATION, conf.getProperties().getProperty(REPP_ENABLE_VALIDATION, "true"));
                 bkConf.setProperty(
-                        REPP_REGIONS_TO_WRITE,
-                        conf.getProperties().getProperty(REPP_REGIONS_TO_WRITE, null)
-                );
+                        REPP_REGIONS_TO_WRITE, conf.getProperties().getProperty(REPP_REGIONS_TO_WRITE, null));
                 bkConf.setProperty(
                         REPP_MINIMUM_REGIONS_FOR_DURABILITY,
-                        conf.getProperties().getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, "2")
-                );
+                        conf.getProperties().getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, "2"));
                 bkConf.setProperty(
                         REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE,
-                        conf.getProperties().getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE, "true")
-                );
+                        conf.getProperties().getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE, "true"));
             } else {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             }
@@ -199,38 +201,44 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setMinNumRacksPerWriteQuorum(conf.getBookkeeperClientMinNumRacksPerWriteQuorum());
             bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
 
-            bkConf.setProperty(REPP_DNS_RESOLVER_CLASS,
-                    conf.getProperties().getProperty(
-                            REPP_DNS_RESOLVER_CLASS,
-                            BookieRackAffinityMapping.class.getName()));
+            bkConf.setProperty(
+                    REPP_DNS_RESOLVER_CLASS,
+                    conf.getProperties()
+                            .getProperty(REPP_DNS_RESOLVER_CLASS, BookieRackAffinityMapping.class.getName()));
 
-            bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                conf.getProperties().getProperty(
+            bkConf.setProperty(
                     NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                    ""));
+                    conf.getProperties().getProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY, ""));
         }
 
-        if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
+        if (conf.getBookkeeperClientIsolationGroups() != null
+                && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
             bkConf.setEnsemblePlacementPolicy(IsolatedBookieEnsemblePlacementPolicy.class);
-            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+            bkConf.setProperty(
+                    IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                     conf.getBookkeeperClientIsolationGroups());
-            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+            bkConf.setProperty(
+                    IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
                     conf.getBookkeeperClientSecondaryIsolationGroups());
         }
     }
 
-    private void setEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf, MetadataStore store,
-                                            Class<? extends EnsemblePlacementPolicy> policyClass) {
+    private void setEnsemblePlacementPolicy(
+            ClientConfiguration bkConf,
+            ServiceConfiguration conf,
+            MetadataStore store,
+            Class<? extends EnsemblePlacementPolicy> policyClass) {
         bkConf.setEnsemblePlacementPolicy(policyClass);
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
         if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
-            bkConf.setProperty(REPP_DNS_RESOLVER_CLASS, conf.getProperties().getProperty(REPP_DNS_RESOLVER_CLASS,
-                    BookieRackAffinityMapping.class.getName()));
+            bkConf.setProperty(
+                    REPP_DNS_RESOLVER_CLASS,
+                    conf.getProperties()
+                            .getProperty(REPP_DNS_RESOLVER_CLASS, BookieRackAffinityMapping.class.getName()));
 
-            bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                conf.getProperties().getProperty(
+            bkConf.setProperty(
                     NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                    ""));
+                    conf.getProperties().getProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY, ""));
         }
     }
 

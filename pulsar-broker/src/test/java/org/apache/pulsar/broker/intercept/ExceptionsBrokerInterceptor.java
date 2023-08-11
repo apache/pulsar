@@ -34,7 +34,6 @@ import org.apache.pulsar.common.intercept.InterceptException;
 
 public class ExceptionsBrokerInterceptor implements BrokerInterceptor {
 
-
     private AtomicInteger producerCount = new AtomicInteger();
     private AtomicInteger consumerCount = new AtomicInteger();
     private AtomicInteger messageAckCount = new AtomicInteger();
@@ -70,33 +69,21 @@ public class ExceptionsBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
-
-    }
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {}
 
     @Override
-    public void onConnectionClosed(ServerCnx cnx) {
-
-    }
+    public void onConnectionClosed(ServerCnx cnx) {}
 
     @Override
-    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
-
-    }
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {}
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response)
-            throws IOException, ServletException {
-
-    }
+            throws IOException, ServletException {}
 
     @Override
-    public void initialize(PulsarService pulsarService) throws Exception {
-
-    }
+    public void initialize(PulsarService pulsarService) throws Exception {}
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 }

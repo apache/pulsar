@@ -19,22 +19,20 @@
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.fail;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.AsyncLogReader;
@@ -74,8 +72,9 @@ public class DLInputStreamTest {
         OutputStream outputStream = new ByteArrayOutputStream();
         try {
             DLInputStream.openReaderAsync(dlm)
-                .thenCompose(d -> d.readAsync(outputStream))
-                .thenCompose(DLInputStream::closeAsync).get();
+                    .thenCompose(d -> d.readAsync(outputStream))
+                    .thenCompose(DLInputStream::closeAsync)
+                    .get();
         } catch (Exception e) {
             if (!(e.getCause() instanceof EndOfStreamException)) {
                 fail(e.getMessage());
@@ -87,7 +86,6 @@ public class DLInputStreamTest {
         verify(reader, times(1)).asyncClose();
         verify(dlm, times(1)).asyncClose();
     }
-
 
     /**
      * Test Case: read records from the input stream. And output it to a output stream.
@@ -102,16 +100,16 @@ public class DLInputStreamTest {
 
         when(record.getPayload()).thenReturn(data);
         when(reader.readBulk(anyInt()))
-            .thenReturn(CompletableFuture.completedFuture(records))
-            .thenReturn(failedFuture(new EndOfStreamException("eos")));
-
+                .thenReturn(CompletableFuture.completedFuture(records))
+                .thenReturn(failedFuture(new EndOfStreamException("eos")));
 
         // test code
         OutputStream outputStream = new ByteArrayOutputStream();
         try {
             DLInputStream.openReaderAsync(dlm)
-                .thenCompose(d -> d.readAsync(outputStream))
-                .thenCompose(DLInputStream::closeAsync).get();
+                    .thenCompose(d -> d.readAsync(outputStream))
+                    .thenCompose(DLInputStream::closeAsync)
+                    .get();
         } catch (Exception e) {
             if (e.getCause() instanceof EndOfStreamException) {
                 // no-op
@@ -122,7 +120,6 @@ public class DLInputStreamTest {
 
         byte[] result = ((ByteArrayOutputStream) outputStream).toByteArray();
         assertEquals("test-read", new String(result));
-
     }
 
     @Test

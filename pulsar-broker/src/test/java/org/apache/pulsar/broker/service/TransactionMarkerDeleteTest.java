@@ -56,6 +56,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
     private static final int TOPIC_PARTITION = 3;
     private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
     private static final int NUM_PARTITIONS = 16;
+
     @BeforeMethod
     protected void setup() throws Exception {
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
@@ -69,8 +70,8 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
 
     @Test
     public void testMarkerDeleteTimes() throws Exception {
-        ManagedLedgerImpl managedLedger =
-                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getManagedLedgerFactory().open("test"));
+        ManagedLedgerImpl managedLedger = spy((ManagedLedgerImpl)
+                getPulsarServiceList().get(0).getManagedLedgerFactory().open("test"));
         PersistentTopic topic = mock(PersistentTopic.class);
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);
@@ -84,11 +85,10 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         PersistentSubscription persistentSubscription =
                 spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "test", cursor, false);
         Position position = managedLedger.addEntry("test".getBytes());
-        persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
-                AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessage(
+                Collections.singletonList(position), AckType.Individual, Collections.emptyMap());
         verify(managedLedger, times(0)).asyncReadEntry(any(), any(), any());
     }
-
 
     @Test
     public void testMarkerDelete() throws Exception {
@@ -123,7 +123,8 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         assertNull(consumer.receive(1, TimeUnit.SECONDS));
 
         // maxReadPosition move to msgId1, msgId2 have not be committed
-        assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
+        assertEquals(
+                admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
                 PositionImpl.get(msgId1.getLedgerId(), msgId1.getEntryId()).toString());
 
         MessageIdImpl msgId3 = (MessageIdImpl) producer.newMessage(txn3).send();
@@ -134,7 +135,8 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
 
         // maxReadPosition move to txn1 marker, so entryId is msgId2.getEntryId() + 1,
         // because send msgId2 before commit txn1
-        assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
+        assertEquals(
+                admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
                 PositionImpl.get(msgId2.getLedgerId(), msgId2.getEntryId() + 1).toString());
 
         MessageIdImpl msgId4 = (MessageIdImpl) producer.newMessage(txn4).send();
@@ -144,15 +146,18 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         assertNull(consumer.receive(1, TimeUnit.SECONDS));
 
         // maxReadPosition move to txn2 marker, because msgId4 have not be committed
-        assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
+        assertEquals(
+                admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
                 PositionImpl.get(msgId3.getLedgerId(), msgId3.getEntryId() + 1).toString());
 
         txn4.abort().get();
 
         // maxReadPosition move to txn4 abort marker, so entryId is msgId4.getEntryId() + 2
-        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getInternalStats(topicName)
-                .cursors.get(subName).markDeletePosition, PositionImpl.get(msgId4.getLedgerId(),
-                msgId4.getEntryId() + 2).toString()));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
+                        PositionImpl.get(msgId4.getLedgerId(), msgId4.getEntryId() + 2)
+                                .toString()));
     }
 
     private Transaction getTxn() throws Exception {

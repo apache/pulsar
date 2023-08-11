@@ -69,12 +69,13 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         config.setClusterName("use");
-        config.setBrokerClientAuthenticationParameters("tlsCertFile:" + getTlsFileForClient("admin.cert") +
-                ",tlsKeyFile:" + getTlsFileForClient("admin.key-pk8"));
+        config.setBrokerClientAuthenticationParameters("tlsCertFile:" + getTlsFileForClient("admin.cert")
+                + ",tlsKeyFile:" + getTlsFileForClient("admin.key-pk8"));
         config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal))
+                .when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
@@ -91,20 +92,21 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             proxyServer.stop();
         }
         log.info("Finished Cleaning Up Test setup");
-
     }
 
     @Test(timeOut = 30000)
     public void socketTest() throws GeneralSecurityException {
         String consumerUri =
-                "wss://localhost:" + proxyServer.getListenPortHTTPS().get() + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-        String producerUri = "wss://localhost:" + proxyServer.getListenPortHTTPS().get() + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+                "wss://localhost:" + proxyServer.getListenPortHTTPS().get()
+                        + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+        String producerUri = "wss://localhost:"
+                + proxyServer.getListenPortHTTPS().get() + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
         SslContextFactory sslContextFactory = new SslContextFactory();
-        sslContextFactory.setSslContext(SecurityUtility
-                .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(CA_CERT_FILE_PATH), null));
+        sslContextFactory.setSslContext(SecurityUtility.createSslContext(
+                false, SecurityUtility.loadCertificatesFromPemFile(CA_CERT_FILE_PATH), null));
 
         WebSocketClient consumeClient = new WebSocketClient(sslContextFactory);
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();

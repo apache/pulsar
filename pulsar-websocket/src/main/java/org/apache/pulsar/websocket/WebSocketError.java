@@ -25,7 +25,6 @@ package org.apache.pulsar.websocket;
  * </p>
  */
 public enum WebSocketError {
-
     FailedToCreateProducer(1, "Failed to create producer"), //
     FailedToSubscribe(2, "Failed to subscribe"), //
     FailedToDeserializeFromJSON(3, "Failed to de-serialize from JSON"), //

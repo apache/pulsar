@@ -22,9 +22,9 @@ import java.util.Map;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 
 /*
-    ResourceDescription is an abstraction to represent resources like memory, cpu, network and io combined;
-    resource usage can be added, removed or usage in percent can be obtained.
- */
+   ResourceDescription is an abstraction to represent resources like memory, cpu, network and io combined;
+   resource usage can be added, removed or usage in percent can be obtained.
+*/
 public abstract class ResourceDescription implements Comparable<ResourceDescription> {
 
     public abstract void removeUsage(ResourceDescription rd);

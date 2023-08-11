@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import java.util.Collections;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -43,10 +42,10 @@ public class EntryFilterProducerTest implements EntryFilter {
         if (matchValueAccept.equalsIgnoreCase(producerName)) {
             log.info("metadata {} producerName {} outcome ACCEPT", metadata, producerName);
             return FilterResult.ACCEPT;
-        } else if (matchValueReject.equalsIgnoreCase(producerName)){
+        } else if (matchValueReject.equalsIgnoreCase(producerName)) {
             log.info("metadata {} producerName {} outcome REJECT", metadata, producerName);
             return FilterResult.REJECT;
-        } else if (matchValueReschedule.equalsIgnoreCase(producerName)){
+        } else if (matchValueReschedule.equalsIgnoreCase(producerName)) {
             log.info("metadata {} producerName {} outcome RESCHEDULE", metadata, producerName);
             return FilterResult.RESCHEDULE;
         } else {
@@ -56,7 +55,5 @@ public class EntryFilterProducerTest implements EntryFilter {
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 }

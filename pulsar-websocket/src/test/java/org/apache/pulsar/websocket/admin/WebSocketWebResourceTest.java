@@ -24,17 +24,21 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
+import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
-
 import javax.naming.AuthenticationException;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
-
-import com.google.common.collect.Sets;
-
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.websocket.WebSocketService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -43,15 +47,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.websocket.WebSocketService;
 
 public class WebSocketWebResourceTest {
 
@@ -64,10 +59,13 @@ public class WebSocketWebResourceTest {
     @InjectMocks
     @Spy
     private WebSocketWebResource webResource;
+
     @Mock
     private ServletContext servletContext;
+
     @Mock
     private HttpServletRequest httpRequest;
+
     @Mock
     private UriInfo uri;
 
@@ -87,16 +85,20 @@ public class WebSocketWebResourceTest {
 
         AuthenticationService authnService = mock(AuthenticationService.class);
         if ("testSuperUserAccess".equals(method.getName())) {
-            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class))).thenReturn(SUPER_USER);
+            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class)))
+                    .thenReturn(SUPER_USER);
         } else if ("testUnauthorizedUserAccess".equals(method.getName())) {
-            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class))).thenReturn(UNAUTHORIZED_USER);
+            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class)))
+                    .thenReturn(UNAUTHORIZED_USER);
         } else if ("testBlankUserAccess".equals(method.getName())) {
-            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class))).thenReturn("");
+            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class)))
+                    .thenReturn("");
         } else if ("testUnauthenticatedUserAccess".equals(method.getName())) {
             when(authnService.authenticateHttpRequest(any(HttpServletRequest.class)))
                     .thenThrow(new AuthenticationException());
         } else {
-            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class))).thenReturn(AUTHORIZED_USER);
+            when(authnService.authenticateHttpRequest(any(HttpServletRequest.class)))
+                    .thenReturn(AUTHORIZED_USER);
         }
 
         AuthorizationService authzService = mock(AuthorizationService.class);
@@ -245,5 +247,4 @@ public class WebSocketWebResourceTest {
             Assert.assertEquals(e.getResponse().getStatus(), Status.UNAUTHORIZED.getStatusCode());
         }
     }
-
 }

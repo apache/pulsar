@@ -76,7 +76,6 @@ public class PulsarShellTest {
             final String cmd = commandsQueue.take();
             log.info("writing command: {}", cmd);
             return cmd;
-
         }
 
         @Override
@@ -109,9 +108,11 @@ public class PulsarShellTest {
         protected ClientShell createClientShell(Properties properties) {
             final CmdProduce cmdProduce = mock(CmdProduce.class);
             cmdProduceHolder.set(cmdProduce);
-            return new ClientShell(properties) {{
-                this.produceCommand = cmdProduce;
-            }};
+            return new ClientShell(properties) {
+                {
+                    this.produceCommand = cmdProduce;
+                }
+            };
         }
 
         @Override
@@ -138,7 +139,6 @@ public class PulsarShellTest {
         when(pulsarAdmin.topics()).thenReturn(topics);
     }
 
-
     @Test
     public void testInteractiveMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
@@ -149,12 +149,11 @@ public class PulsarShellTest {
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
         linereader.addCmd("client produce -m msg my-topic");
         linereader.addCmd("quit");
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[] {}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
         assertEquals((int) testPulsarShell.exitCode, 0);
-
     }
 
     @Test
@@ -165,10 +164,11 @@ public class PulsarShellTest {
         props.setProperty("webServiceUrl", "http://localhost:8080");
 
         final String shellFile = Thread.currentThread()
-                .getContextClassLoader().getResource("test-shell-file").getFile();
+                .getContextClassLoader()
+                .getResource("test-shell-file")
+                .getFile();
 
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile},
-                props, pulsarAdmin);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[] {"-f", shellFile}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
@@ -182,10 +182,12 @@ public class PulsarShellTest {
         props.setProperty("webServiceUrl", "http://localhost:8080");
 
         final String shellFile = Thread.currentThread()
-                .getContextClassLoader().getResource("test-shell-file-error").getFile();
+                .getContextClassLoader()
+                .getResource("test-shell-file-error")
+                .getFile();
 
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile, "--fail-on-error"},
-                props, pulsarAdmin);
+        final TestPulsarShell testPulsarShell =
+                new TestPulsarShell(new String[] {"-f", shellFile, "--fail-on-error"}, props, pulsarAdmin);
         try {
             testPulsarShell.run((a) -> linereader, (a) -> terminal);
             fail();
@@ -203,24 +205,18 @@ public class PulsarShellTest {
         vars.put("mytopic", "the-topic");
         assertEquals(
                 PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "${mytopic}"), vars),
-                Arrays.asList("admin", "topics", "create", "the-topic")
-        );
+                Arrays.asList("admin", "topics", "create", "the-topic"));
         assertEquals(
                 PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "\\${mytopic}"), vars),
-                Arrays.asList("admin", "topics", "create", "${mytopic}")
-        );
+                Arrays.asList("admin", "topics", "create", "${mytopic}"));
         assertEquals(
                 PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "${MYTOPIC}"), vars),
-                Arrays.asList("admin", "topics", "create", "${MYTOPIC}")
-        );
+                Arrays.asList("admin", "topics", "create", "${MYTOPIC}"));
         assertEquals(
                 PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "$mytopic"), vars),
-                Arrays.asList("admin", "topics", "create", "the-topic")
-        );
+                Arrays.asList("admin", "topics", "create", "the-topic"));
         assertEquals(
                 PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "\\$mytopic"), vars),
-                Arrays.asList("admin", "topics", "create", "$mytopic")
-        );
-
+                Arrays.asList("admin", "topics", "create", "$mytopic"));
     }
 }

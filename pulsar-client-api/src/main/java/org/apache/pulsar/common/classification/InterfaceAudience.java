@@ -52,5 +52,4 @@ public class InterfaceAudience {
     public @interface Private {}
 
     private InterfaceAudience() {} // Audience can't exist on its own
-
 }

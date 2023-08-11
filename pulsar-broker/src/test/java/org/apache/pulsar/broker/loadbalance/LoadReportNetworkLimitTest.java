@@ -68,5 +68,4 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
             assertEquals(report.getBandwidthOut().limit, -1.0, 0.0001);
         }
     }
-
 }

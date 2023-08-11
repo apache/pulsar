@@ -21,7 +21,7 @@ package org.apache.pulsar.common.naming;
 import org.apache.pulsar.broker.PulsarService;
 
 public interface TopicBundleAssignmentStrategy {
-    NamespaceBundle findBundle(TopicName topicName,  NamespaceBundles namespaceBundles);
+    NamespaceBundle findBundle(TopicName topicName, NamespaceBundles namespaceBundles);
 
     void init(PulsarService pulsarService);
 }

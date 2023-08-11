@@ -29,5 +29,4 @@ import org.apache.pulsar.broker.admin.impl.FunctionsBase;
 @Api(value = "/functions", description = "Functions admin apis", tags = "functions")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Functions extends FunctionsBase {
-}
+public class Functions extends FunctionsBase {}

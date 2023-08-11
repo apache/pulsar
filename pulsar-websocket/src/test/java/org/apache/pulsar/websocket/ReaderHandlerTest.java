@@ -18,6 +18,20 @@
  */
 package org.apache.pulsar.websocket;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -31,20 +45,6 @@ import org.apache.pulsar.client.impl.ReaderImpl;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class ReaderHandlerTest {
 
@@ -132,7 +132,6 @@ public class ReaderHandlerTest {
         verify(response, times(1)).sendError(anyInt(), anyString());
     }
 
-
     static class IllegalReader implements Reader<byte[]> {
 
         @Override
@@ -181,19 +180,13 @@ public class ReaderHandlerTest {
         }
 
         @Override
-        public void seek(MessageId messageId) throws PulsarClientException {
-
-        }
+        public void seek(MessageId messageId) throws PulsarClientException {}
 
         @Override
-        public void seek(long timestamp) throws PulsarClientException {
-
-        }
+        public void seek(long timestamp) throws PulsarClientException {}
 
         @Override
-        public void seek(Function<String, Object> function) throws PulsarClientException {
-
-        }
+        public void seek(Function<String, Object> function) throws PulsarClientException {}
 
         @Override
         public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
@@ -211,8 +204,6 @@ public class ReaderHandlerTest {
         }
 
         @Override
-        public void close() throws IOException {
-
-        }
+        public void close() throws IOException {}
     }
 }

@@ -65,16 +65,17 @@ public class BrokerMonitor {
     private static final Gson gson = new Gson();
 
     // Fields common for message rows.
-    private static final List<Object> MESSAGE_FIELDS = Arrays.asList("MSG/S IN", "MSG/S OUT", "TOTAL", "KB/S IN",
-            "KB/S OUT", "TOTAL");
+    private static final List<Object> MESSAGE_FIELDS =
+            Arrays.asList("MSG/S IN", "MSG/S OUT", "TOTAL", "KB/S IN", "KB/S OUT", "TOTAL");
 
     // Fields common for system rows.
-    private static final List<Object> SYSTEM_FIELDS = Arrays.asList("CPU %", "MEMORY %", "DIRECT %", "BW IN %",
-            "BW OUT %", "MAX %");
+    private static final List<Object> SYSTEM_FIELDS =
+            Arrays.asList("CPU %", "MEMORY %", "DIRECT %", "BW IN %", "BW OUT %", "MAX %");
 
     private static final Object[] SYSTEM_ROW = makeSystemRow("SYSTEM");
-    private static final Object[] COUNT_ROW = { "COUNT", "TOPIC", "BUNDLE", "PRODUCER", "CONSUMER", "BUNDLE +",
-            "BUNDLE -" };
+    private static final Object[] COUNT_ROW = {
+        "COUNT", "TOPIC", "BUNDLE", "PRODUCER", "CONSUMER", "BUNDLE +", "BUNDLE -"
+    };
     private static final Object[] LATEST_ROW = makeMessageRow("LATEST");
     private static final Object[] SHORT_ROW = makeMessageRow("SHORT");
     private static final Object[] LONG_ROW = makeMessageRow("LONG");
@@ -82,11 +83,12 @@ public class BrokerMonitor {
     private static final Object[] ALLOC_SYSTEM_ROW = makeSystemRow("ALLOC SYSTEM");
     private static final Object[] RAW_MESSAGE_ROW = makeMessageRow("RAW MSG");
     private static final Object[] ALLOC_MESSAGE_ROW = makeMessageRow("ALLOC MSG");
-    private static final Object[] GLOBAL_HEADER = { "BROKER", "BUNDLE", "MSG/S", "LONG/S", "KB/S", "MAX %" };
+    private static final Object[] GLOBAL_HEADER = {"BROKER", "BUNDLE", "MSG/S", "LONG/S", "KB/S", "MAX %"};
 
     private Map<String, Object> loadData;
 
     private static final FixedColumnLengthTableMaker localTableMaker = new FixedColumnLengthTableMaker();
+
     static {
         // Makes the table length about 120.
         localTableMaker.elementLength = 14;
@@ -94,6 +96,7 @@ public class BrokerMonitor {
     }
 
     private static final FixedColumnLengthTableMaker globalTableMaker = new FixedColumnLengthTableMaker();
+
     static {
         globalTableMaker.decimalFormatter = "%.2f";
         globalTableMaker.topBorder = '*';
@@ -124,11 +127,20 @@ public class BrokerMonitor {
     }
 
     // Helper method to initialize rows which hold message data.
-    private static void initMessageRow(final Object[] row, final double messageRateIn, final double messageRateOut,
-            final double messageThroughputIn, final double messageThroughputOut) {
-        initRow(row, messageRateIn, messageRateOut, messageRateIn + messageRateOut,
+    private static void initMessageRow(
+            final Object[] row,
+            final double messageRateIn,
+            final double messageRateOut,
+            final double messageThroughputIn,
+            final double messageThroughputOut) {
+        initRow(
+                row,
+                messageRateIn,
+                messageRateOut,
+                messageRateIn + messageRateOut,
                 messageThroughputIn / 1024,
-                messageThroughputOut / 1024, (messageThroughputIn + messageThroughputOut) / 1024);
+                messageThroughputOut / 1024,
+                (messageThroughputIn + messageThroughputOut) / 1024);
     }
 
     // Prints out the global load data.
@@ -158,14 +170,18 @@ public class BrokerMonitor {
                     numBundles = loadReport.getNumBundles();
                     messageRate = loadReport.getMsgRateIn() + loadReport.getMsgRateOut();
                     longTermMessageRate = loadReport.getAllocatedMsgRateIn() + loadReport.getAllocatedMsgRateOut();
-                    messageThroughput = (loadReport.getAllocatedBandwidthIn() + loadReport.getAllocatedBandwidthOut())
-                            / 1024;
+                    messageThroughput =
+                            (loadReport.getAllocatedBandwidthIn() + loadReport.getAllocatedBandwidthOut()) / 1024;
                     final SystemResourceUsage systemResourceUsage = loadReport.getSystemResourceUsage();
                     maxUsage = Math.max(
                             Math.max(
-                                    Math.max(systemResourceUsage.getCpu().percentUsage(),
+                                    Math.max(
+                                            systemResourceUsage.getCpu().percentUsage(),
                                             systemResourceUsage.getMemory().percentUsage()),
-                                    Math.max(systemResourceUsage.getDirectMemory().percentUsage(),
+                                    Math.max(
+                                            systemResourceUsage
+                                                    .getDirectMemory()
+                                                    .percentUsage(),
                                             systemResourceUsage.getBandwidthIn().percentUsage())),
                             systemResourceUsage.getBandwidthOut().percentUsage());
                 } else if (data instanceof LocalBrokerData) {
@@ -177,8 +193,8 @@ public class BrokerMonitor {
                         final TimeAverageBrokerData timeAverageData = gson.fromJson(
                                 new String(zkClient.getData(timeAveragePath, false, null)),
                                 TimeAverageBrokerData.class);
-                        longTermMessageRate = timeAverageData.getLongTermMsgRateIn()
-                                + timeAverageData.getLongTermMsgRateOut();
+                        longTermMessageRate =
+                                timeAverageData.getLongTermMsgRateIn() + timeAverageData.getLongTermMsgRateOut();
                     } catch (Exception x) {
                         throw new RuntimeException(x);
                     }
@@ -341,8 +357,13 @@ public class BrokerMonitor {
             // First column is a label, so start at the second column at index 1.
             // Client count row.
             rows[1] = new Object[COUNT_ROW.length];
-            initRow(rows[1], loadReport.getNumTopics(), loadReport.getNumBundles(), loadReport.getNumProducers(),
-                    loadReport.getNumConsumers(), loadReport.getBundleGains().size(),
+            initRow(
+                    rows[1],
+                    loadReport.getNumTopics(),
+                    loadReport.getNumBundles(),
+                    loadReport.getNumProducers(),
+                    loadReport.getNumConsumers(),
+                    loadReport.getBundleGains().size(),
                     loadReport.getBundleLosses().size());
 
             // Raw system row.
@@ -353,43 +374,66 @@ public class BrokerMonitor {
             final ResourceUsage bandwidthIn = systemResourceUsage.getBandwidthIn();
             final ResourceUsage bandwidthOut = systemResourceUsage.getBandwidthOut();
             final double maxUsage = Math.max(
-                    Math.max(Math.max(cpu.percentUsage(), memory.percentUsage()),
+                    Math.max(
+                            Math.max(cpu.percentUsage(), memory.percentUsage()),
                             Math.max(directMemory.percentUsage(), bandwidthIn.percentUsage())),
                     bandwidthOut.percentUsage());
             rows[3] = new Object[RAW_SYSTEM_ROW.length];
-            initRow(rows[3], cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(),
-                    bandwidthIn.percentUsage(), bandwidthOut.percentUsage(), maxUsage);
+            initRow(
+                    rows[3],
+                    cpu.percentUsage(),
+                    memory.percentUsage(),
+                    directMemory.percentUsage(),
+                    bandwidthIn.percentUsage(),
+                    bandwidthOut.percentUsage(),
+                    maxUsage);
 
             // Allocated system row.
             rows[5] = new Object[ALLOC_SYSTEM_ROW.length];
             final double allocatedCpuUsage = percentUsage(loadReport.getAllocatedCPU(), cpu.limit);
             final double allocatedMemoryUsage = percentUsage(loadReport.getAllocatedMemory(), memory.limit);
-            final double allocatedBandwidthInUsage = percentUsage(loadReport.getAllocatedBandwidthIn(),
-                    bandwidthIn.limit);
-            final double allocatedBandwidthOutUsage = percentUsage(loadReport.getAllocatedBandwidthOut(),
-                    bandwidthOut.limit);
+            final double allocatedBandwidthInUsage =
+                    percentUsage(loadReport.getAllocatedBandwidthIn(), bandwidthIn.limit);
+            final double allocatedBandwidthOutUsage =
+                    percentUsage(loadReport.getAllocatedBandwidthOut(), bandwidthOut.limit);
             final double maxAllocatedUsage = Math.max(
                     Math.max(Math.max(allocatedCpuUsage, allocatedMemoryUsage), allocatedBandwidthInUsage),
                     allocatedBandwidthOutUsage);
-            initRow(rows[5], allocatedCpuUsage, allocatedMemoryUsage, null, allocatedBandwidthInUsage,
-                    allocatedBandwidthOutUsage, maxAllocatedUsage);
+            initRow(
+                    rows[5],
+                    allocatedCpuUsage,
+                    allocatedMemoryUsage,
+                    null,
+                    allocatedBandwidthInUsage,
+                    allocatedBandwidthOutUsage,
+                    maxAllocatedUsage);
 
             // Raw message row.
             rows[7] = new Object[RAW_MESSAGE_ROW.length];
-            initMessageRow(rows[7], loadReport.getMsgRateIn(), loadReport.getMsgRateOut(), bandwidthIn.usage,
+            initMessageRow(
+                    rows[7],
+                    loadReport.getMsgRateIn(),
+                    loadReport.getMsgRateOut(),
+                    bandwidthIn.usage,
                     bandwidthOut.usage);
 
             // Allocated message row.
             rows[9] = new Object[ALLOC_MESSAGE_ROW.length];
-            initMessageRow(rows[9], loadReport.getAllocatedMsgRateIn(), loadReport.getAllocatedMsgRateOut(),
-                    loadReport.getAllocatedBandwidthIn(), loadReport.getAllocatedBandwidthOut());
+            initMessageRow(
+                    rows[9],
+                    loadReport.getAllocatedMsgRateIn(),
+                    loadReport.getAllocatedMsgRateOut(),
+                    loadReport.getAllocatedBandwidthIn(),
+                    loadReport.getAllocatedBandwidthOut());
 
             final String table = localTableMaker.make(rows);
             log.info("\nLoad Report for {}:\n{}\n", broker, table);
         }
 
         // Print the broker data in a tabular form for a broker using ModularLoadManagerImpl.
-        private synchronized void printBrokerData(final String broker, final LocalBrokerData localBrokerData,
+        private synchronized void printBrokerData(
+                final String broker,
+                final LocalBrokerData localBrokerData,
                 final TimeAverageBrokerData timeAverageData) {
             loadData.put(broker, localBrokerData);
 
@@ -404,30 +448,52 @@ public class BrokerMonitor {
             // First column is a label, so start at the second column at index 1.
             // System row.
             rows[1] = new Object[SYSTEM_ROW.length];
-            initRow(rows[1], localBrokerData.getCpu().percentUsage(), localBrokerData.getMemory().percentUsage(),
-                    localBrokerData.getDirectMemory().percentUsage(), localBrokerData.getBandwidthIn().percentUsage(),
-                    localBrokerData.getBandwidthOut().percentUsage(), localBrokerData.getMaxResourceUsage() * 100);
+            initRow(
+                    rows[1],
+                    localBrokerData.getCpu().percentUsage(),
+                    localBrokerData.getMemory().percentUsage(),
+                    localBrokerData.getDirectMemory().percentUsage(),
+                    localBrokerData.getBandwidthIn().percentUsage(),
+                    localBrokerData.getBandwidthOut().percentUsage(),
+                    localBrokerData.getMaxResourceUsage() * 100);
 
             // Count row.
             rows[3] = new Object[COUNT_ROW.length];
-            initRow(rows[3], localBrokerData.getNumTopics(), localBrokerData.getNumBundles(),
-                    localBrokerData.getNumProducers(), localBrokerData.getNumConsumers(),
-                    localBrokerData.getLastBundleGains().size(), localBrokerData.getLastBundleLosses().size());
+            initRow(
+                    rows[3],
+                    localBrokerData.getNumTopics(),
+                    localBrokerData.getNumBundles(),
+                    localBrokerData.getNumProducers(),
+                    localBrokerData.getNumConsumers(),
+                    localBrokerData.getLastBundleGains().size(),
+                    localBrokerData.getLastBundleLosses().size());
 
             // Latest message data row.
             rows[5] = new Object[LATEST_ROW.length];
-            initMessageRow(rows[5], localBrokerData.getMsgRateIn(), localBrokerData.getMsgRateOut(),
-                    localBrokerData.getMsgThroughputIn(), localBrokerData.getMsgThroughputOut());
+            initMessageRow(
+                    rows[5],
+                    localBrokerData.getMsgRateIn(),
+                    localBrokerData.getMsgRateOut(),
+                    localBrokerData.getMsgThroughputIn(),
+                    localBrokerData.getMsgThroughputOut());
 
             // Short-term message data row.
             rows[7] = new Object[SHORT_ROW.length];
-            initMessageRow(rows[7], timeAverageData.getShortTermMsgRateIn(), timeAverageData.getShortTermMsgRateOut(),
-                    timeAverageData.getShortTermMsgThroughputIn(), timeAverageData.getShortTermMsgThroughputOut());
+            initMessageRow(
+                    rows[7],
+                    timeAverageData.getShortTermMsgRateIn(),
+                    timeAverageData.getShortTermMsgRateOut(),
+                    timeAverageData.getShortTermMsgThroughputIn(),
+                    timeAverageData.getShortTermMsgThroughputOut());
 
             // Long-term message data row.
             rows[9] = new Object[LONG_ROW.length];
-            initMessageRow(rows[9], timeAverageData.getLongTermMsgRateIn(), timeAverageData.getLongTermMsgRateOut(),
-                    timeAverageData.getLongTermMsgThroughputIn(), timeAverageData.getLongTermMsgThroughputOut());
+            initMessageRow(
+                    rows[9],
+                    timeAverageData.getLongTermMsgRateIn(),
+                    timeAverageData.getLongTermMsgRateOut(),
+                    timeAverageData.getLongTermMsgThroughputIn(),
+                    timeAverageData.getLongTermMsgThroughputOut());
 
             final String table = localTableMaker.make(rows);
             log.info("\nBroker Data for {}:\n{}\n", broker, table);
@@ -435,16 +501,25 @@ public class BrokerMonitor {
     }
 
     // JCommander arguments class.
-    @Parameters(commandDescription = "Monitors brokers and prints to the console information about their system "
-            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
+    @Parameters(
+            commandDescription = "Monitors brokers and prints to the console information about their system "
+                    + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
     private static class Arguments {
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Help message",
+                help = true)
         boolean help;
 
-        @Parameter(names = { "--connect-string" }, description = "Zookeeper or broker connect string", required = true)
+        @Parameter(
+                names = {"--connect-string"},
+                description = "Zookeeper or broker connect string",
+                required = true)
         public String connectString = null;
 
-        @Parameter(names = { "--extensions" }, description = "true to monitor Load Balance Extensions.")
+        @Parameter(
+                names = {"--extensions"},
+                description = "true to monitor Load Balance Extensions.")
         boolean extensions = false;
     }
 
@@ -485,9 +560,9 @@ public class BrokerMonitor {
                     .ioThreads(Runtime.getRuntime().availableProcessors())
                     .statsInterval(0, TimeUnit.SECONDS)
                     .build();
-            this.brokerLoadDataTableView = client
-                    .newTableView(Schema.JSON(BrokerLoadData.class))
-                    .topic(BROKER_LOAD_DATA_STORE_TOPIC).create();
+            this.brokerLoadDataTableView = client.newTableView(Schema.JSON(BrokerLoadData.class))
+                    .topic(BROKER_LOAD_DATA_STORE_TOPIC)
+                    .create();
         } catch (Throwable e) {
             log.info("Failed to start BrokerMonitor", e);
             throw new RuntimeException(e);
@@ -505,20 +580,27 @@ public class BrokerMonitor {
         // First column is a label, so start at the second column at index 1.
         // System row.
         rows[1] = new Object[SYSTEM_ROW.length];
-        initRow(rows[1], brokerLoadData.getCpu().percentUsage(), brokerLoadData.getMemory().percentUsage(),
-                brokerLoadData.getDirectMemory().percentUsage(), brokerLoadData.getBandwidthIn().percentUsage(),
-                brokerLoadData.getBandwidthOut().percentUsage(), brokerLoadData.getMaxResourceUsage() * 100);
+        initRow(
+                rows[1],
+                brokerLoadData.getCpu().percentUsage(),
+                brokerLoadData.getMemory().percentUsage(),
+                brokerLoadData.getDirectMemory().percentUsage(),
+                brokerLoadData.getBandwidthIn().percentUsage(),
+                brokerLoadData.getBandwidthOut().percentUsage(),
+                brokerLoadData.getMaxResourceUsage() * 100);
 
         // Count row.
         rows[3] = new Object[COUNT_ROW.length];
-        initRow(rows[3], null, brokerLoadData.getBundleCount(),
-                null, null,
-                null, null);
+        initRow(rows[3], null, brokerLoadData.getBundleCount(), null, null, null, null);
 
         // Latest message data row.
         rows[5] = new Object[LATEST_ROW.length];
-        initMessageRow(rows[5], brokerLoadData.getMsgRateIn(), brokerLoadData.getMsgRateOut(),
-                brokerLoadData.getMsgThroughputIn(), brokerLoadData.getMsgThroughputOut());
+        initMessageRow(
+                rows[5],
+                brokerLoadData.getMsgRateIn(),
+                brokerLoadData.getMsgRateOut(),
+                brokerLoadData.getMsgThroughputIn(),
+                brokerLoadData.getMsgThroughputOut());
 
         final String table = localTableMaker.make(rows);
         log.info("\nBroker Data for {}:\n{}\n", broker, table);
@@ -556,7 +638,6 @@ public class BrokerMonitor {
             jc.usage();
             PerfClientUtils.exit(1);
         }
-
 
         if (arguments.extensions) {
             final BrokerMonitor monitor = new BrokerMonitor(arguments.connectString);

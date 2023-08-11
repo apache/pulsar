@@ -34,8 +34,7 @@ public class ConfigValidationUtils {
     public static NestableFieldValidator fv(final Class cls, final boolean notNull) {
         return new NestableFieldValidator() {
             @Override
-            public void validateField(String pd, String name, Object field)
-                    throws IllegalArgumentException {
+            public void validateField(String pd, String name, Object field) throws IllegalArgumentException {
                 if (field == null) {
                     if (notNull) {
                         throw new IllegalArgumentException("Field " + name + " must not be null");
@@ -44,8 +43,7 @@ public class ConfigValidationUtils {
                     }
                 }
                 if (!cls.isInstance(field)) {
-                    throw new IllegalArgumentException(
-                            pd + name + " must be a " + cls.getName() + ". (" + field + ")");
+                    throw new IllegalArgumentException(pd + name + " must be a " + cls.getName() + ". (" + field + ")");
                 }
             }
         };
@@ -69,12 +67,10 @@ public class ConfigValidationUtils {
      * @param notNull   whether or not a value of null is valid
      * @return a NestableFieldValidator for a list with each item validated by a different validator.
      */
-    public static NestableFieldValidator listFv(final NestableFieldValidator validator,
-                                                final boolean notNull) {
+    public static NestableFieldValidator listFv(final NestableFieldValidator validator, final boolean notNull) {
         return new NestableFieldValidator() {
             @Override
-            public void validateField(String pd, String name, Object field)
-                    throws IllegalArgumentException {
+            public void validateField(String pd, String name, Object field) throws IllegalArgumentException {
 
                 if (field == null) {
                     if (notNull) {
@@ -103,8 +99,7 @@ public class ConfigValidationUtils {
      * @param notNull whether or not a value of null is valid
      * @return a NestableFieldValidator for a Map of key to val
      */
-    public static NestableFieldValidator mapFv(Class key, Class val,
-                                               boolean notNull) {
+    public static NestableFieldValidator mapFv(Class key, Class val, boolean notNull) {
         return mapFv(fv(key, false), fv(val, false), notNull);
     }
 
@@ -116,13 +111,12 @@ public class ConfigValidationUtils {
      * @param notNull whether or not a value of null is valid
      * @return a NestableFieldValidator for a Map
      */
-    public static NestableFieldValidator mapFv(final NestableFieldValidator key,
-                                               final NestableFieldValidator val, final boolean notNull) {
+    public static NestableFieldValidator mapFv(
+            final NestableFieldValidator key, final NestableFieldValidator val, final boolean notNull) {
         return new NestableFieldValidator() {
             @SuppressWarnings("unchecked")
             @Override
-            public void validateField(String pd, String name, Object field)
-                    throws IllegalArgumentException {
+            public void validateField(String pd, String name, Object field) throws IllegalArgumentException {
                 if (field == null) {
                     if (notNull) {
                         throw new IllegalArgumentException("Field " + name + " must not be null");
@@ -137,8 +131,7 @@ public class ConfigValidationUtils {
                     }
                     return;
                 }
-                throw new IllegalArgumentException(
-                        "Field " + name + " must be a Map");
+                throw new IllegalArgumentException("Field " + name + " must be a Map");
             }
         };
     }

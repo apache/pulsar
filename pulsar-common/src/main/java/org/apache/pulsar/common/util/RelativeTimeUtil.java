@@ -33,7 +33,7 @@ public class RelativeTimeUtil {
             throw new IllegalArgumentException("expiry time cannot be empty");
         }
 
-        int lastIndex =  relativeTime.length() - 1;
+        int lastIndex = relativeTime.length() - 1;
         char lastChar = relativeTime.charAt(lastIndex);
         final char timeUnit;
 
@@ -48,21 +48,21 @@ public class RelativeTimeUtil {
         long duration = Long.parseLong(relativeTime.substring(0, lastIndex));
 
         switch (timeUnit) {
-        case 's':
-            return duration;
-        case 'm':
-            return TimeUnit.MINUTES.toSeconds(duration);
-        case 'h':
-            return TimeUnit.HOURS.toSeconds(duration);
-        case 'd':
-            return TimeUnit.DAYS.toSeconds(duration);
-        case 'w':
-            return 7 * TimeUnit.DAYS.toSeconds(duration);
-        // No unit for months
-        case 'y':
-            return 365 * TimeUnit.DAYS.toSeconds(duration);
-        default:
-            throw new IllegalArgumentException("Invalid time unit '" + lastChar + "'");
+            case 's':
+                return duration;
+            case 'm':
+                return TimeUnit.MINUTES.toSeconds(duration);
+            case 'h':
+                return TimeUnit.HOURS.toSeconds(duration);
+            case 'd':
+                return TimeUnit.DAYS.toSeconds(duration);
+            case 'w':
+                return 7 * TimeUnit.DAYS.toSeconds(duration);
+                // No unit for months
+            case 'y':
+                return 365 * TimeUnit.DAYS.toSeconds(duration);
+            default:
+                throw new IllegalArgumentException("Invalid time unit '" + lastChar + "'");
         }
     }
 

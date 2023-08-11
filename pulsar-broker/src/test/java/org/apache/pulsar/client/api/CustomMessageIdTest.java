@@ -48,22 +48,24 @@ public class CustomMessageIdTest extends ProducerConsumerBase {
 
     @DataProvider
     public static Object[][] enableBatching() {
-        return new Object[][]{
-                { true },
-                { false }
-        };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test
     public void testSeek() throws Exception {
         final var topic = "persistent://my-property/my-ns/test-seek-" + System.currentTimeMillis();
-        @Cleanup final var producer = pulsarClient.newProducer(Schema.INT32).topic(topic).create();
+        @Cleanup
+        final var producer = pulsarClient.newProducer(Schema.INT32).topic(topic).create();
         final var msgIds = new ArrayList<SimpleMessageIdImpl>();
         for (int i = 0; i < 10; i++) {
             msgIds.add(new SimpleMessageIdImpl((MessageIdAdv) producer.send(i)));
         }
-        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic).subscriptionName("sub").subscribe();
+        @Cleanup
+        final var consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
         consumer.seek(msgIds.get(6));
         final var msg = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(msg);
@@ -72,15 +74,16 @@ public class CustomMessageIdTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "enableBatching")
     public void testAcknowledgment(boolean enableBatching) throws Exception {
-        final var topic = "persistent://my-property/my-ns/test-ack-"
-                + enableBatching + System.currentTimeMillis();
-        final var producer = pulsarClient.newProducer(Schema.INT32)
+        final var topic = "persistent://my-property/my-ns/test-ack-" + enableBatching + System.currentTimeMillis();
+        final var producer = pulsarClient
+                .newProducer(Schema.INT32)
                 .topic(topic)
                 .enableBatching(enableBatching)
                 .batchingMaxMessages(10)
                 .batchingMaxPublishDelay(300, TimeUnit.MILLISECONDS)
                 .create();
-        final var consumer = pulsarClient.newConsumer(Schema.INT32)
+        final var consumer = pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName("sub")
                 .enableBatchIndexAcknowledgment(true)

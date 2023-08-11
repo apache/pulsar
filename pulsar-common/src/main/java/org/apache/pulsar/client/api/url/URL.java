@@ -64,5 +64,4 @@ public class URL {
     public Object getContent(Class<?>[] classes) throws IOException {
         return this.url.getContent(classes);
     }
-
 }

@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.topologies;
 
 import static java.util.stream.Collectors.joining;
 import java.util.stream.Stream;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,8 +46,8 @@ public class PulsarGeoClusterTestBase extends PulsarTestBase {
     public void setupCluster(String namePrefix) throws Exception {
         PulsarClusterSpec.PulsarClusterSpecBuilder[] specBuilders = new PulsarClusterSpec.PulsarClusterSpecBuilder[2];
         for (int i = 0; i < 2; i++) {
-            String clusterName = Stream.of(this.getClass().getSimpleName(), namePrefix, String.valueOf(i),
-                            randomName(5))
+            String clusterName = Stream.of(
+                            this.getClass().getSimpleName(), namePrefix, String.valueOf(i), randomName(5))
                     .filter(s -> s != null && !s.isEmpty())
                     .collect(joining("-"));
             specBuilders[i] = PulsarClusterSpec.builder().clusterName(clusterName);
@@ -61,7 +60,7 @@ public class PulsarGeoClusterTestBase extends PulsarTestBase {
         setupCluster0(specs);
     }
 
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder[] beforeSetupCluster (
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder[] beforeSetupCluster(
             PulsarClusterSpec.PulsarClusterSpecBuilder... specBuilder) {
         return specBuilder;
     }

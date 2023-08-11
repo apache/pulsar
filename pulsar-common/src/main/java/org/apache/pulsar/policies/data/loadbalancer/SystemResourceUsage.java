@@ -27,7 +27,10 @@ public class SystemResourceUsage {
      * Definition of possible resource types.
      */
     public enum ResourceType {
-        CPU, Memory, BandwidthIn, BandwidthOut
+        CPU,
+        Memory,
+        BandwidthIn,
+        BandwidthOut
     }
 
     public ResourceUsage bandwidthIn;

@@ -46,7 +46,8 @@ public class StringSchema extends AbstractSchema<String> {
         DEFAULT_SCHEMA_INFO = SchemaInfoImpl.builder()
                 .name("String")
                 .type(SchemaType.STRING)
-                .schema(new byte[0]).build();
+                .schema(new byte[0])
+                .build();
 
         UTF8 = new StringSchema(StandardCharsets.UTF_8);
     }

@@ -28,8 +28,8 @@ import java.time.format.DateTimeParseException;
  */
 public class DateFormatter {
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_OFFSET_DATE_TIME
-            .withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter DATE_FORMAT =
+            DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.systemDefault());
 
     /**
      * @return a String representing the current datetime
@@ -63,6 +63,5 @@ public class DateFormatter {
         return instant.toEpochMilli();
     }
 
-    private DateFormatter() {
-    }
+    private DateFormatter() {}
 }

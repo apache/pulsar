@@ -71,7 +71,9 @@ public class WorkerServer {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
         this.authenticationService = authenticationService;
-        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web",
+        this.webServerExecutor = new WebExecutorThreadPool(
+                this.workerConfig.getNumHttpServerThreads(),
+                "function-web",
                 this.workerConfig.getHttpServerThreadPoolQueueSize());
         this.filterInitializer = new FilterInitializer(workerConfig, authenticationService);
         init();
@@ -97,16 +99,19 @@ public class WorkerServer {
         }
 
         List<Handler> handlers = new ArrayList<>(4);
-        handlers.add(newServletContextHandler("/admin",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
-        handlers.add(newServletContextHandler("/admin/v2",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
-        handlers.add(newServletContextHandler("/admin/v3",
-            new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer));
+        handlers.add(newServletContextHandler(
+                "/admin", new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
+        handlers.add(newServletContextHandler(
+                "/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
+        handlers.add(newServletContextHandler(
+                "/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer));
         // don't require auth for metrics or config routes
-        handlers.add(newServletContextHandler("/",
-            new ResourceConfig(Resources.getRootResources()), workerService,
-            workerConfig.isAuthenticateMetricsEndpoint(), filterInitializer));
+        handlers.add(newServletContextHandler(
+                "/",
+                new ResourceConfig(Resources.getRootResources()),
+                workerService,
+                workerConfig.isAuthenticateMetricsEndpoint(),
+                filterInitializer));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
@@ -116,7 +121,7 @@ public class WorkerServer {
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
         HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[]{contexts, new DefaultHandler(), requestLogHandler});
+        handlerCollection.setHandlers(new Handler[] {contexts, new DefaultHandler(), requestLogHandler});
 
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();
@@ -146,8 +151,7 @@ public class WorkerServer {
                             workerConfig.isTlsRequireTrustedClientCertOnConnect(),
                             workerConfig.getWebServiceTlsCiphers(),
                             workerConfig.getWebServiceTlsProtocols(),
-                            workerConfig.getTlsCertRefreshCheckDurationSec()
-                    );
+                            workerConfig.getTlsCertRefreshCheckDurationSec());
                 } else {
                     sslCtxFactory = JettySslContextFactory.createServerSslContext(
                             workerConfig.getTlsProvider(),
@@ -158,8 +162,7 @@ public class WorkerServer {
                             workerConfig.isTlsRequireTrustedClientCertOnConnect(),
                             workerConfig.getWebServiceTlsCiphers(),
                             workerConfig.getWebServiceTlsProtocols(),
-                            workerConfig.getTlsCertRefreshCheckDurationSec()
-                    );
+                            workerConfig.getTlsCertRefreshCheckDurationSec());
                 }
                 httpsConnector = new ServerConnector(server, sslCtxFactory);
                 httpsConnector.setPort(this.workerConfig.getWorkerPortTls());
@@ -186,8 +189,7 @@ public class WorkerServer {
             }
 
             if (config.isHttpRequestsLimitEnabled()) {
-                filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                filterHolders.add(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -201,35 +203,34 @@ public class WorkerServer {
         public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {
             for (FilterHolder filterHolder : filterHolders) {
                 if (requiresAuthentication || filterHolder != authenticationFilterHolder) {
-                    context.addFilter(filterHolder,
-                            MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+                    context.addFilter(filterHolder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
                 }
             }
         }
     }
 
-    static ServletContextHandler newServletContextHandler(String contextPath,
-                                                                 ResourceConfig config,
-                                                                 WorkerService workerService,
-                                                                 FilterInitializer filterInitializer) {
+    static ServletContextHandler newServletContextHandler(
+            String contextPath,
+            ResourceConfig config,
+            WorkerService workerService,
+            FilterInitializer filterInitializer) {
         return newServletContextHandler(contextPath, config, workerService, true, filterInitializer);
     }
 
-    static ServletContextHandler newServletContextHandler(String contextPath,
-                                                                 ResourceConfig config,
-                                                                 WorkerService workerService,
-                                                                 boolean requireAuthentication,
-                                                                 FilterInitializer filterInitializer) {
-        final ServletContextHandler contextHandler =
-                new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+    static ServletContextHandler newServletContextHandler(
+            String contextPath,
+            ResourceConfig config,
+            WorkerService workerService,
+            boolean requireAuthentication,
+            FilterInitializer filterInitializer) {
+        final ServletContextHandler contextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
         contextHandler.setAttribute(FunctionApiResource.ATTRIBUTE_FUNCTION_WORKER, workerService);
         contextHandler.setAttribute(WorkerApiV2Resource.ATTRIBUTE_WORKER_SERVICE, workerService);
         contextHandler.setAttribute(WorkerStatsApiV2Resource.ATTRIBUTE_WORKERSTATS_SERVICE, workerService);
         contextHandler.setContextPath(contextPath);
 
-        final ServletHolder apiServlet =
-                new ServletHolder(new ServletContainer(config));
+        final ServletHolder apiServlet = new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, MATCH_ALL);
 
         filterInitializer.addFilters(contextHandler, requireAuthentication);

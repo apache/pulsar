@@ -28,7 +28,9 @@ import org.testng.annotations.Test;
 
 public class EnumValuesDataProviderTest {
     enum Sample {
-        A, B, C
+        A,
+        B,
+        C
     }
 
     @Test(dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")

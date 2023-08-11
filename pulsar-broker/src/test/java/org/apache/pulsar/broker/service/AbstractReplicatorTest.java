@@ -85,8 +85,8 @@ public class AbstractReplicatorTest {
         when(producerBuilder.createAsync())
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("mocked ex")));
         // Make race condition: "retry start producer" and "close replicator".
-        final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
-                replicatorPrefix, broker, remoteClient);
+        final ReplicatorInTest replicator = new ReplicatorInTest(
+                localCluster, localTopic, remoteCluster, topicName, replicatorPrefix, broker, remoteClient);
         replicator.startProducer();
         replicator.disconnect();
 
@@ -110,10 +110,22 @@ public class AbstractReplicatorTest {
 
     private static class ReplicatorInTest extends AbstractReplicator {
 
-        public ReplicatorInTest(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
-                                String replicatorPrefix, BrokerService brokerService,
-                                PulsarClientImpl replicationClient) throws PulsarServerException {
-            super(localCluster, localTopic, remoteCluster, remoteTopicName, replicatorPrefix, brokerService,
+        public ReplicatorInTest(
+                String localCluster,
+                Topic localTopic,
+                String remoteCluster,
+                String remoteTopicName,
+                String replicatorPrefix,
+                BrokerService brokerService,
+                PulsarClientImpl replicationClient)
+                throws PulsarServerException {
+            super(
+                    localCluster,
+                    localTopic,
+                    remoteCluster,
+                    remoteTopicName,
+                    replicatorPrefix,
+                    brokerService,
                     replicationClient);
         }
 
@@ -123,9 +135,7 @@ public class AbstractReplicatorTest {
         }
 
         @Override
-        protected void readEntries(Producer<byte[]> producer) {
-
-        }
+        protected void readEntries(Producer<byte[]> producer) {}
 
         @Override
         protected Position getReplicatorReadPosition() {
@@ -138,8 +148,6 @@ public class AbstractReplicatorTest {
         }
 
         @Override
-        protected void disableReplicatorRead() {
-
-        }
+        protected void disableReplicatorRead() {}
     }
 }

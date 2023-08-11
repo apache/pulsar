@@ -50,7 +50,8 @@ public class DisabledSystemTopicTest extends ProducerConsumerBase {
 
     @Test
     public void testDeleteTopic() throws Exception {
-        String topicName = "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
+        String topicName =
+                "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
 
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().delete(topicName, false);

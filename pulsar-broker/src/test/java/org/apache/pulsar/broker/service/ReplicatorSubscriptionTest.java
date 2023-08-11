@@ -97,7 +97,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
 
         @Cleanup
-        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+        PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -105,7 +106,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         createReplicatedSubscription(client1, topicName, subscriptionName, replicateSubscriptionState);
 
         @Cleanup
-        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+        PulsarClient client2 = PulsarClient.builder()
+                .serviceUrl(url2.toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -117,7 +119,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // send messages in r1
         {
             @Cleanup
-            Producer<byte[]> producer = client1.newProducer().topic(topicName)
+            Producer<byte[]> producer = client1.newProducer()
+                    .topic(topicName)
                     .enableBatching(false)
                     .messageRoutingMode(MessageRoutingMode.SinglePartition)
                     .create();
@@ -154,8 +157,10 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         }
 
         // assert that all messages have been received
-        assertEquals(new ArrayList<>(sentMessages), new ArrayList<>(receivedMessages), "Sent and received " +
-                "messages don't match.");
+        assertEquals(
+                new ArrayList<>(sentMessages),
+                new ArrayList<>(receivedMessages),
+                "Sent and received " + "messages don't match.");
     }
 
     @Test
@@ -171,16 +176,23 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest, isReplicatedSubscription);
-        final PersistentTopic topic1 =
-                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        final PersistentTopic topic1 = (PersistentTopic)
+                pulsar1.getBrokerService().getTopic(topicName, false).join().get();
 
         // Send messages
         // Wait for the topic created on the cluster2.
         // Wait for the snapshot created.
-        final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
-        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
-        Consumer<String> consumer1 = client1.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
+        final PulsarClient client1 =
+                PulsarClient.builder().serviceUrl(url1.toString()).build();
+        Producer<String> producer1 = client1.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        Consumer<String> consumer1 = client1.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .replicateSubscriptionState(isReplicatedSubscription)
+                .subscribe();
         for (int i = 0; i < messagesCount / 2; i++) {
             String msg = i + "";
             producer1.send(msg);
@@ -190,13 +202,18 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
             ConcurrentOpenHashMap<String, ? extends Replicator> replicators = topic1.getReplicators();
             assertTrue(replicators != null && replicators.size() == 1, "Replicator should started");
             assertTrue(replicators.values().iterator().next().isConnected(), "Replicator should be connected");
-            assertTrue(topic1.getReplicatedSubscriptionController().get().getLastCompletedSnapshotId().isPresent(),
+            assertTrue(
+                    topic1.getReplicatedSubscriptionController()
+                            .get()
+                            .getLastCompletedSnapshotId()
+                            .isPresent(),
                     "One snapshot should be finished");
         });
-        final PersistentTopic topic2 =
-                (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+        final PersistentTopic topic2 = (PersistentTopic)
+                pulsar2.getBrokerService().getTopic(topicName, false).join().get();
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(topic2.getReplicatedSubscriptionController().isPresent(),
+            assertTrue(
+                    topic2.getReplicatedSubscriptionController().isPresent(),
                     "Replicated subscription controller should created");
         });
         for (int i = messagesCount / 2; i < messagesCount; i++) {
@@ -206,7 +223,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         }
 
         // Consume half messages and wait the subscription created on the cluster2.
-        for (int i = 0; i < messagesCount / 2; i++){
+        for (int i = 0; i < messagesCount / 2; i++) {
             Message<String> message = consumer1.receive(2, TimeUnit.SECONDS);
             if (message == null) {
                 fail("Should not receive null.");
@@ -221,9 +238,13 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // Switch client to cluster2.
         // Since the cluster1 was not crash, all messages will be replicated to the cluster2.
         consumer1.close();
-        final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
-        final Consumer consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
-                .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
+        final PulsarClient client2 =
+                PulsarClient.builder().serviceUrl(url2.toString()).build();
+        final Consumer consumer2 = client2.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .replicateSubscriptionState(isReplicatedSubscription)
+                .subscribe();
 
         // Verify all messages will be consumed.
         Awaitility.await().untilAsserted(() -> {
@@ -268,9 +289,10 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // Validate that no snapshots are created before messages are published
         Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
-        PersistentTopic t1 = (PersistentTopic) pulsar1.getBrokerService()
-                .getTopic(topicName, false).get().get();
-        ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
+        PersistentTopic t1 = (PersistentTopic)
+                pulsar1.getBrokerService().getTopic(topicName, false).get().get();
+        ReplicatedSubscriptionsController rsc1 =
+                t1.getReplicatedSubscriptionController().get();
         // no snapshot should have been created before any messages are published
         assertTrue(rsc1.getLastCompletedSnapshotId().isEmpty());
 
@@ -285,9 +307,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // send messages in r1
         {
             @Cleanup
-            Producer<String> producer = client1.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .create();
+            Producer<String> producer =
+                    client1.newProducer(Schema.STRING).topic(topicName).create();
             for (int i = 0; i < 10; i++) {
                 producer.send("hello-" + i);
             }
@@ -302,9 +323,10 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // In R2
 
-        PersistentTopic t2 = (PersistentTopic) pulsar1.getBrokerService()
-                .getTopic(topicName, false).get().get();
-        ReplicatedSubscriptionsController rsc2 = t2.getReplicatedSubscriptionController().get();
+        PersistentTopic t2 = (PersistentTopic)
+                pulsar1.getBrokerService().getTopic(topicName, false).get().get();
+        ReplicatedSubscriptionsController rsc2 =
+                t2.getReplicatedSubscriptionController().get();
         Position p2 = t2.getLastPosition();
         String snapshot2 = rsc2.getLastCompletedSnapshotId().get();
 
@@ -316,11 +338,9 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         assertEquals(t2.getLastPosition(), p2);
         assertEquals(rsc2.getLastCompletedSnapshotId().get(), snapshot2);
 
-
         @Cleanup
-        Producer<String> producer2 = client2.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
+        Producer<String> producer2 =
+                client2.newProducer(Schema.STRING).topic(topicName).create();
         for (int i = 0; i < 10; i++) {
             producer2.send("hello-" + i);
         }
@@ -348,15 +368,19 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
 
         @Cleanup
-        final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
-                .statsInterval(0, TimeUnit.SECONDS).build();
+        final PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         // Create subscription in r1
         createReplicatedSubscription(client1, topicName, subName, true);
 
         @Cleanup
-        final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
-                .statsInterval(0, TimeUnit.SECONDS).build();
+        final PulsarClient client2 = PulsarClient.builder()
+                .serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         // Create subscription in r2
         createReplicatedSubscription(client2, topicName, subName, true);
@@ -388,18 +412,21 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         final Set<String> sentMessages = new LinkedHashSet<>();
         final Set<String> receivedMessages = new LinkedHashSet<>();
 
-        Producer<byte[]> producer = client1.newProducer().topic(topicName).enableBatching(false).create();
+        Producer<byte[]> producer =
+                client1.newProducer().topic(topicName).enableBatching(false).create();
         sentMessages.clear();
         publishMessages(producer, 0, numMessages, sentMessages);
         producer.close();
 
-        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer1 =
+                client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         receivedMessages.clear();
         readMessages(consumer1, receivedMessages, numMessages, false);
         assertEquals(receivedMessages, sentMessages);
         consumer1.close();
 
-        Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer2 =
+                client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         receivedMessages.clear();
         readMessages(consumer2, receivedMessages, numMessages, false);
         assertEquals(receivedMessages, sentMessages);
@@ -426,7 +453,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         producer.close();
         Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
 
-        consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        consumer1 =
+                client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         final int numReceivedMessages1 = readMessages(consumer1, receivedMessages, numMessages / 2, allowDuplicates);
         consumer1.close();
 
@@ -435,14 +463,17 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         producer.close();
         Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
 
-        consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        consumer2 =
+                client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         final int numReceivedMessages2 = readMessages(consumer2, receivedMessages, -1, allowDuplicates);
         consumer2.close();
 
         assertEquals(receivedMessages, sentMessages);
-        assertTrue(numReceivedMessages1 < numMessages,
+        assertTrue(
+                numReceivedMessages1 < numMessages,
                 String.format("numReceivedMessages1 (%d) should be less than %d", numReceivedMessages1, numMessages));
-        assertTrue(numReceivedMessages2 < numMessages,
+        assertTrue(
+                numReceivedMessages2 < numMessages,
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
@@ -458,8 +489,11 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         admin1.topics().createNonPartitionedTopic(topicName1);
         admin1.topics().createPartitionedTopic(topicName2, 3);
 
-        @Cleanup final PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString())
-                .statsInterval(0, TimeUnit.SECONDS).build();
+        @Cleanup
+        final PulsarClient client = PulsarClient.builder()
+                .serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         // Create subscription on non-partitioned topic
         createReplicatedSubscription(client, topicName1, subName1, true);
@@ -521,15 +555,19 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         admin1.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
-        final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
-                .statsInterval(0, TimeUnit.SECONDS).build();
+        final PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         // Create subscription in r1
         createReplicatedSubscription(client1, topicName, subName, true);
 
         @Cleanup
-        final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
-                .statsInterval(0, TimeUnit.SECONDS).build();
+        final PulsarClient client2 = PulsarClient.builder()
+                .serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         // Create subscription in r2
         createReplicatedSubscription(client2, topicName, subName, true);
@@ -558,19 +596,24 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         final Set<String> sentMessages = new LinkedHashSet<>();
         final Set<String> receivedMessages = new LinkedHashSet<>();
 
-        Producer<byte[]> producer = client1.newProducer().topic(topicName).enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        Producer<byte[]> producer = client1.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         sentMessages.clear();
         publishMessages(producer, 0, numMessages, sentMessages);
         producer.close();
 
-        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer1 =
+                client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         receivedMessages.clear();
         readMessages(consumer1, receivedMessages, numMessages, false);
         assertEquals(receivedMessages, sentMessages);
         consumer1.close();
 
-        Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer2 =
+                client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         receivedMessages.clear();
         readMessages(consumer2, receivedMessages, numMessages, false);
         assertEquals(receivedMessages, sentMessages);
@@ -594,30 +637,40 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         sentMessages.clear();
         receivedMessages.clear();
 
-        producer = client1.newProducer().topic(topicName).enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        producer = client1.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         publishMessages(producer, 0, numMessages / 2, sentMessages);
         producer.close();
         Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
 
-        consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        consumer1 =
+                client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         final int numReceivedMessages1 = readMessages(consumer1, receivedMessages, numMessages / 2, allowDuplicates);
         consumer1.close();
 
-        producer = client1.newProducer().topic(topicName).enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        producer = client1.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         publishMessages(producer, numMessages / 2, numMessages / 2, sentMessages);
         producer.close();
         Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
 
-        consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        consumer2 =
+                client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         final int numReceivedMessages2 = readMessages(consumer2, receivedMessages, -1, allowDuplicates);
         consumer2.close();
 
         assertEquals(receivedMessages, sentMessages);
-        assertTrue(numReceivedMessages1 < numMessages,
+        assertTrue(
+                numReceivedMessages1 < numMessages,
                 String.format("numReceivedMessages1 (%d) should be less than %d", numReceivedMessages1, numMessages));
-        assertTrue(numReceivedMessages2 < numMessages,
+        assertTrue(
+                numReceivedMessages2 < numMessages,
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
@@ -634,7 +687,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
 
         @Cleanup
-        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+        PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -649,7 +703,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
             // send one message to trigger replication
             @Cleanup
-            Producer<byte[]> producer = client1.newProducer().topic(topicName)
+            Producer<byte[]> producer = client1.newProducer()
+                    .topic(topicName)
                     .enableBatching(false)
                     .messageRoutingMode(MessageRoutingMode.SinglePartition)
                     .create();
@@ -658,19 +713,25 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
             assertEquals(readMessages(consumer, new HashSet<>(), 1, false), 1);
 
             // waiting to replicate topic/subscription to r1->r2
-            Awaitility.await().until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
-            final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-            Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
+            Awaitility.await()
+                    .until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
+            final PersistentTopic topic2 = (PersistentTopic)
+                    pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            Awaitility.await()
+                    .untilAsserted(
+                            () -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
             Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
         }
 
         // unsubscribe replicated subscription in r2
         admin2.topics().deleteSubscription(topicName, subscriptionName);
-        final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+        final PersistentTopic topic2 = (PersistentTopic)
+                pulsar2.getBrokerService().getTopic(topicName, false).join().get();
         assertNull(topic2.getSubscription(subscriptionName));
 
         // close replicator producer in r2
-        final Method closeReplProducersIfNoBacklog = PersistentTopic.class.getDeclaredMethod("closeReplProducersIfNoBacklog", null);
+        final Method closeReplProducersIfNoBacklog =
+                PersistentTopic.class.getDeclaredMethod("closeReplProducersIfNoBacklog", null);
         closeReplProducersIfNoBacklog.setAccessible(true);
         ((CompletableFuture<Void>) closeReplProducersIfNoBacklog.invoke(topic2, null)).join();
         assertFalse(topic2.getReplicators().get("r1").isConnected());
@@ -679,7 +740,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         int numMessages = 6;
         {
             @Cleanup
-            Producer<byte[]> producer = client1.newProducer().topic(topicName)
+            Producer<byte[]> producer = client1.newProducer()
+                    .topic(topicName)
                     .enableBatching(false)
                     .messageRoutingMode(MessageRoutingMode.SinglePartition)
                     .create();
@@ -700,7 +762,9 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         assertEquals(readMessages(consumer1, receivedMessages, numMessages, false), numMessages);
 
         // wait for subscription to be replicated
-        Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
         Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
     }
 
@@ -733,14 +797,15 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         return count;
     }
 
-    void createReplicatedSubscription(PulsarClient pulsarClient, String topicName, String subscriptionName,
-                                      boolean replicateSubscriptionState)
+    void createReplicatedSubscription(
+            PulsarClient pulsarClient, String topicName, String subscriptionName, boolean replicateSubscriptionState)
             throws PulsarClientException {
-        pulsarClient.newConsumer().topic(topicName)
+        pulsarClient
+                .newConsumer()
+                .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .replicateSubscriptionState(replicateSubscriptionState)
                 .subscribe()
                 .close();
     }
-
 }

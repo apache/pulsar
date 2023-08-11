@@ -26,5 +26,4 @@ public class ErrFileStreamSourceTask extends FileStreamSourceTask {
     public void commit() throws InterruptedException {
         throw new org.apache.kafka.connect.errors.ConnectException("blah");
     }
-
 }

@@ -123,13 +123,15 @@ public class MessageChecksumTest extends BrokerTestBase {
 
         PulsarTestClient pulsarTestClient = (PulsarTestClient) pulsarClient;
 
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscribe();
@@ -217,14 +219,16 @@ public class MessageChecksumTest extends BrokerTestBase {
     @Test
     public void testTamperingMessageIsDetected() throws Exception {
         // GIVEN
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic("persistent://prop/use/ns-abc/testTamperingMessageIsDetected")
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
-        TypedMessageBuilderImpl<byte[]> msgBuilder = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
-                .value("a message".getBytes());
-        MessageMetadata msgMetadata = msgBuilder.getMetadataBuilder()
+        TypedMessageBuilderImpl<byte[]> msgBuilder =
+                (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("a message".getBytes());
+        MessageMetadata msgMetadata = msgBuilder
+                .getMetadataBuilder()
                 .setProducerName("test")
                 .setSequenceId(1)
                 .setPublishTime(10L);

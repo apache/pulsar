@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -34,12 +39,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Test(groups = "broker-impl")
@@ -61,29 +60,31 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testBatchMessageIndexAckForSharedSubscription(boolean ackReceiptEnabled) throws
-            PulsarClientException, ExecutionException, InterruptedException {
+    public void testBatchMessageIndexAckForSharedSubscription(boolean ackReceiptEnabled)
+            throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
 
         @Cleanup
-        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .subscriptionName("sub")
-            .receiverQueueSize(100)
-            .subscriptionType(SubscriptionType.Shared)
-            .isAckReceiptEnabled(ackReceiptEnabled)
-            .ackTimeout(1, TimeUnit.SECONDS)
-            .subscribe();
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(100)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(ackReceiptEnabled)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
-            .create();
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topic)
+                .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
+                .create();
 
         final int messages = 100;
         List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
@@ -107,23 +108,25 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws
-            PulsarClientException, ExecutionException, InterruptedException {
+    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled)
+            throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup
-        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .subscriptionName("sub")
-            .receiverQueueSize(100)
-            .isAckReceiptEnabled(ackReceiptEnabled)
-            .subscribe();
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(100)
+                .isAckReceiptEnabled(ackReceiptEnabled)
+                .subscribe();
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
-            .create();
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topic)
+                .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
+                .create();
 
         final int messages = 100;
         List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
@@ -140,14 +143,15 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
             }
         }
 
-        //Wait ack send.
+        // Wait ack send.
         Thread.sleep(1000);
         consumer.close();
-        consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .subscriptionName("sub")
-            .receiverQueueSize(100)
-            .subscribe();
+        consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(100)
+                .subscribe();
 
         List<Message<Integer>> received = new ArrayList<>(100);
         for (int i = 0; i < messages; i++) {

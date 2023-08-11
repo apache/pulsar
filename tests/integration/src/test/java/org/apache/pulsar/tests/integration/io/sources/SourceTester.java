@@ -22,7 +22,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -53,14 +52,16 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
     protected int numEntriesToInsert = 1;
     protected int numEntriesExpectAfterStart = 9;
 
-    public static final Set<String> DEBEZIUM_FIELD_SET = new HashSet<String>() {{
-        add("before");
-        add("after");
-        add("source");
-        add("op");
-        add("ts_ms");
-        add("transaction");
-    }};
+    public static final Set<String> DEBEZIUM_FIELD_SET = new HashSet<String>() {
+        {
+            add("before");
+            add("after");
+            add("source");
+            add("op");
+            add("ts_ms");
+            add("transaction");
+        }
+    };
 
     protected SourceTester(String sourceType) {
         this.sourceType = sourceType;
@@ -88,8 +89,8 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
     public abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void validateSourceResult(Consumer consumer, int number,
-                                     String eventType, String converterClassName) throws Exception {
+    public void validateSourceResult(Consumer consumer, int number, String eventType, String converterClassName)
+            throws Exception {
         doPreValidationCheck(eventType);
         if (converterClassName.endsWith("AvroConverter")) {
             validateSourceResultAvro(consumer, number, eventType);
@@ -113,11 +114,12 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
         log.info("post-validation of {}", eventType);
     }
 
-    public void validateSourceResultJson(Consumer<KeyValue<byte[], byte[]>> consumer, int number, String eventType) throws Exception {
+    public void validateSourceResultJson(Consumer<KeyValue<byte[], byte[]>> consumer, int number, String eventType)
+            throws Exception {
         int recordsNumber = 0;
         Message<KeyValue<byte[], byte[]>> msg = consumer.receive(initialDelayForMsgReceive(), TimeUnit.SECONDS);
-        while(msg != null) {
-            recordsNumber ++;
+        while (msg != null) {
+            recordsNumber++;
             final String key = new String(msg.getValue().getKey());
             final String value = new String(msg.getValue().getValue());
             log.info("Received message: key = {}, value = {}.", key, value);
@@ -131,15 +133,20 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
         }
 
         Assert.assertEquals(recordsNumber, number);
-        log.info("Stop {} server container. topic: {} has {} records.", getSourceType(), consumer.getTopic(), recordsNumber);
+        log.info(
+                "Stop {} server container. topic: {} has {} records.",
+                getSourceType(),
+                consumer.getTopic(),
+                recordsNumber);
     }
 
-    public void validateSourceResultAvro(Consumer<KeyValue<GenericRecord, GenericRecord>> consumer,
-                                     int number, String eventType) throws Exception {
+    public void validateSourceResultAvro(
+            Consumer<KeyValue<GenericRecord, GenericRecord>> consumer, int number, String eventType) throws Exception {
         int recordsNumber = 0;
-        Message<KeyValue<GenericRecord, GenericRecord>> msg = consumer.receive(initialDelayForMsgReceive(), TimeUnit.SECONDS);
-        while(msg != null) {
-            recordsNumber ++;
+        Message<KeyValue<GenericRecord, GenericRecord>> msg =
+                consumer.receive(initialDelayForMsgReceive(), TimeUnit.SECONDS);
+        while (msg != null) {
+            recordsNumber++;
             GenericRecord keyRecord = msg.getValue().getKey();
             Assert.assertNotNull(keyRecord.getFields());
             Assert.assertTrue(keyRecord.getFields().size() > 0);
@@ -148,7 +155,10 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
             Assert.assertNotNull(valueRecord.getFields());
             Assert.assertTrue(valueRecord.getFields().size() > 0);
 
-            log.info("Received message: key = {}, value = {}.", keyRecord.getNativeObject(), valueRecord.getNativeObject());
+            log.info(
+                    "Received message: key = {}, value = {}.",
+                    keyRecord.getNativeObject(),
+                    valueRecord.getNativeObject());
             for (Field field : valueRecord.getFields()) {
                 log.info("validating field {}", field.getName());
                 Assert.assertTrue(DEBEZIUM_FIELD_SET.contains(field.getName()));
@@ -163,7 +173,11 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
         }
 
         Assert.assertEquals(recordsNumber, number);
-        log.info("Stop {} server container. topic: {} has {} records.", getSourceType(), consumer.getTopic(), recordsNumber);
+        log.info(
+                "Stop {} server container. topic: {} has {} records.",
+                getSourceType(),
+                consumer.getTopic(),
+                recordsNumber);
     }
 
     public int initialDelayForMsgReceive() {

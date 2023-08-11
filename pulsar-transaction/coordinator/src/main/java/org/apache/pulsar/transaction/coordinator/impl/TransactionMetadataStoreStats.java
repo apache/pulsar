@@ -27,8 +27,9 @@ import org.apache.bookkeeper.mledger.util.StatsBuckets;
 @Data
 public class TransactionMetadataStoreStats {
 
-    private static final long[] TRANSACTION_EXECUTION_BUCKETS = { 10, 20, 50, 100, 500, 1_000, 5_000,
-            15_000, 30_000, 60_000, 300_000, 1_500_000, 3_000_000 };
+    private static final long[] TRANSACTION_EXECUTION_BUCKETS = {
+        10, 20, 50, 100, 500, 1_000, 5_000, 15_000, 30_000, 60_000, 300_000, 1_500_000, 3_000_000
+    };
 
     /** The transaction coordinatorId. */
     private long coordinatorId;
@@ -57,5 +58,4 @@ public class TransactionMetadataStoreStats {
     public void addTransactionExecutionLatencySample(long latency) {
         executionLatencyBuckets.addValue(latency);
     }
-
 }

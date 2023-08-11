@@ -31,9 +31,7 @@ import org.apache.bookkeeper.stats.Counter;
 public class LongAdderCounter implements Counter {
     private final LongAdder counter = new LongAdder();
 
-    public LongAdderCounter() {
-
-    }
+    public LongAdderCounter() {}
 
     @Override
     public void clear() {

@@ -19,7 +19,6 @@
 /**
  * From Apache HTTP client
  */
-
 package org.apache.pulsar.common.tls;
 
 import java.net.IDN;
@@ -54,12 +53,12 @@ public final class PublicSuffixMatcher {
     public PublicSuffixMatcher(
             final DomainType domainType, final Collection<String> rules, final Collection<String> exceptions) {
         this.rules = new ConcurrentHashMap<String, DomainType>(rules.size());
-        for (final String rule: rules) {
+        for (final String rule : rules) {
             this.rules.put(rule, domainType);
         }
         this.exceptions = new ConcurrentHashMap<String, DomainType>();
         if (exceptions != null) {
-            for (final String exception: exceptions) {
+            for (final String exception : exceptions) {
                 this.exceptions.put(exception, domainType);
             }
         }
@@ -71,15 +70,15 @@ public final class PublicSuffixMatcher {
     public PublicSuffixMatcher(final Collection<PublicSuffixList> lists) {
         this.rules = new ConcurrentHashMap<String, DomainType>();
         this.exceptions = new ConcurrentHashMap<String, DomainType>();
-        for (final PublicSuffixList list: lists) {
+        for (final PublicSuffixList list : lists) {
             final DomainType domainType = list.getType();
             final List<String> rules = list.getRules();
-            for (final String rule: rules) {
+            for (final String rule : rules) {
                 this.rules.put(rule, domainType);
             }
             final List<String> exceptions = list.getExceptions();
             if (exceptions != null) {
-                for (final String exception: exceptions) {
+                for (final String exception : exceptions) {
                     this.exceptions.put(exception, domainType);
                 }
             }
@@ -87,9 +86,7 @@ public final class PublicSuffixMatcher {
     }
 
     private static boolean hasEntry(
-            final Map<String, DomainType> map,
-            final String rule,
-            final DomainType expectedType) {
+            final Map<String, DomainType> map, final String rule, final DomainType expectedType) {
         if (map == null) {
             return false;
         }
@@ -186,9 +183,7 @@ public final class PublicSuffixMatcher {
         if (domain == null) {
             return false;
         }
-        final String domainRoot = getDomainRoot(
-                domain.startsWith(".") ? domain.substring(1) : domain, expectedType);
+        final String domainRoot = getDomainRoot(domain.startsWith(".") ? domain.substring(1) : domain, expectedType);
         return domainRoot == null;
     }
-
 }

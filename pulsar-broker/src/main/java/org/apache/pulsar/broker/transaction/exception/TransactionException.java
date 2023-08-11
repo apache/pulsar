@@ -73,9 +73,7 @@ public abstract class TransactionException extends Exception {
 
         private static final long serialVersionUID = 0L;
 
-        public TransactionStatusException(TxnID txnId,
-                                          TxnStatus expectedStatus,
-                                          TxnStatus actualStatus) {
+        public TransactionStatusException(TxnID txnId, TxnStatus expectedStatus, TxnStatus actualStatus) {
             super("Transaction `q" + txnId + "` is not in an expected status `" + expectedStatus
                     + "`, but is in status `" + actualStatus + "`");
         }

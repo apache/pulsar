@@ -35,14 +35,15 @@ public class MetadataEventSynchronizerTest {
     @Test
     public void testPrivateInstance() throws Exception {
         @Cleanup
-        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
-                MetadataStoreConfig.builder().build());
+        MetadataStore store1 = MetadataStoreFactory.create(
+                "memory:local", MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStore store2 = MetadataStoreFactory.create("memory:local",
-                MetadataStoreConfig.builder().build());
+        MetadataStore store2 = MetadataStoreFactory.create(
+                "memory:local", MetadataStoreConfig.builder().build());
 
-        store1.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store1.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
 
         assertTrue(store1.exists("/test").join());
         assertFalse(store2.exists("/test").join());
@@ -53,14 +54,15 @@ public class MetadataEventSynchronizerTest {
         String url = "memory:" + UUID.randomUUID();
 
         @Cleanup
-        MetadataStore store1 = MetadataStoreFactory.create(url,
-                MetadataStoreConfig.builder().build());
+        MetadataStore store1 =
+                MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStore store2 = MetadataStoreFactory.create(url,
-                MetadataStoreConfig.builder().build());
+        MetadataStore store2 =
+                MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
-        store1.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store1.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
 
         assertTrue(store1.exists("/test").join());
         assertTrue(store2.exists("/test").join());

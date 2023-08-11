@@ -61,7 +61,8 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
 
     private ProxyTopicStat getStat(TopicName topicName) {
         String topicNameStr = topicName.toString();
-        if (!service().getProducers().containsKey(topicNameStr) && !service().getConsumers().containsKey(topicNameStr)
+        if (!service().getProducers().containsKey(topicNameStr)
+                && !service().getConsumers().containsKey(topicNameStr)
                 && !service().getReaders().containsKey(topicNameStr)) {
             LOG.warn("topic doesn't exist {}", topicNameStr);
             throw new RestException(Status.NOT_FOUND, "Topic does not exist");
@@ -71,7 +72,6 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
             service().getProducers().get(topicNameStr).forEach(handler -> {
                 ProducerStats stat = new ProducerStats(handler);
                 topicStat.producerStats.add(stat);
-
             });
         }
 

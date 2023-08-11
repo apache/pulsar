@@ -60,11 +60,10 @@ public class TransactionMetaStoreHandler extends HandlerState
 
     private final long transactionCoordinatorId;
     private final ConnectionHandler connectionHandler;
-    private final ConcurrentLongHashMap<OpBase<?>> pendingRequests =
-            ConcurrentLongHashMap.<OpBase<?>>newBuilder()
-                    .expectedItems(16)
-                    .concurrencyLevel(1)
-                    .build();
+    private final ConcurrentLongHashMap<OpBase<?>> pendingRequests = ConcurrentLongHashMap.<OpBase<?>>newBuilder()
+            .expectedItems(16)
+            .concurrencyLevel(1)
+            .build();
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
 
     protected final Timer timer;
@@ -87,23 +86,28 @@ public class TransactionMetaStoreHandler extends HandlerState
 
     private final CompletableFuture<Void> connectFuture;
 
-    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
-                                       CompletableFuture<Void> connectFuture) {
+    public TransactionMetaStoreHandler(
+            long transactionCoordinatorId,
+            PulsarClientImpl pulsarClient,
+            String topic,
+            CompletableFuture<Void> connectFuture) {
         super(pulsarClient, topic);
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
         this.blockIfReachMaxPendingOps = true;
         this.semaphore = new Semaphore(1000);
-        this.requestTimeout = pulsarClient.timer().newTimeout(this,
-                pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+        this.requestTimeout = pulsarClient
+                .timer()
+                .newTimeout(this, pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
         this.connectionHandler = new ConnectionHandler(
-            this,
-            new BackoffBuilder()
-                .setInitialTime(pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                .setMandatoryStop(100, TimeUnit.MILLISECONDS)
-                .create(),
-            this);
+                this,
+                new BackoffBuilder()
+                        .setInitialTime(
+                                pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                        .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                        .setMandatoryStop(100, TimeUnit.MILLISECONDS)
+                        .create(),
+                this);
         this.connectFuture = connectFuture;
         this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
         this.timer = pulsarClient.timer();
@@ -115,8 +119,10 @@ public class TransactionMetaStoreHandler extends HandlerState
 
     @Override
     public void connectionFailed(PulsarClientException exception) {
-        LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
-            transactionCoordinatorId, exception);
+        LOG.error(
+                "Transaction meta handler with transaction coordinator id {} connection failed.",
+                transactionCoordinatorId,
+                exception);
         if (!this.connectFuture.isDone()) {
             this.connectFuture.completeExceptionally(exception);
         }
@@ -126,7 +132,8 @@ public class TransactionMetaStoreHandler extends HandlerState
     public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
-            LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
+            LOG.info(
+                    "Transaction meta handler with transaction coordinator id {} connection opened.",
                     transactionCoordinatorId);
 
             State state = getState();
@@ -142,33 +149,42 @@ public class TransactionMetaStoreHandler extends HandlerState
                 long requestId = client.newRequestId();
                 ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
 
-                cnx.sendRequestWithId(request, requestId).thenRun(() -> {
-                    internalPinnedExecutor.execute(() -> {
-                        LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
-                        if (registerToConnection(cnx)) {
-                            this.connectionHandler.resetBackoff();
-                            pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
-                        }
-                        future.complete(null);
-                    });
-                }).exceptionally((e) -> {
-                    internalPinnedExecutor.execute(() -> {
-                        LOG.error("Transaction coordinator client connect fail! tcId : {}",
-                                transactionCoordinatorId, e.getCause());
-                        if (getState() == State.Closing || getState() == State.Closed
-                                || e.getCause() instanceof PulsarClientException.NotAllowedException) {
-                            setState(State.Closed);
-                            cnx.channel().close();
-                            future.complete(null);
-                        } else {
-                            future.completeExceptionally(e.getCause());
-                        }
-                    });
-                    return null;
-                });
+                cnx.sendRequestWithId(request, requestId)
+                        .thenRun(() -> {
+                            internalPinnedExecutor.execute(() -> {
+                                LOG.info(
+                                        "Transaction coordinator client connect success! tcId : {}",
+                                        transactionCoordinatorId);
+                                if (registerToConnection(cnx)) {
+                                    this.connectionHandler.resetBackoff();
+                                    pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
+                                }
+                                future.complete(null);
+                            });
+                        })
+                        .exceptionally((e) -> {
+                            internalPinnedExecutor.execute(() -> {
+                                LOG.error(
+                                        "Transaction coordinator client connect fail! tcId : {}",
+                                        transactionCoordinatorId,
+                                        e.getCause());
+                                if (getState() == State.Closing
+                                        || getState() == State.Closed
+                                        || e.getCause() instanceof PulsarClientException.NotAllowedException) {
+                                    setState(State.Closed);
+                                    cnx.channel().close();
+                                    future.complete(null);
+                                } else {
+                                    future.completeExceptionally(e.getCause());
+                                }
+                            });
+                            return null;
+                        });
             } else {
-                LOG.warn("Can not connect to the transaction coordinator because the protocol version {} is "
-                                + "lower than 19", cnx.getRemoteEndpointProtocolVersion());
+                LOG.warn(
+                        "Can not connect to the transaction coordinator because the protocol version {} is "
+                                + "lower than 19",
+                        cnx.getRemoteEndpointProtocolVersion());
                 registerToConnection(cnx);
                 future.complete(null);
             }
@@ -230,8 +246,8 @@ public class TransactionMetaStoreHandler extends HandlerState
         final ServerError error;
         final String message;
         if (hasError) {
-             error = response.getError();
-             message = response.getMessage();
+            error = response.getError();
+            message = response.getMessage();
         } else {
             error = null;
             message = null;
@@ -255,12 +271,15 @@ public class TransactionMetaStoreHandler extends HandlerState
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {}  request {} error "
+                        LOG.debug(
+                                "Get a response for the {}  request {} error "
                                         + "TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.NEW_TXN.name(), requestId);
+                                BaseCommand.Type.NEW_TXN.name(),
+                                requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout -> {
+                    timer.newTimeout(
+                            timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
                                         if (LOG.isDebugEnabled()) {
@@ -272,12 +291,12 @@ public class TransactionMetaStoreHandler extends HandlerState
                                         pendingRequests.remove(requestId);
                                     }
                                 });
-                            }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            },
+                            op.backoff.next(),
+                            TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
-                        requestId, error);
+                LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(), requestId, error);
             }
 
             onResponse(op);
@@ -293,10 +312,9 @@ public class TransactionMetaStoreHandler extends HandlerState
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newAddPartitionToTxn(
-                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
-        OpForVoidCallBack op = OpForVoidCallBack
-                .create(cmd, callback, client);
+        ByteBuf cmd =
+                Commands.newAddPartitionToTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client);
         internalPinnedExecutor.execute(() -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
@@ -338,12 +356,15 @@ public class TransactionMetaStoreHandler extends HandlerState
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {} request {} "
+                        LOG.debug(
+                                "Get a response for the {} request {} "
                                         + " error TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
+                                BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
+                                requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout -> {
+                    timer.newTimeout(
+                            timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
                                         if (LOG.isDebugEnabled()) {
@@ -355,13 +376,17 @@ public class TransactionMetaStoreHandler extends HandlerState
                                         pendingRequests.remove(requestId);
                                     }
                                 });
-                            }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            },
+                            op.backoff.next(),
+                            TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("{} for request {}, transaction {}, error: {}",
-                        BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId, txnID, error);
-
+                LOG.error(
+                        "{} for request {}, transaction {}, error: {}",
+                        BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
+                        requestId,
+                        txnID,
+                        error);
             }
 
             onResponse(op);
@@ -419,15 +444,22 @@ public class TransactionMetaStoreHandler extends HandlerState
                 }
                 op.callback.complete(null);
             } else {
-                LOG.error("Add subscription to txn failed for request {}, transaction {}, error: {}",
-                        requestId, txnID, error);
+                LOG.error(
+                        "Add subscription to txn failed for request {}, transaction {}, error: {}",
+                        requestId,
+                        txnID,
+                        error);
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it"
-                                        + " again", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
+                        LOG.debug(
+                                "Get a response for {} request {} error TransactionCoordinatorNotFound and try it"
+                                        + " again",
+                                BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
+                                requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout -> {
+                    timer.newTimeout(
+                            timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
                                         if (LOG.isDebugEnabled()) {
@@ -439,13 +471,16 @@ public class TransactionMetaStoreHandler extends HandlerState
                                         pendingRequests.remove(requestId);
                                     }
                                 });
-                            }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            },
+                            op.backoff.next(),
+                            TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
-                       requestId, error);
-
+                LOG.error(
+                        "{} failed for request {} error {}.",
+                        BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
+                        requestId,
+                        error);
             }
             onResponse(op);
         });
@@ -503,12 +538,15 @@ public class TransactionMetaStoreHandler extends HandlerState
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {} request {} error "
+                        LOG.debug(
+                                "Get a response for the {} request {} error "
                                         + "TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.END_TXN.name(), requestId);
+                                BaseCommand.Type.END_TXN.name(),
+                                requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout -> {
+                    timer.newTimeout(
+                            timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
                                         if (LOG.isDebugEnabled()) {
@@ -520,24 +558,27 @@ public class TransactionMetaStoreHandler extends HandlerState
                                         pendingRequests.remove(requestId);
                                     }
                                 });
-                            }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            },
+                            op.backoff.next(),
+                            TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("Got {} response for request {}, transaction {}, error: {}",
-                        BaseCommand.Type.END_TXN.name(), requestId, txnID, error);
-
+                LOG.error(
+                        "Got {} response for request {}, transaction {}, error: {}",
+                        BaseCommand.Type.END_TXN.name(),
+                        requestId,
+                        txnID,
+                        error);
             }
             onResponse(op);
         });
     }
 
-
     private boolean checkIfNeedRetryByError(ServerError error, String message, OpBase<?> op) {
         if (error == ServerError.TransactionCoordinatorNotFound) {
             if (getState() != State.Connecting) {
-                connectionHandler.reconnectLater(new TransactionCoordinatorClientException
-                        .CoordinatorNotFoundException(message));
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(message));
             }
             return true;
         }
@@ -563,8 +604,7 @@ public class TransactionMetaStoreHandler extends HandlerState
             op.callback = callback;
             op.cmd = cmd;
             op.backoff = new BackoffBuilder()
-                    .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
+                    .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .setMax(client.getConfiguration().getMaxBackoffIntervalNanos() / 10, TimeUnit.NANOSECONDS)
                     .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                     .create();
@@ -594,14 +634,12 @@ public class TransactionMetaStoreHandler extends HandlerState
 
     private static class OpForVoidCallBack extends OpBase<Void> {
 
-
         static OpForVoidCallBack create(ByteBuf cmd, CompletableFuture<Void> callback, PulsarClientImpl client) {
             OpForVoidCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
             op.backoff = new BackoffBuilder()
-                    .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
+                    .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .setMax(client.getConfiguration().getMaxBackoffIntervalNanos() / 10, TimeUnit.NANOSECONDS)
                     .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                     .create();
@@ -717,8 +755,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                 return;
             }
             RequestTime peeked = timeoutQueue.peek();
-            while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
-                    - System.currentTimeMillis() <= 0) {
+            while (peeked != null
+                    && peeked.creationTimeMs
+                                    + client.getConfiguration().getOperationTimeoutMs()
+                                    - System.currentTimeMillis()
+                            <= 0) {
                 RequestTime lastPolled = timeoutQueue.poll();
                 if (lastPolled != null) {
                     OpBase<?> op = pendingRequests.remove(lastPolled.requestId);

@@ -139,9 +139,9 @@ public abstract class AbstractCmdConsume {
             case AVRO:
             case JSON:
             case PROTOBUF_NATIVE:
-                    return genericRecordToMap((GenericRecord) value, displayHex);
+                return genericRecordToMap((GenericRecord) value, displayHex);
             case KEY_VALUE:
-                    return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
+                return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
             default:
                 return primitiveValueToMap(value.getNativeObject(), displayHex);
         }
@@ -151,8 +151,11 @@ public abstract class AbstractCmdConsume {
         if (value == null) {
             return ImmutableMap.of("value", "NULL");
         }
-        return ImmutableMap.of("key", primitiveValueToMap(value.getKey(), displayHex),
-                "value", primitiveValueToMap(value.getValue(), displayHex));
+        return ImmutableMap.of(
+                "key",
+                primitiveValueToMap(value.getKey(), displayHex),
+                "value",
+                primitiveValueToMap(value.getValue(), displayHex));
     }
 
     protected static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
@@ -176,7 +179,7 @@ public abstract class AbstractCmdConsume {
             if (fieldValue instanceof GenericRecord) {
                 fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
             } else if (fieldValue == null) {
-                fieldValue =  "NULL";
+                fieldValue = "NULL";
             } else if (fieldValue instanceof byte[]) {
                 fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
             }
@@ -246,5 +249,4 @@ public abstract class AbstractCmdConsume {
 
         private static final Logger log = LoggerFactory.getLogger(ConsumerSocket.class);
     }
-
 }

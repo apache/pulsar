@@ -28,17 +28,19 @@ import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 /**
  * Defines the information required to broker lookup.
  */
-public record BrokerLookupData (String webServiceUrl,
-                                String webServiceUrlTls,
-                                String pulsarServiceUrl,
-                                String pulsarServiceUrlTls,
-                                Map<String, AdvertisedListener> advertisedListeners,
-                                Map<String, String> protocols,
-                                boolean persistentTopicsEnabled,
-                                boolean nonPersistentTopicsEnabled,
-                                String loadManagerClassName,
-                                long startTimestamp,
-                                String brokerVersion) implements ServiceLookupData {
+public record BrokerLookupData(
+        String webServiceUrl,
+        String webServiceUrlTls,
+        String pulsarServiceUrl,
+        String pulsarServiceUrlTls,
+        Map<String, AdvertisedListener> advertisedListeners,
+        Map<String, String> protocols,
+        boolean persistentTopicsEnabled,
+        boolean nonPersistentTopicsEnabled,
+        String loadManagerClassName,
+        long startTimestamp,
+        String brokerVersion)
+        implements ServiceLookupData {
     @Override
     public String getWebServiceUrl() {
         return this.webServiceUrl();
@@ -80,12 +82,17 @@ public record BrokerLookupData (String webServiceUrl,
     }
 
     public LookupResult toLookupResult() {
-        return new LookupResult(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
-                LookupResult.Type.BrokerUrl, false);
+        return new LookupResult(
+                webServiceUrl,
+                webServiceUrlTls,
+                pulsarServiceUrl,
+                pulsarServiceUrlTls,
+                LookupResult.Type.BrokerUrl,
+                false);
     }
 
     public NamespaceEphemeralData toNamespaceEphemeralData() {
-        return new NamespaceEphemeralData(pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl, webServiceUrlTls,
-                false, advertisedListeners);
+        return new NamespaceEphemeralData(
+                pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl, webServiceUrlTls, false, advertisedListeners);
     }
 }

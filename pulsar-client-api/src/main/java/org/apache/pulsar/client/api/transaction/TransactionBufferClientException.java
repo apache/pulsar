@@ -74,7 +74,7 @@ public class TransactionBufferClientException extends IOException {
         } else if (t instanceof InterruptedException) {
             Thread.currentThread().interrupt();
             return new TransactionBufferClientException(t);
-        }  else if (!(t instanceof ExecutionException)) {
+        } else if (!(t instanceof ExecutionException)) {
             // Generic exception
             return new TransactionBufferClientException(t);
         }
@@ -87,6 +87,5 @@ public class TransactionBufferClientException extends IOException {
         } else {
             return new TransactionBufferClientException(t);
         }
-
     }
 }

@@ -39,15 +39,18 @@ public class PulsarRecordSetProvider implements ConnectorRecordSetProvider {
     private final PulsarDispatchingRowDecoderFactory decoderFactory;
 
     @Inject
-    public PulsarRecordSetProvider(PulsarConnectorConfig pulsarConnectorConfig,
-                                   PulsarDispatchingRowDecoderFactory decoderFactory) {
+    public PulsarRecordSetProvider(
+            PulsarConnectorConfig pulsarConnectorConfig, PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.decoderFactory = requireNonNull(decoderFactory, "decoderFactory is null");
         this.pulsarConnectorConfig = requireNonNull(pulsarConnectorConfig, "pulsarConnectorConfig is null");
     }
 
     @Override
-    public RecordSet getRecordSet(ConnectorTransactionHandle transactionHandle, ConnectorSession session,
-                                  ConnectorSplit split, List<? extends ColumnHandle> columns) {
+    public RecordSet getRecordSet(
+            ConnectorTransactionHandle transactionHandle,
+            ConnectorSession session,
+            ConnectorSplit split,
+            List<? extends ColumnHandle> columns) {
 
         requireNonNull(split, "Connector split is null");
         PulsarSplit pulsarSplit = (PulsarSplit) split;

@@ -67,8 +67,8 @@ public class ProxyServer {
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
-        executorService = new WebExecutorThreadPool(config.getNumHttpServerThreads(), "pulsar-websocket-web",
-                config.getHttpServerThreadPoolQueueSize());
+        executorService = new WebExecutorThreadPool(
+                config.getNumHttpServerThreads(), "pulsar-websocket-web", config.getHttpServerThreadPoolQueueSize());
         this.server = new Server(executorService);
         if (config.getMaxHttpServerConnections() > 0) {
             server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
@@ -97,8 +97,7 @@ public class ProxyServer {
                             config.isTlsRequireTrustedClientCertOnConnect(),
                             config.getWebServiceTlsCiphers(),
                             config.getWebServiceTlsProtocols(),
-                            config.getTlsCertRefreshCheckDurationSec()
-                    );
+                            config.getTlsCertRefreshCheckDurationSec());
                 } else {
                     sslCtxFactory = JettySslContextFactory.createServerSslContext(
                             config.getTlsProvider(),
@@ -126,8 +125,8 @@ public class ProxyServer {
 
         if (config.getMaxConcurrentHttpRequests() > 0) {
             qualityOfServiceFilterHolder = new FilterHolder(QoSFilter.class);
-            qualityOfServiceFilterHolder.setInitParameter("maxRequests",
-                    String.valueOf(config.getMaxConcurrentHttpRequests()));
+            qualityOfServiceFilterHolder.setInitParameter(
+                    "maxRequests", String.valueOf(config.getMaxConcurrentHttpRequests()));
         } else {
             qualityOfServiceFilterHolder = null;
         }
@@ -159,15 +158,18 @@ public class ProxyServer {
 
     private void addQosFilterIfNeeded(ServletContextHandler context) {
         if (qualityOfServiceFilterHolder != null) {
-            context.addFilter(qualityOfServiceFilterHolder,
-                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+            context.addFilter(qualityOfServiceFilterHolder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
     }
 
     public void start() throws PulsarServerException {
-        log.info("Starting web socket proxy at port {}", Arrays.stream(server.getConnectors())
-                .map(ServerConnector.class::cast).map(ServerConnector::getPort).map(Object::toString)
-                .collect(Collectors.joining(",")));
+        log.info(
+                "Starting web socket proxy at port {}",
+                Arrays.stream(server.getConnectors())
+                        .map(ServerConnector.class::cast)
+                        .map(ServerConnector::getPort)
+                        .map(Object::toString)
+                        .collect(Collectors.joining(",")));
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
@@ -177,7 +179,7 @@ public class ProxyServer {
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
         HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+        handlerCollection.setHandlers(new Handler[] {contexts, new DefaultHandler(), requestLogHandler});
         server.setHandler(handlerCollection);
 
         try {

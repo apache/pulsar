@@ -65,12 +65,14 @@ public class ConfigShell implements ShellCommandsProvider {
         return file;
     }
 
-
     @Getter
     @Parameters
     public static class Params {
 
-        @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
+        @Parameter(
+                names = {"-h", "--help"},
+                help = true,
+                description = "Show this help.")
         boolean help;
     }
 
@@ -84,6 +86,7 @@ public class ConfigShell implements ShellCommandsProvider {
     private final Map<String, RunnableWithResult> commands = new HashMap<>();
     private final ConfigStore configStore;
     private final ObjectMapper writer = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+
     @Getter
     private String currentConfig;
 
@@ -176,12 +179,7 @@ public class ConfigShell implements ShellCommandsProvider {
         @Override
         @SneakyThrows
         public boolean run() {
-            print(configStore
-                    .listConfigs()
-                    .stream()
-                    .map(e -> formatEntry(e))
-                    .collect(Collectors.toList())
-            );
+            print(configStore.listConfigs().stream().map(e -> formatEntry(e)).collect(Collectors.toList()));
             return true;
         }
 
@@ -312,14 +310,20 @@ public class ConfigShell implements ShellCommandsProvider {
 
     private abstract class CmdConfigPut implements RunnableWithResult {
 
-        @Parameter(names = {"--url"}, description = "URL of the config")
+        @Parameter(
+                names = {"--url"},
+                description = "URL of the config")
         protected String url;
 
-        @Parameter(names = {"--file"}, description = "File path of the config")
+        @Parameter(
+                names = {"--file"},
+                description = "File path of the config")
         @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.FILES)
         protected String file;
 
-        @Parameter(names = {"--value"}, description = "Inline value of the config")
+        @Parameter(
+                names = {"--value"},
+                description = "Inline value of the config")
         protected String inlineValue;
 
         @Override
@@ -371,14 +375,16 @@ public class ConfigShell implements ShellCommandsProvider {
         abstract boolean verifyCondition();
     }
 
-
     private class CmdConfigClone implements RunnableWithResult {
 
         @Parameter(description = "Configuration to clone", required = true)
         @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
         protected String cloneFrom;
 
-        @Parameter(names = {"--name"}, description = "Name of the new config", required = true)
+        @Parameter(
+                names = {"--name"},
+                description = "Name of the new config",
+                required = true)
         protected String newName;
 
         @Override
@@ -409,7 +415,6 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-
     @Parameters(commandDescription = "Set a configuration property by name")
     private class CmdConfigSetProperty implements RunnableWithResult {
 
@@ -417,10 +422,15 @@ public class ConfigShell implements ShellCommandsProvider {
         @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
         private String name;
 
-        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property to update")
+        @Parameter(
+                names = {"-p", "--property"},
+                required = true,
+                description = "Name of the property to update")
         protected String propertyName;
 
-        @Parameter(names = {"-v", "--value"}, description = "New value for the property")
+        @Parameter(
+                names = {"-v", "--value"},
+                description = "New value for the property")
         protected String propertyValue;
 
         @Override
@@ -435,7 +445,6 @@ public class ConfigShell implements ShellCommandsProvider {
                 print("-v parameter is required. You can pass an empty value to empty the property. (-v= )");
                 return false;
             }
-
 
             final ConfigStore.ConfigEntry config = configStore.getConfig(this.name);
             if (config == null) {
@@ -457,7 +466,10 @@ public class ConfigShell implements ShellCommandsProvider {
         @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
         private String name;
 
-        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property")
+        @Parameter(
+                names = {"-p", "--property"},
+                required = true,
+                description = "Name of the property")
         protected String propertyName;
 
         @Override
@@ -481,8 +493,6 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-
-
     <T> void print(List<T> items) {
         for (T item : items) {
             print(item);
@@ -500,5 +510,4 @@ public class ConfigShell implements ShellCommandsProvider {
             throw new RuntimeException(e);
         }
     }
-
 }

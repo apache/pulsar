@@ -51,5 +51,4 @@ public class InitialRequestHandler extends SimpleChannelInboundHandler<DefaultSo
             }
         }
     }
-
 }

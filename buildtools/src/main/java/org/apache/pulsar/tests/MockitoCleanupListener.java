@@ -32,8 +32,8 @@ import org.slf4j.LoggerFactory;
  */
 public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(MockitoCleanupListener.class);
-    private static final boolean MOCKITO_CLEANUP_ENABLED = Boolean.parseBoolean(
-            System.getProperty("testMockitoCleanup", "true"));
+    private static final boolean MOCKITO_CLEANUP_ENABLED =
+            Boolean.parseBoolean(System.getProperty("testMockitoCleanup", "true"));
 
     private static final String MOCKITO_CLEANUP_INFO =
             "Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.";

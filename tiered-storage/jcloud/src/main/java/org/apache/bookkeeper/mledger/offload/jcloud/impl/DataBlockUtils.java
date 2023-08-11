@@ -72,8 +72,8 @@ public class DataBlockUtils {
         // NOTE all metadata in jclouds comes out as lowercase, in an effort to normalize the providers
         String version = blob.getMetadata().getUserMetadata().get(METADATA_FORMAT_VERSION_KEY.toLowerCase());
         if (version == null || !version.equals(CURRENT_VERSION)) {
-            throw new IOException(String.format("Invalid object version %s for %s, expect %s",
-                version, key, CURRENT_VERSION));
+            throw new IOException(
+                    String.format("Invalid object version %s for %s, expect %s", version, key, CURRENT_VERSION));
         }
     };
 
@@ -105,5 +105,4 @@ public class DataBlockUtils {
         }
         return name.substring(0, pos);
     }
-
 }

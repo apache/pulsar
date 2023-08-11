@@ -25,5 +25,4 @@ public class ElasticSearch7AuthTests extends ElasticSearchAuthTests {
     public ElasticSearch7AuthTests() {
         super(ELASTICSEARCH_7);
     }
-
 }

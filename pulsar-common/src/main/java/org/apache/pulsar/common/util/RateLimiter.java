@@ -50,7 +50,7 @@ import lombok.Builder;
  * <li><b>Faster: </b>RateLimiter is light-weight and faster than Guava-RateLimiter</li>
  * </ul>
  */
-public class RateLimiter implements AutoCloseable{
+public class RateLimiter implements AutoCloseable {
     private final ScheduledExecutorService executorService;
     private long rateTime;
     private TimeUnit timeUnit;
@@ -65,9 +65,14 @@ public class RateLimiter implements AutoCloseable{
     private boolean isDispatchOrPrecisePublishRateLimiter;
 
     @Builder
-    RateLimiter(final ScheduledExecutorService scheduledExecutorService, final long permits, final long rateTime,
-            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchOrPrecisePublishRateLimiter,
-                       RateLimitFunction rateLimitFunction) {
+    RateLimiter(
+            final ScheduledExecutorService scheduledExecutorService,
+            final long permits,
+            final long rateTime,
+            final TimeUnit timeUnit,
+            Supplier<Long> permitUpdater,
+            boolean isDispatchOrPrecisePublishRateLimiter,
+            RateLimitFunction rateLimitFunction) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
@@ -81,8 +86,8 @@ public class RateLimiter implements AutoCloseable{
             this.executorService = scheduledExecutorService;
             this.externalExecutor = true;
         } else {
-            final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
-                    new DefaultThreadFactory("pulsar-rate-limiter"));
+            final ScheduledThreadPoolExecutor executor =
+                    new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory("pulsar-rate-limiter"));
             executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
             executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             this.executorService = executor;
@@ -90,7 +95,6 @@ public class RateLimiter implements AutoCloseable{
         }
 
         this.rateLimitFunction = rateLimitFunction;
-
     }
 
     // default values for Lombok generated builder class
@@ -137,7 +141,8 @@ public class RateLimiter implements AutoCloseable{
      */
     public synchronized void acquire(long acquirePermit) throws InterruptedException {
         checkArgument(!isClosed(), "Rate limiter is already shutdown");
-        checkArgument(acquirePermit <= this.permits,
+        checkArgument(
+                acquirePermit <= this.permits,
                 "acquiring permits must be less or equal than initialized rate =" + this.permits);
 
         // lazy init and start task only once application start using it
@@ -258,8 +263,8 @@ public class RateLimiter implements AutoCloseable{
     }
 
     protected ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::renew), this.rateTime,
-                this.rateTime, this.timeUnit);
+        return executorService.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(this::renew), this.rateTime, this.rateTime, this.timeUnit);
     }
 
     synchronized void renew() {
@@ -279,8 +284,10 @@ public class RateLimiter implements AutoCloseable{
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("rateTime", rateTime).add("permits", permits)
-                .add("acquiredPermits", acquiredPermits).toString();
+        return MoreObjects.toStringHelper(this)
+                .add("rateTime", rateTime)
+                .add("permits", permits)
+                .add("acquiredPermits", acquiredPermits)
+                .toString();
     }
-
 }

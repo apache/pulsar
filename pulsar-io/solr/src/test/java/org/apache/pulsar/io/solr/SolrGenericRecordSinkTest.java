@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.io.solr;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -33,12 +37,6 @@ import org.apache.pulsar.functions.source.PulsarRecord;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * solr Sink test
@@ -94,19 +92,19 @@ public class SolrGenericRecordSinkTest {
         autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
 
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
-            .message(message)
-            .topicName("fake_topic_name")
-            .build();
+                .message(message)
+                .topicName("fake_topic_name")
+                .build();
 
         genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
 
-        when(message.getValue())
-                .thenReturn(genericAvroSchema.decode(bytes));
+        when(message.getValue()).thenReturn(genericAvroSchema.decode(bytes));
 
-        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
-            obj.toString(),
-            message.getValue().toString(),
-            record.getValue().toString());
+        log.info(
+                "foo:{}, Message.getValue: {}, record.getValue: {}",
+                obj.toString(),
+                message.getValue().toString(),
+                record.getValue().toString());
 
         // open should success
         sink.open(configs, null);

@@ -19,12 +19,12 @@
 
 package org.apache.pulsar.proxy.util;
 
+import static org.testng.Assert.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertTrue;
 
 public class CmdGenerateDocumentationTest {
     @Test
@@ -51,7 +51,7 @@ public class CmdGenerateDocumentationTest {
     private String generateDoc(String clazz) throws Exception {
         PrintStream oldStream = System.out;
         try (ByteArrayOutputStream baoStream = new ByteArrayOutputStream(2048);
-             PrintStream cacheStream = new PrintStream(baoStream);) {
+                PrintStream cacheStream = new PrintStream(baoStream); ) {
             System.setOut(cacheStream);
             CmdGenerateDocumentation.main(("-c " + clazz).split(" "));
             String message = baoStream.toString();

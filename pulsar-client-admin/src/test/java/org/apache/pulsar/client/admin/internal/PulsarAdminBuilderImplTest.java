@@ -53,8 +53,9 @@ public class PulsarAdminBuilderImplTest {
 
     @Test
     public void testBuildFailsWhenServiceUrlNotSet() {
-        assertThatIllegalArgumentException().isThrownBy(() -> PulsarAdmin.builder().build())
-                        .withMessageContaining("Service URL needs to be specified");
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> PulsarAdmin.builder().build())
+                .withMessageContaining("Service URL needs to be specified");
     }
 
     @Test
@@ -103,8 +104,9 @@ public class PulsarAdminBuilderImplTest {
     }
 
     private void assertAuthWithSecret(Authentication authentication, String secret) {
-        assertThat(authentication).isInstanceOfSatisfying(MockAuthenticationSecret.class,
-                (auth) -> assertThat(auth.getSecret()).isEqualTo(secret));
+        assertThat(authentication)
+                .isInstanceOfSatisfying(MockAuthenticationSecret.class, (auth) -> assertThat(auth.getSecret())
+                        .isEqualTo(secret));
     }
 
     @Test
@@ -171,8 +173,11 @@ public class PulsarAdminBuilderImplTest {
 
     @SneakyThrows
     private Authentication createAdminAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").loadConf(confProps).build()) {
-            return ((PulsarAdminImpl)admin).auth;
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .loadConf(confProps)
+                .build()) {
+            return ((PulsarAdminImpl) admin).auth;
         }
     }
 
@@ -184,7 +189,7 @@ public class PulsarAdminBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 
@@ -210,16 +215,13 @@ public class PulsarAdminBuilderImplTest {
         }
 
         @Override
-        public void start() throws PulsarClientException {
-        }
+        public void start() throws PulsarClientException {}
 
         @Override
-        public void close() throws IOException {
-        }
+        public void close() throws IOException {}
 
         public String getSecret() {
             return secret;
         }
     }
-
 }

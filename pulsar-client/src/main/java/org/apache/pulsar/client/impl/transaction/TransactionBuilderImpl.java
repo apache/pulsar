@@ -62,21 +62,19 @@ public class TransactionBuilderImpl implements TransactionBuilder {
         //       After getting the transaction id, all the operations are handled by the
         //       `TransactionImpl`
         CompletableFuture<Transaction> future = new CompletableFuture<>();
-        transactionCoordinatorClient
-                .newTransactionAsync(txnTimeout, timeUnit)
-                .whenComplete((txnID, throwable) -> {
-                    if (throwable != null) {
-                        log.error("New transaction error.", throwable);
-                        future.completeExceptionally(throwable);
-                        return;
-                    }
-                    if (log.isDebugEnabled()) {
-                        log.debug("'newTransaction' command completed successfully for transaction: {}", txnID);
-                    }
-                    TransactionImpl transaction = new TransactionImpl(client, timeUnit.toMillis(txnTimeout),
-                            txnID.getLeastSigBits(), txnID.getMostSigBits());
-                    future.complete(transaction);
-                });
+        transactionCoordinatorClient.newTransactionAsync(txnTimeout, timeUnit).whenComplete((txnID, throwable) -> {
+            if (throwable != null) {
+                log.error("New transaction error.", throwable);
+                future.completeExceptionally(throwable);
+                return;
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("'newTransaction' command completed successfully for transaction: {}", txnID);
+            }
+            TransactionImpl transaction = new TransactionImpl(
+                    client, timeUnit.toMillis(txnTimeout), txnID.getLeastSigBits(), txnID.getMostSigBits());
+            future.complete(transaction);
+        });
         return future;
     }
 }

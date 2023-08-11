@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
-
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -44,37 +45,34 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 @Slf4j
 public class TopicEventsListenerTest extends BrokerTestBase {
 
-    final static Queue<String> events = new ConcurrentLinkedQueue<>();
+    static final Queue<String> events = new ConcurrentLinkedQueue<>();
     volatile String topicNameToWatch;
     String namespace;
 
     @DataProvider(name = "topicType")
     public static Object[][] topicType() {
         return new Object[][] {
-                {"persistent", "partitioned", true},
-                {"persistent", "non-partitioned", true},
-                {"non-persistent", "partitioned", true},
-                {"non-persistent", "non-partitioned", true},
-                {"persistent", "partitioned", false},
-                {"persistent", "non-partitioned", false},
-                {"non-persistent", "partitioned", false},
-                {"non-persistent", "non-partitioned", false}
+            {"persistent", "partitioned", true},
+            {"persistent", "non-partitioned", true},
+            {"non-persistent", "partitioned", true},
+            {"non-persistent", "non-partitioned", true},
+            {"persistent", "partitioned", false},
+            {"persistent", "non-partitioned", false},
+            {"non-persistent", "partitioned", false},
+            {"non-persistent", "non-partitioned", false}
         };
     }
 
     @DataProvider(name = "topicTypeNoDelete")
     public static Object[][] topicTypeNoDelete() {
         return new Object[][] {
-                {"persistent", "partitioned"},
-                {"persistent", "non-partitioned"},
-                {"non-persistent", "partitioned"},
-                {"non-persistent", "non-partitioned"}
+            {"persistent", "partitioned"},
+            {"persistent", "non-partitioned"},
+            {"non-persistent", "partitioned"},
+            {"non-persistent", "non-partitioned"}
         };
     }
 
@@ -88,8 +86,12 @@ public class TopicEventsListenerTest extends BrokerTestBase {
             log.info("got event {}__{} for topic {}", event, stage, topic);
             if (topic.equals(topicNameToWatch)) {
                 if (log.isDebugEnabled()) {
-                    log.debug("got event {}__{} for topic {} with detailed stack",
-                            event, stage, topic, new Exception("tracing event source"));
+                    log.debug(
+                            "got event {}__{} for topic {} with detailed stack",
+                            event,
+                            stage,
+                            topic,
+                            new Exception("tracing event source"));
                 }
                 events.add(event.toString() + "__" + stage.toString());
             }
@@ -109,8 +111,9 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
         admin.namespaces().setRetention(namespace, new RetentionPolicies(3, 10));
         try (PulsarAdmin admin2 = createPulsarAdmin()) {
-            Awaitility.await().untilAsserted(() ->
-                    assertEquals(admin2.namespaces().getRetention(namespace), new RetentionPolicies(3, 10)));
+            Awaitility.await()
+                    .untilAsserted(() ->
+                            assertEquals(admin2.namespaces().getRetention(namespace), new RetentionPolicies(3, 10)));
         }
 
         events.clear();
@@ -122,8 +125,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topicType")
-    public void testEvents(String topicTypePersistence, String topicTypePartitioned,
-                           boolean forceDelete) throws Exception {
+    public void testEvents(String topicTypePersistence, String topicTypePartitioned, boolean forceDelete)
+            throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
@@ -135,19 +138,15 @@ public class TopicEventsListenerTest extends BrokerTestBase {
             admin.topics().delete(topicName, forceDelete);
         }
 
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(
+                        events.toArray(),
+                        new String[] {"DELETE__BEFORE", "UNLOAD__BEFORE", "UNLOAD__SUCCESS", "DELETE__SUCCESS"}));
     }
 
     @Test(dataProvider = "topicType")
-    public void testEventsWithUnload(String topicTypePersistence, String topicTypePartitioned,
-                                     boolean forceDelete) throws Exception {
+    public void testEventsWithUnload(String topicTypePersistence, String topicTypePartitioned, boolean forceDelete)
+            throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
@@ -155,12 +154,9 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         events.clear();
         admin.topics().unload(topicName);
 
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() ->
+                        Assert.assertEquals(events.toArray(), new String[] {"UNLOAD__BEFORE", "UNLOAD__SUCCESS"}));
 
         events.clear();
         if (topicTypePartitioned.equals("partitioned")) {
@@ -169,22 +165,23 @@ public class TopicEventsListenerTest extends BrokerTestBase {
             admin.topics().delete(topicName, forceDelete);
         }
 
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() ->
+                        Assert.assertEquals(events.toArray(), new String[] {"DELETE__BEFORE", "DELETE__SUCCESS"}));
     }
 
     @Test(dataProvider = "topicType")
-    public void testEventsActiveSub(String topicTypePersistence, String topicTypePartitioned,
-                                    boolean forceDelete) throws Exception {
+    public void testEventsActiveSub(String topicTypePersistence, String topicTypePartitioned, boolean forceDelete)
+            throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < 10; i++) {
             producer.send("hello".getBytes());
@@ -209,17 +206,11 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         final String[] expectedEvents;
 
         if (forceDelete) {
-            expectedEvents = new String[]{
-                    "DELETE__BEFORE",
-                    "UNLOAD__BEFORE",
-                    "UNLOAD__SUCCESS",
-                    "DELETE__SUCCESS",
+            expectedEvents = new String[] {
+                "DELETE__BEFORE", "UNLOAD__BEFORE", "UNLOAD__SUCCESS", "DELETE__SUCCESS",
             };
         } else {
-            expectedEvents = new String[]{
-                    "DELETE__BEFORE",
-                    "DELETE__FAILURE"
-            };
+            expectedEvents = new String[] {"DELETE__BEFORE", "DELETE__FAILURE"};
         }
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -240,26 +231,27 @@ public class TopicEventsListenerTest extends BrokerTestBase {
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
 
-        admin.namespaces().setInactiveTopicPolicies(namespace,
-                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+        admin.namespaces()
+                .setInactiveTopicPolicies(
+                        namespace,
+                        new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
 
         // Remove retention
         admin.namespaces().setRetention(namespace, new RetentionPolicies());
         try (PulsarAdmin admin2 = createPulsarAdmin()) {
-            Awaitility.await().untilAsserted(() ->
-                    assertEquals(admin2.namespaces().getRetention(namespace), new RetentionPolicies()));
+            Awaitility.await()
+                    .untilAsserted(
+                            () -> assertEquals(admin2.namespaces().getRetention(namespace), new RetentionPolicies()));
         }
 
         events.clear();
 
         runGC();
 
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                })
-        );
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(events.toArray(), new String[] {
+                    "UNLOAD__BEFORE", "UNLOAD__SUCCESS",
+                }));
     }
 
     private void createTopicAndVerifyEvents(String topicTypePartitioned, String topicName) throws Exception {
@@ -269,30 +261,19 @@ public class TopicEventsListenerTest extends BrokerTestBase {
             admin.topics().createPartitionedTopic(topicName, 2);
             triggerPartitionsCreation(topicName);
 
-            expectedEvents = new String[]{
-                    "LOAD__BEFORE",
-                    "CREATE__BEFORE",
-                    "CREATE__SUCCESS",
-                    "LOAD__SUCCESS"
-            };
+            expectedEvents = new String[] {"LOAD__BEFORE", "CREATE__BEFORE", "CREATE__SUCCESS", "LOAD__SUCCESS"};
 
         } else {
             topicNameToWatch = topicName;
             admin.topics().createNonPartitionedTopic(topicName);
 
-            expectedEvents = new String[]{
-                    "LOAD__BEFORE",
-                    "LOAD__FAILURE",
-                    "LOAD__BEFORE",
-                    "CREATE__BEFORE",
-                    "CREATE__SUCCESS",
-                    "LOAD__SUCCESS"
+            expectedEvents = new String[] {
+                "LOAD__BEFORE", "LOAD__FAILURE", "LOAD__BEFORE", "CREATE__BEFORE", "CREATE__SUCCESS", "LOAD__SUCCESS"
             };
-
         }
 
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), expectedEvents));
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(events.toArray(), expectedEvents));
     }
 
     private PulsarAdmin createPulsarAdmin() throws PulsarClientException {
@@ -302,10 +283,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     }
 
     private void triggerPartitionsCreation(String topicName) throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
     }
-
 }

@@ -29,25 +29,18 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
     public static final int PRESTO_HTTP_PORT = 8081;
 
     public PrestoWorkerContainer(String clusterName, String hostname) {
-        super(
-                clusterName,
-                hostname,
-                hostname,
-                "bin/run-presto-worker.sh",
-                -1,
-                PRESTO_HTTP_PORT,
-                "/v1/info/state");
+        super(clusterName, hostname, hostname, "bin/run-presto-worker.sh", -1, PRESTO_HTTP_PORT, "/v1/info/state");
         tailContainerLog();
     }
 
     @Override
     protected void afterStart() {
-        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/pulsar/trino/var/log/launcher.log");
-        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/var/log/pulsar/presto_worker.log");
-        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/pulsar/trino/var/log/server.log");
+        DockerUtils.runCommandAsyncWithLogging(
+                this.dockerClient, this.getContainerId(), "tail", "-f", "/pulsar/trino/var/log/launcher.log");
+        DockerUtils.runCommandAsyncWithLogging(
+                this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/presto_worker.log");
+        DockerUtils.runCommandAsyncWithLogging(
+                this.dockerClient, this.getContainerId(), "tail", "-f", "/pulsar/trino/var/log/server.log");
     }
 
     @Override
@@ -55,14 +48,11 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
         super.beforeStop();
         if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
-                    getDockerClient(),
-                    getContainerId(),
-                    "/pulsar/trino/var/log"
-            );
+                    getDockerClient(), getContainerId(), "/pulsar/trino/var/log");
         }
     }
 
     public String getUrl() {
-        return String.format("%s:%s",  getHost(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
+        return String.format("%s:%s", getHost(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
     }
 }

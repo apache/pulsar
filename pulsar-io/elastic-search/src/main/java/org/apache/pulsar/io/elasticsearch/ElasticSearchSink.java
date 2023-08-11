@@ -59,8 +59,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
         name = "elastic_search",
         type = IOType.SINK,
         help = "A sink connector that sends pulsar messages to elastic search",
-        configClass = ElasticSearchConfig.class
-)
+        configClass = ElasticSearchConfig.class)
 @Slf4j
 public class ElasticSearchSink implements Sink<GenericObject> {
 
@@ -81,15 +80,13 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             primaryFields = Arrays.asList(elasticSearchConfig.getPrimaryFields().split(","));
         }
         if (elasticSearchConfig.isCanonicalKeyFields()) {
-            sortedObjectMapper = JsonMapper
-                    .builder()
-                            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+            sortedObjectMapper = JsonMapper.builder()
+                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
                     .nodeFactory(new JsonNodeFactory() {
                         @Override
                         public ObjectNode objectNode() {
                             return new ObjectNode(this, new TreeMap<String, JsonNode>());
                         }
-
                     })
                     .build();
         }
@@ -146,13 +143,15 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     case IGNORE:
                         break;
                     case WARN:
-                        log.warn("Ignoring malformed document messageId={}",
+                        log.warn(
+                                "Ignoring malformed document messageId={}",
                                 record.getMessage().map(Message::getMessageId).orElse(null),
                                 jsonProcessingException);
                         elasticsearchClient.failed(jsonProcessingException);
                         throw jsonProcessingException;
                     case FAIL:
-                        log.error("Malformed document messageId={}",
+                        log.error(
+                                "Malformed document messageId={}",
                                 record.getMessage().map(Message::getMessageId).orElse(null),
                                 jsonProcessingException);
                         elasticsearchClient.failed(jsonProcessingException);
@@ -188,8 +187,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) record.getSchema();
                 keySchema = keyValueSchema.getKeySchema();
                 valueSchema = keyValueSchema.getValueSchema();
-                KeyValue<GenericObject, GenericObject> keyValue =
-                        (KeyValue<GenericObject, GenericObject>) record.getValue().getNativeObject();
+                KeyValue<GenericObject, GenericObject> keyValue = (KeyValue<GenericObject, GenericObject>)
+                        record.getValue().getNativeObject();
                 key = keyValue.getKey();
                 value = keyValue.getValue();
             } else {
@@ -200,7 +199,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
             String id = null;
             if (!elasticSearchConfig.isKeyIgnore() && key != null) {
-                if (keySchema != null){
+                if (keySchema != null) {
                     id = stringifyKey(keySchema, key);
                 } else {
                     id = key.toString();
@@ -212,7 +211,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 if (valueSchema != null) {
                     if (elasticSearchConfig.isCopyKeyFields()
                             && (keySchema.getSchemaInfo().getType().equals(SchemaType.AVRO)
-                            || keySchema.getSchemaInfo().getType().equals(SchemaType.JSON))) {
+                                    || keySchema.getSchemaInfo().getType().equals(SchemaType.JSON))) {
                         JsonNode keyNode = extractJsonNode(keySchema, key);
                         JsonNode valueNode = extractJsonNode(valueSchema, value);
                         doc = stringify(JsonConverter.topLevelMerge(keyNode, valueNode));
@@ -261,8 +260,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                             hasher = Hashing.sha512().newHasher();
                             break;
                         default:
-                            throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
-                                    + idHashingAlgorithm);
+                            throw new UnsupportedOperationException(
+                                    "Unsupported IdHashingAlgorithm: " + idHashingAlgorithm);
                     }
                     hasher.putBytes(idBytes);
                     id = base64Encoder.encodeToString(hasher.hash().asBytes());
@@ -274,7 +273,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 if (record.getSchema() != null && record.getSchema().getSchemaInfo() != null) {
                     schemaType = record.getSchema().getSchemaInfo().getType();
                 }
-                log.debug("recordType={} schemaType={} id={} doc={}",
+                log.debug(
+                        "recordType={} schemaType={} id={} doc={}",
                         record.getClass().getName(),
                         schemaType,
                         id,
@@ -282,7 +282,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             }
             doc = sanitizeValue(doc);
             return Pair.of(id, doc);
-    } else {
+        } else {
             Message message = record.getMessage().orElse(null);
             final String rawData;
             if (message != null) {
@@ -291,19 +291,21 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 GenericObject recordObject = getGenericObjectFromRecord(record);
                 rawData = stringifyValue(record.getSchema(), recordObject);
             }
-            if (rawData == null || rawData.length() == 0){
+            if (rawData == null || rawData.length() == 0) {
                 throw new IllegalArgumentException("Record does not carry message information.");
             }
-            String key = elasticSearchConfig.isKeyIgnore() ? null : record.getKey().map(Object::toString).orElse(null);
+            String key = elasticSearchConfig.isKeyIgnore()
+                    ? null
+                    : record.getKey().map(Object::toString).orElse(null);
             return Pair.of(key, sanitizeValue(rawData));
         }
     }
 
-    private GenericObject getGenericObjectFromRecord(Record record){
+    private GenericObject getGenericObjectFromRecord(Record record) {
         if (record.getValue() == null) {
             return null;
         }
-        if (record.getValue() instanceof GenericObject){
+        if (record.getValue() instanceof GenericObject) {
             return (GenericObject) record.getValue();
         }
         return new GenericObject() {
@@ -324,7 +326,6 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             return value;
         }
         return nonPrintableCharactersPattern.matcher(value).replaceAll("");
-
     }
 
     public String stringifyKey(Schema<?> schema, Object val) throws JsonProcessingException {
@@ -343,16 +344,14 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             case AVRO:
                 return stringifyKey(extractJsonNode(schema, val));
             default:
-                throw new UnsupportedOperationException("Unsupported key schemaType="
-                        + schema.getSchemaInfo().getType());
+                throw new UnsupportedOperationException(
+                        "Unsupported key schemaType=" + schema.getSchemaInfo().getType());
         }
     }
-
 
     /**
      * Convert a JsonNode to an Elasticsearch id.
      */
-
     public String stringifyKey(JsonNode jsonNode) throws JsonProcessingException {
         List<String> fields = new ArrayList<>();
         jsonNode.fieldNames().forEachRemaining(fields::add);
@@ -376,7 +375,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         }
 
         return (serializedId.startsWith("\"") && serializedId.endsWith("\""))
-                ? serializedId.substring(1, serializedId.length() - 1)  // remove double quotes
+                ? serializedId.substring(1, serializedId.length() - 1) // remove double quotes
                 : serializedId;
     }
 
@@ -421,8 +420,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 }
                 return (JsonNode) nativeObject;
             case AVRO:
-                org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord)
-                        ((GenericRecord) val).getNativeObject();
+                org.apache.avro.generic.GenericRecord node =
+                        (org.apache.avro.generic.GenericRecord) ((GenericRecord) val).getNativeObject();
                 return JsonConverter.toJson(node);
             case STRING:
                 try {
@@ -437,9 +436,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     throw new RuntimeException("Error parsing byte[] as JSON.", e);
                 }
             default:
-                throw new UnsupportedOperationException("Unsupported value schemaType="
-                        + schema.getSchemaInfo().getType());
+                throw new UnsupportedOperationException(
+                        "Unsupported value schemaType=" + schema.getSchemaInfo().getType());
         }
     }
-
 }

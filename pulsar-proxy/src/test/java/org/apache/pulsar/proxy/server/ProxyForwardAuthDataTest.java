@@ -19,15 +19,11 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -94,10 +90,12 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         String clientAuthParams = "authParam:client";
         String proxyAuthParams = "authParam:proxy";
 
-        admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
-                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
-        admin.namespaces().grantPermissionOnNamespace(namespaceName, "client",
-                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces()
+                .grantPermissionOnNamespace(
+                        namespaceName, "proxy", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces()
+                .grantPermissionOnNamespace(
+                        namespaceName, "client", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
 
         // Step 2: Run Pulsar Proxy without forwarding authData - expect Exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -114,12 +112,16 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         providers.add(BasicAuthenticationProvider.class.getName());
         proxyConfig.setAuthenticationProviders(providers);
 
-        AuthenticationService authenticationService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authenticationService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
         try (ProxyService proxyService = new ProxyService(proxyConfig, authenticationService)) {
             proxyService.start();
             try (PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), clientAuthParams)) {
-                proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+                proxyClient
+                        .newConsumer()
+                        .topic(topicName)
+                        .subscriptionName(subscriptionName)
+                        .subscribe();
                 Assert.fail("Shouldn't be able to subscribe, auth required");
             } catch (Exception e) {
                 // expected behaviour
@@ -128,26 +130,32 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
         // Step 3: Create proxy with forwardAuthData enabled
         proxyConfig.setForwardAuthorizationCredentials(true);
-        authenticationService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
-        @Cleanup
-        ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
+        @Cleanup ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
         proxyService.start();
 
-        @Cleanup
-        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), clientAuthParams);
-        proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe().close();
+        @Cleanup PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), clientAuthParams);
+        proxyClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscribe()
+                .close();
     }
 
     private void createAdminClient() throws PulsarClientException {
         String adminAuthParams = "authParam:admin";
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
-                .authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl.toString())
+                .authentication(BasicAuthentication.class.getName(), adminAuthParams)
+                .build());
     }
 
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(proxyServiceUrl)
-                .authentication(BasicAuthentication.class.getName(), authParams).build();
+        return PulsarClient.builder()
+                .serviceUrl(proxyServiceUrl)
+                .authentication(BasicAuthentication.class.getName(), authParams)
+                .build();
     }
 }

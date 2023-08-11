@@ -27,8 +27,8 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
 
-    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
-                                      ConsumerConfigurationData<?> conf) {
+    public UnAckedTopicMessageTracker(
+            PulsarClientImpl client, ConsumerBase<?> consumerBase, ConsumerConfigurationData<?> conf) {
         super(client, consumerBase, conf);
     }
 
@@ -36,7 +36,8 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<Entry<MessageId, HashSet<MessageId>>> iterator = messageIdPartitionMap.entrySet().iterator();
+            Iterator<Entry<MessageId, HashSet<MessageId>>> iterator =
+                    messageIdPartitionMap.entrySet().iterator();
             while (iterator.hasNext()) {
                 Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
                 MessageId messageId = entry.getKey();
@@ -52,5 +53,4 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
             writeLock.unlock();
         }
     }
-
 }

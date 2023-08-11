@@ -91,8 +91,8 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
         this.schemaEnable = schemaEnable;
         if (schemaEnable) {
             sinkConfig.put("schemaEnable", "true");
-            kvSchema = Schema.KeyValue(Schema.JSON(SimplePojo.class),
-                    Schema.AVRO(SimplePojo.class), KeyValueEncodingType.SEPARATED);
+            kvSchema = Schema.KeyValue(
+                    Schema.JSON(SimplePojo.class), Schema.AVRO(SimplePojo.class), KeyValueEncodingType.SEPARATED);
         } else {
             // default behaviour, it must be enabled the default, in order to preserve compatibility with Pulsar 2.8.x
             kvSchema = null;
@@ -125,35 +125,30 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
 
     @Override
     public void prepareSink() throws Exception {
-        RestClientBuilder builder = RestClient.builder(
-            new HttpHost(
-                "localhost",
-                serviceContainer.getMappedPort(9200),
-                "http"));
-        ElasticsearchTransport transport = new RestClientTransport(builder.build(),
-                new JacksonJsonpMapper());
+        RestClientBuilder builder =
+                RestClient.builder(new HttpHost("localhost", serviceContainer.getMappedPort(9200), "http"));
+        ElasticsearchTransport transport = new RestClientTransport(builder.build(), new JacksonJsonpMapper());
         elasticClient = new ElasticsearchClient(transport);
     }
 
     @Override
     public void validateSinkResult(Map<String, String> kvs) {
         Awaitility.await().untilAsserted(() -> {
-            SearchResponse<?> searchResult = elasticClient.search(new SearchRequest.Builder().index("test-index")
-                    .q("*:*")
-                    .build(), Map.class);
+            SearchResponse<?> searchResult = elasticClient.search(
+                    new SearchRequest.Builder().index("test-index").q("*:*").build(), Map.class);
             assertTrue(searchResult.hits().total().value() > 0, searchResult.toString());
         });
     }
 
     @Override
-    public void produceMessage(int numMessages, PulsarClient client,
-                               String inputTopicName, LinkedHashMap<String, String> kvs) throws Exception {
+    public void produceMessage(
+            int numMessages, PulsarClient client, String inputTopicName, LinkedHashMap<String, String> kvs)
+            throws Exception {
         if (schemaEnable) {
 
             @Cleanup
-            Producer<KeyValue<SimplePojo, SimplePojo>> producer = client.newProducer(kvSchema)
-                    .topic(inputTopicName)
-                    .create();
+            Producer<KeyValue<SimplePojo, SimplePojo>> producer =
+                    client.newProducer(kvSchema).topic(inputTopicName).create();
 
             for (int i = 0; i < numMessages; i++) {
                 String key = "key-" + i;
@@ -161,26 +156,23 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
                 final SimplePojo keyPojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
                 final SimplePojo valuePojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
-                producer.newMessage()
-                        .value(new KeyValue<>(keyPojo, valuePojo))
-                        .send();
+                producer.newMessage().value(new KeyValue<>(keyPojo, valuePojo)).send();
             }
 
         } else {
 
             @Cleanup
-            Producer<String> producer = client.newProducer(Schema.STRING)
-                    .topic(inputTopicName)
-                    .create();
+            Producer<String> producer =
+                    client.newProducer(Schema.STRING).topic(inputTopicName).create();
 
             for (int i = 0; i < numMessages; i++) {
                 String key = "key-" + i;
@@ -189,12 +181,8 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
                 valueMap.put("key" + i, "value" + i);
                 String value = ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(valueMap);
                 kvs.put(key, value);
-                producer.newMessage()
-                        .key(key)
-                        .value(value)
-                        .send();
+                producer.newMessage().key(key).value(value).send();
             }
-
         }
     }
 

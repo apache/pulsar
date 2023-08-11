@@ -25,5 +25,4 @@ package org.apache.pulsar.io.kinesis;
  * @see org.apache.pulsar.io.aws.AwsCredentialProviderPlugin
  */
 @Deprecated
-public interface AwsCredentialProviderPlugin extends org.apache.pulsar.io.aws.AwsCredentialProviderPlugin {
-}
+public interface AwsCredentialProviderPlugin extends org.apache.pulsar.io.aws.AwsCredentialProviderPlugin {}

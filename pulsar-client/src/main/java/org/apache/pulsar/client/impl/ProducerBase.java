@@ -43,8 +43,13 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final ConcurrentOpenHashMap<SchemaHash, byte[]> schemaCache;
     protected volatile MultiSchemaMode multiSchemaMode = MultiSchemaMode.Auto;
 
-    protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors interceptors) {
+    protected ProducerBase(
+            PulsarClientImpl client,
+            String topic,
+            ProducerConfigurationData conf,
+            CompletableFuture<Producer<T>> producerCreatedFuture,
+            Schema<T> schema,
+            ProducerInterceptors interceptors) {
         super(client, topic);
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
@@ -88,7 +93,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     @Override
     public TypedMessageBuilder<T> newMessage(Transaction txn) {
         checkArgument(txn instanceof TransactionImpl);
-
 
         return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
     }
@@ -176,6 +180,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     }
 
     public enum MultiSchemaMode {
-        Auto, Enabled, Disabled
+        Auto,
+        Enabled,
+        Disabled
     }
 }

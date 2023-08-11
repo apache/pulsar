@@ -20,12 +20,9 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
 import java.util.Optional;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -87,16 +84,15 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         proxyConfig.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        proxyConfig.setBrokerClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                              getTlsFileForClient("superproxy.cert"), getTlsFileForClient("superproxy.key-pk8")));
+        proxyConfig.setBrokerClientAuthenticationParameters(String.format(
+                "tlsCertFile:%s,tlsKeyFile:%s",
+                getTlsFileForClient("superproxy.cert"), getTlsFileForClient("superproxy.key-pk8")));
         proxyConfig.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         proxyConfig.setAuthenticationProviders(ImmutableSet.of(AuthenticationProviderTls.class.getName()));
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
-        webServer = new WebServer(proxyConfig, new AuthenticationService(
-                                          PulsarConfigurationLoader.convertFrom(proxyConfig)));
+        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper), new ZKMetadataStore(mockZooKeeperGlobal));
+        webServer = new WebServer(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)));
         discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, resource));
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
@@ -118,22 +114,33 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
 
     PulsarAdmin getAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
-            .serviceHttpUrl("https://localhost:" + webServer.getListenPortHTTPS().get())
-            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-            .allowTlsInsecureConnection(false)
-            .authentication(AuthenticationTls.class.getName(),
-                    ImmutableMap.of("tlsCertFile", getTlsFileForClient(user + ".cert"),
-                                    "tlsKeyFile", getTlsFileForClient(user + ".key-pk8")))
-            .build();
+                .serviceHttpUrl(
+                        "https://localhost:" + webServer.getListenPortHTTPS().get())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .authentication(
+                        AuthenticationTls.class.getName(),
+                        ImmutableMap.of(
+                                "tlsCertFile", getTlsFileForClient(user + ".cert"),
+                                "tlsKeyFile", getTlsFileForClient(user + ".key-pk8")))
+                .build();
     }
 
     @Test
     public void testAuthenticatedProxyAsAdmin() throws Exception {
         try (PulsarAdmin adminAdmin = getAdminClient("admin")) {
-            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-            adminAdmin.tenants().createTenant("tenant1",
-                                              new TenantInfoImpl(ImmutableSet.of("randoUser"),
-                                                             ImmutableSet.of(configClusterName)));
+            adminAdmin
+                    .clusters()
+                    .createCluster(
+                            configClusterName,
+                            ClusterData.builder()
+                                    .serviceUrl(brokerUrl.toString())
+                                    .build());
+            adminAdmin
+                    .tenants()
+                    .createTenant(
+                            "tenant1",
+                            new TenantInfoImpl(ImmutableSet.of("randoUser"), ImmutableSet.of(configClusterName)));
             Assert.assertEquals(ImmutableSet.of("tenant1"), adminAdmin.tenants().getTenants());
         }
     }
@@ -141,29 +148,41 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
     @Test
     public void testAuthenticatedProxyAsNonAdmin() throws Exception {
         try (PulsarAdmin adminAdmin = getAdminClient("admin");
-             PulsarAdmin user1Admin = getAdminClient("user1")) {
+                PulsarAdmin user1Admin = getAdminClient("user1")) {
             try {
                 user1Admin.tenants().getTenants();
                 Assert.fail("Shouldn't be able to do superuser operation");
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
-            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-            adminAdmin.tenants().createTenant("tenant1",
-                                              new TenantInfoImpl(ImmutableSet.of("unknownUser"),
-                                                             ImmutableSet.of(configClusterName)));
+            adminAdmin
+                    .clusters()
+                    .createCluster(
+                            configClusterName,
+                            ClusterData.builder()
+                                    .serviceUrl(brokerUrl.toString())
+                                    .build());
+            adminAdmin
+                    .tenants()
+                    .createTenant(
+                            "tenant1",
+                            new TenantInfoImpl(ImmutableSet.of("unknownUser"), ImmutableSet.of(configClusterName)));
             adminAdmin.namespaces().createNamespace("tenant1/ns1");
-            Assert.assertEquals(ImmutableSet.of("tenant1/ns1"), adminAdmin.namespaces().getNamespaces("tenant1"));
+            Assert.assertEquals(
+                    ImmutableSet.of("tenant1/ns1"), adminAdmin.namespaces().getNamespaces("tenant1"));
             try {
                 user1Admin.namespaces().getNamespaces("tenant1");
                 Assert.fail("Shouldn't have access to namespace yet");
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
-            adminAdmin.tenants().updateTenant("tenant1",
-                                              new TenantInfoImpl(ImmutableSet.of("user1"),
-                                                             ImmutableSet.of(configClusterName)));
-            Assert.assertEquals(ImmutableSet.of("tenant1/ns1"), user1Admin.namespaces().getNamespaces("tenant1"));
+            adminAdmin
+                    .tenants()
+                    .updateTenant(
+                            "tenant1",
+                            new TenantInfoImpl(ImmutableSet.of("user1"), ImmutableSet.of(configClusterName)));
+            Assert.assertEquals(
+                    ImmutableSet.of("tenant1/ns1"), user1Admin.namespaces().getNamespaces("tenant1"));
         }
     }
 

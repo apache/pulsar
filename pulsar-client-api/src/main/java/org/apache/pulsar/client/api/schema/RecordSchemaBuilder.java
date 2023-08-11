@@ -70,5 +70,4 @@ public interface RecordSchemaBuilder {
      * @return the schema info.
      */
     SchemaInfo build(SchemaType schemaType);
-
 }

@@ -34,24 +34,24 @@ import org.testng.annotations.Test;
 public class TxnBatchedPositionImplTest {
 
     @DataProvider(name = "batchSizeAndBatchIndexArgsArray")
-    private Object[][] batchSizeAndBatchIndexArgsArray(){
-        return new Object[][]{
-                {10, 5},
-                {64, 0},
-                {64, 63},
-                {230, 120},
-                {256, 255}
+    private Object[][] batchSizeAndBatchIndexArgsArray() {
+        return new Object[][] {
+            {10, 5},
+            {64, 0},
+            {64, 63},
+            {230, 120},
+            {256, 255}
         };
     }
 
     @Test(dataProvider = "batchSizeAndBatchIndexArgsArray")
-    public void testSetAckSetByIndex(int batchSize, int batchIndex){
+    public void testSetAckSetByIndex(int batchSize, int batchIndex) {
         // test 1/64
-        TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(1,1, batchSize, batchIndex);
+        TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(1, 1, batchSize, batchIndex);
         txnBatchedPosition.setAckSetByIndex();
         long[] ls = txnBatchedPosition.getAckSet();
         BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(ls);
-        for (int i = 0; i < batchSize; i++){
+        for (int i = 0; i < batchSize; i++) {
             if (i == batchIndex) {
                 Assert.assertFalse(bitSetRecyclable.get(i));
             } else {
@@ -62,13 +62,13 @@ public class TxnBatchedPositionImplTest {
     }
 
     @DataProvider(name = "testHashcodeAndEqualsData")
-    public Object[][] testHashcodeAndEqualsData(){
+    public Object[][] testHashcodeAndEqualsData() {
         Random random = new Random();
-        return new Object[][]{
-                {1,2, 10, 5},
-                {123,1523, 64, 0},
-                {random.nextInt(65535),random.nextInt(65535), 230, 120},
-                {random.nextInt(65535),random.nextInt(65535), 256, 255}
+        return new Object[][] {
+            {1, 2, 10, 5},
+            {123, 1523, 64, 0},
+            {random.nextInt(65535), random.nextInt(65535), 230, 120},
+            {random.nextInt(65535), random.nextInt(65535), 256, 255}
         };
     }
 
@@ -84,7 +84,7 @@ public class TxnBatchedPositionImplTest {
      *    {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
      */
     @Test(dataProvider = "testHashcodeAndEqualsData")
-    public void testKeyInMap(long ledgerId, long entryId, int batchSize, int batchIndex){
+    public void testKeyInMap(long ledgerId, long entryId, int batchSize, int batchIndex) {
         // build data.
         Random random = new Random();
         int v = random.nextInt();
@@ -128,7 +128,7 @@ public class TxnBatchedPositionImplTest {
      *    {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
      */
     @Test
-    public void testCompareTo(){
+    public void testCompareTo() {
         PositionImpl position = new PositionImpl(1, 1);
         TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, 2, 0);
         Assert.assertEquals(position.compareTo(txnBatchedPosition), 0);

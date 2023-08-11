@@ -103,7 +103,8 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
          */
         // Trigger cursor creation.
         @Cleanup
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) this.pulsarClient.newConsumer()
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) this.pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -111,13 +112,13 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 .isAckReceiptEnabled(true)
                 .subscribe();
         @Cleanup
-        Producer<byte[]> producer = this.pulsarClient.newProducer()
+        Producer<byte[]> producer = this.pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .create();
-        final PersistentSubscription persistentSubscription =
-                (PersistentSubscription) pulsar.getBrokerService()
-                        .getTopic(topicName, false).get().get().getSubscription(subName);
+        final PersistentSubscription persistentSubscription = (PersistentSubscription)
+                pulsar.getBrokerService().getTopic(topicName, false).get().get().getSubscription(subName);
         final ManagedCursorImpl managedCursor = (ManagedCursorImpl) persistentSubscription.getCursor();
         ManagedCursorMXBean managedCursorMXBean = managedCursor.getStats();
         // Assert.
@@ -145,8 +146,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
             }
         }
         // Wait persistent.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS)
-                .until(() -> managedCursorMXBean.getPersistLedgerSucceed() > 0);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> managedCursorMXBean.getPersistLedgerSucceed() > 0);
         // Assert.
         metricsList = metrics.generate();
         Assert.assertFalse(metricsList.isEmpty());
@@ -154,14 +154,15 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerErrors"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperSucceed"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperErrors"), 0L);
-        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_nonContiguousDeletedMessagesRange"),
-                0L);
+        Assert.assertNotEquals(
+                metricsList.get(0).getMetrics().get("brk_ml_cursor_nonContiguousDeletedMessagesRange"), 0L);
         // Ack another half.
-        for (MessageId messageId : keepsMessageIdList){
+        for (MessageId messageId : keepsMessageIdList) {
             consumer.acknowledge(messageId);
         }
         // Wait persistent.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS)
+        Awaitility.await()
+                .atMost(2, TimeUnit.SECONDS)
                 .until(() -> managedCursor.getTotalNonContiguousDeletedMessagesRange() == 0);
         // Assert.
         metricsList = metrics.generate();
@@ -182,8 +183,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
             consumer.acknowledge(consumer.receive().getMessageId());
             // Make BK error.
-            LedgerHandle ledgerHandle = (LedgerHandle) FieldUtils.readField(
-                    managedCursor, "cursorLedger", true);
+            LedgerHandle ledgerHandle = (LedgerHandle) FieldUtils.readField(managedCursor, "cursorLedger", true);
             ledgerHandle.close();
             return managedCursorMXBean.getPersistLedgerErrors() > 0
                     && managedCursorMXBean.getPersistZookeeperSucceed() > 0;
@@ -212,9 +212,8 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
 
     private ManagedCursorMXBean getManagedCursorMXBean(String topicName, String subscriptionName)
             throws ExecutionException, InterruptedException {
-        final PersistentSubscription persistentSubscription =
-                (PersistentSubscription) pulsar.getBrokerService()
-                        .getTopic(topicName, false).get().get().getSubscription(subscriptionName);
+        final PersistentSubscription persistentSubscription = (PersistentSubscription)
+                pulsar.getBrokerService().getTopic(topicName, false).get().get().getSubscription(subscriptionName);
         final ManagedCursorImpl managedCursor = (ManagedCursorImpl) persistentSubscription.getCursor();
         return managedCursor.getStats();
     }
@@ -235,7 +234,8 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(metricsList.isEmpty());
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -243,7 +243,8 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         @Cleanup
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -251,9 +252,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         for (int i = 0; i < messageSize; i++) {
             String message = "my-message-" + i;

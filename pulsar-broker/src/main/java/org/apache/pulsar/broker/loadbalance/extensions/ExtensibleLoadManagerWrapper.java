@@ -63,7 +63,8 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     @Override
     public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
-        return loadManager.assign(topic, bundle)
+        return loadManager
+                .assign(topic, bundle)
                 .thenApply(lookupData -> lookupData.map(BrokerLookupData::toLookupResult));
     }
 
@@ -98,7 +99,6 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     public void stop() throws PulsarServerException {
         this.loadManager.close();
     }
-
 
     @Override
     public Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception {
@@ -145,5 +145,4 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     public ExtensibleLoadManagerImpl get() {
         return loadManager;
     }
-
 }

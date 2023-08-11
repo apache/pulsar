@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -45,10 +43,9 @@ public class BrokerFilterTestBase {
         ServiceConfiguration configuration = new ServiceConfiguration();
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
             Map<String, BrokerLoadData> map = new HashMap<>();
-            @Override
-            public void close() throws IOException {
 
-            }
+            @Override
+            public void close() throws IOException {}
 
             @Override
             public CompletableFuture<Void> pushAsync(String key, BrokerLoadData loadData) {
@@ -71,9 +68,7 @@ public class BrokerFilterTestBase {
             }
 
             @Override
-            public void forEach(BiConsumer<String, BrokerLoadData> action) {
-
-            }
+            public void forEach(BiConsumer<String, BrokerLoadData> action) {}
 
             @Override
             public Set<Map.Entry<String, BrokerLoadData>> entrySet() {
@@ -86,14 +81,10 @@ public class BrokerFilterTestBase {
             }
 
             @Override
-            public void closeTableView() throws IOException {
-
-            }
+            public void closeTableView() throws IOException {}
 
             @Override
-            public void startTableView() throws LoadDataStoreException {
-
-            }
+            public void startTableView() throws LoadDataStoreException {}
         };
         configuration.setPreferLaterVersions(true);
         doReturn(configuration).when(mockContext).brokerConfiguration();
@@ -115,12 +106,22 @@ public class BrokerFilterTestBase {
         String pulsarServiceUrl = "pulsar://localhost:6650";
         String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        Map<String, String> protocols = new HashMap<>(){{
-            put("kafka", "9092");
-        }};
+        Map<String, String> protocols = new HashMap<>() {
+            {
+                put("kafka", "9092");
+            }
+        };
         return new BrokerLookupData(
-                webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
-                loadManagerClassName, -1, version);
+                webServiceUrl,
+                webServiceUrlTls,
+                pulsarServiceUrl,
+                pulsarServiceUrlTls,
+                advertisedListeners,
+                protocols,
+                true,
+                true,
+                loadManagerClassName,
+                -1,
+                version);
     }
 }

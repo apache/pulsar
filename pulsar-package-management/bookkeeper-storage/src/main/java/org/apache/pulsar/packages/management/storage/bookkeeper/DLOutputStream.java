@@ -80,8 +80,7 @@ class DLOutputStream {
      * @return
      */
     CompletableFuture<DLOutputStream> writeAsync(InputStream inputStream) {
-        return getRecords(inputStream)
-            .thenCompose(this::writeAsync);
+        return getRecords(inputStream).thenCompose(this::writeAsync);
     }
 
     private CompletableFuture<DLOutputStream> writeAsync(List<LogRecord> records) {
@@ -96,8 +95,7 @@ class DLOutputStream {
      */
     CompletableFuture<Void> closeAsync() {
         return writer.markEndOfStream()
-            .thenCompose(ignore -> writer.asyncClose())
-            .thenCompose(ignore -> distributedLogManager.asyncClose());
+                .thenCompose(ignore -> writer.asyncClose())
+                .thenCompose(ignore -> distributedLogManager.asyncClose());
     }
 }
-

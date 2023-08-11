@@ -20,11 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -55,14 +52,14 @@ public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
     @DataProvider(name = "combinations")
     public Object[][] combinations() {
         return new Object[][] {
-                // batching-enabled - queue-size
-                { false, 0 },
-                { false, 1 },
-                { false, 10 },
-                { false, 100 },
-                { true, 1 },
-                { true, 10 },
-                { true, 100 },
+            // batching-enabled - queue-size
+            {false, 0},
+            {false, 1},
+            {false, 10},
+            {false, 100},
+            {true, 1},
+            {true, 10},
+            {true, 100},
         };
     }
 
@@ -71,7 +68,8 @@ public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
         String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic");
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 // Use high ack delay to simulate a message being tracked as dup
@@ -79,7 +77,8 @@ public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
                 .receiverQueueSize(receiverQueueSize)
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(batchingEnabled)
                 .batchingMaxMessages(10)
@@ -122,5 +121,4 @@ public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
             consumer.acknowledge(msg);
         }
     }
-
 }

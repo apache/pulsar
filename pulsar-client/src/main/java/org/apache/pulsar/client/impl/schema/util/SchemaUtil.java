@@ -34,7 +34,8 @@ public class SchemaUtil {
 
     public static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
         if (schemaInfo != null) {
-            return Boolean.parseBoolean(schemaInfo.getProperties()
+            return Boolean.parseBoolean(schemaInfo
+                    .getProperties()
                     .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
         }
         return false;
@@ -51,7 +52,8 @@ public class SchemaUtil {
                 .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
                 .properties(schemaDefinition.getProperties())
                 .name("")
-                .type(schemaType).build();
+                .type(schemaType)
+                .build();
     }
 
     public static Schema createAvroSchema(SchemaDefinition schemaDefinition) {
@@ -88,9 +90,8 @@ public class SchemaUtil {
         try {
             return parseAvroSchema(pojo.getDeclaredField("SCHEMA$").get(null).toString());
         } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException ignored) {
-            ReflectData reflectData = schemaDefinition.getAlwaysAllowNull()
-                     ? new ReflectData.AllowNull()
-                     : new ReflectData();
+            ReflectData reflectData =
+                    schemaDefinition.getAlwaysAllowNull() ? new ReflectData.AllowNull() : new ReflectData();
             AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled(), false);
             return reflectData.getSchema(pojo);
         }

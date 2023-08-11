@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
+import static org.testng.Assert.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -25,12 +29,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test for {@link BrokerMaxTopicCountFilter}.
@@ -43,11 +41,14 @@ public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
         LoadManagerContext context = getContext();
         LoadDataStore<BrokerLoadData> store = context.brokerLoadDataStore();
         BrokerLoadData maxTopicLoadData = new BrokerLoadData();
-        FieldUtils.writeDeclaredField(maxTopicLoadData, "topics",
-                context.brokerConfiguration().getLoadBalancerBrokerMaxTopics(), true);
+        FieldUtils.writeDeclaredField(
+                maxTopicLoadData, "topics", context.brokerConfiguration().getLoadBalancerBrokerMaxTopics(), true);
         BrokerLoadData exceedMaxTopicLoadData = new BrokerLoadData();
-        FieldUtils.writeDeclaredField(exceedMaxTopicLoadData, "topics",
-                context.brokerConfiguration().getLoadBalancerBrokerMaxTopics() * 2, true);
+        FieldUtils.writeDeclaredField(
+                exceedMaxTopicLoadData,
+                "topics",
+                context.brokerConfiguration().getLoadBalancerBrokerMaxTopics() * 2,
+                true);
         store.pushAsync("broker1", maxTopicLoadData);
         store.pushAsync("broker2", new BrokerLoadData());
         store.pushAsync("broker3", exceedMaxTopicLoadData);
@@ -57,14 +58,13 @@ public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
                 "broker3", getLookupData(),
-                "broker4", getLookupData()
-        );
-        Map<String, BrokerLookupData> result =
-                filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
-        assertEquals(result, Map.of(
-                "broker2", getLookupData(),
-                "broker4", getLookupData()
-        ));
+                "broker4", getLookupData());
+        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(originalBrokers), null, context)
+                .get();
+        assertEquals(
+                result,
+                Map.of(
+                        "broker2", getLookupData(),
+                        "broker4", getLookupData()));
     }
-
 }

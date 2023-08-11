@@ -71,43 +71,44 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected static String getTlsFileForClient(String name) {
         return ResourceUtils.getAbsolutePath(String.format("certificate-authority/client-keys/%s.pem", name));
     }
-    public final static String CA_CERT_FILE_PATH =
+
+    public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
+    public static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
+    public static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    public final static String PROXY_CERT_FILE_PATH =
+    public static final String PROXY_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.cert.pem");
-    public final static String PROXY_KEY_FILE_PATH =
+    public static final String PROXY_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.key-pk8.pem");
-    public final static String BROKER_KEYSTORE_FILE_PATH =
+    public static final String BROKER_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
-    public final static String BROKER_TRUSTSTORE_FILE_PATH =
+    public static final String BROKER_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
-    public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+    public static final String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
-    public final static String BROKER_KEYSTORE_PW = "111111";
-    public final static String BROKER_TRUSTSTORE_PW = "111111";
+    public static final String BROKER_KEYSTORE_PW = "111111";
+    public static final String BROKER_TRUSTSTORE_PW = "111111";
 
-    public final static String CLIENT_KEYSTORE_FILE_PATH =
+    public static final String CLIENT_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
-    public final static String CLIENT_TRUSTSTORE_FILE_PATH =
+    public static final String CLIENT_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
-    public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+    public static final String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
-    public final static String CLIENT_KEYSTORE_PW = "111111";
-    public final static String CLIENT_TRUSTSTORE_PW = "111111";
+    public static final String CLIENT_KEYSTORE_PW = "111111";
+    public static final String CLIENT_TRUSTSTORE_PW = "111111";
 
-    public final static String PROXY_KEYSTORE_FILE_PATH =
+    public static final String PROXY_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy.keystore.jks");
-    public final static String PROXY_KEYSTORE_PW = "111111";
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
+    public static final String PROXY_KEYSTORE_PW = "111111";
+    public static final String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy-and-client.truststore.jks");
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
+    public static final String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
 
-    public final static String CLIENT_KEYSTORE_CN = "clientuser";
-    public final static String KEYSTORE_TYPE = "JKS";
+    public static final String CLIENT_KEYSTORE_CN = "clientuser";
+    public static final String KEYSTORE_TYPE = "JKS";
 
     protected final String DUMMY_VALUE = "DUMMY_VALUE";
     protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
@@ -120,7 +121,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
     protected PortForwarder brokerGateway;
-    protected boolean enableBrokerGateway =  false;
+    protected boolean enableBrokerGateway = false;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 
@@ -159,7 +160,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             // setup port forwarding from the advertised port to the listen port
             if (enableBrokerGateway) {
                 InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
-                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+                InetSocketAddress brokerAddress = new InetSocketAddress(
+                        "127.0.0.1", pulsar.getBrokerListenPort().get());
                 brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
             }
         }
@@ -173,9 +175,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
         ClientBuilder clientBuilder =
-                PulsarClient.builder()
-                        .serviceUrl(url)
-                        .statsInterval(intervalInSecs, TimeUnit.SECONDS);
+                PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS);
         customizeNewPulsarClientBuilder(clientBuilder);
         return createNewPulsarClient(clientBuilder);
     }
@@ -184,9 +184,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * Customize the {@link ClientBuilder} before creating a new {@link PulsarClient} instance.
      * @param clientBuilder
      */
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-
-    }
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {}
 
     /**
      * Customize the {@link BrokerService} just after it has been created.
@@ -260,9 +258,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         onCleanup();
     }
 
-    protected void onCleanup() {
-
-    }
+    protected void onCleanup() {}
 
     protected abstract void setup() throws Exception;
 
@@ -284,7 +280,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * @param pulsar the PulsarService instance
      * @throws Exception if an error occurs
      */
-     protected void afterPulsarStart(PulsarService pulsar) throws Exception {
+    protected void afterPulsarStart(PulsarService pulsar) throws Exception {
         // No-op
     }
 
@@ -302,12 +298,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (pulsar == null) {
             return;
         }
-        log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
+        log.info(
+                "Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}",
+                pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
-        //mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
+        // mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
     }
 
     protected void startBroker() throws Exception {
@@ -326,9 +324,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 Mockito.reset(admin);
             }
         }
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
-                ? brokerUrl.toString()
-                : brokerUrlTls.toString());
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString());
         customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
         admin = spyWithoutRecordingInvocations(pulsarAdminBuilder.build());
     }
@@ -338,9 +335,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      *
      * @param pulsarAdminBuilder the PulsarAdminBuilder instance
      */
-    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
-
-    }
+    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {}
 
     /**
      * Creates the PulsarTestContext instance for the main PulsarService instance.
@@ -358,8 +353,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             pulsarTestContextBuilder.chainClosing(pulsarTestContext);
         }
         customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
-        return pulsarTestContextBuilder
-                .build();
+        return pulsarTestContextBuilder.build();
     }
 
     /**
@@ -368,9 +362,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      *
      * @param pulsarTestContextBuilder the PulsarTestContext.Builder instance to customize
      */
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
-
-    }
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {}
 
     /**
      * Creates a PulsarTestContext.Builder instance that is used for the builder of the main PulsarTestContext and also
@@ -424,13 +416,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected TenantInfoImpl createDefaultTenantInfo() throws PulsarAdminException {
         // create local cluster if not exist
         if (!admin.clusters().getClusters().contains(configClusterName)) {
-            admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
+            admin.clusters()
+                    .createCluster(configClusterName, ClusterData.builder().build());
         }
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add(configClusterName);
         return new TenantInfoImpl(new HashSet<>(), allowedClusters);
     }
-
 
     public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
@@ -443,8 +435,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return false;
     }
 
-    public static void setFieldValue(Class<?> clazz, Object classObj, String fieldName,
-                                     Object fieldValue) throws Exception {
+    public static void setFieldValue(Class<?> clazz, Object classObj, String fieldName, Object fieldValue)
+            throws Exception {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
@@ -479,13 +471,21 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         final String namespace = tenant + "/default";
 
         if (!admin.clusters().getClusters().contains(configClusterName)) {
-            admin.clusters().createCluster(configClusterName,
-                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+            admin.clusters()
+                    .createCluster(
+                            configClusterName,
+                            ClusterData.builder()
+                                    .serviceUrl(pulsar.getWebServiceAddress())
+                                    .build());
         }
 
         if (!admin.tenants().getTenants().contains(tenant)) {
-            admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(
-                    Sets.newHashSet(configClusterName)).build());
+            admin.tenants()
+                    .createTenant(
+                            tenant,
+                            TenantInfo.builder()
+                                    .allowedClusters(Sets.newHashSet(configClusterName))
+                                    .build());
         }
 
         if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
@@ -559,9 +559,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
 
         @Override
-        public void setTimeoutHandler(TimeoutHandler handler) {
-
-        }
+        public void setTimeoutHandler(TimeoutHandler handler) {}
 
         @Override
         public Collection<Class<?>> register(Class<?> callback) {
@@ -582,29 +580,26 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         public Map<Class<?>, Collection<Class<?>>> register(Object callback, Object... callbacks) {
             return null;
         }
-
     }
 
     /**
      * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceWithRetry(String ns, boolean force)
-            throws Exception {
+    protected void deleteNamespaceWithRetry(String ns, boolean force) throws Exception {
         BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
     }
 
     /**
      * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
+    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
     }
 
     /**
      * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService... pulsars)
             throws Exception {
         deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
     }
@@ -613,11 +608,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * 1. Pause system "__change_event" topic creates.
      * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
      */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
-                                                Collection<PulsarService> pulsars) throws Exception {
-        Awaitility.await()
-                .pollDelay(500, TimeUnit.MILLISECONDS)
-                .until(() -> {
+    public static void deleteNamespaceWithRetry(
+            String ns, boolean force, PulsarAdmin admin, Collection<PulsarService> pulsars) throws Exception {
+        Awaitility.await().pollDelay(500, TimeUnit.MILLISECONDS).until(() -> {
             try {
                 // Maybe fail by race-condition with create topics, just retry.
                 admin.namespaces().deleteNamespace(ns, force);
@@ -635,12 +628,12 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     @DataProvider(name = "invalidPersistentPolicies")
     public Object[][] incorrectPersistentPolicies() {
         return new Object[][] {
-                {0, 0, 0},
-                {1, 0, 0},
-                {0, 0, 1},
-                {0, 1, 0},
-                {1, 1, 0},
-                {1, 0, 1}
+            {0, 0, 0},
+            {1, 0, 0},
+            {0, 0, 1},
+            {0, 1, 0},
+            {1, 1, 0},
+            {1, 0, 1}
         };
     }
 

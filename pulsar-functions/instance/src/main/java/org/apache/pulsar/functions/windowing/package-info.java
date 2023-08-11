@@ -17,4 +17,3 @@
  * under the License.
  */
 package org.apache.pulsar.functions.windowing;
-

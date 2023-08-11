@@ -20,16 +20,15 @@ package org.apache.pulsar.io.flume.node;
 
 import org.testng.annotations.Test;
 
-public class TestStaticZooKeeperConfigurationProvider extends
-        TestAbstractZooKeeperConfigurationProvider {
+public class TestStaticZooKeeperConfigurationProvider extends TestAbstractZooKeeperConfigurationProvider {
 
     private StaticZooKeeperConfigurationProvider configurationProvider;
 
     @Override
     protected void doSetUp() throws Exception {
         addData();
-        configurationProvider = new StaticZooKeeperConfigurationProvider(
-                AGENT_NAME, "localhost:" + zkServer.getPort(), null);
+        configurationProvider =
+                new StaticZooKeeperConfigurationProvider(AGENT_NAME, "localhost:" + zkServer.getPort(), null);
     }
 
     @Override

@@ -36,6 +36,7 @@ public class SchemaData {
     private final long timestamp;
     private final String user;
     private final byte[] data;
+
     @Builder.Default
     private Map<String, String> props = new HashMap<>();
 
@@ -46,11 +47,11 @@ public class SchemaData {
      */
     public SchemaInfo toSchemaInfo() {
         return SchemaInfo.builder()
-            .name("")
-            .type(type)
-            .schema(data)
-            .properties(props)
-            .build();
+                .name("")
+                .type(type)
+                .schema(data)
+                .properties(props)
+                .build();
     }
 
     /**
@@ -61,10 +62,9 @@ public class SchemaData {
      */
     public static SchemaData fromSchemaInfo(SchemaInfo schemaInfo) {
         return SchemaData.builder()
-            .type(schemaInfo.getType())
-            .data(schemaInfo.getSchema())
-            .props(schemaInfo.getProperties())
-            .build();
+                .type(schemaInfo.getType())
+                .data(schemaInfo.getSchema())
+                .props(schemaInfo.getProperties())
+                .build();
     }
-
 }

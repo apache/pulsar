@@ -33,11 +33,12 @@ import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 
 public class AuthenticationProviderBasicTest {
-    private final String basicAuthConf = Resources.getResource("authentication/basic/.htpasswd").getPath();
-    private final String basicAuthConfBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(basicAuthConf)));
+    private final String basicAuthConf =
+            Resources.getResource("authentication/basic/.htpasswd").getPath();
+    private final String basicAuthConfBase64 =
+            Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(basicAuthConf)));
 
-    public AuthenticationProviderBasicTest() throws IOException {
-    }
+    public AuthenticationProviderBasicTest() throws IOException {}
 
     private void testAuthenticate(AuthenticationProviderBasic provider) throws AuthenticationException {
         AuthData authData = AuthData.of("superUser2:superpassword".getBytes(StandardCharsets.UTF_8));
@@ -46,8 +47,7 @@ public class AuthenticationProviderBasicTest {
 
     @Test
     public void testLoadFileFromPulsarProperties() throws Exception {
-        @Cleanup
-        AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
+        @Cleanup AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         Properties properties = new Properties();
         properties.setProperty("basicAuthConf", basicAuthConf);
@@ -58,8 +58,7 @@ public class AuthenticationProviderBasicTest {
 
     @Test
     public void testLoadBase64FromPulsarProperties() throws Exception {
-        @Cleanup
-        AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
+        @Cleanup AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         Properties properties = new Properties();
         properties.setProperty("basicAuthConf", basicAuthConfBase64);
@@ -70,8 +69,7 @@ public class AuthenticationProviderBasicTest {
 
     @Test
     public void testLoadFileFromSystemProperties() throws Exception {
-        @Cleanup
-        AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
+        @Cleanup AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         System.setProperty("pulsar.auth.basic.conf", basicAuthConf);
         provider.initialize(serviceConfiguration);
@@ -80,8 +78,7 @@ public class AuthenticationProviderBasicTest {
 
     @Test
     public void testLoadBase64FromSystemProperties() throws Exception {
-        @Cleanup
-        AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
+        @Cleanup AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         System.setProperty("pulsar.auth.basic.conf", basicAuthConfBase64);
         provider.initialize(serviceConfiguration);

@@ -25,9 +25,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 public class AwsDefaultProviderChainPlugin implements AwsCredentialProviderPlugin {
     @Override
-    public void init(String param) {
-
-    }
+    public void init(String param) {}
 
     @Override
     public AWSCredentialsProvider getCredentialProvider() {
@@ -40,7 +38,5 @@ public class AwsDefaultProviderChainPlugin implements AwsCredentialProviderPlugi
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
 }

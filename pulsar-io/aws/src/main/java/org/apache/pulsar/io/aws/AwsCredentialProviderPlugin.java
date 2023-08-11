@@ -63,10 +63,8 @@ public interface AwsCredentialProviderPlugin extends Closeable {
                         ((AWSSessionCredentials) creds).getSessionToken());
             } else {
                 return software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create(
-                        creds.getAWSAccessKeyId(),
-                        creds.getAWSSecretKey());
+                        creds.getAWSAccessKeyId(), creds.getAWSSecretKey());
             }
         };
     }
-
 }

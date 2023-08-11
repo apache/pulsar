@@ -30,9 +30,13 @@ public class DefaultSslContextBuilder extends SslContextAutoRefreshBuilder<SSLCo
     protected final boolean tlsRequireTrustedClientCertOnConnect;
     private final String providerName;
 
-    public DefaultSslContextBuilder(boolean allowInsecure, String trustCertsFilePath, String certificateFilePath,
-                                    String keyFilePath, boolean requireTrustedClientCertOnConnect,
-                                    long certRefreshInSec) {
+    public DefaultSslContextBuilder(
+            boolean allowInsecure,
+            String trustCertsFilePath,
+            String certificateFilePath,
+            String keyFilePath,
+            boolean requireTrustedClientCertOnConnect,
+            long certRefreshInSec) {
         super(certRefreshInSec);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
@@ -42,9 +46,14 @@ public class DefaultSslContextBuilder extends SslContextAutoRefreshBuilder<SSLCo
         this.providerName = null;
     }
 
-    public DefaultSslContextBuilder(boolean allowInsecure, String trustCertsFilePath, String certificateFilePath,
-                                    String keyFilePath, boolean requireTrustedClientCertOnConnect,
-                                    long certRefreshInSec, String providerName) {
+    public DefaultSslContextBuilder(
+            boolean allowInsecure,
+            String trustCertsFilePath,
+            String certificateFilePath,
+            String keyFilePath,
+            boolean requireTrustedClientCertOnConnect,
+            long certRefreshInSec,
+            String providerName) {
         super(certRefreshInSec);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
@@ -56,9 +65,12 @@ public class DefaultSslContextBuilder extends SslContextAutoRefreshBuilder<SSLCo
 
     @Override
     public synchronized SSLContext update() throws GeneralSecurityException {
-        this.sslContext = SecurityUtility.createSslContext(tlsAllowInsecureConnection,
-                tlsTrustCertsFilePath.getFileName(), tlsCertificateFilePath.getFileName(),
-                tlsKeyFilePath.getFileName(), this.providerName);
+        this.sslContext = SecurityUtility.createSslContext(
+                tlsAllowInsecureConnection,
+                tlsTrustCertsFilePath.getFileName(),
+                tlsCertificateFilePath.getFileName(),
+                tlsKeyFilePath.getFileName(),
+                this.providerName);
         return this.sslContext;
     }
 
@@ -69,7 +81,7 @@ public class DefaultSslContextBuilder extends SslContextAutoRefreshBuilder<SSLCo
 
     @Override
     public boolean needUpdate() {
-        return  tlsTrustCertsFilePath.checkAndRefresh()
+        return tlsTrustCertsFilePath.checkAndRefresh()
                 || tlsCertificateFilePath.checkAndRefresh()
                 || tlsKeyFilePath.checkAndRefresh();
     }

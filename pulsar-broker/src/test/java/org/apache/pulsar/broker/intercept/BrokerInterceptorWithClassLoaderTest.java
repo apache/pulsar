@@ -60,71 +60,93 @@ public class BrokerInterceptorWithClassLoaderTest {
         verify(h, times(1)).initialize(same(pulsarService));
     }
 
-
     @Test
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader narLoader = mock(NarClassLoader.class);
         BrokerInterceptor interceptor = new BrokerInterceptor() {
             @Override
-            public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
+            public void beforeSendMessage(
+                    Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
 
             @Override
-            public void beforeSendMessage(Subscription subscription,
-                                          Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {
+            public void beforeSendMessage(
+                    Subscription subscription,
+                    Entry entry,
+                    long[] ackSet,
+                    MessageMetadata msgMetadata,
+                    Consumer consumer) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void onConnectionCreated(ServerCnx cnx) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void producerCreated(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
-            public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs,
-                                        long ledgerId, long entryId, Topic.PublishContext publishContext) {
+            public void messageProduced(
+                    ServerCnx cnx,
+                    Producer producer,
+                    long startTimeNs,
+                    long ledgerId,
+                    long entryId,
+                    Topic.PublishContext publishContext) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
-            public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
-                                          long entryId, ByteBuf headersAndPayload) {
+            public void messageDispatched(
+                    ServerCnx cnx, Consumer consumer, long ledgerId, long entryId, ByteBuf headersAndPayload) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void messageAcked(ServerCnx cnx, Consumer consumer, CommandAck ackCmd) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void onConnectionClosed(ServerCnx cnx) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void onWebserviceRequest(ServletRequest request) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void initialize(PulsarService pulsarService) throws Exception {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
             @Override
             public void close() {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
@@ -140,12 +162,11 @@ public class BrokerInterceptorWithClassLoaderTest {
         brokerInterceptorWithClassLoader.initialize(mock(PulsarService.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test onFilter
-        brokerInterceptorWithClassLoader.onFilter(mock(ServletRequest.class)
-                , mock(ServletResponse.class), mock(FilterChain.class));
+        brokerInterceptorWithClassLoader.onFilter(
+                mock(ServletRequest.class), mock(ServletResponse.class), mock(FilterChain.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test onWebserviceResponse
-        brokerInterceptorWithClassLoader.onWebserviceResponse(mock(ServletRequest.class)
-                , mock(ServletResponse.class));
+        brokerInterceptorWithClassLoader.onWebserviceResponse(mock(ServletRequest.class), mock(ServletResponse.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test onWebserviceRequest
         brokerInterceptorWithClassLoader.onWebserviceRequest(mock(ServletRequest.class));
@@ -157,38 +178,30 @@ public class BrokerInterceptorWithClassLoaderTest {
         brokerInterceptorWithClassLoader.onPulsarCommand(null, mock(ServerCnx.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test messageAcked
-        brokerInterceptorWithClassLoader
-                .messageAcked(mock(ServerCnx.class), mock(Consumer.class), null);
+        brokerInterceptorWithClassLoader.messageAcked(mock(ServerCnx.class), mock(Consumer.class), null);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test messageDispatched
-        brokerInterceptorWithClassLoader
-                .messageDispatched(mock(ServerCnx.class), mock(Consumer.class), 1, 1, null);
+        brokerInterceptorWithClassLoader.messageDispatched(mock(ServerCnx.class), mock(Consumer.class), 1, 1, null);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test messageProduced
-        brokerInterceptorWithClassLoader
-                .messageProduced(mock(ServerCnx.class), mock(Producer.class), 1, 1, 1, null);
+        brokerInterceptorWithClassLoader.messageProduced(mock(ServerCnx.class), mock(Producer.class), 1, 1, 1, null);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test consumerCreated
-        brokerInterceptorWithClassLoader
-                .consumerCreated(mock(ServerCnx.class), mock(Consumer.class), new HashMap<>());
+        brokerInterceptorWithClassLoader.consumerCreated(mock(ServerCnx.class), mock(Consumer.class), new HashMap<>());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test producerCreated
-        brokerInterceptorWithClassLoader
-                .producerCreated(mock(ServerCnx.class), mock(Producer.class), new HashMap<>());
+        brokerInterceptorWithClassLoader.producerCreated(mock(ServerCnx.class), mock(Producer.class), new HashMap<>());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test onConnectionCreated
-        brokerInterceptorWithClassLoader
-                .onConnectionCreated(mock(ServerCnx.class));
+        brokerInterceptorWithClassLoader.onConnectionCreated(mock(ServerCnx.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test beforeSendMessage
-        brokerInterceptorWithClassLoader
-                .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null);
-        brokerInterceptorWithClassLoader
-                .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null, null);
+        brokerInterceptorWithClassLoader.beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null);
+        brokerInterceptorWithClassLoader.beforeSendMessage(
+                mock(Subscription.class), mock(Entry.class), null, null, null);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test close
         brokerInterceptorWithClassLoader.close();
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-
     }
 }

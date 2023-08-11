@@ -21,12 +21,11 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import io.netty.util.HashedWheelTimer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import io.netty.util.HashedWheelTimer;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -59,23 +58,23 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     @DataProvider(name = "topics")
     public static Object[][] topics() {
         return new Object[][] {
-                { "persistent", Boolean.TRUE },
-                { "persistent", Boolean.FALSE },
-                { "non-persistent", Boolean.TRUE },
-                { "non-persistent", Boolean.FALSE },
+            {"persistent", Boolean.TRUE},
+            {"persistent", Boolean.FALSE},
+            {"non-persistent", Boolean.TRUE},
+            {"non-persistent", Boolean.FALSE},
         };
     }
 
     @DataProvider(name = "accessMode")
     public static Object[][] accessMode() {
         return new Object[][] {
-                // ProducerAccessMode, partitioned
-                { ProducerAccessMode.Exclusive, Boolean.TRUE},
-                { ProducerAccessMode.Exclusive, Boolean.FALSE },
-                { ProducerAccessMode.ExclusiveWithFencing, Boolean.TRUE},
-                { ProducerAccessMode.ExclusiveWithFencing, Boolean.FALSE },
-                { ProducerAccessMode.WaitForExclusive, Boolean.TRUE },
-                { ProducerAccessMode.WaitForExclusive, Boolean.FALSE }
+            // ProducerAccessMode, partitioned
+            {ProducerAccessMode.Exclusive, Boolean.TRUE},
+            {ProducerAccessMode.Exclusive, Boolean.FALSE},
+            {ProducerAccessMode.ExclusiveWithFencing, Boolean.TRUE},
+            {ProducerAccessMode.ExclusiveWithFencing, Boolean.FALSE},
+            {ProducerAccessMode.WaitForExclusive, Boolean.TRUE},
+            {ProducerAccessMode.WaitForExclusive, Boolean.FALSE}
         };
     }
 
@@ -87,14 +86,16 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
     private void simpleTest(String topic) throws Exception {
 
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p1")
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
 
         try {
-            pulsarClient.newProducer(Schema.STRING)
+            pulsarClient
+                    .newProducer(Schema.STRING)
                     .topic(topic)
                     .producerName("p-fail-1")
                     .accessMode(ProducerAccessMode.Exclusive)
@@ -105,7 +106,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         }
 
         try {
-            pulsarClient.newProducer(Schema.STRING)
+            pulsarClient
+                    .newProducer(Schema.STRING)
                     .topic(topic)
                     .producerName("p-fail-2")
                     .accessMode(ProducerAccessMode.Shared)
@@ -118,13 +120,15 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p1.close();
 
         // Now producer should be allowed to get in
-        Producer<String> p2 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p2 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p2")
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
 
-        Producer<String> p3 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p3 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p3")
                 .accessMode(ProducerAccessMode.ExclusiveWithFencing)
@@ -151,7 +155,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
                 .operationTimeout(2, TimeUnit.SECONDS)
                 .build();
 
-        Producer<String> p4 = pulsarClient2.newProducer(Schema.STRING)
+        Producer<String> p4 = pulsarClient2
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p4")
                 .accessMode(ProducerAccessMode.Exclusive)
@@ -160,7 +165,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p4.send("test");
 
         // p5 will be waiting for the lock to be released
-        CompletableFuture<Producer<String>> p5 = pulsarClient2.newProducer(Schema.STRING)
+        CompletableFuture<Producer<String>> p5 = pulsarClient2
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p5")
                 .accessMode(ProducerAccessMode.WaitForExclusive)
@@ -170,7 +176,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         Thread.sleep(2000);
 
         // p6 fences out all the current producers, even p5
-        Producer<String> p6 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p6 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p6")
                 .accessMode(ProducerAccessMode.ExclusiveWithFencing)
@@ -179,7 +186,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p6.send("test");
 
         // p7 is enqueued after p6
-        CompletableFuture<Producer<String>> p7 = pulsarClient2.newProducer(Schema.STRING)
+        CompletableFuture<Producer<String>> p7 = pulsarClient2
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p7")
                 .accessMode(ProducerAccessMode.WaitForExclusive)
@@ -202,7 +210,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
             p5.get();
             fail("Should have failed");
         } catch (ExecutionException expected) {
-            assertTrue(expected.getCause() instanceof ProducerFencedException,
+            assertTrue(
+                    expected.getCause() instanceof ProducerFencedException,
                     "unexpected exception " + expected.getCause());
         }
 
@@ -219,13 +228,15 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     @Test(dataProvider = "topics")
     public void testProducerTasksCleanupWhenUsingExclusiveProducers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
 
         try {
-            pulsarClient.newProducer(Schema.STRING)
+            pulsarClient
+                    .newProducer(Schema.STRING)
                     .topic(topic)
                     .accessMode(ProducerAccessMode.Exclusive)
                     .create();
@@ -245,13 +256,15 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         String topic = newTopic(type, partitioned);
 
         @Cleanup
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(ProducerAccessMode.Shared)
                 .create();
 
         try {
-            pulsarClient.newProducer(Schema.STRING)
+            pulsarClient
+                    .newProducer(Schema.STRING)
                     .topic(topic)
                     .accessMode(ProducerAccessMode.Exclusive)
                     .create();
@@ -265,7 +278,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     public void producerReconnection(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
                 .create();
@@ -281,7 +295,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     public void producerFenced(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
                 .create();
@@ -316,7 +331,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     public void topicDeleted(String ignored, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
@@ -337,13 +353,15 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     public void waitForExclusiveTest(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> p1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p1")
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .create();
 
-        CompletableFuture<Producer<String>> fp2 = pulsarClient.newProducer(Schema.STRING)
+        CompletableFuture<Producer<String>> fp2 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p2")
                 .accessMode(ProducerAccessMode.WaitForExclusive)
@@ -353,7 +371,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         // there's no strict guarantee they would be attempted in the same order otherwise
         Thread.sleep(1000);
 
-        CompletableFuture<Producer<String>> fp3 = pulsarClient.newProducer(Schema.STRING)
+        CompletableFuture<Producer<String>> fp3 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p3")
                 .accessMode(ProducerAccessMode.WaitForExclusive)
@@ -415,7 +434,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     public void exclusiveWithConsumers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
-        pulsarClient.newConsumer(Schema.STRING)
+        pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();

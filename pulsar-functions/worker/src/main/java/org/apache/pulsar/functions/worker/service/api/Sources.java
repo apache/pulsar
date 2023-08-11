@@ -47,14 +47,15 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * @param sourceConfig Configuration of Pulsar Source
      * @param authParams the authentication parameters associated with the request
      */
-    void registerSource(String tenant,
-                        String namespace,
-                        String sourceName,
-                        InputStream uploadedInputStream,
-                        FormDataContentDisposition fileDetail,
-                        String sourcePkgUrl,
-                        SourceConfig sourceConfig,
-                        AuthenticationParameters authParams);
+    void registerSource(
+            String tenant,
+            String namespace,
+            String sourceName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String sourcePkgUrl,
+            SourceConfig sourceConfig,
+            AuthenticationParameters authParams);
 
     /**
      * Update a function.
@@ -68,36 +69,32 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * @param authParams the authentication parameters associated with the request
      * @param updateOptions Options while updating the source
      */
-    void updateSource(String tenant,
-                      String namespace,
-                      String sourceName,
-                      InputStream uploadedInputStream,
-                      FormDataContentDisposition fileDetail,
-                      String sourcePkgUrl,
-                      SourceConfig sourceConfig,
-                      AuthenticationParameters authParams,
-                      UpdateOptionsImpl updateOptions);
+    void updateSource(
+            String tenant,
+            String namespace,
+            String sourceName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String sourcePkgUrl,
+            SourceConfig sourceConfig,
+            AuthenticationParameters authParams,
+            UpdateOptionsImpl updateOptions);
 
-    SourceStatus getSourceStatus(String tenant,
-                                 String namespace,
-                                 String componentName,
-                                 URI uri,
-                                 AuthenticationParameters authParams);
+    SourceStatus getSourceStatus(
+            String tenant, String namespace, String componentName, URI uri, AuthenticationParameters authParams);
 
-    SourceInstanceStatusData getSourceInstanceStatus(String tenant,
-                                                     String namespace,
-                                                     String sourceName,
-                                                     String instanceId,
-                                                     URI uri,
-                                                     AuthenticationParameters authParams);
+    SourceInstanceStatusData getSourceInstanceStatus(
+            String tenant,
+            String namespace,
+            String sourceName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    SourceConfig getSourceInfo(String tenant,
-                               String namespace,
-                               String componentName,
-                               AuthenticationParameters authParams);
+    SourceConfig getSourceInfo(
+            String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getSourceList();
-
 
     List<ConfigFieldDefinition> getSourceConfigDefinition(String name);
 }

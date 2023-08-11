@@ -37,10 +37,7 @@ public class AnnotationListener implements IAnnotationTransformer {
     }
 
     @Override
-    public void transform(ITestAnnotation annotation,
-                          Class testClass,
-                          Constructor testConstructor,
-                          Method testMethod) {
+    public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
         if (annotation.getRetryAnalyzerClass() == null
                 || annotation.getRetryAnalyzerClass() == DisabledRetryAnalyzer.class) {
             annotation.setRetryAnalyzer(RetryAnalyzer.class);
@@ -57,13 +54,13 @@ public class AnnotationListener implements IAnnotationTransformer {
     private void addToOtherGroupIfNoGroupsSpecified(ITestOrConfiguration annotation) {
         // Add test to "other" group if there's no specified group
         if (annotation.getGroups() == null || annotation.getGroups().length == 0) {
-            annotation.setGroups(new String[]{OTHER_GROUP});
+            annotation.setGroups(new String[] {OTHER_GROUP});
         }
     }
 
     @Override
-    public void transform(IConfigurationAnnotation annotation, Class testClass, Constructor testConstructor,
-                          Method testMethod) {
+    public void transform(
+            IConfigurationAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
         // configuration methods such as BeforeMethod / BeforeClass methods should also be added to the "other" group
         // since BeforeMethod/BeforeClass methods get run only when the group matches or when there's "alwaysRun=true"
         addToOtherGroupIfNoGroupsSpecified(annotation);

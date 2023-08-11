@@ -63,7 +63,12 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))
                 .build();
@@ -79,138 +84,142 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "CanReadLastSchemaCompatibilityStrategy")
     public Object[] canReadLastSchemaCompatibilityStrategy() {
         return new Object[] {
-                SchemaCompatibilityStrategy.BACKWARD,
-                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE,
-                SchemaCompatibilityStrategy.FORWARD,
-                SchemaCompatibilityStrategy.FULL
+            SchemaCompatibilityStrategy.BACKWARD,
+            SchemaCompatibilityStrategy.FORWARD_TRANSITIVE,
+            SchemaCompatibilityStrategy.FORWARD,
+            SchemaCompatibilityStrategy.FULL
         };
     }
 
     @DataProvider(name = "ReadAllCheckSchemaCompatibilityStrategy")
     public Object[] readAllCheckSchemaCompatibilityStrategy() {
         return new Object[] {
-                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE,
-                SchemaCompatibilityStrategy.FULL_TRANSITIVE
+            SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE, SchemaCompatibilityStrategy.FULL_TRANSITIVE
         };
     }
 
     @DataProvider(name = "AllCheckSchemaCompatibilityStrategy")
     public Object[] allCheckSchemaCompatibilityStrategy() {
         return new Object[] {
-                SchemaCompatibilityStrategy.BACKWARD,
-                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE,
-                SchemaCompatibilityStrategy.FORWARD,
-                SchemaCompatibilityStrategy.FULL,
-                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE,
-                SchemaCompatibilityStrategy.FULL_TRANSITIVE
+            SchemaCompatibilityStrategy.BACKWARD,
+            SchemaCompatibilityStrategy.FORWARD_TRANSITIVE,
+            SchemaCompatibilityStrategy.FORWARD,
+            SchemaCompatibilityStrategy.FULL,
+            SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE,
+            SchemaCompatibilityStrategy.FULL_TRANSITIVE
         };
     }
 
-    @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
-    public void testConsumerCompatibilityCheckCanReadLastTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
+    @Test(dataProvider = "CanReadLastSchemaCompatibilityStrategy")
+    public void testConsumerCompatibilityCheckCanReadLastTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
 
-            String namespace = "test-namespace-" + randomName(16);
-            String fqtn = TopicName.get(
-                    TopicDomain.persistent.value(),
-                    tenant,
-                    namespace,
-                    topic
-            ).toString();
-
-            NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-
-            admin.namespaces().createNamespace(
-                    tenant + "/" + namespace,
-                    Sets.newHashSet(CLUSTER_NAME)
-            );
-
-            admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
-            admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-            admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
-                    .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
-
-            Consumer<Schemas.PersonThree> consumerThree = pulsarClient.newConsumer(Schema.AVRO(
-                    SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull
-                            (false).withSupportSchemaVersioning(true).
-                            withPojo(Schemas.PersonThree.class).build()))
-                    .subscriptionName("test")
-                    .topic(fqtn)
-                    .subscribe();
-
-            Producer<Schemas.PersonOne> producerOne = pulsarClient
-                    .newProducer(Schema.AVRO(Schemas.PersonOne.class))
-                    .topic(fqtn)
-                    .create();
-
-
-            Schemas.PersonOne personOne = new Schemas.PersonOne();
-            personOne.setId(1);
-
-            producerOne.send(personOne);
-            Message<Schemas.PersonThree> message = null;
-
-            try {
-                message = consumerThree.receive();
-                message.getValue();
-            } catch (Exception e) {
-                Assert.assertTrue(e instanceof SchemaSerializationException);
-                consumerThree.acknowledge(message);
-            }
-
-            Producer<Schemas.PersonTwo> producerTwo = pulsarClient
-                    .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
-                            (false).withSupportSchemaVersioning(true).
-                            withPojo(Schemas.PersonTwo.class).build()))
-                    .topic(fqtn)
-                    .create();
-
-            Schemas.PersonTwo personTwo = new Schemas.PersonTwo();
-            personTwo.setId(1);
-            personTwo.setName("Jerry");
-            producerTwo.send(personTwo);
-
-            message = consumerThree.receive();
-            Schemas.PersonThree personThree = message.getValue();
-            consumerThree.acknowledge(message);
-
-            assertEquals(personThree.getId(), 1);
-            assertEquals(personThree.getName(), "Jerry");
-
-            consumerThree.close();
-            producerOne.close();
-            producerTwo.close();
-    }
-
-    @Test(dataProvider = "ReadAllCheckSchemaCompatibilityStrategy")
-    public void testConsumerCompatibilityReadAllCheckTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String topic = "test-consumer-compatibility";
         String namespace = "test-namespace-" + randomName(16);
-        String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-        admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
-                .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
+        admin.schemas()
+                .createSchema(
+                        fqtn,
+                        Schema.AVRO(SchemaDefinition.builder()
+                                        .withAlwaysAllowNull(false)
+                                        .withPojo(Schemas.PersonTwo.class)
+                                        .build())
+                                .getSchemaInfo());
+
+        Consumer<Schemas.PersonThree> consumerThree = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
+                .subscriptionName("test")
+                .topic(fqtn)
+                .subscribe();
+
+        Producer<Schemas.PersonOne> producerOne = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(fqtn)
+                .create();
+
+        Schemas.PersonOne personOne = new Schemas.PersonOne();
+        personOne.setId(1);
+
+        producerOne.send(personOne);
+        Message<Schemas.PersonThree> message = null;
+
         try {
-            pulsarClient.newConsumer(Schema.AVRO(
-                    SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull
-                            (false).withSupportSchemaVersioning(true).
-                            withPojo(Schemas.PersonThree.class).build()))
+            message = consumerThree.receive();
+            message.getValue();
+        } catch (Exception e) {
+            Assert.assertTrue(e instanceof SchemaSerializationException);
+            consumerThree.acknowledge(message);
+        }
+
+        Producer<Schemas.PersonTwo> producerTwo = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
+                .topic(fqtn)
+                .create();
+
+        Schemas.PersonTwo personTwo = new Schemas.PersonTwo();
+        personTwo.setId(1);
+        personTwo.setName("Jerry");
+        producerTwo.send(personTwo);
+
+        message = consumerThree.receive();
+        Schemas.PersonThree personThree = message.getValue();
+        consumerThree.acknowledge(message);
+
+        assertEquals(personThree.getId(), 1);
+        assertEquals(personThree.getName(), "Jerry");
+
+        consumerThree.close();
+        producerOne.close();
+        producerTwo.close();
+    }
+
+    @Test(dataProvider = "ReadAllCheckSchemaCompatibilityStrategy")
+    public void testConsumerCompatibilityReadAllCheckTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String topic = "test-consumer-compatibility";
+        String namespace = "test-namespace-" + randomName(16);
+        String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
+
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
+        admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+        admin.schemas()
+                .createSchema(
+                        fqtn,
+                        Schema.AVRO(SchemaDefinition.builder()
+                                        .withAlwaysAllowNull(false)
+                                        .withPojo(Schemas.PersonTwo.class)
+                                        .build())
+                                .getSchemaInfo());
+        try {
+            pulsarClient
+                    .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                            .withAlwaysAllowNull(false)
+                            .withSupportSchemaVersioning(true)
+                            .withPojo(Schemas.PersonThree.class)
+                            .build()))
                     .subscriptionName("test")
                     .topic(fqtn)
                     .subscribe();
@@ -227,33 +236,28 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
         String namespace = "test-namespace-" + randomName(16);
-        String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
-        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
+        assertEquals(
+                admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
-
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
 
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
-                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
-                                (false).withSupportSchemaVersioning(true).
-                        withPojo(Schemas.PersonTwo.class).build()))
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
                 .topic(fqtn);
         try {
             producerThreeBuilder.create();
@@ -265,10 +269,12 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         Policies policies = admin.namespaces().getPolicies(namespaceName.toString());
         Assert.assertTrue(policies.is_allow_auto_update_schema);
 
-        ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
-                        SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
-                                        (false).withSupportSchemaVersioning(true).
-                                withPojo(Schemas.PersonTwo.class).build()))
+        ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
                 .subscriptionName("test")
                 .topic(fqtn);
 
@@ -305,27 +311,21 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(dataProvider =  "AllCheckSchemaCompatibilityStrategy")
+    @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
     public void testIsAutoUpdateSchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
 
         String namespace = "test-namespace-" + randomName(16);
-        String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
-        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
+        assertEquals(
+                admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
@@ -333,9 +333,11 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
-                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
-                        (false).withSupportSchemaVersioning(true).
-                        withPojo(Schemas.PersonTwo.class).build()))
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
                 .topic(fqtn);
         try {
             producerThreeBuilder.create();
@@ -344,10 +346,12 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
-        ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
-                SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
-                        (false).withSupportSchemaVersioning(true).
-                        withPojo(Schemas.PersonTwo.class).build()))
+        ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
                 .subscriptionName("test")
                 .topic(fqtn);
 
@@ -390,38 +394,37 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         final String topic = "test-schema-comparison";
 
         String namespace = "test-namespace-" + randomName(16);
-        String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
-        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
+        assertEquals(
+                admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
-        byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
-                .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
-        SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
+        byte[] changeSchemaBytes = (new String(
+                                Schema.AVRO(Schemas.PersonOne.class)
+                                        .getSchemaInfo()
+                                        .getSchema(),
+                                UTF_8) + "/n   /n   /n")
+                .getBytes();
+        SchemaInfo schemaInfo = SchemaInfo.builder()
+                .type(SchemaType.AVRO)
+                .schema(changeSchemaBytes)
+                .build();
         admin.schemas().createSchema(fqtn, schemaInfo);
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
-        ProducerBuilder<Schemas.PersonOne> producerOneBuilder = pulsarClient
-                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
-                .topic(fqtn);
+        ProducerBuilder<Schemas.PersonOne> producerOneBuilder =
+                pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class)).topic(fqtn);
         producerOneBuilder.create().close();
 
         assertEquals(changeSchemaBytes, admin.schemas().getSchemaInfo(fqtn).getSchema());
 
-        ProducerBuilder<Schemas.PersonThree> producerThreeBuilder = pulsarClient
-                .newProducer(Schema.AVRO(Schemas.PersonThree.class))
-                .topic(fqtn);
+        ProducerBuilder<Schemas.PersonThree> producerThreeBuilder =
+                pulsarClient.newProducer(Schema.AVRO(Schemas.PersonThree.class)).topic(fqtn);
 
         try {
             producerThreeBuilder.create();
@@ -432,41 +435,42 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
-    public void testProducerSendWithOldSchemaAndConsumerCanRead(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
+    public void testProducerSendWithOldSchemaAndConsumerCanRead(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
         String namespace = "test-namespace-" + randomName(16);
-        String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-        admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
-                .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
+        admin.schemas()
+                .createSchema(
+                        fqtn,
+                        Schema.AVRO(SchemaDefinition.builder()
+                                        .withAlwaysAllowNull(false)
+                                        .withPojo(Schemas.PersonTwo.class)
+                                        .build())
+                                .getSchemaInfo());
 
         Producer<Schemas.PersonOne> producerOne = pulsarClient
                 .newProducer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(fqtn)
                 .create();
 
-
         Schemas.PersonOne personOne = new Schemas.PersonOne(10);
 
-        Consumer<Schemas.PersonOne> consumerOne = pulsarClient.newConsumer(Schema.AVRO(
-                SchemaDefinition.<Schemas.PersonOne>builder().withAlwaysAllowNull
-                        (false).withSupportSchemaVersioning(true).
-                        withPojo(Schemas.PersonOne.class).build()))
+        Consumer<Schemas.PersonOne> consumerOne = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
                 .subscriptionName("test")
                 .topic(fqtn)
                 .subscribe();
@@ -488,31 +492,33 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         // Update schema 100 times.
-        for (int i = 0; i < 100; i++){
+        for (int i = 0; i < 100; i++) {
             Schema schema = Schema.JSON(SchemaDefinition.builder()
-                    .withJsonDef(String.format("""
+                    .withJsonDef(String.format(
+                            """
                             {
-                            	"type": "record",
-                            	"name": "Test_Pojo",
-                            	"namespace": "org.apache.pulsar.schema.compatibility",
-                            	"fields": [{
-                            		"name": "prop_%s",
-                            		"type": ["null", "string"],
-                            		"default": null
-                            	}]
+                                "type": "record",
+                                "name": "Test_Pojo",
+                                "namespace": "org.apache.pulsar.schema.compatibility",
+                                "fields": [{
+                                    "name": "prop_%s",
+                                    "type": ["null", "string"],
+                                    "default": null
+                                }]
                             }
-                            """, i))
+                            """,
+                            i))
                     .build());
-            Producer producer = pulsarClient
-                    .newProducer(schema)
-                    .topic(topicName)
-                    .create();
+            Producer producer =
+                    pulsarClient.newProducer(schema).topic(topicName).create();
             producer.close();
         }
         // The other ledgers are about 5.
         Assert.assertTrue(pulsarTestContext.getMockBookKeeper().getLedgerMap().values().stream()
-                .filter(ledger -> !ledger.isFenced())
-                .collect(Collectors.toList()).size() < 20);
+                        .filter(ledger -> !ledger.isFenced())
+                        .collect(Collectors.toList())
+                        .size()
+                < 20);
         admin.topics().delete(topicName, true);
     }
 
@@ -522,60 +528,71 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         final String topic = "topic" + randomName(16);
 
         String namespace = "test-namespace-" + randomName(16);
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(), tenant, namespace, topic).toString();
+        String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
         admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         // set ALWAYS_COMPATIBLE
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.namespaces()
+                .setSchemaCompatibilityStrategy(
+                        namespaceName.toString(), SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
-        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        Producer producer = pulsarClient
+                .newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(topicName)
+                .create();
         // should not fail
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).subscriptionName("my-sub").topic(topicName).subscribe();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .subscriptionName("my-sub")
+                .topic(topicName)
+                .subscribe();
 
         producer.close();
         consumer.close();
     }
 
-    @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
-    public void testConsumerWithNotCompatibilitySchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
+    @Test(dataProvider = "CanReadLastSchemaCompatibilityStrategy")
+    public void testConsumerWithNotCompatibilitySchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
 
         String namespace = "test-namespace-" + randomName(16);
-        String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-        admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
-                .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
+        admin.schemas()
+                .createSchema(
+                        fqtn,
+                        Schema.AVRO(SchemaDefinition.builder()
+                                        .withAlwaysAllowNull(false)
+                                        .withPojo(Schemas.PersonTwo.class)
+                                        .build())
+                                .getSchemaInfo());
 
         try {
-            pulsarClient.newConsumer(Schema.AVRO(
-                    SchemaDefinition.<Schemas.PersonFour>builder().withAlwaysAllowNull
-                            (false).withSupportSchemaVersioning(true).
-                            withPojo(Schemas.PersonFour.class).build()))
+            pulsarClient
+                    .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonFour>builder()
+                            .withAlwaysAllowNull(false)
+                            .withSupportSchemaVersioning(true)
+                            .withPojo(Schemas.PersonFour.class)
+                            .build()))
                     .subscriptionName("test")
                     .topic(fqtn)
                     .subscribe();
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Unable to read schema"));
         }
-
     }
+
     public static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < numChars; i++) {

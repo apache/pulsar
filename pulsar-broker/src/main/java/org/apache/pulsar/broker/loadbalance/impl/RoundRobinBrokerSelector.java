@@ -37,8 +37,8 @@ public class RoundRobinBrokerSelector implements ModularLoadManagerStrategy {
     final AtomicReference<List<String>> ref = new AtomicReference<>(List.of());
 
     @Override
-    public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
-                                         ServiceConfiguration conf) {
+    public Optional<String> selectBroker(
+            Set<String> candidates, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf) {
         int candidateSize = candidates.size();
         if (candidateSize == 0) {
             return Optional.empty();

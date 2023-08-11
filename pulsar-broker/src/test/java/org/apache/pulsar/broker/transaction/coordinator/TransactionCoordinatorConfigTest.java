@@ -50,8 +50,8 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
         pulsar.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()
-                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                        new PartitionedTopicMetadata(1));
+                .createPartitionedTopic(
+                        SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, new PartitionedTopicMetadata(1));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -62,17 +62,29 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
 
     @Test
     public void testMaxActiveTxn() throws Exception {
-        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .enableTransaction(true).operationTimeout(3, TimeUnit.SECONDS));
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .enableTransaction(true)
+                .operationTimeout(3, TimeUnit.SECONDS));
 
         // new two txn will not reach max active txns
-        Transaction commitTxn =
-                pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
-        Transaction abortTxn =
-                pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        Transaction commitTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build()
+                .get();
+        Transaction abortTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build()
+                .get();
         try {
             // new the third txn will timeout, broker will return any response
-            pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+            pulsarClient
+                    .newTransaction()
+                    .withTransactionTimeout(1, TimeUnit.MINUTES)
+                    .build()
+                    .get();
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
@@ -83,13 +95,25 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
         abortTxn.abort().get();
 
         // two txn end, can continue new txn
-        pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
-        pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build()
+                .get();
+        pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build()
+                .get();
 
         // reach max active txns again
         try {
             // new the third txn will timeout, broker will return any response
-            pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+            pulsarClient
+                    .newTransaction()
+                    .withTransactionTimeout(1, TimeUnit.MINUTES)
+                    .build()
+                    .get();
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);

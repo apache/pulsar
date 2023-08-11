@@ -30,11 +30,10 @@ import org.apache.flume.lifecycle.LifecycleState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PollingZooKeeperConfigurationProvider extends
-        AbstractZooKeeperConfigurationProvider implements LifecycleAware {
+public class PollingZooKeeperConfigurationProvider extends AbstractZooKeeperConfigurationProvider
+        implements LifecycleAware {
 
-    private static final Logger LOGGER = LoggerFactory
-            .getLogger(PollingZooKeeperConfigurationProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PollingZooKeeperConfigurationProvider.class);
 
     private final EventBus eventBus;
 
@@ -46,8 +45,8 @@ public class PollingZooKeeperConfigurationProvider extends
 
     private LifecycleState lifecycleState;
 
-    public PollingZooKeeperConfigurationProvider(String agentName,
-                                                 String zkConnString, String basePath, EventBus eventBus) {
+    public PollingZooKeeperConfigurationProvider(
+            String agentName, String zkConnString, String basePath, EventBus eventBus) {
         super(agentName, zkConnString, basePath);
         this.eventBus = eventBus;
         client = createClient();

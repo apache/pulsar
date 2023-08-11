@@ -46,21 +46,20 @@ public class PreInterceptFilter implements Filter {
     }
 
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-
-    }
+    public void init(FilterConfig filterConfig) throws ServletException {}
 
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
-                         FilterChain filterChain) throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
+            throws IOException, ServletException {
         if (log.isDebugEnabled()) {
-            log.debug("PreInterceptFilter: path {}, type {}",
+            log.debug(
+                    "PreInterceptFilter: path {}, type {}",
                     servletRequest.getServletContext().getContextPath(),
                     servletRequest.getContentType());
         }
         if (StringUtils.containsIgnoreCase(servletRequest.getContentType(), MediaType.MULTIPART_FORM_DATA)
-                || StringUtils.containsIgnoreCase(servletRequest.getContentType(),
-                MediaType.APPLICATION_OCTET_STREAM)) {
+                || StringUtils.containsIgnoreCase(
+                        servletRequest.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
             // skip multipart request at this moment
             filterChain.doFilter(servletRequest, servletResponse);
             return;
@@ -77,7 +76,5 @@ public class PreInterceptFilter implements Filter {
     }
 
     @Override
-    public void destroy() {
-
-    }
+    public void destroy() {}
 }

@@ -112,5 +112,4 @@ public class ServiceUnitStateTest {
         assertFalse(ServiceUnitState.isValidTransition(Deleted, Splitting));
         assertFalse(ServiceUnitState.isValidTransition(Deleted, Deleted));
     }
-
 }

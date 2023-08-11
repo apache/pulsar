@@ -48,10 +48,16 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
@@ -68,29 +74,31 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
 
         // subscribe before sending anything, so that we get all messages
         @Cleanup
-        var consumer = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName("sub1").readCompacted(true).subscribe();
+        var consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscribe();
         int numKeys = 5;
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         for (int i = 0; i < numKeys; i++) {
             producer.newMessage().key("key:" + i).value("value" + i).send();
         }
 
         var consumerFuture = new CompletableFuture();
         @Cleanup
-        CompactionReaderImpl<String> reader = CompactionReaderImpl
-                .create((PulsarClientImpl) pulsarClient, Schema.STRING, topic, consumerFuture, null);
+        CompactionReaderImpl<String> reader = CompactionReaderImpl.create(
+                (PulsarClientImpl) pulsarClient, Schema.STRING, topic, consumerFuture, null);
         consumerFuture.join();
 
         ConsumerBase consumerBase = spy(reader.getConsumer());
-        FieldUtils.writeDeclaredField(
-                reader, "consumer", consumerBase, true);
+        FieldUtils.writeDeclaredField(reader, "consumer", consumerBase, true);
 
         ReaderConfigurationData readerConfigurationData =
-                (ReaderConfigurationData) FieldUtils.readDeclaredField(
-                        reader, "readerConfiguration", true);
-
+                (ReaderConfigurationData) FieldUtils.readDeclaredField(reader, "readerConfiguration", true);
 
         ReaderConfigurationData expected = new ReaderConfigurationData<>();
         expected.setTopicName(topic);
@@ -101,7 +109,8 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
         expected.setSubscriptionMode(SubscriptionMode.Durable);
         expected.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
 
-        MessageIdImpl lastMessageId = (MessageIdImpl) reader.getLastMessageIdAsync().get();
+        MessageIdImpl lastMessageId =
+                (MessageIdImpl) reader.getLastMessageIdAsync().get();
         MessageIdImpl id = null;
         MessageImpl m = null;
 
@@ -111,8 +120,6 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
             id = (MessageIdImpl) m.getMessageId();
         }
         Assert.assertEquals(id, lastMessageId);
-        verify(consumerBase, times(0))
-                .acknowledgeCumulativeAsync(Mockito.any(MessageId.class));
-
+        verify(consumerBase, times(0)).acknowledgeCumulativeAsync(Mockito.any(MessageId.class));
     }
 }

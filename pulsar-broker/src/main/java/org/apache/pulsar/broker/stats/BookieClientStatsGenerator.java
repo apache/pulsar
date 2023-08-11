@@ -67,6 +67,5 @@ public class BookieClientStatsGenerator {
         } else {
             nsBookieClientStatsMap.get(namespace).put(topicName.toString(), bookieOpsStats);
         }
-
     }
 }

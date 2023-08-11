@@ -18,18 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import org.testng.annotations.Test;
-import java.util.UUID;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import java.util.UUID;
+import org.testng.annotations.Test;
 
 public class DataBlockUtilsTest {
 
     @Test
     public void parseLedgerIdTest() throws Exception {
-       UUID id = UUID.randomUUID();
-       long ledgerId = 123124;
+        UUID id = UUID.randomUUID();
+        long ledgerId = 123124;
         String key = DataBlockUtils.dataBlockOffloadKey(ledgerId, id);
         String keyIndex = DataBlockUtils.indexBlockOffloadKey(ledgerId, id);
 
@@ -61,5 +60,4 @@ public class DataBlockUtilsTest {
         assertNull(DataBlockUtils.parseContextUuid("-ledger-" + ledgerId, ledgerId));
         assertNull(DataBlockUtils.parseContextUuid("something" + ledgerId, ledgerId));
     }
-
 }

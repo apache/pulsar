@@ -18,24 +18,22 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableSet;
-import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -90,7 +88,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-producer", confData.getProducerName());
         assertFalse(confData.isBatchingEnabled());
         assertEquals(1234, confData.getBatchingMaxMessages());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
@@ -107,7 +105,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-subscription", confData.getSubscriptionName());
         assertEquals(100, confData.getPriorityLevel());
         assertEquals("unknown-consumer", confData.getConsumerName());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
@@ -152,10 +150,16 @@ public class ConfigurationDataUtilsTest {
         assertNotNull(pulsarClient, "Pulsar client built using config should not be null");
 
         assertEquals(pulsarClient.getConfiguration().getServiceUrl(), "pulsar://unknown:6650");
-        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(),
-                Runtime.getRuntime().availableProcessors(), "builder default not set properly");
-        assertEquals(pulsarClient.getConfiguration().getNumIoThreads(), Runtime.getRuntime().availableProcessors());
-        assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
+        assertEquals(
+                pulsarClient.getConfiguration().getNumListenerThreads(),
+                Runtime.getRuntime().availableProcessors(),
+                "builder default not set properly");
+        assertEquals(
+                pulsarClient.getConfiguration().getNumIoThreads(),
+                Runtime.getRuntime().availableProcessors());
+        assertEquals(
+                pulsarClient.getConfiguration().getStatsIntervalSeconds(),
+                80,
                 "builder default should override if set explicitly");
     }
 
@@ -214,7 +218,8 @@ public class ConfigurationDataUtilsTest {
         clientConfig.setSocks5ProxyPassword("test123");
 
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
-        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
+        assertEquals(
+                pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyPassword(), "test123");
 

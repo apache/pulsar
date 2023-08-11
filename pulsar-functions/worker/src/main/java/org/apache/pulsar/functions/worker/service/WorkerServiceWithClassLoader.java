@@ -60,17 +60,21 @@ public class WorkerServiceWithClassLoader implements WorkerService {
     }
 
     @Override
-    public void initInBroker(ServiceConfiguration brokerConfig,
-                             WorkerConfig workerConfig,
-                             PulsarResources pulsarResources,
-                             InternalConfigurationData internalConf) throws Exception {
+    public void initInBroker(
+            ServiceConfiguration brokerConfig,
+            WorkerConfig workerConfig,
+            PulsarResources pulsarResources,
+            InternalConfigurationData internalConf)
+            throws Exception {
         service.initInBroker(brokerConfig, workerConfig, pulsarResources, internalConf);
     }
 
     @Override
-    public void start(AuthenticationService authenticationService,
-                      AuthorizationService authorizationService,
-                      ErrorNotifier errorNotifier) throws Exception {
+    public void start(
+            AuthenticationService authenticationService,
+            AuthorizationService authorizationService,
+            ErrorNotifier errorNotifier)
+            throws Exception {
         service.start(authenticationService, authorizationService, errorNotifier);
     }
 
@@ -118,5 +122,4 @@ public class WorkerServiceWithClassLoader implements WorkerService {
     public void generateFunctionsStats(SimpleTextOutputStream out) {
         service.generateFunctionsStats(out);
     }
-
 }

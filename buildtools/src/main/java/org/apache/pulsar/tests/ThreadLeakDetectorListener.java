@@ -52,12 +52,17 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             for (ThreadKey threadKey : threadKeys) {
                 if (!previousThreadKeys.contains(threadKey)) {
                     newThreadsCounter++;
-                    LOG.warn("Tests in class {} created thread id {} with name '{}'", endedTestClass.getSimpleName(),
-                            threadKey.getThreadId(), threadKey.getThreadName());
+                    LOG.warn(
+                            "Tests in class {} created thread id {} with name '{}'",
+                            endedTestClass.getSimpleName(),
+                            threadKey.getThreadId(),
+                            threadKey.getThreadName());
                 }
             }
             if (newThreadsCounter > 0) {
-                LOG.warn("Summary: Tests in class {} created {} new threads", endedTestClass.getName(),
+                LOG.warn(
+                        "Summary: Tests in class {} created {} new threads",
+                        endedTestClass.getName(),
                         newThreadsCounter);
             }
         }

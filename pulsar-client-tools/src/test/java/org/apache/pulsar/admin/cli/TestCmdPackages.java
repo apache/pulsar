@@ -26,7 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,21 +58,15 @@ public class TestCmdPackages {
 
     @DataProvider(name = "commandsWithoutArgs")
     public static Object[][] commandsWithoutArgs() {
-        return new Object[][]{
-            {"get-metadata"},
-            {"update-metadata"},
-            {"upload"},
-            {"download"},
-            {"list"},
-            {"list-versions"},
-            {"delete"},
+        return new Object[][] {
+            {"get-metadata"}, {"update-metadata"}, {"upload"}, {"download"}, {"list"}, {"list-versions"}, {"delete"},
         };
     }
 
     @Test(timeOut = 60000, dataProvider = "commandsWithoutArgs")
     public void testCommandsWithoutArgs(String command) {
         String packageName = "test-package-name";
-        boolean result = cmdPackages.run(new String[]{command});
+        boolean result = cmdPackages.run(new String[] {command});
         assertFalse(result);
     }
 
@@ -81,7 +74,7 @@ public class TestCmdPackages {
     @Test(timeOut = 1000)
     public void testGetMetadataCmd() throws PulsarAdminException {
         String packageName = randomName(8);
-        boolean result = cmdPackages.run(new String[]{"get-metadata", packageName});
+        boolean result = cmdPackages.run(new String[] {"get-metadata", packageName});
         assertTrue(result);
         verify(packages, times(1)).getMetadata(eq(packageName));
     }
@@ -90,11 +83,15 @@ public class TestCmdPackages {
     @Test(timeOut = 1000)
     public void testUpdateMetadataCmdWithRequiredArgs() throws PulsarAdminException {
         String packageName = randomName(8);
-        boolean result = cmdPackages.run(new String[]{"update-metadata", packageName, "--description", "tests"});
+        boolean result = cmdPackages.run(new String[] {"update-metadata", packageName, "--description", "tests"});
         assertTrue(result);
         verify(packages, times(1))
-            .updateMetadata(eq(packageName),
-                eq(PackageMetadata.builder().description("tests").properties(Collections.emptyMap()).build()));
+                .updateMetadata(
+                        eq(packageName),
+                        eq(PackageMetadata.builder()
+                                .description("tests")
+                                .properties(Collections.emptyMap())
+                                .build()));
     }
 
     // test command `bin/pulsar-admin packages update-metadata package-name --description tests
@@ -104,25 +101,35 @@ public class TestCmdPackages {
         String packageName = randomName(8);
         Map<String, String> properties = new HashMap<>();
         properties.put("propertyA", "A");
-        boolean result = cmdPackages.run(new String[]{
-            "update-metadata", packageName, "--description", "tests", "--contact", "test@apache.org", "-PpropertyA=A"});
+        boolean result = cmdPackages.run(new String[] {
+            "update-metadata", packageName, "--description", "tests", "--contact", "test@apache.org", "-PpropertyA=A"
+        });
         assertTrue(result);
         verify(packages, times(1))
-            .updateMetadata(eq(packageName), eq(PackageMetadata.builder().description("tests")
-                .contact("test@apache.org").properties(properties).build()));
+                .updateMetadata(
+                        eq(packageName),
+                        eq(PackageMetadata.builder()
+                                .description("tests")
+                                .contact("test@apache.org")
+                                .properties(properties)
+                                .build()));
     }
 
     // test command `bin/pulsar-admin packages upload package-name --description tests --path /path/to/package`
     @Test(timeOut = 1000)
     public void testUploadCmdWithRequiredArgs() throws PulsarAdminException {
         String packageName = randomName(8);
-        boolean result = cmdPackages.run(new String[]{
-            "upload", packageName, "--description", "tests", "--path", "/path/to/package"});
+        boolean result = cmdPackages.run(
+                new String[] {"upload", packageName, "--description", "tests", "--path", "/path/to/package"});
         assertTrue(result);
-        verify(packages, times(1)).upload(
-            eq(PackageMetadata.builder().description("tests").properties(Collections.emptyMap()).build()),
-            eq(packageName),
-            eq("/path/to/package"));
+        verify(packages, times(1))
+                .upload(
+                        eq(PackageMetadata.builder()
+                                .description("tests")
+                                .properties(Collections.emptyMap())
+                                .build()),
+                        eq(packageName),
+                        eq("/path/to/package"));
     }
 
     // test command `bin/pulsar-admin packages upload package-name --description tests --contact test@apache.org
@@ -132,21 +139,34 @@ public class TestCmdPackages {
         String packageName = randomName(8);
         Map<String, String> properties = new HashMap<>();
         properties.put("propertyA", "A");
-        boolean result = cmdPackages.run(new String[]{
-            "upload", packageName, "--description", "tests", "--contact", "test@apache.org", "-PpropertyA=A",
-            "--path", "/path/to/package"});
+        boolean result = cmdPackages.run(new String[] {
+            "upload",
+            packageName,
+            "--description",
+            "tests",
+            "--contact",
+            "test@apache.org",
+            "-PpropertyA=A",
+            "--path",
+            "/path/to/package"
+        });
         assertTrue(result);
-        verify(packages, times(1)).upload(
-            eq(PackageMetadata.builder().description("tests").contact("test@apache.org").properties(properties).build()),
-            eq(packageName),
-            eq("/path/to/package"));
+        verify(packages, times(1))
+                .upload(
+                        eq(PackageMetadata.builder()
+                                .description("tests")
+                                .contact("test@apache.org")
+                                .properties(properties)
+                                .build()),
+                        eq(packageName),
+                        eq("/path/to/package"));
     }
 
     // test command `bin/pulsar-admin download package-name --path /path/to/package`
     @Test(timeOut = 1000)
     public void testDownloadCmd() throws PulsarAdminException {
         String packageName = randomName(8);
-        boolean result = cmdPackages.run(new String[]{"download", packageName, "--path", "/path/to/package"});
+        boolean result = cmdPackages.run(new String[] {"download", packageName, "--path", "/path/to/package"});
         assertTrue(result);
         verify(packages, times(1)).download(eq(packageName), eq("/path/to/package"));
     }
@@ -155,7 +175,7 @@ public class TestCmdPackages {
     @Test(timeOut = 1000)
     public void testListCmd() throws PulsarAdminException {
         String namespace = String.format("%s/%s", randomName(4), randomName(4));
-        boolean result = cmdPackages.run(new String[]{"list", namespace, "--type", "function"});
+        boolean result = cmdPackages.run(new String[] {"list", namespace, "--type", "function"});
         assertTrue(result);
         verify(packages, times(1)).listPackages(eq("function"), eq(namespace));
     }
@@ -164,7 +184,7 @@ public class TestCmdPackages {
     @Test(timeOut = 1000)
     public void testListVersionsCmd() throws PulsarAdminException {
         String packageName = randomName(8);
-        boolean result = cmdPackages.run(new String[]{"list-versions", packageName});
+        boolean result = cmdPackages.run(new String[] {"list-versions", packageName});
         assertTrue(result);
         verify(packages, times(1)).listPackageVersions(eq(packageName));
     }
@@ -173,7 +193,7 @@ public class TestCmdPackages {
     @Test(timeOut = 1000)
     public void testDeleteCmd() throws PulsarAdminException {
         String packageName = randomName(8);
-        boolean result = cmdPackages.run(new String[]{"delete", packageName});
+        boolean result = cmdPackages.run(new String[] {"delete", packageName});
         assertTrue(result);
         verify(packages, times(1)).delete(eq(packageName));
     }

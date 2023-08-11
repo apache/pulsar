@@ -40,11 +40,13 @@ public class DefaultCryptoKeyReaderConfigurationData implements Serializable, Cl
 
     @NonNull
     private String defaultPublicKey;
+
     @NonNull
     private String defaultPrivateKey;
 
     @NonNull
     private Map<String, String> publicKeys = new HashMap<>();
+
     @NonNull
     private Map<String, String> privateKeys = new HashMap<>();
 
@@ -81,8 +83,13 @@ public class DefaultCryptoKeyReaderConfigurationData implements Serializable, Cl
 
     @Override
     public String toString() {
-        return String.format(TO_STRING_FORMAT, getClass().getSimpleName(), maskKeyData(defaultPublicKey),
-                maskKeyData(defaultPrivateKey), maskKeyData(publicKeys), maskKeyData(privateKeys));
+        return String.format(
+                TO_STRING_FORMAT,
+                getClass().getSimpleName(),
+                maskKeyData(defaultPublicKey),
+                maskKeyData(defaultPrivateKey),
+                maskKeyData(publicKeys),
+                maskKeyData(privateKeys));
     }
 
     private static String maskKeyData(Map<String, String> keys) {
@@ -110,5 +117,4 @@ public class DefaultCryptoKeyReaderConfigurationData implements Serializable, Cl
             return key;
         }
     }
-
 }

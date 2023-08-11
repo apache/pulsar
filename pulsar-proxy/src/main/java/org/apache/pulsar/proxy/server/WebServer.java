@@ -81,8 +81,8 @@ public class WebServer {
     private final FilterInitializer filterInitializer;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
-        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web",
-                config.getHttpServerThreadPoolQueueSize());
+        this.webServiceExecutor = new WebExecutorThreadPool(
+                config.getHttpNumThreads(), "pulsar-external-web", config.getHttpServerThreadPoolQueueSize());
         this.server = new Server(webServiceExecutor);
         if (config.getMaxHttpServerConnections() > 0) {
             server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
@@ -119,8 +119,7 @@ public class WebServer {
                             config.isTlsRequireTrustedClientCertOnConnect(),
                             config.getWebServiceTlsCiphers(),
                             config.getWebServiceTlsProtocols(),
-                            config.getTlsCertRefreshCheckDurationSec()
-                    );
+                            config.getTlsCertRefreshCheckDurationSec());
                 } else {
                     sslCtxFactory = JettySslContextFactory.createServerSslContext(
                             config.getWebServiceTlsProvider(),
@@ -165,8 +164,7 @@ public class WebServer {
             }
 
             if (config.isHttpRequestsLimitEnabled()) {
-                filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                filterHolders.add(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -180,8 +178,7 @@ public class WebServer {
         public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {
             for (FilterHolder filterHolder : filterHolders) {
                 if (requiresAuthentication || filterHolder != authenticationFilterHolder) {
-                    context.addFilter(filterHolder,
-                            MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+                    context.addFilter(filterHolder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
                 }
             }
         }
@@ -195,11 +192,15 @@ public class WebServer {
         addServlet(basePath, servletHolder, attributes, true);
     }
 
-    public void addServlet(String basePath, ServletHolder servletHolder,
-                           List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+    public void addServlet(
+            String basePath,
+            ServletHolder servletHolder,
+            List<Pair<String, Object>> attributes,
+            boolean requireAuthentication) {
         popularServletParams(servletHolder, config);
 
-        Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
+        Optional<String> existingPath =
+                servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
         if (existingPath.isPresent()) {
             throw new IllegalArgumentException(
                     String.format("Cannot add servlet at %s, path %s already exists", basePath, existingPath.get()));
@@ -222,7 +223,7 @@ public class WebServer {
         int requestBufferSize = -1;
         try {
             requestBufferSize = Integer.parseInt(servletHolder.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE));
-        } catch (NumberFormatException nfe){
+        } catch (NumberFormatException nfe) {
             log.warn("The init-param {} is invalidated, because it is not a number", INIT_PARAM_REQUEST_BUFFER_SIZE);
         }
         if (requestBufferSize > 0 || config.getHttpMaxRequestHeaderSize() > 0) {
@@ -258,7 +259,7 @@ public class WebServer {
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
         HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+        handlerCollection.setHandlers(new Handler[] {contexts, new DefaultHandler(), requestLogHandler});
 
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();
@@ -275,18 +276,16 @@ public class WebServer {
             server.start();
 
             Arrays.stream(server.getConnectors())
-                .filter(c -> c instanceof ServerConnector)
-                .findFirst().ifPresent(c -> {
+                    .filter(c -> c instanceof ServerConnector)
+                    .findFirst()
+                    .ifPresent(c -> {
                         WebServer.this.externalServicePort = ((ServerConnector) c).getPort();
                     });
 
             // server reports URI of first servlet, we want to strip that path off
             URI reportedURI = server.getURI();
-            serviceURI = new URI(reportedURI.getScheme(),
-                                 null,
-                                 reportedURI.getHost(),
-                                 reportedURI.getPort(),
-                                 null, null, null);
+            serviceURI = new URI(
+                    reportedURI.getScheme(), null, reportedURI.getHost(), reportedURI.getPort(), null, null, null);
         } catch (Exception e) {
             List<Integer> ports = new ArrayList<>();
             for (Connector c : server.getConnectors()) {

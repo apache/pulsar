@@ -111,15 +111,16 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         // AuthenticationOAuth2
         Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
                 new URL(server.getIssuer()),
-                path.toUri().toURL(),  // key file path
-                audience
-        );
+                path.toUri().toURL(), // key file path
+                audience);
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl.toString())
                 .authentication(authentication)
                 .build());
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .authentication(authentication));
     }
@@ -137,14 +138,18 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
     @DataProvider(name = "batch")
     public Object[][] codecProvider() {
-        return new Object[][] { { 0 }, { 1000 } };
+        return new Object[][] {{0}, {1000}};
     }
 
     private void testSyncProducerAndConsumer() throws Exception {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
@@ -172,9 +177,14 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // test protocol by producer/consumer
@@ -189,15 +199,24 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("my-property",
-            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-            .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -218,18 +237,22 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
         // get the first connection stats
         ProducerImpl producerImpl = (ProducerImpl) producer;
-        String accessTokenOld = producerImpl.getClientCnx().getAuthenticationDataProvider().getCommandData();
+        String accessTokenOld =
+                producerImpl.getClientCnx().getAuthenticationDataProvider().getCommandData();
         long lastDisconnectTime = producer.getLastDisconnectedTimestamp();
 
         // the token expire duration is 3 seconds, so we need to wait for the authenticationData refreshed
         Awaitility.await()
-            .atMost(10, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(Duration.ofMillis(250))
-            .untilAsserted(() -> {
-                String accessTokenNew = producerImpl.getClientCnx().getAuthenticationDataProvider().getCommandData();
-                assertNotEquals(accessTokenNew, accessTokenOld);
-            });
+                .atMost(10, TimeUnit.SECONDS)
+                .with()
+                .pollInterval(Duration.ofMillis(250))
+                .untilAsserted(() -> {
+                    String accessTokenNew = producerImpl
+                            .getClientCnx()
+                            .getAuthenticationDataProvider()
+                            .getCommandData();
+                    assertNotEquals(accessTokenNew, accessTokenOld);
+                });
 
         // get the lastDisconnectTime, it should be same with the before, because the connection shouldn't disconnect
         long lastDisconnectTimeAfterTokenExpired = producer.getLastDisconnectedTimestamp();

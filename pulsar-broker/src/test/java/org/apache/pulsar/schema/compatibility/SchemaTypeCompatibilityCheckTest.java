@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.schema.compatibility;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -39,16 +46,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
-
-
 public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     private static final String CLUSTER_NAME = "test";
     private static final String PUBLIC_TENANT = "public";
@@ -61,14 +58,18 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
 
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))
                 .build();
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
         admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
-
     }
 
     @AfterMethod(alwaysRun = true)
@@ -82,19 +83,25 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         conf.setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
 
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testSchemaCompatibilityStrategyInBrokerLevel"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "testSchemaCompatibilityStrategyInBrokerLevel")
+                .toString();
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
-                withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
                 .topic(topicName)
                 .create();
 
-        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition
-                .<Schemas.PersonThree>builder().withAlwaysAllowNull(true).withPojo(Schemas.PersonThree.class).build()))
+        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
@@ -106,18 +113,19 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeProducerProducerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "structTypeProducerProducerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+        pulsarClient
+                .newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .create();
 
-        ProducerBuilder producerBuilder = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
-                .topic(topicName);
+        ProducerBuilder producerBuilder =
+                pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class)).topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
@@ -129,17 +137,19 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
         final String subName = "my-sub";
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeProducerConsumerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "structTypeProducerConsumerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+        pulsarClient
+                .newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .create();
 
-        ConsumerBuilder consumerBuilder = pulsarClient.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+        ConsumerBuilder consumerBuilder = pulsarClient
+                .newConsumer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -155,21 +165,22 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
         final String subName = "my-sub";
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeConsumerProducerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "structTypeConsumerProducerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
+        pulsarClient
+                .newConsumer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName(subName)
                 .subscribe();
 
-        ProducerBuilder producerBuilder = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
-                    .topic(topicName);
+        ProducerBuilder producerBuilder =
+                pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class)).topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
@@ -181,20 +192,22 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
         final String subName = "my-sub";
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeConsumerConsumerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "structTypeConsumerConsumerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
+        pulsarClient
+                .newConsumer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName(subName + "1")
                 .subscribe();
 
-        ConsumerBuilder consumerBuilder = pulsarClient.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+        ConsumerBuilder consumerBuilder = pulsarClient
+                .newConsumer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -209,18 +222,16 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "primitiveTypeProducerProducerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "primitiveTypeProducerProducerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newProducer(Schema.INT32)
-                .topic(topicName)
-                .create();
+        pulsarClient.newProducer(Schema.INT32).topic(topicName).create();
 
-        ProducerBuilder producerBuilder = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName);
+        ProducerBuilder producerBuilder =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
@@ -232,17 +243,16 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
         final String subName = "my-sub";
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "primitiveTypeProducerConsumerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "primitiveTypeProducerConsumerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newProducer(Schema.INT32)
-                .topic(topicName)
-                .create();
+        pulsarClient.newProducer(Schema.INT32).topic(topicName).create();
 
-        ConsumerBuilder consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+        ConsumerBuilder consumerBuilder = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -258,21 +268,22 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
         final String subName = "my-sub";
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "primitiveTypeConsumerProducerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "primitiveTypeConsumerProducerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newConsumer(Schema.INT32)
+        pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName(subName)
                 .subscribe();
 
-        ProducerBuilder producerBuilder = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName);
+        ProducerBuilder producerBuilder =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
@@ -284,20 +295,22 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
         final String subName = "my-sub";
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "primitiveTypeConsumerConsumerUndefinedCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "primitiveTypeConsumerConsumerUndefinedCompatible")
+                .toString();
 
-        pulsarClient.newConsumer(Schema.INT32)
+        pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName(subName + "1")
                 .subscribe();
 
-        ConsumerBuilder consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+        ConsumerBuilder consumerBuilder = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -311,44 +324,43 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     public void testAlwaysCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         final String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testAlwaysCompatible" + UUID.randomUUID().toString()
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "testAlwaysCompatible" + UUID.randomUUID().toString())
+                .toString();
         Schema<?>[] schemas = new Schema[] {
-                Schema.AVRO(Schemas.PersonOne.class),
-                Schema.AVRO(Schemas.PersonFour.class),
-                Schema.JSON(Schemas.PersonOne.class),
-                Schema.JSON(Schemas.PersonFour.class),
-                Schema.INT8,
-                Schema.INT16,
-                Schema.INT32,
-                Schema.INT64,
-                Schema.DATE,
-                Schema.BOOL,
-                Schema.DOUBLE,
-                Schema.STRING,
-                Schema.BYTES,
-                Schema.FLOAT,
-                Schema.INSTANT,
-                Schema.BYTEBUFFER,
-                Schema.TIME,
-                Schema.TIMESTAMP,
-                Schema.LOCAL_DATE,
-                Schema.LOCAL_DATE_TIME,
-                Schema.LOCAL_TIME
+            Schema.AVRO(Schemas.PersonOne.class),
+            Schema.AVRO(Schemas.PersonFour.class),
+            Schema.JSON(Schemas.PersonOne.class),
+            Schema.JSON(Schemas.PersonFour.class),
+            Schema.INT8,
+            Schema.INT16,
+            Schema.INT32,
+            Schema.INT64,
+            Schema.DATE,
+            Schema.BOOL,
+            Schema.DOUBLE,
+            Schema.STRING,
+            Schema.BYTES,
+            Schema.FLOAT,
+            Schema.INSTANT,
+            Schema.BYTEBUFFER,
+            Schema.TIME,
+            Schema.TIMESTAMP,
+            Schema.LOCAL_DATE,
+            Schema.LOCAL_DATE_TIME,
+            Schema.LOCAL_TIME
         };
 
         for (Schema<?> schema : schemas) {
-            Producer<?> p = pulsarClient.newProducer(schema)
-                    .topic(topicName)
-                    .create();
+            Producer<?> p = pulsarClient.newProducer(schema).topic(topicName).create();
             p.close();
         }
 
         for (Schema<?> schema : schemas) {
-            Consumer<?> c = pulsarClient.newConsumer(schema)
+            Consumer<?> c = pulsarClient
+                    .newConsumer(schema)
                     .topic(topicName)
                     .subscriptionName(UUID.randomUUID().toString())
                     .subscribe();
@@ -362,13 +374,10 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
         // Try to upload the schema again.
         for (Schema<?> schema : schemas) {
-            Producer<?> p = pulsarClient.newProducer(schema)
-                    .topic(topicName)
-                    .create();
+            Producer<?> p = pulsarClient.newProducer(schema).topic(topicName).create();
             p.close();
         }
 
         assertEquals(schemasOfTopic.size(), schemas.length - 2);
     }
-
 }

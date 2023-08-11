@@ -93,11 +93,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public CompletableFuture<Producer<T>> createAsync() {
         // config validation
-        checkArgument(!(conf.isBatchingEnabled() && conf.isChunkingEnabled()),
+        checkArgument(
+                !(conf.isBatchingEnabled() && conf.isChunkingEnabled()),
                 "Batching and chunking of messages can't be enabled together");
         if (conf.getTopicName() == null) {
-            return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException("Topic name must be set on the producer builder"));
         }
 
         try {
@@ -113,8 +114,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(
-            config, conf, ProducerConfigurationData.class);
+        conf = ConfigurationDataUtils.loadData(config, conf, ProducerConfigurationData.class);
         return this;
     }
 
@@ -213,13 +213,15 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> defaultCryptoKeyReader(String publicKey) {
         checkArgument(StringUtils.isNotBlank(publicKey), "publicKey cannot be blank");
-        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPublicKey(publicKey).build());
+        return cryptoKeyReader(
+                DefaultCryptoKeyReader.builder().defaultPublicKey(publicKey).build());
     }
 
     @Override
     public ProducerBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> publicKeys) {
         checkArgument(!publicKeys.isEmpty(), "publicKeys cannot be empty");
-        return cryptoKeyReader(DefaultCryptoKeyReader.builder().publicKeys(publicKeys).build());
+        return cryptoKeyReader(
+                DefaultCryptoKeyReader.builder().publicKeys(publicKeys).build());
     }
 
     @Override
@@ -271,7 +273,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
-
     @Override
     public ProducerBuilder<T> initialSequenceId(long initialSequenceId) {
         conf.setInitialSequenceId(initialSequenceId);
@@ -280,17 +281,19 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> property(String key, String value) {
-        checkArgument(StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
-                "property key/value cannot be blank");
+        checkArgument(
+                StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value), "property key/value cannot be blank");
         conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
     public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
-        properties.entrySet().forEach(entry ->
-            checkArgument(StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
-                    "properties' key/value cannot be blank"));
+        properties
+                .entrySet()
+                .forEach(entry -> checkArgument(
+                        StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
+                        "properties' key/value cannot be blank"));
         conf.getProperties().putAll(properties);
         return this;
     }
@@ -310,10 +313,11 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
         }
-        interceptorList.addAll(Arrays.stream(interceptors).map(ProducerInterceptorWrapper::new)
-                                     .collect(Collectors.toList()));
+        interceptorList.addAll(
+                Arrays.stream(interceptors).map(ProducerInterceptorWrapper::new).collect(Collectors.toList()));
         return this;
     }
+
     @Override
     public ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
         conf.setAutoUpdatePartitions(autoUpdate);
@@ -361,11 +365,11 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         } else if (conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
                 && conf.getCustomMessageRouter() == null) {
             throw new PulsarClientException("When 'messageRoutingMode' is " + MessageRoutingMode.CustomPartition
-                + ", 'messageRouter' should be set");
+                    + ", 'messageRouter' should be set");
         } else if (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
                 && conf.getCustomMessageRouter() != null) {
-            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' "
-                    + "should be set as " + MessageRoutingMode.CustomPartition);
+            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " + "should be set as "
+                    + MessageRoutingMode.CustomPartition);
         }
     }
 

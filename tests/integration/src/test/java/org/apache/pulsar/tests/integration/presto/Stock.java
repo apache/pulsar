@@ -37,9 +37,9 @@ public class Stock {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Stock stock = (Stock) o;
-        return entryId == stock.entryId &&
-                Double.compare(stock.sharePrice, sharePrice) == 0 &&
-                Objects.equals(symbol, stock.symbol);
+        return entryId == stock.entryId
+                && Double.compare(stock.sharePrice, sharePrice) == 0
+                && Objects.equals(symbol, stock.symbol);
     }
 
     @Override
@@ -49,11 +49,7 @@ public class Stock {
 
     @Override
     public String toString() {
-        return "Stock{" +
-                "entryId=" + entryId +
-                ", symbol='" + symbol + '\'' +
-                ", sharePrice=" + sharePrice +
-                '}';
+        return "Stock{" + "entryId=" + entryId + ", symbol='" + symbol + '\'' + ", sharePrice=" + sharePrice + '}';
     }
 
     public int getEntryId() {

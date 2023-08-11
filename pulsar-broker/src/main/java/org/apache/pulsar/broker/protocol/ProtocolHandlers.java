@@ -51,18 +51,16 @@ public class ProtocolHandlers implements AutoCloseable {
      * @return the collection of protocol handlers
      */
     public static ProtocolHandlers load(ServiceConfiguration conf) throws IOException {
-        ProtocolHandlerDefinitions definitions =
-                ProtocolHandlerUtils.searchForHandlers(
-                        conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
+        ProtocolHandlerDefinitions definitions = ProtocolHandlerUtils.searchForHandlers(
+                conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, ProtocolHandlerWithClassLoader> handlersBuilder = ImmutableMap.builder();
 
         conf.getMessagingProtocols().forEach(protocol -> {
-
             ProtocolHandlerMetadata definition = definitions.handlers().get(protocol);
             if (null == definition) {
                 throw new RuntimeException("No protocol handler is found for protocol `" + protocol
-                    + "`. Available protocols are : " + definitions.handlers());
+                        + "`. Available protocols are : " + definitions.handlers());
             }
 
             ProtocolHandlerWithClassLoader handler;
@@ -115,10 +113,7 @@ public class ProtocolHandlers implements AutoCloseable {
 
     public Map<String, String> getProtocolDataToAdvertise() {
         return handlers.entrySet().stream()
-            .collect(Collectors.toMap(
-                e -> e.getKey(),
-                e -> e.getValue().getProtocolDataToAdvertise()
-            ));
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().getProtocolDataToAdvertise()));
     }
 
     public Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> newChannelInitializers() {
@@ -127,15 +122,17 @@ public class ProtocolHandlers implements AutoCloseable {
 
         for (Map.Entry<String, ProtocolHandlerWithClassLoader> handler : handlers.entrySet()) {
             Map<InetSocketAddress, ChannelInitializer<SocketChannel>> initializers =
-                handler.getValue().newChannelInitializers();
+                    handler.getValue().newChannelInitializers();
             initializers.forEach((address, initializer) -> {
                 if (!addresses.add(address)) {
-                    log.error("Protocol handler for `{}` attempts to use {} for its listening port."
-                        + " But it is already occupied by other message protocols.",
-                        handler.getKey(), address);
+                    log.error(
+                            "Protocol handler for `{}` attempts to use {} for its listening port."
+                                    + " But it is already occupied by other message protocols.",
+                            handler.getKey(),
+                            address);
                     throw new RuntimeException("Protocol handler for `" + handler.getKey()
-                        + "` attempts to use " + address + " for its listening port. But it is"
-                        + " already occupied by other messaging protocols");
+                            + "` attempts to use " + address + " for its listening port. But it is"
+                            + " already occupied by other messaging protocols");
                 }
                 channelInitializers.put(handler.getKey(), initializers);
                 endpoints.put(address, handler.getKey());

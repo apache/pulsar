@@ -101,8 +101,10 @@ public class StatsBuckets {
     }
 
     public void addAll(StatsBuckets other) {
-        checkArgument(boundaries.length == other.boundaries.length,
-                "boundaries size %s doesn't match with given boundaries size %s", boundaries.length,
+        checkArgument(
+                boundaries.length == other.boundaries.length,
+                "boundaries size %s doesn't match with given boundaries size %s",
+                boundaries.length,
                 other.boundaries.length);
 
         for (int i = 0; i < buckets.length; i++) {

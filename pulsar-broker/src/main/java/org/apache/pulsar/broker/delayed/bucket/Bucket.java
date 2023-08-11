@@ -70,11 +70,27 @@ abstract class Bucket {
 
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
-
-    Bucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
-           BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        this(dispatcherName, cursor, sequencer, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0,
-                null, null);
+    Bucket(
+            String dispatcherName,
+            ManagedCursor cursor,
+            FutureUtil.Sequencer<Void> sequencer,
+            BucketSnapshotStorage storage,
+            long startLedgerId,
+            long endLedgerId) {
+        this(
+                dispatcherName,
+                cursor,
+                sequencer,
+                storage,
+                startLedgerId,
+                endLedgerId,
+                new HashMap<>(),
+                -1,
+                -1,
+                0,
+                0,
+                null,
+                null);
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
@@ -108,8 +124,8 @@ abstract class Bucket {
     }
 
     String bucketKey() {
-        return String.join(DELIMITER, DELAYED_BUCKET_KEY_PREFIX, String.valueOf(startLedgerId),
-                String.valueOf(endLedgerId));
+        return String.join(
+                DELIMITER, DELAYED_BUCKET_KEY_PREFIX, String.valueOf(startLedgerId), String.valueOf(endLedgerId));
     }
 
     Optional<CompletableFuture<Long>> getSnapshotCreateFuture() {
@@ -133,42 +149,58 @@ abstract class Bucket {
     }
 
     CompletableFuture<Long> asyncSaveBucketSnapshot(
-            ImmutableBucket bucket, SnapshotMetadata snapshotMetadata,
-            List<SnapshotSegment> bucketSnapshotSegments) {
+            ImmutableBucket bucket, SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
         final String cursorName = Codec.decode(cursor.getName());
         final String topicName = dispatcherName.substring(0, dispatcherName.lastIndexOf(" / " + cursorName));
         return executeWithRetry(
-                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey,
-                                topicName, cursorName)
-                        .whenComplete((__, ex) -> {
-                            if (ex != null) {
-                                log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",
-                                        dispatcherName, bucketKey, ex);
-                            }
-                        }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
+                        () -> bucketSnapshotStorage
+                                .createBucketSnapshot(
+                                        snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName, cursorName)
+                                .whenComplete((__, ex) -> {
+                                    if (ex != null) {
+                                        log.warn(
+                                                "[{}] Failed to create bucket snapshot, bucketKey: {}",
+                                                dispatcherName,
+                                                bucketKey,
+                                                ex);
+                                    }
+                                }),
+                        BucketSnapshotPersistenceException.class,
+                        MaxRetryTimes)
+                .thenCompose(newBucketId -> {
                     bucket.setBucketId(newBucketId);
 
-                    return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
-                        log.warn("[{}] Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
-                                dispatcherName, bucketKey, newBucketId, ex);
-                        return null;
-                    }).thenApply(__ -> newBucketId);
+                    return putBucketKeyId(bucketKey, newBucketId)
+                            .exceptionally(ex -> {
+                                log.warn(
+                                        "[{}] Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
+                                        dispatcherName,
+                                        bucketKey,
+                                        newBucketId,
+                                        ex);
+                                return null;
+                            })
+                            .thenApply(__ -> newBucketId);
                 });
     }
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
         Objects.requireNonNull(bucketId);
         return sequencer.sequential(() -> {
-            return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
-                    ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+            return executeWithRetry(
+                    () -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
+                    ManagedLedgerException.BadVersionException.class,
+                    MaxRetryTimes);
         });
     }
 
     protected CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
         return sequencer.sequential(() -> {
-            return executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
-                    ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+            return executeWithRetry(
+                    () -> cursor.removeCursorProperty(bucketKey),
+                    ManagedLedgerException.BadVersionException.class,
+                    MaxRetryTimes);
         });
     }
 }

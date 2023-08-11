@@ -35,36 +35,36 @@ import org.springframework.scheduling.support.CronTrigger;
  */
 @Slf4j
 public class CronTriggerer implements BatchSourceTriggerer {
-  public static final String CRON_KEY = "__CRON__";
-  private String cronExpression;
-  private ThreadPoolTaskScheduler scheduler;
+    public static final String CRON_KEY = "__CRON__";
+    private String cronExpression;
+    private ThreadPoolTaskScheduler scheduler;
 
-  @Override
-  public void init(Map<String, Object> config, SourceContext sourceContext) {
-    if (config == null || config.containsKey(CRON_KEY)) {
-      cronExpression = (String) Objects.requireNonNull(config).get(CRON_KEY);
-    } else {
-      throw new IllegalArgumentException("Cron Trigger is not provided with Cron String");
+    @Override
+    public void init(Map<String, Object> config, SourceContext sourceContext) {
+        if (config == null || config.containsKey(CRON_KEY)) {
+            cronExpression = (String) Objects.requireNonNull(config).get(CRON_KEY);
+        } else {
+            throw new IllegalArgumentException("Cron Trigger is not provided with Cron String");
+        }
+        scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setThreadNamePrefix(String.format(
+                "%s/%s/%s-cron-triggerer-",
+                sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()));
+
+        log.info("Initialized CronTrigger with expression: {}", cronExpression);
     }
-    scheduler = new ThreadPoolTaskScheduler();
-    scheduler.setThreadNamePrefix(String.format("%s/%s/%s-cron-triggerer-",
-            sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()));
 
-    log.info("Initialized CronTrigger with expression: {}", cronExpression);
-  }
+    @Override
+    public void start(Consumer<String> trigger) {
 
-  @Override
-  public void start(Consumer<String> trigger) {
-
-    scheduler.initialize();
-    scheduler.schedule(() -> trigger.accept("CRON"), new CronTrigger(cronExpression));
-  }
-
-  @Override
-  public void stop() {
-    if (scheduler != null) {
-      scheduler.shutdown();
+        scheduler.initialize();
+        scheduler.schedule(() -> trigger.accept("CRON"), new CronTrigger(cronExpression));
     }
-  }
+
+    @Override
+    public void stop() {
+        if (scheduler != null) {
+            scheduler.shutdown();
+        }
+    }
 }
-

@@ -23,16 +23,16 @@ import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 public class NumericOrderCompactionStrategy implements TopicCompactionStrategy<Integer> {
 
-        @Override
-        public Schema<Integer> getSchema() {
-            return Schema.INT32;
-        }
-
-        @Override
-        public boolean shouldKeepLeft(Integer prev, Integer cur) {
-            if (prev == null || cur == null) {
-                return false;
-            }
-            return prev >= cur;
-        }
+    @Override
+    public Schema<Integer> getSchema() {
+        return Schema.INT32;
     }
+
+    @Override
+    public boolean shouldKeepLeft(Integer prev, Integer cur) {
+        if (prev == null || cur == null) {
+            return false;
+        }
+        return prev >= cur;
+    }
+}

@@ -34,7 +34,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
     @Override
     protected void setup() throws Exception {
-        //No-op
+        // No-op
     }
 
     @AfterMethod(alwaysRun = true)
@@ -48,11 +48,12 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         conf.setMaxMessagePublishBufferSizeInMB(-1);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testMessagePublishBufferThrottleDisabled";
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
-         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
 
         pulsarTestContext.getMockBookKeeper().addEntryDelay(1, TimeUnit.SECONDS);
 
@@ -73,7 +74,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
         final String topic = "persistent://prop/ns-abc/testMessagePublishBufferThrottleEnable";
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
@@ -87,14 +89,16 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             producer.sendAsync(payload);
         }
 
-        Awaitility.await().untilAsserted(
-                () -> Assert.assertEquals(pulsar.getBrokerService().getPausedConnections(), 1L));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> Assert.assertEquals(pulsar.getBrokerService().getPausedConnections(), 1L));
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 1);
 
         producer.flush();
 
-        Awaitility.await().untilAsserted(
-            () -> Assert.assertEquals(pulsar.getBrokerService().getPausedConnections(), 0L));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> Assert.assertEquals(pulsar.getBrokerService().getPausedConnections(), 0L));
 
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
     }
@@ -105,7 +109,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         super.baseSetup();
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
         final String topic = "persistent://prop/ns-abc/testBlockByPublishRateLimiting";
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
@@ -121,7 +126,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             producer.sendAsync(payload);
         }
 
-        Awaitility.await().untilAsserted(() -> assertEquals(pulsar.getBrokerService().getPausedConnections(), 1));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(pulsar.getBrokerService().getPausedConnections(), 1));
 
         CompletableFuture<Void> flushFuture = producer.flushAsync();
 
@@ -137,14 +143,14 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
         flushFuture.join();
 
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
 
         // Resume message publish.
-        ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
+        ((AbstractTopic) topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
 
         flushFuture.get();
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
     }
 }

@@ -23,7 +23,7 @@ import java.util.List;
 /**
  * Persistent topic internal statistics.
  */
-public class PersistentTopicInternalStats extends ManagedLedgerInternalStats{
+public class PersistentTopicInternalStats extends ManagedLedgerInternalStats {
 
     public List<LedgerInfo> schemaLedgers;
 

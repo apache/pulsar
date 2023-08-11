@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 public class DynamicSkipUnknownPropertyHandlerTest {
 
     @Test
-    public void testHandleUnknownProperty() throws Exception{
+    public void testHandleUnknownProperty() throws Exception {
         DynamicSkipUnknownPropertyHandler handler = new DynamicSkipUnknownPropertyHandler();
         handler.setSkipUnknownProperty(true);
         // Case 1: initial ObjectMapper with "enable feature".
@@ -54,13 +54,13 @@ public class DynamicSkipUnknownPropertyHandlerTest {
         try {
             objectMapper.readValue(json, TestBean.class);
             Assert.fail("Expect UnrecognizedPropertyException when set skipUnknownProperty false.");
-        } catch (UnrecognizedPropertyException e){
+        } catch (UnrecognizedPropertyException e) {
 
         }
         try {
             objectReader.readValue(json, TestBean.class);
             Assert.fail("Expect UnrecognizedPropertyException when set skipUnknownProperty false.");
-        } catch (UnrecognizedPropertyException e){
+        } catch (UnrecognizedPropertyException e) {
 
         }
         // Case 2: initial ObjectMapper with "disabled feature".
@@ -72,13 +72,13 @@ public class DynamicSkipUnknownPropertyHandlerTest {
         try {
             objectMapper.readValue(json, TestBean.class);
             Assert.fail("Expect UnrecognizedPropertyException when set skipUnknownProperty false.");
-        } catch (UnrecognizedPropertyException e){
+        } catch (UnrecognizedPropertyException e) {
 
         }
         try {
             objectReader.readValue(json, TestBean.class);
             Assert.fail("Expect UnrecognizedPropertyException when set skipUnknownProperty false.");
-        } catch (UnrecognizedPropertyException e){
+        } catch (UnrecognizedPropertyException e) {
 
         }
         // Assert skip unknown property and logging.

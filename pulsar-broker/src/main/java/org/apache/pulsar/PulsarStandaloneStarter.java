@@ -36,7 +36,9 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
     private static final String PULSAR_CONFIG_FILE = "pulsar.config.file";
 
-    @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+    @Parameter(
+            names = {"-g", "--generate-docs"},
+            description = "Generate docs")
     private boolean generateDocs = false;
 
     public PulsarStandaloneStarter(String[] args) throws Exception {
@@ -77,8 +79,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         }
 
         try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
-            this.config = PulsarConfigurationLoader.create(
-                    inputStream, ServiceConfiguration.class);
+            this.config = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
         }
 
         if (this.getAdvertisedAddress() != null) {
@@ -95,10 +96,11 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         // Priority: args > conf > default
         if (!argsContains(args, "--zookeeper-port")) {
             if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
-                String[] metadataStoreUrl = config.getMetadataStoreUrl().split(",")[0].split(":");
+                String[] metadataStoreUrl =
+                        config.getMetadataStoreUrl().split(",")[0].split(":");
                 if (metadataStoreUrl.length == 2) {
                     this.setZkPort(Integer.parseInt(metadataStoreUrl[1]));
-                } else if ((metadataStoreUrl.length == 3)){
+                } else if ((metadataStoreUrl.length == 3)) {
                     String zkPort = metadataStoreUrl[2];
                     if (zkPort.contains("/")) {
                         this.setZkPort(Integer.parseInt(zkPort.substring(0, zkPort.lastIndexOf("/"))));
@@ -144,6 +146,5 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             LogManager.shutdown();
             Runtime.getRuntime().exit(1);
         }
-
     }
 }

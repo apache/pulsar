@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
-
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -87,9 +86,8 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         providers.add(AuthenticationProviderTls.class.getName());
         proxyConfig.setAuthenticationProviders(providers);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                                    new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -125,8 +123,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducer() throws Exception {
-        @Cleanup
-        PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
+        @Cleanup PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                 .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
@@ -139,39 +136,42 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducerFailed() throws Exception {
-        @Cleanup
-        PulsarClient client = internalSetUpForClient(false, proxyService.getServiceUrlTls());
+        @Cleanup PulsarClient client = internalSetUpForClient(false, proxyService.getServiceUrlTls());
         try {
             @Cleanup
             Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                     .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
                     .create();
             Assert.fail("Should failed since broker setTlsRequireTrustedClientCertOnConnect, "
-                        + "while client not set keystore");
+                    + "while client not set keystore");
         } catch (Exception e) {
             // expected
             log.info("Expected failed since broker setTlsRequireTrustedClientCertOnConnect,"
-                     + " while client not set keystore");
+                    + " while client not set keystore");
         }
     }
 
     @Test
     public void testPartitions() throws Exception {
-        @Cleanup
-        PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
+        @Cleanup PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
         String topicName = "persistent://sample/test/local/partitioned-topic" + System.currentTimeMillis();
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
 
         // Create a consumer directly attached to broker
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -182,6 +182,4 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
             requireNonNull(msg);
         }
     }
-
-
 }

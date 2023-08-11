@@ -23,6 +23,4 @@ import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 /**
  * Retained for compatibility since this class can be referred to from config files.
  */
-public class ZkBookieRackAffinityMapping extends BookieRackAffinityMapping {
-
-}
+public class ZkBookieRackAffinityMapping extends BookieRackAffinityMapping {}

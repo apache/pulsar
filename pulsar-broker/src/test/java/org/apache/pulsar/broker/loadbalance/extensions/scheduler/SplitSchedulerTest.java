@@ -39,8 +39,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
-import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.NamespaceBundleSplitStrategy;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.stats.Metrics;
@@ -88,14 +88,14 @@ public class SplitSchedulerTest {
         doReturn(CompletableFuture.completedFuture(null)).when(channel).publishSplitEventAsync(any());
 
         decision1 = new SplitDecision();
-        Split split = new Split(bundle1, broker, Map.of(
-                childBundle11, Optional.empty(), childBundle12, Optional.empty()));
+        Split split =
+                new Split(bundle1, broker, Map.of(childBundle11, Optional.empty(), childBundle12, Optional.empty()));
         decision1.setSplit(split);
         decision1.succeed(SplitDecision.Reason.MsgRate);
 
         decision2 = new SplitDecision();
-        Split split2 = new Split(bundle2, broker, Map.of(
-                childBundle21, Optional.empty(), childBundle22, Optional.empty()));
+        Split split2 =
+                new Split(bundle2, broker, Map.of(childBundle21, Optional.empty(), childBundle22, Optional.empty()));
         decision2.setSplit(split2);
         decision2.succeed(SplitDecision.Reason.Sessions);
         Set<SplitDecision> decisions = Set.of(decision1, decision2);
@@ -108,11 +108,13 @@ public class SplitSchedulerTest {
         SplitCounter counter = new SplitCounter();
         SplitManager manager = mock(SplitManager.class);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);
-        doAnswer((invocation)->{
-            var decision = invocation.getArgument(2, SplitDecision.class);
-            counter.update(decision);
-            return CompletableFuture.completedFuture(null);
-        }).when(manager).waitAsync(any(), any(), any(), anyLong(), any());
+        doAnswer((invocation) -> {
+                    var decision = invocation.getArgument(2, SplitDecision.class);
+                    counter.update(decision);
+                    return CompletableFuture.completedFuture(null);
+                })
+                .when(manager)
+                .waitAsync(any(), any(), any(), anyLong(), any());
         scheduler.execute();
 
         var counterExpected = new SplitCounter();
@@ -121,7 +123,9 @@ public class SplitSchedulerTest {
         verify(channel, times(1)).publishSplitEventAsync(eq(decision1.getSplit()));
         verify(channel, times(1)).publishSplitEventAsync(eq(decision2.getSplit()));
 
-        assertEquals(reference.get().toString(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
+        assertEquals(
+                reference.get().toString(),
+                counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
 
         // Test empty splits.
         Set<SplitDecision> emptyUnload = Set.of();
@@ -129,7 +133,9 @@ public class SplitSchedulerTest {
 
         scheduler.execute();
         verify(channel, times(2)).publishSplitEventAsync(any());
-        assertEquals(reference.get().toString(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
+        assertEquals(
+                reference.get().toString(),
+                counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
     }
 
     @Test(timeOut = 30 * 1000)
@@ -138,10 +144,11 @@ public class SplitSchedulerTest {
         SplitCounter counter = new SplitCounter();
         SplitManager manager = new SplitManager(counter);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);
-        doReturn(CompletableFuture.failedFuture(new RuntimeException())).when(channel).publishSplitEventAsync(any());
+        doReturn(CompletableFuture.failedFuture(new RuntimeException()))
+                .when(channel)
+                .publishSplitEventAsync(any());
 
         scheduler.execute();
-
 
         var counterExpected = new SplitCounter();
         counterExpected.update(SplitDecision.Label.Failure, SplitDecision.Reason.Unknown);
@@ -149,9 +156,10 @@ public class SplitSchedulerTest {
         verify(channel, times(1)).publishSplitEventAsync(eq(decision1.getSplit()));
         verify(channel, times(1)).publishSplitEventAsync(eq(decision2.getSplit()));
 
-        assertEquals(reference.get().toString(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
+        assertEquals(
+                reference.get().toString(),
+                counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
     }
-
 
     @Test(timeOut = 30 * 1000)
     public void testDisableLoadBalancer() {

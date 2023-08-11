@@ -46,9 +46,7 @@ public class GracefulExecutorServicesShutdown {
     private Duration timeout = DEFAULT_TIMEOUT;
     private Duration terminationTimeout;
 
-    private GracefulExecutorServicesShutdown() {
-
-    }
+    private GracefulExecutorServicesShutdown() {}
 
     /**
      * Initiates a new shutdown for one or many {@link ExecutorService}s.
@@ -111,7 +109,7 @@ public class GracefulExecutorServicesShutdown {
         if (terminationTimeout == null) {
             terminationTimeout = Duration.ofNanos((long) (timeout.toNanos() * DEFAULT_TERMINATION_TIMEOUT_RATIO));
         }
-        return new GracefulExecutorServicesTerminationHandler(timeout, terminationTimeout,
-                executorServices).getFuture();
+        return new GracefulExecutorServicesTerminationHandler(timeout, terminationTimeout, executorServices)
+                .getFuture();
     }
 }

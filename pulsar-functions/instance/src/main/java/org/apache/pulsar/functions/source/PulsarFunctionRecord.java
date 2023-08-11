@@ -91,8 +91,11 @@ public class PulsarFunctionRecord<T> implements Record<T> {
         if (processingGuarantees == Function.ProcessingGuarantees.MANUAL) {
             record.ack();
         } else {
-            log.warn("Ignore this ack option, under this configuration Guarantees:[{}] autoAck:[{}], "
-                    + "the framework will automatically ack", processingGuarantees, functionConfig.getAutoAck());
+            log.warn(
+                    "Ignore this ack option, under this configuration Guarantees:[{}] autoAck:[{}], "
+                            + "the framework will automatically ack",
+                    processingGuarantees,
+                    functionConfig.getAutoAck());
         }
     }
 

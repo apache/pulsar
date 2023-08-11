@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.rabbitmq.sink;
 
-import org.apache.pulsar.io.rabbitmq.RabbitMQSinkConfig;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.apache.pulsar.io.rabbitmq.RabbitMQSinkConfig;
+import org.testng.annotations.Test;
 
 /**
  * RabbitMQSinkConfig test
@@ -109,8 +107,9 @@ public class RabbitMQSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "exchangeName property not set.")
+    @Test(
+            expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "exchangeName property not set.")
     public final void missingExchangeValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");

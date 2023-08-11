@@ -83,8 +83,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
                     extraAnnotations != null ? new HashMap<>(extraAnnotations) : null,
                     nodeSelectorLabels != null ? new HashMap<>(nodeSelectorLabels) : null,
                     resourceRequirements,
-                    tolerations != null ? new ArrayList<>(tolerations) : null
-            );
+                    tolerations != null ? new ArrayList<>(tolerations) : null);
         }
     }
 
@@ -142,7 +141,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         pt.setMetadata(updateMeta(opts, pt.getMetadata()));
         V1PodSpec ps = pt.getSpec();
         if (ps != null) {
-            if (opts.getNodeSelectorLabels() != null && opts.getNodeSelectorLabels().size() > 0) {
+            if (opts.getNodeSelectorLabels() != null
+                    && opts.getNodeSelectorLabels().size() > 0) {
                 opts.getNodeSelectorLabels().forEach(ps::putNodeSelectorItem);
             }
             if (opts.getTolerations() != null && opts.getTolerations().size() > 0) {
@@ -222,7 +222,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
                 mergedOpts.getExtraLabels().put(key, labelsItem);
             });
         }
-        if (newOpts.getExtraAnnotations() != null && !newOpts.getExtraAnnotations().isEmpty()) {
+        if (newOpts.getExtraAnnotations() != null
+                && !newOpts.getExtraAnnotations().isEmpty()) {
             newOpts.getExtraAnnotations().forEach((key, annotationsItem) -> {
                 if (!mergedOpts.getExtraAnnotations().containsKey(key)) {
                     log.debug("extra annotation {} has been changed to {}", key, annotationsItem);
@@ -230,7 +231,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
                 mergedOpts.getExtraAnnotations().put(key, annotationsItem);
             });
         }
-        if (newOpts.getNodeSelectorLabels() != null && !newOpts.getNodeSelectorLabels().isEmpty()) {
+        if (newOpts.getNodeSelectorLabels() != null
+                && !newOpts.getNodeSelectorLabels().isEmpty()) {
             newOpts.getNodeSelectorLabels().forEach((key, nodeSelectorItem) -> {
                 if (!mergedOpts.getNodeSelectorLabels().containsKey(key)) {
                     log.debug("node selector label {} has been changed to {}", key, nodeSelectorItem);
@@ -261,5 +263,4 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         }
         return mergedOpts;
     }
-
 }

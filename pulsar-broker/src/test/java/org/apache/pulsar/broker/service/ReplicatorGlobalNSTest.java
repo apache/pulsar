@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -32,9 +34,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Method;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-impl")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
@@ -75,29 +74,35 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         final String topicName = "persistent://" + namespace + "/topic";
 
         @Cleanup
-        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         @Cleanup
-        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client2 = PulsarClient.builder()
+                .serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer().topic(topicName)
-                .enableBatching(false).messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) client1.newConsumer().topic(topicName)
-                .subscriptionName("sub1").subscribe();
-        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) client2.newConsumer().topic(topicName)
-                .subscriptionName("sub1").subscribe();
+        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>)
+                client1.newConsumer().topic(topicName).subscriptionName("sub1").subscribe();
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>)
+                client2.newConsumer().topic(topicName).subscriptionName("sub1").subscribe();
 
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r3"));
 
-        MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
+        MockedPulsarServiceBaseTest.retryStrategically(
+                (test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
         Assert.assertFalse(producer1.isConnected());
         Assert.assertFalse(consumer1.isConnected());
         Assert.assertTrue(consumer2.isConnected());
-
     }
 
     @Test
@@ -111,21 +116,25 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         final String topicName = "persistent://" + namespace + "/topic";
 
         @Cleanup
-        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer().topic(topicName)
-                .enableBatching(false).messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         producer1.close();
 
         admin1.topics().delete(topicName, true);
 
-        MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
+        MockedPulsarServiceBaseTest.retryStrategically(
+                (test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorGlobalNSTest.class);
-
 }

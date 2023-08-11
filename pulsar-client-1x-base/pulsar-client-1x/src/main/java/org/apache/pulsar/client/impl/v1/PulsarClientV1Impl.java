@@ -43,7 +43,8 @@ public class PulsarClientV1Impl implements PulsarClient {
     private final PulsarClientImpl client;
 
     public PulsarClientV1Impl(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
-        this.client = new PulsarClientImpl(conf.setServiceUrl(serviceUrl).getConfigurationData().clone());
+        this.client = new PulsarClientImpl(
+                conf.setServiceUrl(serviceUrl).getConfigurationData().clone());
     }
 
     @Override
@@ -78,8 +79,7 @@ public class PulsarClientV1Impl implements PulsarClient {
     }
 
     @Override
-    public Producer createProducer(String topic)
-            throws PulsarClientException {
+    public Producer createProducer(String topic) throws PulsarClientException {
         return createProducer(topic, new ProducerConfiguration());
     }
 
@@ -114,9 +114,10 @@ public class PulsarClientV1Impl implements PulsarClient {
     }
 
     @Override
-    public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId,
-            ReaderConfiguration conf) {
-        ReaderConfigurationData<byte[]> confData = conf.getReaderConfigurationData().clone();
+    public CompletableFuture<Reader> createReaderAsync(
+            String topic, MessageId startMessageId, ReaderConfiguration conf) {
+        ReaderConfigurationData<byte[]> confData =
+                conf.getReaderConfigurationData().clone();
         confData.setTopicName(topic);
         confData.setStartMessageId(startMessageId);
         return client.createReaderAsync(confData).thenApply(r -> new ReaderV1Impl(r));
@@ -133,8 +134,8 @@ public class PulsarClientV1Impl implements PulsarClient {
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribeAsync(final String topic, final String subscription,
-            final ConsumerConfiguration conf) {
+    public CompletableFuture<Consumer> subscribeAsync(
+            final String topic, final String subscription, final ConsumerConfiguration conf) {
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Invalid null configuration"));
@@ -147,8 +148,7 @@ public class PulsarClientV1Impl implements PulsarClient {
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribeAsync(String topic,
-            String subscriptionName) {
+    public CompletableFuture<Consumer> subscribeAsync(String topic, String subscriptionName) {
         return subscribeAsync(topic, subscriptionName, new ConsumerConfiguration());
     }
 

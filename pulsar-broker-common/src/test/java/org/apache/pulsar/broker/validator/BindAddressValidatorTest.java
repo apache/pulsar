@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.validator;
 
+import static org.testng.AssertJUnit.assertEquals;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,8 +27,6 @@ import java.util.Optional;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.testng.annotations.Test;
-
-import static org.testng.AssertJUnit.assertEquals;
 
 /**
  * testcase for BindAddressValidator.
@@ -39,9 +38,9 @@ public class BindAddressValidatorTest {
      */
     private ServiceConfiguration newEmptyConfiguration() {
         ServiceConfiguration config = new ServiceConfiguration();
-        config.setBrokerServicePort(Optional.empty());  // default: 6650
+        config.setBrokerServicePort(Optional.empty()); // default: 6650
         config.setBrokerServicePortTls(Optional.empty());
-        config.setWebServicePort(Optional.empty());     // default: 8080
+        config.setWebServicePort(Optional.empty()); // default: 8080
         config.setWebServicePortTls(Optional.empty());
         return config;
     }
@@ -59,9 +58,11 @@ public class BindAddressValidatorTest {
         ServiceConfiguration config = newEmptyConfiguration();
         config.setBindAddresses("internal:pulsar://0.0.0.0:6650,internal:pulsar+ssl://0.0.0.0:6651");
         List<BindAddress> addresses = BindAddressValidator.validateBindAddresses(config, null);
-        assertEquals(Arrays.asList(
-                new BindAddress("internal", URI.create("pulsar://0.0.0.0:6650")),
-                new BindAddress("internal", URI.create("pulsar+ssl://0.0.0.0:6651"))), addresses);
+        assertEquals(
+                Arrays.asList(
+                        new BindAddress("internal", URI.create("pulsar://0.0.0.0:6650")),
+                        new BindAddress("internal", URI.create("pulsar+ssl://0.0.0.0:6651"))),
+                addresses);
     }
 
     @Test
@@ -69,9 +70,11 @@ public class BindAddressValidatorTest {
         ServiceConfiguration config = newEmptyConfiguration();
         config.setBindAddresses("internal:pulsar://0.0.0.0:6650,external:pulsar+ssl://0.0.0.0:6651");
         List<BindAddress> addresses = BindAddressValidator.validateBindAddresses(config, null);
-        assertEquals(Arrays.asList(
-                new BindAddress("internal", URI.create("pulsar://0.0.0.0:6650")),
-                new BindAddress("external", URI.create("pulsar+ssl://0.0.0.0:6651"))), addresses);
+        assertEquals(
+                Arrays.asList(
+                        new BindAddress("internal", URI.create("pulsar://0.0.0.0:6650")),
+                        new BindAddress("external", URI.create("pulsar+ssl://0.0.0.0:6651"))),
+                addresses);
     }
 
     @Test
@@ -83,20 +86,24 @@ public class BindAddressValidatorTest {
         config.setWebServicePortTls(Optional.of(443));
         config.setBindAddress("0.0.0.0");
         List<BindAddress> addresses = BindAddressValidator.validateBindAddresses(config, null);
-        assertEquals(Arrays.asList(
-                new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
-                new BindAddress(null, URI.create("pulsar+ssl://0.0.0.0:6651")),
-                new BindAddress(null, URI.create("http://0.0.0.0:8080")),
-                new BindAddress(null, URI.create("https://0.0.0.0:443"))), addresses);
+        assertEquals(
+                Arrays.asList(
+                        new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
+                        new BindAddress(null, URI.create("pulsar+ssl://0.0.0.0:6651")),
+                        new BindAddress(null, URI.create("http://0.0.0.0:8080")),
+                        new BindAddress(null, URI.create("https://0.0.0.0:443"))),
+                addresses);
     }
 
     @Test
     public void testMigrationWithDefaults() {
         ServiceConfiguration config = new ServiceConfiguration();
         List<BindAddress> addresses = BindAddressValidator.validateBindAddresses(config, null);
-        assertEquals(Arrays.asList(
-                new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
-                new BindAddress(null, URI.create("http://0.0.0.0:8080"))), addresses);
+        assertEquals(
+                Arrays.asList(
+                        new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
+                        new BindAddress(null, URI.create("http://0.0.0.0:8080"))),
+                addresses);
     }
 
     @Test
@@ -105,9 +112,11 @@ public class BindAddressValidatorTest {
         config.setBrokerServicePort(Optional.of(6650));
         config.setBindAddresses("extra:pulsar://0.0.0.0:6652");
         List<BindAddress> addresses = BindAddressValidator.validateBindAddresses(config, null);
-        assertEquals(Arrays.asList(
-                new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
-                new BindAddress("extra", URI.create("pulsar://0.0.0.0:6652"))), addresses);
+        assertEquals(
+                Arrays.asList(
+                        new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
+                        new BindAddress("extra", URI.create("pulsar://0.0.0.0:6652"))),
+                addresses);
     }
 
     @Test
@@ -119,20 +128,23 @@ public class BindAddressValidatorTest {
 
         List<BindAddress> addresses;
         addresses = BindAddressValidator.validateBindAddresses(config, null);
-        assertEquals(Arrays.asList(
-                new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
-                new BindAddress(null, URI.create("pulsar+ssl://0.0.0.0:6651")),
-                new BindAddress("extra", URI.create("pulsar://0.0.0.0:6652")),
-                new BindAddress("extra", URI.create("http://0.0.0.0:8080"))), addresses);
+        assertEquals(
+                Arrays.asList(
+                        new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
+                        new BindAddress(null, URI.create("pulsar+ssl://0.0.0.0:6651")),
+                        new BindAddress("extra", URI.create("pulsar://0.0.0.0:6652")),
+                        new BindAddress("extra", URI.create("http://0.0.0.0:8080"))),
+                addresses);
 
         addresses = BindAddressValidator.validateBindAddresses(config, Arrays.asList("pulsar", "pulsar+ssl"));
-        assertEquals(Arrays.asList(
-                new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
-                new BindAddress(null, URI.create("pulsar+ssl://0.0.0.0:6651")),
-                new BindAddress("extra", URI.create("pulsar://0.0.0.0:6652"))), addresses);
+        assertEquals(
+                Arrays.asList(
+                        new BindAddress(null, URI.create("pulsar://0.0.0.0:6650")),
+                        new BindAddress(null, URI.create("pulsar+ssl://0.0.0.0:6651")),
+                        new BindAddress("extra", URI.create("pulsar://0.0.0.0:6652"))),
+                addresses);
 
         addresses = BindAddressValidator.validateBindAddresses(config, Collections.singletonList("http"));
-        assertEquals(Collections.singletonList(
-                new BindAddress("extra", URI.create("http://0.0.0.0:8080"))), addresses);
+        assertEquals(Collections.singletonList(new BindAddress("extra", URI.create("http://0.0.0.0:8080"))), addresses);
     }
 }

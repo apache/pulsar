@@ -42,7 +42,8 @@ public class MongoSourceConfigTest {
         assertEquals(cfg.getBatchTimeMs(), TestHelper.BATCH_TIME);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Required MongoDB URI is not set.")
     public void testBadMongoUri() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
@@ -66,7 +67,8 @@ public class MongoSourceConfigTest {
         cfg.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public void testBadBatchSize() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
@@ -77,7 +79,8 @@ public class MongoSourceConfigTest {
         cfg.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public void testBadBatchTime() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();

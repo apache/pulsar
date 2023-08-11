@@ -49,8 +49,8 @@ public class PulsarSaslClient {
     public PulsarSaslClient(String serverHostname, String serverType, Subject subject) throws SaslException {
         checkArgument(subject != null, "Cannot create SASL client with NULL JAAS subject");
         checkArgument(!Strings.isNullOrEmpty(serverHostname), "Cannot create SASL client with NUll server name");
-        if (!serverType.equals(SaslConstants.SASL_BROKER_PROTOCOL) && !serverType
-                                                                           .equals(SaslConstants.SASL_PROXY_PROTOCOL)) {
+        if (!serverType.equals(SaslConstants.SASL_BROKER_PROTOCOL)
+                && !serverType.equals(SaslConstants.SASL_PROXY_PROTOCOL)) {
             log.warn("The server type {} is not recommended", serverType);
         }
 
@@ -68,16 +68,20 @@ public class PulsarSaslClient {
         final String serviceName = serviceKerberosName.getServiceName();
         final String serviceHostname = serviceKerberosName.getHostName();
         final String clientPrincipalName = clientKerberosName.toString();
-        log.info("Using JAAS/SASL/GSSAPI auth to connect to server Principal {},",
-            serverPrincipal);
+        log.info("Using JAAS/SASL/GSSAPI auth to connect to server Principal {},", serverPrincipal);
 
         try {
             this.saslClient = Subject.doAs(clientSubject, new PrivilegedExceptionAction<SaslClient>() {
                 @Override
                 public SaslClient run() throws SaslException {
                     String[] mechs = {"GSSAPI"};
-                    return Sasl.createSaslClient(mechs, clientPrincipalName, serviceName, serviceHostname, null,
-                        new ClientCallbackHandler());
+                    return Sasl.createSaslClient(
+                            mechs,
+                            clientPrincipalName,
+                            serviceName,
+                            serviceHostname,
+                            null,
+                            new ClientCallbackHandler());
                 }
             });
         } catch (PrivilegedActionException err) {
@@ -88,7 +92,6 @@ public class PulsarSaslClient {
         if (saslClient == null) {
             throw new SaslException("Cannot create JVM SASL Client");
         }
-
     }
 
     public AuthData evaluateChallenge(final AuthData saslToken) throws AuthenticationException {
@@ -141,14 +144,11 @@ public class PulsarSaslClient {
             if (ac.isAuthorized()) {
                 ac.setAuthorizedID(authzid);
             }
-            log.info("Successfully authenticated. authenticationID: {};  authorizationID: {}.",
-                authid, authzid);
+            log.info("Successfully authenticated. authenticationID: {};  authorizationID: {}.", authid, authzid);
         }
     }
-
 
     public boolean isComplete() {
         return saslClient.isComplete();
     }
-
 }

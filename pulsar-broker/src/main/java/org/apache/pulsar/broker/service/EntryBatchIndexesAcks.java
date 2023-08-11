@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-
 import io.netty.util.Recycler;
 import java.util.BitSet;
 import org.apache.commons.lang3.tuple.Pair;

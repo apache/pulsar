@@ -47,7 +47,6 @@ public class UnackMessageIdWrapper {
         return unackMessageIdWrapper;
     }
 
-
     public static UnackMessageIdWrapper valueOf(MessageId messageId) {
         return create(messageId, 0);
     }
@@ -90,5 +89,4 @@ public class UnackMessageIdWrapper {
     public String toString() {
         return "UnackMessageIdWrapper [messageId=" + messageId + ", redeliveryCount=" + redeliveryCount + "]";
     }
-
 }

@@ -149,5 +149,4 @@ public interface RawMessage {
      * @return chunked message total size in bytes
      */
     int getTotalChunkMsgSize();
-
 }

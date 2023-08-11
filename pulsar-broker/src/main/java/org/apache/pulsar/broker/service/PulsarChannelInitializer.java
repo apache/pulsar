@@ -107,8 +107,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024, true));
         if (this.enableTls) {
             if (this.tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER,
-                        new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
+                ch.pipeline()
+                        .addLast(
+                                TLS_HANDLER,
+                                new SslHandler(
+                                        nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
             } else {
                 ch.pipeline().addLast(TLS_HANDLER, sslCtxRefresher.get().newHandler(ch.alloc()));
             }
@@ -120,8 +123,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-            brokerConf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+        ch.pipeline()
+                .addLast(
+                        "frameDecoder",
+                        new LengthFieldBasedFrameDecoder(
+                                brokerConf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
         // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
         // Classes such as {@link ByteToMessageDecoder} or {@link MessageToByteEncoder} are free to emit as many events
         // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
@@ -138,8 +144,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     }
 
     public interface Factory {
-        PulsarChannelInitializer newPulsarChannelInitializer(
-                PulsarService pulsar, PulsarChannelOptions opts) throws Exception;
+        PulsarChannelInitializer newPulsarChannelInitializer(PulsarService pulsar, PulsarChannelOptions opts)
+                throws Exception;
     }
 
     public static final Factory DEFAULT_FACTORY = PulsarChannelInitializer::new;

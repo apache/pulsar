@@ -69,5 +69,4 @@ public class SaslAuthenticationDataProvider implements AuthenticationDataProvide
         headers.put(SaslConstants.SASL_HEADER_TYPE, SaslConstants.SASL_TYPE_VALUE);
         return headers.entrySet();
     }
-
 }

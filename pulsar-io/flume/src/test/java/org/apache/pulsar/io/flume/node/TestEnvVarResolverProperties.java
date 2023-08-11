@@ -25,9 +25,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public final class TestEnvVarResolverProperties {
-    private static final File TEST_FILE = new File(
-            TestEnvVarResolverProperties.class.getClassLoader()
-                    .getResource("flume-conf-with-envvars.properties").getFile());
+    private static final File TEST_FILE = new File(TestEnvVarResolverProperties.class
+            .getClassLoader()
+            .getResource("flume-conf-with-envvars.properties")
+            .getFile());
 
     private PropertiesFileConfigurationProvider provider;
 
@@ -49,8 +50,8 @@ public final class TestEnvVarResolverProperties {
         SystemLambda.withEnvironmentVariable("VARNAME1", "varvalue1")
                 .and("VARNAME2", "varvalue2")
                 .execute(() -> {
-                    String resolved = EnvVarResolverProperties.resolveEnvVars(
-                            "padding ${VARNAME1} ${VARNAME2} padding");
+                    String resolved =
+                            EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
                     assertEquals(resolved, "padding varvalue1 varvalue2 padding");
                 });
     }
@@ -58,12 +59,16 @@ public final class TestEnvVarResolverProperties {
     @Test
     public void getProperty() throws Exception {
         SystemLambda.withEnvironmentVariable("NC_PORT", "6667").execute(() -> {
-            System.setProperty("propertiesImplementation",
-                    "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
+            System.setProperty("propertiesImplementation", "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
-            assertEquals(provider.getFlumeConfiguration()
-                    .getConfigurationFor("a1")
-                    .getSourceContext().get("r1").getParameters().get("port"), "6667");
+            assertEquals(
+                    provider.getFlumeConfiguration()
+                            .getConfigurationFor("a1")
+                            .getSourceContext()
+                            .get("r1")
+                            .getParameters()
+                            .get("port"),
+                    "6667");
         });
     }
 }

@@ -51,9 +51,8 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     private long bufferOffsetStart;
     private long bufferOffsetEnd;
 
-    public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
-                                          VersionCheck versionCheck,
-                                          long objectLen, int bufferSize) {
+    public BlobStoreBackedInputStreamImpl(
+            BlobStore blobStore, String bucket, String key, VersionCheck versionCheck, long objectLen, int bufferSize) {
         this.blobStore = blobStore;
         this.bucket = bucket;
         this.key = key;
@@ -65,11 +64,15 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         this.bufferOffsetStart = this.bufferOffsetEnd = -1;
     }
 
-
-    public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
-                                          VersionCheck versionCheck,
-                                          long objectLen, int bufferSize,
-                                          LedgerOffloaderStats offloaderStats, String managedLedgerName) {
+    public BlobStoreBackedInputStreamImpl(
+            BlobStore blobStore,
+            String bucket,
+            String key,
+            VersionCheck versionCheck,
+            long objectLen,
+            int bufferSize,
+            LedgerOffloaderStats offloaderStats,
+            String managedLedgerName) {
         this(blobStore, bucket, key, versionCheck, objectLen, bufferSize);
         this.offloaderStats = offloaderStats;
         this.managedLedgerName = managedLedgerName;
@@ -86,11 +89,13 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                 return false;
             }
             long startRange = cursor;
-            long endRange = Math.min(cursor + bufferSize - 1,
-                                     objectLen - 1);
+            long endRange = Math.min(cursor + bufferSize - 1, objectLen - 1);
             if (log.isDebugEnabled()) {
-                log.info("refillBufferIfNeeded {} - {} ({} bytes to fill)",
-                        startRange, endRange, (endRange - startRange));
+                log.info(
+                        "refillBufferIfNeeded {} - {} ({} bytes to fill)",
+                        startRange,
+                        endRange,
+                        (endRange - startRange));
             }
             try {
                 long startReadTime = System.nanoTime();
@@ -113,8 +118,8 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                 // because JClouds streams the content
                 // and actually the HTTP call finishes when the stream is fully read
                 if (this.offloaderStats != null) {
-                    this.offloaderStats.recordReadOffloadDataLatency(topicName,
-                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    this.offloaderStats.recordReadOffloadDataLatency(
+                            topicName, System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
                     this.offloaderStats.recordReadOffloadBytes(topicName, endRange - startRange + 1);
                 }
             } catch (Throwable e) {
@@ -149,8 +154,14 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
 
     @Override
     public void seek(long position) {
-        log.debug("Seeking to {} on {}/{}, current position {} (bufStart:{}, bufEnd:{})",
-                position, bucket, key, cursor, bufferOffsetStart, bufferOffsetEnd);
+        log.debug(
+                "Seeking to {} on {}/{}, current position {} (bufStart:{}, bufEnd:{})",
+                position,
+                bucket,
+                key,
+                cursor,
+                bufferOffsetStart,
+                bufferOffsetEnd);
         if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
             long newIndex = position - bufferOffsetStart;
             buffer.readerIndex((int) newIndex);
@@ -166,8 +177,8 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         if (position >= cursor) {
             seek(position);
         } else {
-            throw new IOException(String.format("Error seeking, new position %d < current position %d",
-                                                position, cursor));
+            throw new IOException(
+                    String.format("Error seeking, new position %d < current position %d", position, cursor));
         }
     }
 

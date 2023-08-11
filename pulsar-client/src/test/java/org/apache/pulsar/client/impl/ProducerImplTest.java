@@ -40,10 +40,11 @@ public class ProducerImplTest {
         ctx.firstChunkMessageId = testMessageId;
 
         for (int i = 0; i < totalChunks; i++) {
-            ProducerImpl.OpSendMsg opSendMsg =
-                    ProducerImpl.OpSendMsg.create(
-                            MessageImpl.create(new MessageMetadata(), ByteBuffer.allocate(0), Schema.STRING, null),
-                            null, 0, null);
+            ProducerImpl.OpSendMsg opSendMsg = ProducerImpl.OpSendMsg.create(
+                    MessageImpl.create(new MessageMetadata(), ByteBuffer.allocate(0), Schema.STRING, null),
+                    null,
+                    0,
+                    null);
             opSendMsg.chunkedMessageCtx = ctx;
             // check the ctx hasn't been deallocated.
             assertEquals(ctx.firstChunkMessageId, testMessageId);
@@ -60,10 +61,8 @@ public class ProducerImplTest {
         when(msg.hasReplicateFrom()).thenReturn(true);
         when(msg.getSchemaInternal()).thenReturn(mock(Schema.class));
         when(msg.getSchemaInfoForReplicator()).thenReturn(null);
-        ProducerImpl<?> producer = mock(ProducerImpl.class, withSettings()
-                .defaultAnswer(Mockito.CALLS_REAL_METHODS));
+        ProducerImpl<?> producer = mock(ProducerImpl.class, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
         assertTrue(producer.populateMessageSchema(msg, null));
         verify(msg).setSchemaState(MessageImpl.SchemaState.Ready);
     }
-
 }

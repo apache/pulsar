@@ -45,10 +45,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     @Override
     public InetSocketAddress resolveHost() {
         List<InetSocketAddress> list = addressList;
-        checkState(
-            list != null, "No service url is provided yet");
-        checkState(
-            !list.isEmpty(), "No hosts found for service url : " + serviceUrl);
+        checkState(list != null, "No service url is provided yet");
+        checkState(!list.isEmpty(), "No hosts found for service url : " + serviceUrl);
         if (list.size() == 1) {
             return list.get(0);
         } else {
@@ -104,7 +102,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
 
     private static int randomIndex(int numAddresses) {
         return numAddresses == 1
-                ?
-                0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
+                ? 0
+                : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
 }

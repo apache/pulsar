@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.net.URI;
 import java.util.Optional;
 import lombok.Cleanup;
@@ -72,10 +71,9 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
 
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
         conf.setAdvertisedAddress(advertisedAddress);
-        conf.setAdvertisedListeners(
-                "public:pulsar://localhost:" + pulsarPort +
-                        ",public_http:http://localhost:" + httpPort +
-                        ",public_https:https://localhost:" + httpsPort);
+        conf.setAdvertisedListeners("public:pulsar://localhost:" + pulsarPort + ",public_http:http://localhost:"
+                + httpPort + ",public_https:https://localhost:"
+                + httpsPort);
         conf.setBrokerServicePort(Optional.of(pulsarPort));
         conf.setWebServicePort(Optional.of(httpPort));
         conf.setWebServicePortTls(Optional.of(httpsPort));
@@ -89,26 +87,23 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         request.addHeader(HttpHeaders.ACCEPT, "application/json");
         final String topic = "my-topic";
 
-        @Cleanup
-        CloseableHttpClient httpClient = HttpClients.createDefault();
+        @Cleanup CloseableHttpClient httpClient = HttpClients.createDefault();
 
-        @Cleanup
-        CloseableHttpResponse response = httpClient.execute(request);
+        @Cleanup CloseableHttpResponse response = httpClient.execute(request);
 
         HttpEntity entity = response.getEntity();
-        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity), LookupData.class);
+        LookupData ld =
+                ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity), LookupData.class);
         System.err.println("Lookup data: " + ld);
 
         assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");
         assertEquals(new URI(ld.getHttpUrl()).getHost(), "localhost");
         assertEquals(new URI(ld.getHttpUrlTls()).getHost(), "localhost");
 
-
         // Produce data
         @Cleanup
-        Producer<String> p = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+        Producer<String> p =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         p.send("hello");
 
@@ -119,5 +114,4 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
             assertEquals(s.getPublishers().size(), 1);
         }
     }
-
 }

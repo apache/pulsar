@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.auth.MockEncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.impl.auth.MockAuthentication;
-
-import org.testng.annotations.Test;
+import org.apache.pulsar.client.impl.auth.MockEncodedAuthenticationParameterSupport;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class AuthenticationTest {
 
     @Test
     public void testConfigureDefaultFormat() {
         try {
-            MockAuthentication testAuthentication =
-                    (MockAuthentication) AuthenticationFactory.create("org.apache.pulsar.client.impl.auth.MockAuthentication",
-                            "key1:value1,key2:value2");
+            MockAuthentication testAuthentication = (MockAuthentication) AuthenticationFactory.create(
+                    "org.apache.pulsar.client.impl.auth.MockAuthentication", "key1:value1,key2:value2");
             Assert.assertEquals(testAuthentication.authParamsMap.get("key1"), "value1");
             Assert.assertEquals(testAuthentication.authParamsMap.get("key2"), "value2");
         } catch (PulsarClientException.UnsupportedAuthenticationException e) {
@@ -43,10 +41,8 @@ public class AuthenticationTest {
     @Test
     public void testConfigureWrongFormat() {
         try {
-            MockAuthentication testAuthentication =
-                    (MockAuthentication) AuthenticationFactory.create(
-                            "org.apache.pulsar.client.impl.auth.MockAuthentication",
-                            "foobar");
+            MockAuthentication testAuthentication = (MockAuthentication)
+                    AuthenticationFactory.create("org.apache.pulsar.client.impl.auth.MockAuthentication", "foobar");
             Assert.assertTrue(testAuthentication.authParamsMap.isEmpty());
         } catch (PulsarClientException.UnsupportedAuthenticationException e) {
             e.printStackTrace();
@@ -58,8 +54,7 @@ public class AuthenticationTest {
     public void testConfigureNull() {
         try {
             MockAuthentication testAuthentication = (MockAuthentication) AuthenticationFactory.create(
-                    "org.apache.pulsar.client.impl.auth.MockAuthentication",
-                    (String) null);
+                    "org.apache.pulsar.client.impl.auth.MockAuthentication", (String) null);
             Assert.assertTrue(testAuthentication.authParamsMap.isEmpty());
         } catch (PulsarClientException.UnsupportedAuthenticationException e) {
             e.printStackTrace();
@@ -70,10 +65,8 @@ public class AuthenticationTest {
     @Test
     public void testConfigureEmpty() {
         try {
-            MockAuthentication testAuthentication =
-                    (MockAuthentication) AuthenticationFactory.create(
-                            "org.apache.pulsar.client.impl.auth.MockAuthentication",
-                            "");
+            MockAuthentication testAuthentication = (MockAuthentication)
+                    AuthenticationFactory.create("org.apache.pulsar.client.impl.auth.MockAuthentication", "");
             Assert.assertTrue(testAuthentication.authParamsMap.isEmpty());
         } catch (PulsarClientException.UnsupportedAuthenticationException e) {
             e.printStackTrace();

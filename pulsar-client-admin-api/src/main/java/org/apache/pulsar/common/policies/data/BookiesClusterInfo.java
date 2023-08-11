@@ -30,6 +30,7 @@ public interface BookiesClusterInfo {
 
     interface Builder {
         Builder bookies(List<RawBookieInfo> bookies);
+
         BookiesClusterInfo build();
     }
 

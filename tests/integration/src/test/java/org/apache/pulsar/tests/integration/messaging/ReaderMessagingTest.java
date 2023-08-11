@@ -40,10 +40,11 @@ public class ReaderMessagingTest extends MessagingBase {
     public void testReaderReconnectAndRead(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-reader-reconnect-read", false);
-        @Cleanup final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
-        @Cleanup final Reader<String> reader = client.newReader(Schema.STRING)
+        @Cleanup
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
+        @Cleanup
+        final Reader<String> reader = client.newReader(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("test-sub")
                 // Here we need to make sure that setting the startMessageId should not cause a change in the
@@ -52,7 +53,8 @@ public class ReaderMessagingTest extends MessagingBase {
                 .create();
 
         final int messagesToSend = 10;
-        @Cleanup final Producer<String> producer = client.newProducer(Schema.STRING)
+        @Cleanup
+        final Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(false)
                 .create();
@@ -67,9 +69,7 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl.get())
-                .build();
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
 
         admin.topics().unload(topicName);
 
@@ -91,10 +91,11 @@ public class ReaderMessagingTest extends MessagingBase {
             throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-reader-reconnect-read-batch", false);
-        @Cleanup final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
-        @Cleanup final Reader<String> reader = client.newReader(Schema.STRING)
+        @Cleanup
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
+        @Cleanup
+        final Reader<String> reader = client.newReader(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("test-sub")
                 // Here we need to make sure that setting the startMessageId should not cause a change in the
@@ -103,7 +104,8 @@ public class ReaderMessagingTest extends MessagingBase {
                 .create();
 
         final int messagesToSend = 10;
-        @Cleanup final Producer<String> producer = client.newProducer(Schema.STRING)
+        @Cleanup
+        final Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
@@ -121,9 +123,7 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl.get())
-                .build();
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
 
         admin.topics().unload(topicName);
 

@@ -30,7 +30,6 @@ public interface RawReader {
     /**
      * Create a raw reader for a topic.
      */
-
     static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
         RawReader r = new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future);

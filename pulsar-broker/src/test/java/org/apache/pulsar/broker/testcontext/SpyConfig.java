@@ -105,7 +105,6 @@ public class SpyConfig {
     /**
      * Spy configuration for {@link PulsarService#getCompactionServiceFactory()}.
      */
-
     private final SpyType compactedServiceFactory;
     /**
      * Spy configuration for {@link PulsarService#getNamespaceService()}.

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-
 import io.netty.util.concurrent.Future;
 import java.util.List;
 import java.util.Optional;
@@ -42,17 +41,20 @@ public interface PulsarCommandSender {
 
     void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion);
 
-    void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
-                                     SchemaVersion schemaVersion, Optional<Long> topicEpoch,
-                                     boolean isProducerReady);
+    void sendProducerSuccessResponse(
+            long requestId,
+            String producerName,
+            long lastSequenceId,
+            SchemaVersion schemaVersion,
+            Optional<Long> topicEpoch,
+            boolean isProducerReady);
 
-    void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
-                                 long entryId);
+    void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId, long entryId);
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
-    void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
-                                          boolean changed, long requestId);
+    void sendGetTopicsOfNamespaceResponse(
+            List<String> topics, String topicsHash, boolean filtered, boolean changed, long requestId);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
@@ -64,9 +66,13 @@ public interface PulsarCommandSender {
 
     void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers);
 
-    void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                            CommandLookupTopicResponse.LookupType response, long requestId,
-                            boolean proxyThroughServiceUrl);
+    void sendLookupResponse(
+            String brokerServiceUrl,
+            String brokerServiceUrlTls,
+            boolean authoritative,
+            CommandLookupTopicResponse.LookupType response,
+            long requestId,
+            boolean proxyThroughServiceUrl);
 
     void sendLookupResponse(ServerError error, String errorMsg, long requestId);
 
@@ -76,10 +82,16 @@ public interface PulsarCommandSender {
 
     boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls);
 
-    Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
-                                        int partitionIdx, List<? extends Entry> entries, EntryBatchSizes batchSizes,
-                                        EntryBatchIndexesAcks batchIndexesAcks,
-                                        RedeliveryTracker redeliveryTracker, long epoch);
+    Future<Void> sendMessagesToConsumer(
+            long consumerId,
+            String topicName,
+            Subscription subscription,
+            int partitionIdx,
+            List<? extends Entry> entries,
+            EntryBatchSizes batchSizes,
+            EntryBatchIndexesAcks batchIndexesAcks,
+            RedeliveryTracker redeliveryTracker,
+            long epoch);
 
     void sendTcClientConnectResponse(long requestId, ServerError error, String message);
 
@@ -95,6 +107,6 @@ public interface PulsarCommandSender {
 
     void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics);
 
-    void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash);
+    void sendWatchTopicListUpdate(
+            long watcherId, List<String> newTopics, List<String> deletedTopics, String topicsHash);
 }

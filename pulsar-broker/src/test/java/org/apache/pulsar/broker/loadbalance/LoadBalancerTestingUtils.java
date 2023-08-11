@@ -18,17 +18,20 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-
 public class LoadBalancerTestingUtils {
-    public static NamespaceBundle[] makeBundles(final NamespaceBundleFactory nsFactory, final String property,
-            final String cluster, final String namespace, final int numBundles) {
+    public static NamespaceBundle[] makeBundles(
+            final NamespaceBundleFactory nsFactory,
+            final String property,
+            final String cluster,
+            final String namespace,
+            final int numBundles) {
         final NamespaceBundle[] result = new NamespaceBundle[numBundles];
         final NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
         for (int i = 0; i < numBundles - 1; ++i) {
@@ -36,9 +39,13 @@ public class LoadBalancerTestingUtils {
             final long upper = NamespaceBundles.FULL_UPPER_BOUND * (i + 1) / numBundles;
             result[i] = nsFactory.getBundle(namespaceName, Range.range(lower, BoundType.CLOSED, upper, BoundType.OPEN));
         }
-        result[numBundles - 1] = nsFactory.getBundle(namespaceName,
-                Range.range(NamespaceBundles.FULL_UPPER_BOUND * (numBundles - 1) / numBundles, BoundType.CLOSED,
-                        NamespaceBundles.FULL_UPPER_BOUND, BoundType.CLOSED));
+        result[numBundles - 1] = nsFactory.getBundle(
+                namespaceName,
+                Range.range(
+                        NamespaceBundles.FULL_UPPER_BOUND * (numBundles - 1) / numBundles,
+                        BoundType.CLOSED,
+                        NamespaceBundles.FULL_UPPER_BOUND,
+                        BoundType.CLOSED));
         return result;
     }
 }

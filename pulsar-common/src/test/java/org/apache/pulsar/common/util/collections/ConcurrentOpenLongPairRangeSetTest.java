@@ -22,20 +22,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.commons.lang.mutable.MutableInt;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
-import org.testng.annotations.Test;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
+import org.testng.annotations.Test;
 
 public class ConcurrentOpenLongPairRangeSetTest {
 
@@ -202,7 +199,8 @@ public class ConcurrentOpenLongPairRangeSetTest {
         set.addOpenClosed(2, 24, 2, 28);
         set.addOpenClosed(3, 11, 3, 20);
         set.addOpenClosed(4, 11, 4, 20);
-        // range is [(0:1..0:50],(0:97..0:99],(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
+        // range is
+        // [(0:1..0:50],(0:97..0:99],(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
         set.remove(Range.closed(new LongPair(0, 0), new LongPair(0, Integer.MAX_VALUE - 1)));
         // after remove is [(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
         int count = 0;
@@ -400,7 +398,8 @@ public class ConcurrentOpenLongPairRangeSetTest {
         gSet.add(Range.closed(new LongPair(4, 12), new LongPair(4, 20)));
 
         LongPair position = new LongPair(0, 99);
-        assertEquals(set.rangeContaining(position.getKey(), position.getValue()),
+        assertEquals(
+                set.rangeContaining(position.getKey(), position.getValue()),
                 Range.closed(new LongPair(0, 98), new LongPair(0, 100)));
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
@@ -409,7 +408,8 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
         position = new LongPair(3, 13);
-        assertEquals(set.rangeContaining(position.getKey(), position.getValue()),
+        assertEquals(
+                set.rangeContaining(position.getKey(), position.getValue()),
                 Range.closed(new LongPair(3, 12), new LongPair(3, 20)));
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
@@ -440,11 +440,14 @@ public class ConcurrentOpenLongPairRangeSetTest {
             }
             LongPair previousUpper = lastRange.upperEndpoint();
             LongPair currentLower = range.lowerEndpoint();
-            int previousUpperValue = (int) (lastRange.upperBoundType().equals(BoundType.CLOSED)
-                    ? previousUpper.getValue()
-                    : previousUpper.getValue() - 1);
-            int currentLowerValue = (int) (range.lowerBoundType().equals(BoundType.CLOSED) ? currentLower.getValue()
-                    : currentLower.getValue() + 1);
+            int previousUpperValue = (int)
+                    (lastRange.upperBoundType().equals(BoundType.CLOSED)
+                            ? previousUpper.getValue()
+                            : previousUpper.getValue() - 1);
+            int currentLowerValue = (int)
+                    (range.lowerBoundType().equals(BoundType.CLOSED)
+                            ? currentLower.getValue()
+                            : currentLower.getValue() + 1);
             boolean connected = (previousUpper.getKey() == currentLower.getKey())
                     ? (previousUpperValue >= currentLowerValue)
                     : false;
@@ -455,11 +458,12 @@ public class ConcurrentOpenLongPairRangeSetTest {
                 lastRange = range;
             }
         }
-        int lowerOpenValue = (int) (lastRange.lowerBoundType().equals(BoundType.CLOSED)
-                ? (lastRange.lowerEndpoint().getValue() - 1)
-                : lastRange.lowerEndpoint().getValue());
-        lastRange = Range.openClosed(new LongPair(lastRange.lowerEndpoint().getKey(), lowerOpenValue),
-                lastRange.upperEndpoint());
+        int lowerOpenValue = (int)
+                (lastRange.lowerBoundType().equals(BoundType.CLOSED)
+                        ? (lastRange.lowerEndpoint().getValue() - 1)
+                        : lastRange.lowerEndpoint().getValue());
+        lastRange = Range.openClosed(
+                new LongPair(lastRange.lowerEndpoint().getKey(), lowerOpenValue), lastRange.upperEndpoint());
         gRangeConnected.add(lastRange);
         return gRangeConnected;
     }
@@ -468,7 +472,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
     public void testCardinality() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         int v = set.cardinality(0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
-        assertEquals(v, 0 );
+        assertEquals(v, 0);
         set.addOpenClosed(1, 0, 1, 20);
         set.addOpenClosed(1, 30, 1, 90);
         set.addOpenClosed(2, 0, 3, 30);
@@ -486,8 +490,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
 
     @Test
     public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
-        ConcurrentOpenLongPairRangeSet<LongPair> set =
-                new ConcurrentOpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
 
         LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet =
                 new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
@@ -501,7 +504,6 @@ public class ConcurrentOpenLongPairRangeSetTest {
         defaultRangeSet.addOpenClosed(2, 25, 2, 28);
         defaultRangeSet.addOpenClosed(3, 12, 3, 20);
         defaultRangeSet.addOpenClosed(4, 12, 4, 20);
-
 
         MutableInt size = new MutableInt(0);
 
@@ -522,7 +524,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
             defaultRangeSetResult.add(new LongPair(upperKey, upperValue));
             return true;
         });
-        
+
         set.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
             forEachRawRangeResult.add(new LongPair(lowerKey, lowerValue));
             forEachRawRangeResult.add(new LongPair(upperKey, upperValue));

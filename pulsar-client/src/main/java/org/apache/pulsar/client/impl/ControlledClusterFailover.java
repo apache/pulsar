@@ -75,8 +75,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
 
         this.httpClient = buildHttpClient();
-        this.requestBuilder = httpClient.prepareGet(builder.urlProvider)
-            .addHeader("Accept", "application/json");
+        this.requestBuilder = httpClient.prepareGet(builder.urlProvider).addHeader("Accept", "application/json");
 
         if (builder.header != null && !builder.header.isEmpty()) {
             builder.header.forEach(requestBuilder::addHeader);
@@ -93,11 +92,11 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
-            public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
-                                     HttpRequest request, HttpResponse response) {
+            public boolean keepAlive(
+                    InetSocketAddress remoteAddress, Request ahcRequest, HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
                 return (response.status().code() / 100 != 5)
-                    && super.keepAlive(remoteAddress, ahcRequest, request, response);
+                        && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
         AsyncHttpClientConfig config = confBuilder.build();
@@ -109,44 +108,54 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         this.pulsarClient = (PulsarClientImpl) client;
 
         // start to check service url every 30 seconds
-        this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
-            ControlledConfiguration controlledConfiguration = null;
-            try {
-                controlledConfiguration = fetchControlledConfiguration();
-                if (controlledConfiguration != null
-                        && !Strings.isNullOrEmpty(controlledConfiguration.getServiceUrl())
-                        && !controlledConfiguration.equals(currentControlledConfiguration)) {
-                    log.info("Switch Pulsar service url from {} to {}",
-                            currentControlledConfiguration, controlledConfiguration.toString());
+        this.executor.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(() -> {
+                    ControlledConfiguration controlledConfiguration = null;
+                    try {
+                        controlledConfiguration = fetchControlledConfiguration();
+                        if (controlledConfiguration != null
+                                && !Strings.isNullOrEmpty(controlledConfiguration.getServiceUrl())
+                                && !controlledConfiguration.equals(currentControlledConfiguration)) {
+                            log.info(
+                                    "Switch Pulsar service url from {} to {}",
+                                    currentControlledConfiguration,
+                                    controlledConfiguration.toString());
 
-                    Authentication authentication = null;
-                    if (!Strings.isNullOrEmpty(controlledConfiguration.authPluginClassName)
-                            && !Strings.isNullOrEmpty(controlledConfiguration.getAuthParamsString())) {
-                        authentication = AuthenticationFactory.create(controlledConfiguration.getAuthPluginClassName(),
-                                controlledConfiguration.getAuthParamsString());
+                            Authentication authentication = null;
+                            if (!Strings.isNullOrEmpty(controlledConfiguration.authPluginClassName)
+                                    && !Strings.isNullOrEmpty(controlledConfiguration.getAuthParamsString())) {
+                                authentication = AuthenticationFactory.create(
+                                        controlledConfiguration.getAuthPluginClassName(),
+                                        controlledConfiguration.getAuthParamsString());
+                            }
+
+                            String tlsTrustCertsFilePath = controlledConfiguration.getTlsTrustCertsFilePath();
+                            String serviceUrl = controlledConfiguration.getServiceUrl();
+
+                            if (authentication != null) {
+                                pulsarClient.updateAuthentication(authentication);
+                            }
+
+                            if (!Strings.isNullOrEmpty(tlsTrustCertsFilePath)) {
+                                pulsarClient.updateTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+                            }
+
+                            pulsarClient.updateServiceUrl(serviceUrl);
+                            pulsarClient.reloadLookUp();
+                            currentPulsarServiceUrl = serviceUrl;
+                            currentControlledConfiguration = controlledConfiguration;
+                        }
+                    } catch (IOException e) {
+                        log.error(
+                                "Failed to switch new Pulsar url, current: {}, new: {}",
+                                currentControlledConfiguration,
+                                controlledConfiguration,
+                                e);
                     }
-
-                    String tlsTrustCertsFilePath = controlledConfiguration.getTlsTrustCertsFilePath();
-                    String serviceUrl = controlledConfiguration.getServiceUrl();
-
-                    if (authentication != null) {
-                        pulsarClient.updateAuthentication(authentication);
-                    }
-
-                    if (!Strings.isNullOrEmpty(tlsTrustCertsFilePath)) {
-                        pulsarClient.updateTlsTrustCertsFilePath(tlsTrustCertsFilePath);
-                    }
-
-                    pulsarClient.updateServiceUrl(serviceUrl);
-                    pulsarClient.reloadLookUp();
-                    currentPulsarServiceUrl = serviceUrl;
-                    currentControlledConfiguration = controlledConfiguration;
-                }
-            } catch (IOException e) {
-                log.error("Failed to switch new Pulsar url, current: {}, new: {}",
-                        currentControlledConfiguration, controlledConfiguration, e);
-            }
-        }), interval, interval, TimeUnit.MILLISECONDS);
+                }),
+                interval,
+                interval,
+                TimeUnit.MILLISECONDS);
     }
 
     public String getCurrentPulsarServiceUrl() {

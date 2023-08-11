@@ -37,13 +37,12 @@ public class SimpleResourceUnit implements ResourceUnit {
         this.properties = Collections.emptyMap();
     }
 
-    public SimpleResourceUnit(String resourceId, ResourceDescription resourceDescription,
-                              Map<String, Object> properties) {
+    public SimpleResourceUnit(
+            String resourceId, ResourceDescription resourceDescription, Map<String, Object> properties) {
         this.resourceId = resourceId;
         this.resourceDescription = resourceDescription;
         this.properties = properties == null ? Collections.emptyMap() : properties;
     }
-
 
     @Override
     public String getResourceId() {

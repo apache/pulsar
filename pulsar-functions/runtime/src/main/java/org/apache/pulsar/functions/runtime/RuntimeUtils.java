@@ -65,37 +65,55 @@ public class RuntimeUtils {
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
     public static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
-    public static List<String> composeCmd(InstanceConfig instanceConfig,
-                                          String instanceFile,
-                                          String extraDependenciesDir, /* extra dependencies for running instances */
-                                          String logDirectory,
-                                          String originalCodeFileName,
-                                          String originalTransformFunctionFileName,
-                                          String pulsarServiceUrl,
-                                          String stateStorageServiceUrl,
-                                          AuthenticationConfig authConfig,
-                                          String shardId,
-                                          Integer grpcPort,
-                                          Long expectedHealthCheckInterval,
-                                          String logConfigFile,
-                                          String secretsProviderClassName,
-                                          String secretsProviderConfig,
-                                          Boolean installUserCodeDependencies,
-                                          String pythonDependencyRepository,
-                                          String pythonExtraDependencyRepository,
-                                          String narExtractionDirectory,
-                                          String functionInstanceClassPath,
-                                          String pulsarWebServiceUrl) throws Exception {
+    public static List<String> composeCmd(
+            InstanceConfig instanceConfig,
+            String instanceFile,
+            String extraDependenciesDir, /* extra dependencies for running instances */
+            String logDirectory,
+            String originalCodeFileName,
+            String originalTransformFunctionFileName,
+            String pulsarServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String shardId,
+            Integer grpcPort,
+            Long expectedHealthCheckInterval,
+            String logConfigFile,
+            String secretsProviderClassName,
+            String secretsProviderConfig,
+            Boolean installUserCodeDependencies,
+            String pythonDependencyRepository,
+            String pythonExtraDependencyRepository,
+            String narExtractionDirectory,
+            String functionInstanceClassPath,
+            String pulsarWebServiceUrl)
+            throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
-        cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
-                originalCodeFileName, originalTransformFunctionFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, shardId, grpcPort, expectedHealthCheckInterval,
-                logConfigFile, secretsProviderClassName, secretsProviderConfig,
-                installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, narExtractionDirectory,
-                functionInstanceClassPath, false, pulsarWebServiceUrl));
+        cmd.addAll(getCmd(
+                instanceConfig,
+                instanceFile,
+                extraDependenciesDir,
+                logDirectory,
+                originalCodeFileName,
+                originalTransformFunctionFileName,
+                pulsarServiceUrl,
+                stateStorageServiceUrl,
+                authConfig,
+                shardId,
+                grpcPort,
+                expectedHealthCheckInterval,
+                logConfigFile,
+                secretsProviderClassName,
+                secretsProviderConfig,
+                installUserCodeDependencies,
+                pythonDependencyRepository,
+                pythonExtraDependencyRepository,
+                narExtractionDirectory,
+                functionInstanceClassPath,
+                false,
+                pulsarWebServiceUrl));
         return cmd;
     }
 
@@ -103,7 +121,7 @@ public class RuntimeUtils {
 
         final List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            //no-op
+            // no-op
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             // add `extraDependenciesDir` to python package searching path
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
@@ -128,14 +146,15 @@ public class RuntimeUtils {
      * When we run the go function, we only need to specify the location of the go-function file and the yaml file.
      * The content of the yaml file will be automatically generated according to the content provided by instanceConfig.
      */
-
-    public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
-                                                AuthenticationConfig authConfig,
-                                                String originalCodeFileName,
-                                                String pulsarServiceUrl,
-                                                String stateStorageServiceUrl,
-                                                String pulsarWebServiceUrl,
-                                                boolean k8sRuntime) throws IOException {
+    public static List<String> getGoInstanceCmd(
+            InstanceConfig instanceConfig,
+            AuthenticationConfig authConfig,
+            String originalCodeFileName,
+            String pulsarServiceUrl,
+            String stateStorageServiceUrl,
+            String pulsarWebServiceUrl,
+            boolean k8sRuntime)
+            throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
@@ -183,8 +202,8 @@ public class RuntimeUtils {
             goInstanceConfig.setLogTopic(instanceConfig.getFunctionDetails().getLogTopic());
         }
         if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
-            goInstanceConfig
-                    .setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
+            goInstanceConfig.setProcessingGuarantees(
+                    instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
         }
         if (instanceConfig.getFunctionDetails().getRuntime() != null) {
             goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().getRuntimeValue());
@@ -205,15 +224,11 @@ public class RuntimeUtils {
                 goInstanceConfig.setClientAuthenticationPlugin(authConfig.getClientAuthenticationPlugin());
                 goInstanceConfig.setClientAuthenticationParameters(authConfig.getClientAuthenticationParameters());
             }
-            goInstanceConfig.setTlsAllowInsecureConnection(
-                    authConfig.isTlsAllowInsecureConnection());
-            goInstanceConfig.setTlsHostnameVerificationEnable(
-                    authConfig.isTlsHostnameVerificationEnable());
-            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())){
-                goInstanceConfig.setTlsTrustCertsFilePath(
-                        authConfig.getTlsTrustCertsFilePath());
+            goInstanceConfig.setTlsAllowInsecureConnection(authConfig.isTlsAllowInsecureConnection());
+            goInstanceConfig.setTlsHostnameVerificationEnable(authConfig.isTlsHostnameVerificationEnable());
+            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
+                goInstanceConfig.setTlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
             }
-
         }
 
         if (instanceConfig.getMaxBufferedTuples() != 0) {
@@ -224,55 +239,69 @@ public class RuntimeUtils {
             goInstanceConfig.setPulsarServiceURL(pulsarServiceUrl);
         }
         if (instanceConfig.getFunctionDetails().getSource().getCleanupSubscription()) {
-            goInstanceConfig
-                    .setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
+            goInstanceConfig.setCleanupSubscription(
+                    instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
         }
         if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
-            goInstanceConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
+            goInstanceConfig.setSubscriptionName(
+                    instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
         }
-        goInstanceConfig.setSubscriptionPosition(
-                instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
+        goInstanceConfig.setSubscriptionPosition(instanceConfig
+                .getFunctionDetails()
+                .getSource()
+                .getSubscriptionPosition()
+                .getNumber());
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
             Map<String, String> sourceInputSpecs = new HashMap<>();
-            for (Map.Entry<String, Function.ConsumerSpec> entry :
-                    instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().entrySet()) {
+            for (Map.Entry<String, Function.ConsumerSpec> entry : instanceConfig
+                    .getFunctionDetails()
+                    .getSource()
+                    .getInputSpecsMap()
+                    .entrySet()) {
                 String topic = entry.getKey();
                 Function.ConsumerSpec spec = entry.getValue();
-                sourceInputSpecs.put(topic, JsonFormat.printer().omittingInsignificantWhitespace().print(spec));
+                sourceInputSpecs.put(
+                        topic,
+                        JsonFormat.printer().omittingInsignificantWhitespace().print(spec));
                 goInstanceConfig.setSourceSpecsTopic(topic);
             }
             goInstanceConfig.setSourceInputSpecs(sourceInputSpecs);
         }
 
         if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() != 0) {
-            goInstanceConfig.setTimeoutMs(instanceConfig.getFunctionDetails().getSource().getTimeoutMs());
+            goInstanceConfig.setTimeoutMs(
+                    instanceConfig.getFunctionDetails().getSource().getTimeoutMs());
         }
 
         if (instanceConfig.getFunctionDetails().getSink().getTopic() != null) {
-            goInstanceConfig.setSinkSpecsTopic(instanceConfig.getFunctionDetails().getSink().getTopic());
+            goInstanceConfig.setSinkSpecsTopic(
+                    instanceConfig.getFunctionDetails().getSink().getTopic());
         }
 
         if (instanceConfig.getFunctionDetails().getResources().getCpu() != 0) {
-            goInstanceConfig.setCpu(instanceConfig.getFunctionDetails().getResources().getCpu());
+            goInstanceConfig.setCpu(
+                    instanceConfig.getFunctionDetails().getResources().getCpu());
         }
 
         if (instanceConfig.getFunctionDetails().getResources().getRam() != 0) {
-            goInstanceConfig.setRam(instanceConfig.getFunctionDetails().getResources().getRam());
+            goInstanceConfig.setRam(
+                    instanceConfig.getFunctionDetails().getResources().getRam());
         }
 
         if (instanceConfig.getFunctionDetails().getResources().getDisk() != 0) {
-            goInstanceConfig.setDisk(instanceConfig.getFunctionDetails().getResources().getDisk());
+            goInstanceConfig.setDisk(
+                    instanceConfig.getFunctionDetails().getResources().getDisk());
         }
 
         if (instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic() != null) {
-            goInstanceConfig
-                    .setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
+            goInstanceConfig.setDeadLetterTopic(
+                    instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
         }
 
         if (instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries() != 0) {
-            goInstanceConfig
-                    .setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
+            goInstanceConfig.setMaxMessageRetries(
+                    instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
         if (instanceConfig.hasValidMetricsPort()) {
@@ -296,33 +325,40 @@ public class RuntimeUtils {
         return args;
     }
 
-    public static List<String> getCmd(InstanceConfig instanceConfig,
-                                      String instanceFile,
-                                      String extraDependenciesDir, /* extra dependencies for running instances */
-                                      String logDirectory,
-                                      String originalCodeFileName,
-                                      String originalTransformFunctionFileName,
-                                      String pulsarServiceUrl,
-                                      String stateStorageServiceUrl,
-                                      AuthenticationConfig authConfig,
-                                      String shardId,
-                                      Integer grpcPort,
-                                      Long expectedHealthCheckInterval,
-                                      String logConfigFile,
-                                      String secretsProviderClassName,
-                                      String secretsProviderConfig,
-                                      Boolean installUserCodeDependencies,
-                                      String pythonDependencyRepository,
-                                      String pythonExtraDependencyRepository,
-                                      String narExtractionDirectory,
-                                      String functionInstanceClassPath,
-                                      boolean k8sRuntime,
-                                      String pulsarWebServiceUrl) throws Exception {
+    public static List<String> getCmd(
+            InstanceConfig instanceConfig,
+            String instanceFile,
+            String extraDependenciesDir, /* extra dependencies for running instances */
+            String logDirectory,
+            String originalCodeFileName,
+            String originalTransformFunctionFileName,
+            String pulsarServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String shardId,
+            Integer grpcPort,
+            Long expectedHealthCheckInterval,
+            String logConfigFile,
+            String secretsProviderClassName,
+            String secretsProviderConfig,
+            Boolean installUserCodeDependencies,
+            String pythonDependencyRepository,
+            String pythonExtraDependencyRepository,
+            String narExtractionDirectory,
+            String functionInstanceClassPath,
+            boolean k8sRuntime,
+            String pulsarWebServiceUrl)
+            throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, authConfig, originalCodeFileName,
-                    pulsarServiceUrl, stateStorageServiceUrl, pulsarWebServiceUrl,
+            return getGoInstanceCmd(
+                    instanceConfig,
+                    authConfig,
+                    originalCodeFileName,
+                    pulsarServiceUrl,
+                    stateStorageServiceUrl,
+                    pulsarWebServiceUrl,
                     k8sRuntime);
         }
 
@@ -348,7 +384,8 @@ public class RuntimeUtils {
                 // the functions instance dependencies separately from user code dependencies
                 String systemFunctionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
                 if (systemFunctionInstanceClasspath == null) {
-                    log.warn("Property {} is not set.  Falling back to using classpath of current JVM",
+                    log.warn(
+                            "Property {} is not set.  Falling back to using classpath of current JVM",
                             FUNCTIONS_INSTANCE_CLASSPATH);
                     systemFunctionInstanceClasspath = System.getProperty("java.class.path");
                 }
@@ -356,10 +393,8 @@ public class RuntimeUtils {
             }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
-            args.add("-Dpulsar.function.log.file=" + String.format(
-                    "%s-%s",
-                    instanceConfig.getFunctionDetails().getName(),
-                    shardId));
+            args.add("-Dpulsar.function.log.file="
+                    + String.format("%s-%s", instanceConfig.getFunctionDetails().getName(), shardId));
 
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
 
@@ -374,10 +409,13 @@ public class RuntimeUtils {
             }
 
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
+                Collections.addAll(
+                        args,
+                        splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
-                Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
+                Function.Resources resources =
+                        instanceConfig.getFunctionDetails().getResources();
                 if (resources.getRam() != 0) {
                     args.add("-Xmx" + String.valueOf(resources.getRam()));
                 }
@@ -395,7 +433,9 @@ public class RuntimeUtils {
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python3");
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
+                Collections.addAll(
+                        args,
+                        splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             args.add(instanceFile);
             args.add("--py");
@@ -429,8 +469,8 @@ public class RuntimeUtils {
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--function_details");
-        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace()
-                .print(instanceConfig.getFunctionDetails()) + "'");
+        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails())
+                + "'");
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
@@ -514,14 +554,13 @@ public class RuntimeUtils {
 
     public static String genFunctionLogFolder(String logDirectory, InstanceConfig instanceConfig) {
         return String.format(
-                "%s/%s",
-                logDirectory,
-                FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                "%s/%s", logDirectory, FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
-        URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
+        URL url =
+                new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -566,8 +605,8 @@ public class RuntimeUtils {
             return null;
         }
         // converts a unicode string to plain ascii
-        String asciiFileName = Normalizer.normalize(fileName, Normalizer.Form.NFD)
-                .replaceAll("[^\\p{ASCII}]", "");
+        String asciiFileName =
+                Normalizer.normalize(fileName, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
         // replaces all non-alphanumeric characters (excluding -_.) with _
         return asciiFileName.replaceAll("[^a-zA-Z0-9-_.]", "_");
     }

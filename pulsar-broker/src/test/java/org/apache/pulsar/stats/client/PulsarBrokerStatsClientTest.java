@@ -27,7 +27,6 @@ import java.net.URL;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
-
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -104,8 +103,12 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         final int numberOfMsgs = 1000;
         for (int i = 0; i < numberOfMsgs; i++) {
@@ -122,8 +125,10 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             }
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopicInternalStats internalStats =
+                topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
         // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
         // The registered bookie ID is 192.168.1.1:5000

@@ -25,7 +25,7 @@ public interface RuntimeCustomizer {
     void initialize(Map<String, Object> runtimeCustomizerConfig);
 
     static RuntimeCustomizer getRuntimeCustomizer(String className) {
-        return Reflections
-                .createInstance(className, RuntimeCustomizer.class, Thread.currentThread().getContextClassLoader());
+        return Reflections.createInstance(
+                className, RuntimeCustomizer.class, Thread.currentThread().getContextClassLoader());
     }
 }

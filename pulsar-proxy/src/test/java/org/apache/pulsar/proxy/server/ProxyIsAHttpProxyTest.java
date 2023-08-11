@@ -19,24 +19,20 @@
 package org.apache.pulsar.proxy.server;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.IOException;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BooleanSupplier;
-
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -56,7 +52,6 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -81,8 +76,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         // Set number of CPU's to two for unit tests for running in resource constrained env.
         ProcessorUtils.setAvailableProcessors(2);
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
+        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper), new ZKMetadataStore(mockZooKeeperGlobal));
         backingServer1 = new Server(0);
         backingServer1.setHandler(newHandler("server1"));
         backingServer1.start();
@@ -96,7 +90,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         httpConfig.setRequestHeaderSize(20000);
         ServerConnector connector = new ServerConnector(backingServer3, new HttpConnectionFactory(httpConfig));
         connector.setPort(0);
-        backingServer3.setConnectors(new Connector[]{connector});
+        backingServer3.setConnectors(new Connector[] {connector});
         backingServer3.setHandler(newHandler("server3"));
         backingServer3.start();
     }
@@ -104,15 +98,16 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
     private static AbstractHandler newHandler(String text) {
         return new AbstractHandler() {
             @Override
-            public void handle(String target, Request baseRequest,
-                               HttpServletRequest request,HttpServletResponse response)
+            public void handle(
+                    String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
                     throws IOException, ServletException {
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
                 baseRequest.setHandled(true);
                 String uri = request.getRequestURI();
-                response.getWriter().println(String.format("%s,%s", text,
-                        uri.substring(0, uri.length() > 1024 ? 1024 : uri.length())));
+                response.getWriter()
+                        .println(String.format(
+                                "%s,%s", text, uri.substring(0, uri.length() > 1024 ? 1024 : uri.length())));
             }
         };
     }
@@ -121,37 +116,37 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ServletContextHandler context = new ServletContextHandler();
         context.setContextPath("/");
         ServletHolder asyncHolder = new ServletHolder(new HttpServlet() {
-                @Override
-                protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-                        throws ServletException, IOException {
-                    final AsyncContext ctx = req.startAsync();
-                    resp.setContentType("text/plain;charset=utf-8");
-                    resp.setStatus(HttpServletResponse.SC_OK);
+            @Override
+            protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+                    throws ServletException, IOException {
+                final AsyncContext ctx = req.startAsync();
+                resp.setContentType("text/plain;charset=utf-8");
+                resp.setStatus(HttpServletResponse.SC_OK);
 
-                    ctx.start(() -> {
-                            log.info("Doing async processing");
-                            try {
-                                while (true) {
-                                    String data = dataQueue.take();
-                                    if (data.equals("DONE")) {
-                                        ctx.complete();
-                                        break;
-                                    } else {
-                                        ctx.getResponse().getWriter().print(data);
-                                        ctx.getResponse().getWriter().flush();
-                                    }
-                                }
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                log.error("Async handler interrupted");
+                ctx.start(() -> {
+                    log.info("Doing async processing");
+                    try {
+                        while (true) {
+                            String data = dataQueue.take();
+                            if (data.equals("DONE")) {
                                 ctx.complete();
-                            } catch (Exception e) {
-                                log.error("Unexpected error in async handler", e);
-                                ctx.complete();
+                                break;
+                            } else {
+                                ctx.getResponse().getWriter().print(data);
+                                ctx.getResponse().getWriter().flush();
                             }
-                        });
-                }
-            });
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.error("Async handler interrupted");
+                        ctx.complete();
+                    } catch (Exception e) {
+                        log.error("Unexpected error in async handler", e);
+                        ctx.complete();
+                    }
+                });
+            }
+        });
         asyncHolder.setAsyncSupported(true);
         context.addServlet(asyncHolder, "/");
         return context;
@@ -182,7 +177,8 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
     public void testPathNotSpecified() throws Exception {
         Properties props = new Properties();
 
-        props.setProperty("httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
@@ -194,20 +190,24 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         Properties props = new Properties();
 
         props.setProperty("httpReverseProxy.foobar.path", "/ui");
-        props.setProperty("httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
-            Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
+            Response r = client.target(webServer.getServiceUri())
+                    .path("/ui/foobar")
+                    .request()
+                    .get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r.readEntity(String.class).trim(), "server1,/foobar");
         } finally {
@@ -228,19 +228,25 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
-            Response r1 = client.target(webServer.getServiceUri()).path("/server1/foobar").request().get();
+            Response r1 = client.target(webServer.getServiceUri())
+                    .path("/server1/foobar")
+                    .request()
+                    .get();
             Assert.assertEquals(r1.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r1.readEntity(String.class).trim(), "server1,/foobar");
 
-            Response r2 = client.target(webServer.getServiceUri()).path("/server2/blahblah").request().get();
+            Response r2 = client.target(webServer.getServiceUri())
+                    .path("/server2/blahblah")
+                    .request()
+                    .get();
             Assert.assertEquals(r2.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r2.readEntity(String.class).trim(), "server2,/blahblah");
 
@@ -254,92 +260,105 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         Properties props = new Properties();
 
         props.setProperty("httpReverseProxy.foobar.path", "/admin");
-        props.setProperty("httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
-
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
     }
 
     @Test
     public void testLongPathInProxyTo() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/ui");
-        props.setProperty("httpReverseProxy.foobar.proxyTo",
-                          backingServer1.getURI().resolve("/foo/bar/blah/yadda/yadda/yadda").toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo",
+                backingServer1
+                        .getURI()
+                        .resolve("/foo/bar/blah/yadda/yadda/yadda")
+                        .toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
-            Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
+            Response r = client.target(webServer.getServiceUri())
+                    .path("/ui/foobar")
+                    .request()
+                    .get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r.readEntity(String.class).trim(), "server1,/foo/bar/blah/yadda/yadda/yadda/foobar");
         } finally {
             webServer.stop();
         }
-
     }
 
     @Test
     public void testProxyToEndsInSlash() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/ui");
-        props.setProperty("httpReverseProxy.foobar.proxyTo",
-                          backingServer1.getURI().resolve("/foo/").toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo",
+                backingServer1.getURI().resolve("/foo/").toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
-            Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
+            Response r = client.target(webServer.getServiceUri())
+                    .path("/ui/foobar")
+                    .request()
+                    .get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r.readEntity(String.class).trim(), "server1,/foo/foobar");
         } finally {
             webServer.stop();
         }
-
     }
 
     @Test
     public void testLongPath() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/foo/bar/blah");
-        props.setProperty("httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
-            Response r = client.target(webServer.getServiceUri()).path("/foo/bar/blah/foobar").request().get();
+            Response r = client.target(webServer.getServiceUri())
+                    .path("/foo/bar/blah/foobar")
+                    .request()
+                    .get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r.readEntity(String.class).trim(), "server1,/foobar");
         } finally {
@@ -356,20 +375,23 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         StringBuilder longUri = new StringBuilder("/service3/tp");
-        for (int i = 10 * 1024; i > 0; i = i - 11){
+        for (int i = 10 * 1024; i > 0; i = i - 11) {
             longUri.append("_sub1_RETRY");
         }
 
         WebServer webServerMaxUriLen8k = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen8k, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServerMaxUriLen8k, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServerMaxUriLen8k.start();
         try {
-            Response r = client.target(webServerMaxUriLen8k.getServiceUri()).path(longUri.toString()).request().get();
+            Response r = client.target(webServerMaxUriLen8k.getServiceUri())
+                    .path(longUri.toString())
+                    .request()
+                    .get();
             Assert.assertEquals(r.getStatus(), Response.Status.REQUEST_URI_TOO_LONG.getStatusCode());
         } finally {
             webServerMaxUriLen8k.stop();
@@ -377,11 +399,14 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setHttpMaxRequestHeaderSize(12 * 1024);
         WebServer webServerMaxUriLen12k = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen12k, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServerMaxUriLen12k, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServerMaxUriLen12k.start();
         try {
-            Response r = client.target(webServerMaxUriLen12k.getServiceUri()).path(longUri.toString()).request().get();
+            Response r = client.target(webServerMaxUriLen12k.getServiceUri())
+                    .path(longUri.toString())
+                    .request()
+                    .get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         } finally {
             webServerMaxUriLen12k.stop();
@@ -392,26 +417,29 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
     public void testPathEndsInSlash() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/ui/");
-        props.setProperty("httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo", backingServer1.getURI().toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
-            Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
+            Response r = client.target(webServer.getServiceUri())
+                    .path("/ui/foobar")
+                    .request()
+                    .get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r.readEntity(String.class).trim(), "server1,/foobar");
         } finally {
             webServer.stop();
         }
-
     }
 
     @Test
@@ -424,17 +452,18 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         Properties props = new Properties();
         props.setProperty("httpOutputBufferSize", "1");
         props.setProperty("httpReverseProxy.foobar.path", "/stream");
-        props.setProperty("httpReverseProxy.foobar.proxyTo", streamingServer.getURI().toString());
+        props.setProperty(
+                "httpReverseProxy.foobar.proxyTo", streamingServer.getURI().toString());
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, null, new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
 
         HttpClient httpClient = new HttpClient();
@@ -442,8 +471,10 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         try {
             LinkedBlockingQueue<Byte> responses = new LinkedBlockingQueue<>();
             CompletableFuture<Result> promise = new CompletableFuture<>();
-            httpClient.newRequest(webServer.getServiceUri()).path("/stream")
-                .onResponseContent((response, content) -> {
+            httpClient
+                    .newRequest(webServer.getServiceUri())
+                    .path("/stream")
+                    .onResponseContent((response, content) -> {
                         while (content.hasRemaining()) {
                             try {
                                 responses.put(content.get());
@@ -453,7 +484,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                             }
                         }
                     })
-                .send((result) -> {
+                    .send((result) -> {
                         log.info("Response complete");
                         promise.complete(result);
                     });
@@ -486,7 +517,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         return new String(bytes, UTF_8);
     }
 
-     static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
+    static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
         // wait up to 3 seconds
         for (int i = 0; i < 30 && !predicate.getAsBoolean(); i++) {
             Thread.sleep(100);

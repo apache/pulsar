@@ -67,7 +67,6 @@ public class StrategicCompactionTest extends CompactionTest {
         return compactor;
     }
 
-
     @Test
     public void testNumericOrderCompaction() throws Exception {
 
@@ -77,7 +76,8 @@ public class StrategicCompactionTest extends CompactionTest {
         final int numMessages = 50;
         final int maxKeys = 5;
 
-        Producer<Integer> producer = pulsarClient.newProducer(strategy.getSchema())
+        Producer<Integer> producer = pulsarClient
+                .newProducer(strategy.getSchema())
                 .topic(topic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -87,7 +87,13 @@ public class StrategicCompactionTest extends CompactionTest {
         List<Pair<String, Integer>> all = new ArrayList<>();
         Random r = new Random(0);
 
-        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
+        pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscribe()
+                .close();
 
         for (int j = 0; j < numMessages; j++) {
             int keyIndex = r.nextInt(maxKeys);
@@ -116,8 +122,12 @@ public class StrategicCompactionTest extends CompactionTest {
 
         Map<String, Integer> expectedCopy = new HashMap<>(expected);
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
-                .readCompacted(true).subscribe()) {
+        try (Consumer<Integer> consumer = pulsarClient
+                .newConsumer(strategy.getSchema())
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscribe()) {
             while (!expected.isEmpty()) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertEquals(m.getValue(), expected.remove(m.getKey()), m.getKey());
@@ -126,8 +136,12 @@ public class StrategicCompactionTest extends CompactionTest {
         }
 
         // can get full backlog if read compacted disabled
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
-                .readCompacted(false).subscribe()) {
+        try (Consumer<Integer> consumer = pulsarClient
+                .newConsumer(strategy.getSchema())
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(false)
+                .subscribe()) {
             while (true) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
                 Pair<String, Integer> expectedMessage = all.remove(0);
@@ -140,13 +154,12 @@ public class StrategicCompactionTest extends CompactionTest {
             Assert.assertTrue(all.isEmpty());
         }
 
-        TableView<Integer> tableView = pulsar.getClient().newTableViewBuilder(strategy.getSchema())
+        TableView<Integer> tableView = pulsar.getClient()
+                .newTableViewBuilder(strategy.getSchema())
                 .topic(topic)
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName", strategy.getClass().getCanonicalName()))
                 .create();
         Assert.assertEquals(tableView.entrySet(), expectedCopy.entrySet());
     }
-
-
 }

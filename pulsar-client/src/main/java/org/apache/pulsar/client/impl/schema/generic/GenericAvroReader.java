@@ -37,7 +37,6 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class GenericAvroReader implements SchemaReader<GenericRecord> {
 
     private final GenericDatumReader<GenericAvroRecord> reader;
@@ -54,8 +53,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
 
     public GenericAvroReader(Schema writerSchema, Schema readerSchema, byte[] schemaVersion) {
         this.schema = readerSchema;
-        this.fields = schema.getFields()
-                .stream()
+        this.fields = schema.getFields().stream()
                 .map(f -> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
         this.schemaVersion = schemaVersion;
@@ -68,11 +66,11 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
 
         if (schema.getObjectProp(GenericAvroSchema.OFFSET_PROP) != null) {
-            this.offset = Integer.parseInt(schema.getObjectProp(GenericAvroSchema.OFFSET_PROP).toString());
+            this.offset = Integer.parseInt(
+                    schema.getObjectProp(GenericAvroSchema.OFFSET_PROP).toString());
         } else {
             this.offset = 0;
         }
-
     }
 
     @Override
@@ -83,9 +81,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
             }
             Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length - offset, null);
             org.apache.avro.generic.GenericRecord avroRecord =
-                    (org.apache.avro.generic.GenericRecord) reader.read(
-                    null,
-                    decoder);
+                    (org.apache.avro.generic.GenericRecord) reader.read(null, decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } catch (IOException | IndexOutOfBoundsException e) {
             throw new SchemaSerializationException(e);
@@ -97,9 +93,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         try {
             Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
             org.apache.avro.generic.GenericRecord avroRecord =
-                    (org.apache.avro.generic.GenericRecord) reader.read(
-                            null,
-                            decoder);
+                    (org.apache.avro.generic.GenericRecord) reader.read(null, decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } catch (IOException | IndexOutOfBoundsException e) {
             throw new SchemaSerializationException(e);

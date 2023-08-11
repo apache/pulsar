@@ -44,10 +44,8 @@ public class TestAbstractConfigurationProvider {
     @Test
     public void testDispoableChannel() throws Exception {
         String agentName = "agent1";
-        Map<String, String> properties = getPropertiesForChannel(agentName,
-                DisposableChannel.class.getName());
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        Map<String, String> properties = getPropertiesForChannel(agentName, DisposableChannel.class.getName());
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
         assertTrue(channel1 instanceof DisposableChannel);
@@ -60,10 +58,8 @@ public class TestAbstractConfigurationProvider {
     @Test
     public void testReusableChannel() throws Exception {
         String agentName = "agent1";
-        Map<String, String> properties = getPropertiesForChannel(agentName,
-                RecyclableChannel.class.getName());
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        Map<String, String> properties = getPropertiesForChannel(agentName, RecyclableChannel.class.getName());
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
 
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
@@ -79,10 +75,8 @@ public class TestAbstractConfigurationProvider {
     @Test
     public void testUnspecifiedChannel() throws Exception {
         String agentName = "agent1";
-        Map<String, String> properties = getPropertiesForChannel(agentName,
-                UnspecifiedChannel.class.getName());
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        Map<String, String> properties = getPropertiesForChannel(agentName, UnspecifiedChannel.class.getName());
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
 
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
@@ -98,14 +92,9 @@ public class TestAbstractConfigurationProvider {
     @Test
     public void testReusableChannelNotReusedLater() throws Exception {
         String agentName = "agent1";
-        Map<String, String> propertiesReusable = getPropertiesForChannel(agentName,
-                RecyclableChannel.class
-                        .getName());
-        Map<String, String> propertiesDispoable = getPropertiesForChannel(agentName,
-                DisposableChannel.class
-                        .getName());
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, propertiesReusable);
+        Map<String, String> propertiesReusable = getPropertiesForChannel(agentName, RecyclableChannel.class.getName());
+        Map<String, String> propertiesDispoable = getPropertiesForChannel(agentName, DisposableChannel.class.getName());
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, propertiesReusable);
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
         assertTrue(channel1 instanceof RecyclableChannel);
@@ -129,10 +118,8 @@ public class TestAbstractConfigurationProvider {
         String sourceType = UnconfigurableSource.class.getName();
         String channelType = "memory";
         String sinkType = "null";
-        Map<String, String> properties = getProperties(agentName, sourceType,
-                channelType, sinkType);
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        Map<String, String> properties = getProperties(agentName, sourceType, channelType, sinkType);
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
         assertEquals(config.getSourceRunners().size(), 0);
         assertEquals(config.getChannels().size(), 1);
@@ -145,10 +132,8 @@ public class TestAbstractConfigurationProvider {
         String sourceType = "seq";
         String channelType = UnconfigurableChannel.class.getName();
         String sinkType = "null";
-        Map<String, String> properties = getProperties(agentName, sourceType,
-                channelType, sinkType);
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        Map<String, String> properties = getProperties(agentName, sourceType, channelType, sinkType);
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
         assertEquals(config.getSourceRunners().size(), 0);
         assertEquals(config.getChannels().size(), 0);
@@ -161,10 +146,8 @@ public class TestAbstractConfigurationProvider {
         String sourceType = "seq";
         String channelType = "memory";
         String sinkType = UnconfigurableSink.class.getName();
-        Map<String, String> properties = getProperties(agentName, sourceType,
-                channelType, sinkType);
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        Map<String, String> properties = getProperties(agentName, sourceType, channelType, sinkType);
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
         assertEquals(config.getSourceRunners().size(), 1);
         assertEquals(config.getChannels().size(), 1);
@@ -172,16 +155,13 @@ public class TestAbstractConfigurationProvider {
     }
 
     @Test
-    public void testSourceAndSinkThrowExceptionDuringConfiguration()
-            throws Exception {
+    public void testSourceAndSinkThrowExceptionDuringConfiguration() throws Exception {
         String agentName = "agent1";
         String sourceType = UnconfigurableSource.class.getName();
         String channelType = "memory";
         String sinkType = UnconfigurableSink.class.getName();
-        Map<String, String> properties = getProperties(agentName, sourceType,
-                channelType, sinkType);
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        Map<String, String> properties = getProperties(agentName, sourceType, channelType, sinkType);
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
         assertEquals(config.getSourceRunners().size(), 0);
         assertEquals(config.getChannels().size(), 0);
@@ -194,8 +174,7 @@ public class TestAbstractConfigurationProvider {
         String sourceType = "seq";
         String channelType = "memory";
         String sinkType = "avro";
-        Map<String, String> properties = getProperties(agentName, sourceType,
-                channelType, sinkType);
+        Map<String, String> properties = getProperties(agentName, sourceType, channelType, sinkType);
         properties.put(agentName + ".channels.channel1.capacity", "1000");
         properties.put(agentName + ".channels.channel1.transactionCapacity", "1000");
         properties.put(agentName + ".sources.source1.batchSize", "1000");
@@ -203,8 +182,7 @@ public class TestAbstractConfigurationProvider {
         properties.put(agentName + ".sinks.sink1.hostname", "10.10.10.10");
         properties.put(agentName + ".sinks.sink1.port", "1010");
 
-        MemoryConfigurationProvider provider =
-                new MemoryConfigurationProvider(agentName, properties);
+        MemoryConfigurationProvider provider = new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
         assertEquals(config.getSourceRunners().size(), 1);
         assertEquals(config.getChannels().size(), 1);
@@ -238,9 +216,8 @@ public class TestAbstractConfigurationProvider {
         assertEquals(config.getSinkRunners().size(), 0);
     }
 
-    private Map<String, String> getProperties(String agentName,
-                                              String sourceType, String channelType,
-                                              String sinkType) {
+    private Map<String, String> getProperties(
+            String agentName, String sourceType, String channelType, String sinkType) {
         Map<String, String> properties = Maps.newHashMap();
         properties.put(agentName + ".sources", "source1");
         properties.put(agentName + ".channels", "channel1");

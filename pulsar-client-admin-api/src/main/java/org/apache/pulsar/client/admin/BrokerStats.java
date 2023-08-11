@@ -33,7 +33,6 @@ public interface BrokerStats {
      * @return
      * @throws PulsarAdminException
      */
-
     String getMetrics() throws PulsarAdminException;
 
     /**
@@ -41,7 +40,6 @@ public interface BrokerStats {
      *
      * @return
      */
-
     CompletableFuture<String> getMetricsAsync();
 
     /**

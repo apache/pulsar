@@ -55,7 +55,6 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         this.schemaInfo = schemaInfo;
     }
 
-
     @Override
     public byte[] encode(T message) {
         return writer.write(message);
@@ -121,7 +120,8 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
             return this;
         }
         try {
-            SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
+            SchemaInfo schemaInfo =
+                    schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
             if (schemaInfo == null) {
                 throw new SchemaSerializationException("Unknown version " + BytesSchemaVersion.of(schemaVersion));
             }
@@ -137,8 +137,9 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     private static class WrappedVersionedSchema<T> extends AbstractStructSchema<T> {
         private final byte[] schemaVersion;
         private final AbstractStructSchema<T> parent;
-        public WrappedVersionedSchema(SchemaInfo schemaInfo, final byte[] schemaVersion,
-                                      AbstractStructSchema<T> parent) {
+
+        public WrappedVersionedSchema(
+                SchemaInfo schemaInfo, final byte[] schemaVersion, AbstractStructSchema<T> parent) {
             super(schemaInfo);
             this.schemaVersion = schemaVersion;
             this.writer = null;
@@ -204,7 +205,6 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     }
 
     protected SchemaReader<T> getReader() {
-        return  reader;
+        return reader;
     }
-
 }

@@ -50,5 +50,4 @@ public interface TransactionBuilder {
      * @return a future represents the result of starting a new transaction
      */
     CompletableFuture<Transaction> build();
-
 }

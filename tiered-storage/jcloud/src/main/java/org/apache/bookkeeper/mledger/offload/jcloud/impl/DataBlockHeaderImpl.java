@@ -38,10 +38,8 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
     // This is bigger than header size. Leaving some place for alignment and future enhancement.
     // Payload use this as the start offset.
     private static final int HEADER_MAX_SIZE = 128;
-    private static final int HEADER_BYTES_USED = 4 /* magic */
-                                               + 8 /* header len */
-                                               + 8 /* block len */
-                                               + 8 /* first entry id */;
+    private static final int HEADER_BYTES_USED =
+            4 /* magic */ + 8 /* header len */ + 8 /* block len */ + 8 /* first entry id */;
     private static final byte[] PADDING = new byte[HEADER_MAX_SIZE - HEADER_BYTES_USED];
 
     public static DataBlockHeaderImpl of(int blockLength, long firstEntryId) {
@@ -54,8 +52,8 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
         DataInputStream dis = new DataInputStream(countingStream);
         int magic = dis.readInt();
         if (magic != MAGIC_WORD) {
-            throw new IOException("Data block header magic word not match. read: " + magic
-                    + " expected: " + MAGIC_WORD);
+            throw new IOException(
+                    "Data block header magic word not match. read: " + magic + " expected: " + MAGIC_WORD);
         }
 
         long headerLen = dis.readLong();
@@ -111,10 +109,10 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
     public InputStream toStream() {
         ByteBuf out = PulsarByteBufAllocator.DEFAULT.buffer(HEADER_MAX_SIZE, HEADER_MAX_SIZE);
         out.writeInt(MAGIC_WORD)
-            .writeLong(headerLength)
-            .writeLong(blockLength)
-            .writeLong(firstEntryId)
-            .writeBytes(PADDING);
+                .writeLong(headerLength)
+                .writeLong(blockLength)
+                .writeLong(firstEntryId)
+                .writeBytes(PADDING);
 
         // true means the input stream will release the ByteBuf on close
         return new ByteBufInputStream(out, true);
@@ -122,8 +120,6 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
 
     @Override
     public String toString() {
-        return String.format("DataBlockHeader(len:%d,hlen:%d,firstEntry:%d)",
-                blockLength, headerLength, firstEntryId);
+        return String.format("DataBlockHeader(len:%d,hlen:%d,firstEntry:%d)", blockLength, headerLength, firstEntryId);
     }
 }
-

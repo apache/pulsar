@@ -62,7 +62,8 @@ public class PrometheusMetricStreamsTest {
 
         assertTrue(actual.startsWith("# TYPE my-other-metric gauge"), "Gauge type line missing");
         assertTrue(actual.contains("my-other-metric{cluster=\"local\"} 123"), "Cluster metric line missing");
-        assertTrue(actual.contains("my-other-metric{cluster=\"local\",namespace=\"my-ns\"} 456"),
+        assertTrue(
+                actual.contains("my-other-metric{cluster=\"local\",namespace=\"my-ns\"} 456"),
                 "Cluster and Namespace metric line missing");
     }
 

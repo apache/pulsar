@@ -42,11 +42,12 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     private transient FileModifiedTimeUpdater certFile, keyFile;
     // key and cert using stream
     private transient InputStream certStream, keyStream;
-    @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
+    @SuppressFBWarnings(
+            value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
             justification = "Using custom serializer which Findbugs can't detect")
     private transient Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
-    private static final Map<String, String> headers = Collections.singletonMap(
-            PULSAR_AUTH_METHOD_NAME, AuthenticationTls.AUTH_METHOD_NAME);
+    private static final Map<String, String> headers =
+            Collections.singletonMap(PULSAR_AUTH_METHOD_NAME, AuthenticationTls.AUTH_METHOD_NAME);
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
@@ -61,13 +62,16 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFilePath);
     }
 
-    public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
-            Supplier<ByteArrayInputStream> keyStreamProvider) throws KeyManagementException {
+    public AuthenticationDataTls(
+            Supplier<ByteArrayInputStream> certStreamProvider, Supplier<ByteArrayInputStream> keyStreamProvider)
+            throws KeyManagementException {
         this(certStreamProvider, keyStreamProvider, null);
     }
 
-    public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
-            Supplier<ByteArrayInputStream> keyStreamProvider, Supplier<ByteArrayInputStream> trustStoreStreamProvider)
+    public AuthenticationDataTls(
+            Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider,
+            Supplier<ByteArrayInputStream> trustStoreStreamProvider)
             throws KeyManagementException {
         if (certStreamProvider == null || certStreamProvider.get() == null) {
             throw new IllegalArgumentException("certStream provider or stream must not be null");
@@ -105,7 +109,8 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
             } catch (KeyManagementException e) {
                 LOG.error("Unable to refresh authData for cert {}: ", certFile.getFileName(), e);
             }
-        } else if (certStreamProvider != null && certStreamProvider.get() != null
+        } else if (certStreamProvider != null
+                && certStreamProvider.get() != null
                 && !certStreamProvider.get().equals(certStream)) {
             try {
                 certStream = certStreamProvider.get();
@@ -125,7 +130,8 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
             } catch (KeyManagementException e) {
                 LOG.error("Unable to refresh authData for cert {}: ", keyFile.getFileName(), e);
             }
-        } else if (keyStreamProvider != null && keyStreamProvider.get() != null
+        } else if (keyStreamProvider != null
+                && keyStreamProvider.get() != null
                 && !keyStreamProvider.get().equals(keyStream)) {
             try {
                 keyStream = keyStreamProvider.get();

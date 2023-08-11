@@ -198,5 +198,4 @@ public class NamespaceUsage {
     public void setTotalTopics(long totalTopics) {
         this.totalTopics = totalTopics;
     }
-
 }

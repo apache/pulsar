@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.io.batchdatagenerator;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.io.batchdiscovery.CronTriggerer;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Useful for testing within IDE.
@@ -33,38 +32,35 @@ import java.util.concurrent.TimeUnit;
  */
 public class BatchDataGeneratorExec {
 
-     public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
 
-         final String cronString = "0 0/5 * * * ?";
-         final Map<String, Object> discoveryConfig = new HashMap<>();
-         discoveryConfig.put(CronTriggerer.CRON_KEY, cronString);
+        final String cronString = "0 0/5 * * * ?";
+        final Map<String, Object> discoveryConfig = new HashMap<>();
+        discoveryConfig.put(CronTriggerer.CRON_KEY, cronString);
 
-         final BatchSourceConfig batchSourceConfig =
-                 BatchSourceConfig.builder()
-                         .discoveryTriggererClassName(CronTriggerer.class.getName())
-                         .discoveryTriggererConfig(discoveryConfig)
-                         .build();
+        final BatchSourceConfig batchSourceConfig = BatchSourceConfig.builder()
+                .discoveryTriggererClassName(CronTriggerer.class.getName())
+                .discoveryTriggererConfig(discoveryConfig)
+                .build();
 
-         final SourceConfig sourceConfig =
-                 SourceConfig.builder()
-                         .batchSourceConfig(batchSourceConfig)
-                         .className(BatchDataGeneratorSource.class.getName())
-                         .configs(new HashMap<>())
-                         .name("BatchDataGenerator")
-                         .parallelism(1)
-                         .topicName("persistent://public/default/batchdatagenerator")
-                         .build();
+        final SourceConfig sourceConfig = SourceConfig.builder()
+                .batchSourceConfig(batchSourceConfig)
+                .className(BatchDataGeneratorSource.class.getName())
+                .configs(new HashMap<>())
+                .name("BatchDataGenerator")
+                .parallelism(1)
+                .topicName("persistent://public/default/batchdatagenerator")
+                .build();
 
-         final LocalRunner localRunner =
-                 LocalRunner.builder()
-                         .brokerServiceUrl("pulsar://localhost:6650")
-                         .sourceConfig(sourceConfig)
-                         .build();
+        final LocalRunner localRunner = LocalRunner.builder()
+                .brokerServiceUrl("pulsar://localhost:6650")
+                .sourceConfig(sourceConfig)
+                .build();
 
-         localRunner.start(false);
-         TimeUnit.MINUTES.sleep(30);
-         localRunner.stop();
+        localRunner.start(false);
+        TimeUnit.MINUTES.sleep(30);
+        localRunner.stop();
 
-         System.exit(0);
-     }
- }
+        System.exit(0);
+    }
+}

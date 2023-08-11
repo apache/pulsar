@@ -23,6 +23,15 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.time.Duration;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -40,21 +49,12 @@ import org.mockito.internal.util.MockUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import javax.crypto.SecretKey;
-import java.time.Duration;
-import java.util.Base64;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-api")
 @Slf4j
 public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase {
-    private final String tenant ="my-tenant";
-    private final NamespaceName namespaceName = NamespaceName.get("my-tenant","my-ns");
+    private final String tenant = "my-tenant";
+    private final NamespaceName namespaceName = NamespaceName.get("my-tenant", "my-ns");
 
     @BeforeMethod
     @Override
@@ -72,15 +72,19 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
             }
         }
         admin = getAdmin(ADMIN_TOKEN);
-        admin.clusters().createCluster(configClusterName,
-                ClusterData.builder()
-                        .serviceUrl(brokerUrl.toString())
-                        .serviceUrlTls(brokerUrlTls.toString())
-                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
-                        .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
-                        .build());
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(configClusterName)));
+        admin.clusters()
+                .createCluster(
+                        configClusterName,
+                        ClusterData.builder()
+                                .serviceUrl(brokerUrl.toString())
+                                .serviceUrlTls(brokerUrlTls.toString())
+                                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(configClusterName)));
         admin.namespaces().createNamespace(namespaceName.toString());
     }
 
@@ -91,11 +95,15 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
     }
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    public static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+    public static final String ADMIN_TOKEN =
+            Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
 
     public String getExpireToken(String role, Date date) {
-        return Jwts.builder().setSubject(role).signWith(SECRET_KEY)
-                .setExpiration(date).compact();
+        return Jwts.builder()
+                .setSubject(role)
+                .signWith(SECRET_KEY)
+                .setExpiration(date)
+                .compact();
     }
 
     protected void internalSetUpForBroker() {
@@ -114,8 +122,10 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         conf.setAuthenticationProviders(Sets.newHashSet(AuthenticationProviderToken.class.getName()));
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
-        conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
-                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+        conf.getProperties()
+                .setProperty(
+                        "tokenSecretKey",
+                        "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
     }
 
     private PulsarClient getClient(String token) throws Exception {
@@ -125,16 +135,17 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
                 .enableTls(true)
                 .allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(true)
-                .authentication(AuthenticationToken.class.getName(),"token:" +token)
+                .authentication(AuthenticationToken.class.getName(), "token:" + token)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         return clientBuilder.build();
     }
 
     private PulsarAdmin getAdmin(String token) throws Exception {
-        PulsarAdminBuilder clientBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
+        PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsar.getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .allowTlsInsecureConnection(false)
-                .authentication(AuthenticationToken.class.getName(),"token:" +token)
+                .authentication(AuthenticationToken.class.getName(), "token:" + token)
                 .enableTlsHostnameVerification(true);
         return clientBuilder.build();
     }
@@ -152,25 +163,29 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         permissions.add(AuthAction.produce);
         admin.namespaces().grantPermissionOnNamespace(namespaceName.toString(), role, permissions);
 
-        @Cleanup
-        PulsarClient pulsarClient = getClient(token);
+        @Cleanup PulsarClient pulsarClient = getClient(token);
         String topic = namespaceName + "/test-token";
 
-        @Cleanup final Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        @Cleanup
+        final Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName("test-token")
                 .subscribe();
-        @Cleanup final Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        @Cleanup
+        final Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topic).create();
 
-        Awaitility.await().timeout(Duration.ofSeconds(60)).pollInterval(3, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertThrows(PulsarClientException.TimeoutException.class, () -> {
-                producer.send("heart beat".getBytes());
-                Message<byte[]> message = consumer.receive();
-                consumer.acknowledge(message);
-            });
-            assertTrue(new Date().compareTo(expiredTime) > 0);
-        });
+        Awaitility.await()
+                .timeout(Duration.ofSeconds(60))
+                .pollInterval(3, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertThrows(PulsarClientException.TimeoutException.class, () -> {
+                        producer.send("heart beat".getBytes());
+                        Message<byte[]> message = consumer.receive();
+                        consumer.acknowledge(message);
+                    });
+                    assertTrue(new Date().compareTo(expiredTime) > 0);
+                });
     }
 }

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-
 import static org.testng.Assert.fail;
+import java.util.List;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -33,7 +33,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.List;
 
 @Test
 public class PartitionKeywordCompatibilityTest extends BrokerTestBase {
@@ -61,14 +60,16 @@ public class PartitionKeywordCompatibilityTest extends BrokerTestBase {
         admin.namespaces().setAutoTopicCreation("public/default", override);
         String topicName = "persistent://public/default/XXX-partition-0-dd";
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName("sub-1")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscribe();
         List<String> topics = admin.topics().getList("public/default");
         List<String> partitionedTopicList = admin.topics().getPartitionedTopicList("public/default");
-        Assert.assertTrue(topics.contains(TopicName.get(topicName).getPartition(0).toString()));
+        Assert.assertTrue(
+                topics.contains(TopicName.get(topicName).getPartition(0).toString()));
         Assert.assertTrue(partitionedTopicList.contains(topicName));
         consumer.close();
         PartitionedTopicStats stats = admin.topics().getPartitionedStats(topicName, false);
@@ -89,13 +90,13 @@ public class PartitionKeywordCompatibilityTest extends BrokerTestBase {
             admin.topics().deletePartitionedTopic(topicName);
             fail("expect not found!");
         } catch (PulsarAdminException.NotFoundException ex) {
-            //ok
+            // ok
         }
         try {
             admin.topics().deletePartitionedTopic(partitionKeywordTopic);
             fail("expect not found!");
         } catch (PulsarAdminException.NotFoundException ex) {
-            //ok
+            // ok
         }
         try {
             admin.topics().deletePartitionedTopic(partitionedTopic);

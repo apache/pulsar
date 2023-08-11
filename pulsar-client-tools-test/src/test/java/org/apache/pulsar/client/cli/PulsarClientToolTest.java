@@ -91,8 +91,19 @@ public class PulsarClientToolTest extends BrokerTestBase {
             PulsarClientTool pulsarClientToolConsumer;
             try {
                 pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = { "consume", "-t", "Exclusive", "-s", "sub-name", "-n",
-                        Integer.toString(numberOfMessages), "--hex", "-r", "30", topicName };
+                String[] args = {
+                    "consume",
+                    "-t",
+                    "Exclusive",
+                    "-s",
+                    "sub-name",
+                    "-n",
+                    Integer.toString(numberOfMessages),
+                    "--hex",
+                    "-r",
+                    "30",
+                    topicName
+                };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -101,12 +112,26 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
         Awaitility.await()
                 .ignoreExceptions()
-                .until(()->admin.topics().getSubscriptions(topicName).size() == 1);
+                .until(() -> admin.topics().getSubscriptions(topicName).size() == 1);
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
-        String[] args = { "produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
-                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName };
+        String[] args = {
+            "produce",
+            "--messages",
+            "Have a nice day",
+            "-n",
+            Integer.toString(numberOfMessages),
+            "-r",
+            "20",
+            "-p",
+            "key1=value1",
+            "-p",
+            "key2=value2",
+            "-k",
+            "partition_key",
+            topicName
+        };
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
 
         future.get();
@@ -128,8 +153,21 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
-                        Integer.toString(numberOfMessages), "--hex", "-m", "NonDurable", "-r", "30", topicName};
+                String[] args = {
+                    "consume",
+                    "-t",
+                    "Exclusive",
+                    "-s",
+                    "sub-name",
+                    "-n",
+                    Integer.toString(numberOfMessages),
+                    "--hex",
+                    "-m",
+                    "NonDurable",
+                    "-r",
+                    "30",
+                    topicName
+                };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -138,19 +176,36 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
 
         // Make sure subscription has been created
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getSubscriptions(topicName).size() == 1;
-            } catch (Exception e) {
-                return false;
-            }
-        }, 10, 500);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics().getSubscriptions(topicName).size() == 1;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                },
+                10,
+                500);
 
         assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
-        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
-                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        String[] args = {
+            "produce",
+            "--messages",
+            "Have a nice day",
+            "-n",
+            Integer.toString(numberOfMessages),
+            "-r",
+            "20",
+            "-p",
+            "key1=value1",
+            "-p",
+            "key2=value2",
+            "-k",
+            "partition_key",
+            topicName
+        };
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
@@ -158,7 +213,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Awaitility.await()
                 .ignoreExceptions()
                 .atMost(Duration.ofMillis(20000))
-                .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
+                .until(() -> admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
     @Test(timeOut = 60000)
@@ -177,8 +232,21 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
-                        Integer.toString(numberOfMessages), "--hex", "-m", "Durable", "-r", "30", topicName};
+                String[] args = {
+                    "consume",
+                    "-t",
+                    "Exclusive",
+                    "-s",
+                    "sub-name",
+                    "-n",
+                    Integer.toString(numberOfMessages),
+                    "--hex",
+                    "-m",
+                    "Durable",
+                    "-r",
+                    "30",
+                    topicName
+                };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -193,8 +261,22 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
-        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
-                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        String[] args = {
+            "produce",
+            "--messages",
+            "Have a nice day",
+            "-n",
+            Integer.toString(numberOfMessages),
+            "-r",
+            "20",
+            "-p",
+            "key1=value1",
+            "-p",
+            "key2=value2",
+            "-k",
+            "partition_key",
+            topicName
+        };
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
 
         try {
@@ -219,8 +301,9 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolReader = new PulsarClientTool(properties);
-                String[] args = {"read", "-m", "latest", "-n", Integer.toString(numberOfMessages), "--hex", "-r", "30",
-                        topicName};
+                String[] args = {
+                    "read", "-m", "latest", "-n", Integer.toString(numberOfMessages), "--hex", "-r", "30", topicName
+                };
                 assertEquals(pulsarClientToolReader.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -229,20 +312,37 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
 
         // Make sure subscription has been created
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getSubscriptions(topicName).size() == 1;
-            } catch (Exception e) {
-                return false;
-            }
-        }, 10, 500);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics().getSubscriptions(topicName).size() == 1;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                },
+                10,
+                500);
 
         assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
         assertTrue(admin.topics().getSubscriptions(topicName).get(0).startsWith("reader-"));
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
-        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
-                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        String[] args = {
+            "produce",
+            "--messages",
+            "Have a nice day",
+            "-n",
+            Integer.toString(numberOfMessages),
+            "-r",
+            "20",
+            "-p",
+            "key1=value1",
+            "-p",
+            "key2=value2",
+            "-k",
+            "partition_key",
+            topicName
+        };
         assertEquals(pulsarClientToolProducer.run(args), 0);
         assertFalse(future.isCompletedExceptionally());
         future.get();
@@ -250,7 +350,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Awaitility.await()
                 .ignoreExceptions()
                 .atMost(Duration.ofMillis(20000))
-                .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
+                .until(() -> admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
     @Test(timeOut = 20000)
@@ -269,8 +369,16 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"consume", "-s", "sub-name", "-n", Integer.toString(numberOfMessages), "-ekv",
-                        keyUriBase + "private-key.client-rsa.pem", topicName};
+                String[] args = {
+                    "consume",
+                    "-s",
+                    "sub-name",
+                    "-n",
+                    Integer.toString(numberOfMessages),
+                    "-ekv",
+                    keyUriBase + "private-key.client-rsa.pem",
+                    topicName
+                };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -285,8 +393,18 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 .until(() -> admin.topics().getSubscriptions(topicName).size() == 1);
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
-        String[] args = {"produce", "-m", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-ekn",
-                "my-app-key", "-ekv", keyUriBase + "public-key.client-rsa.pem", topicName};
+        String[] args = {
+            "produce",
+            "-m",
+            "Have a nice day",
+            "-n",
+            Integer.toString(numberOfMessages),
+            "-ekn",
+            "my-app-key",
+            "-ekv",
+            keyUriBase + "public-key.client-rsa.pem",
+            topicName
+        };
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
 
         try {
@@ -309,7 +427,11 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final int batchNum = 2;
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
 
         PulsarClientTool pulsarClientTool1 = new PulsarClientToolForceBatchNum(properties, topicName, batchNum);
         String[] args1 = {"produce", "-m", "batched", "-n", Integer.toString(numberOfMessages), topicName};
@@ -337,18 +459,29 @@ public class PulsarClientToolTest extends BrokerTestBase {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
         final String url = "pulsar+ssl://localhost:6651";
         final String authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-        final String authParams = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
-                getTlsFileForClient("admin.key-pk8"));
+        final String authParams = String.format(
+                "tlsCertFile:%s,tlsKeyFile:%s",
+                getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"));
         final String message = "test msg";
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
 
-        String[] args = {"--url", url,
-                "--auth-plugin", authPlugin,
-                "--auth-params", authParams,
-                "--tlsTrustCertsFilePath", CA_CERT_FILE_PATH,
-                "produce", "-m", message,
-                "-n", Integer.toString(numberOfMessages), topicName};
+        String[] args = {
+            "--url",
+            url,
+            "--auth-plugin",
+            authPlugin,
+            "--auth-params",
+            authParams,
+            "--tlsTrustCertsFilePath",
+            CA_CERT_FILE_PATH,
+            "produce",
+            "-m",
+            message,
+            "-n",
+            Integer.toString(numberOfMessages),
+            topicName
+        };
         pulsarClientTool.jcommander.parse(args);
         assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), CA_CERT_FILE_PATH);
         assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
@@ -369,15 +502,13 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
 
-        String[] args = {"--url", url,
-                "produce", "-m", message,
-                "-n", Integer.toString(numberOfMessages), topicName};
+        String[] args = {"--url", url, "produce", "-m", message, "-n", Integer.toString(numberOfMessages), topicName};
         pulsarClientTool.jcommander.parse(args);
         assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
         assertEquals(pulsarClientTool.rootParams.getProxyServiceURL(), "pulsar+ssl://my-proxy-pulsar:4443");
         assertEquals(pulsarClientTool.rootParams.getProxyProtocol(), ProxyProtocol.SNI);
     }
-    
+
     @Test
     public void testSendMultipleMessage() throws Exception {
         Properties properties = new Properties();
@@ -387,7 +518,11 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String topicName = getTopicWithRandomSuffix("test-multiple-msg");
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
 
         PulsarClientTool pulsarClientTool = new PulsarClientTool(properties);
         String[] args1 = {"produce", "-m", "msg0", "-m", "msg1,msg2", topicName};
@@ -401,9 +536,10 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     private static String getTopicWithRandomSuffix(String localNameBase) {
-        return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
+        return String.format(
+                "persistent://prop/ns-abc/test/%s-%s",
+                localNameBase, UUID.randomUUID().toString());
     }
-
 
     @Test(timeOut = 20000)
     public void testProducePartitioningKey() throws Exception {
@@ -413,7 +549,11 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String topicName = getTopicWithRandomSuffix("key-topic");
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -439,7 +579,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
     public static class TestKey {
         public String key_a;
         public int key_b;
-
     }
 
     @Test
@@ -449,10 +588,12 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         final String topicName = getTopicWithRandomSuffix("key-topic");
 
-
         @Cleanup
-        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.JSON(
-                TestKey.class), Schema.STRING)).topic(topicName).subscriptionName("sub").subscribe();
+        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient
+                .newConsumer(Schema.KeyValue(Schema.JSON(TestKey.class), Schema.STRING))
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -462,13 +603,22 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"produce",
-                        "-kvet", "inline",
-                        "-ks", String.format("json:%s", keySchema.getSchemaInfo().getSchemaDefinition()),
-                        "-kvk", ObjectMapperFactory.getMapper().writer().writeValueAsString(new TestKey("my-key", Integer.MAX_VALUE)),
-                        "-vs", "string",
-                        "-m", "test",
-                        topicName};
+                String[] args = {
+                    "produce",
+                    "-kvet",
+                    "inline",
+                    "-ks",
+                    String.format("json:%s", keySchema.getSchemaInfo().getSchemaDefinition()),
+                    "-kvk",
+                    ObjectMapperFactory.getMapper()
+                            .writer()
+                            .writeValueAsString(new TestKey("my-key", Integer.MAX_VALUE)),
+                    "-vs",
+                    "string",
+                    "-m",
+                    "test",
+                    topicName
+                };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -485,10 +635,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
     @DataProvider(name = "keyValueKeySchema")
     public static Object[][] keyValueKeySchema() {
-        return new Object[][]{
-                {"json"},
-                {"avro"}
-        };
+        return new Object[][] {{"json"}, {"avro"}};
     }
 
     @Test(dataProvider = "keyValueKeySchema")
@@ -498,39 +645,47 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         final String topicName = getTopicWithRandomSuffix("key-topic");
 
-
-
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> future = new CompletableFuture<>();
         File file = Files.createTempFile("", "").toFile();
         final Schema<TestKey> keySchema;
         if (schema.equals("json")) {
-           keySchema = Schema.JSON(TestKey.class);
+            keySchema = Schema.JSON(TestKey.class);
         } else if (schema.equals("avro")) {
             keySchema = Schema.AVRO(TestKey.class);
         } else {
             throw new IllegalStateException();
         }
 
-
         Files.write(file.toPath(), keySchema.encode(new TestKey("my-key", Integer.MAX_VALUE)));
 
         @Cleanup
-        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient.newConsumer(Schema.KeyValue(keySchema, Schema.STRING))
-                .topic(topicName).subscriptionName("sub").subscribe();
+        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient
+                .newConsumer(Schema.KeyValue(keySchema, Schema.STRING))
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
 
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"produce",
-                        "-k", "partitioning-key",
-                        "-kvet", "inline",
-                        "-ks", String.format("%s:%s", schema, keySchema.getSchemaInfo().getSchemaDefinition()),
-                        "-kvkf", file.getAbsolutePath(),
-                        "-vs", "string",
-                        "-m", "test",
-                        topicName};
+                String[] args = {
+                    "produce",
+                    "-k",
+                    "partitioning-key",
+                    "-kvet",
+                    "inline",
+                    "-ks",
+                    String.format("%s:%s", schema, keySchema.getSchemaInfo().getSchemaDefinition()),
+                    "-kvkf",
+                    file.getAbsolutePath(),
+                    "-vs",
+                    "string",
+                    "-m",
+                    "test",
+                    topicName
+                };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -551,5 +706,4 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
         return properties;
     }
-
 }

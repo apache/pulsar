@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
-
 import java.lang.reflect.Field;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -40,13 +39,14 @@ public class TestCmdConsume {
     @Test
     public void testGetWebSocketConsumeUri() {
         String topicNameV1 = "persistent://public/cluster/default/issue-11067";
-        assertEquals(cmdConsume.getWebSocketConsumeUri(topicNameV1),
+        assertEquals(
+                cmdConsume.getWebSocketConsumeUri(topicNameV1),
                 "ws://localhost:8080/ws/consumer/persistent/public/cluster/default/issue-11067/my-sub"
                         + "?subscriptionType=Exclusive&subscriptionMode=Durable");
         String topicNameV2 = "persistent://public/default/issue-11067";
-        assertEquals(cmdConsume.getWebSocketConsumeUri(topicNameV2),
+        assertEquals(
+                cmdConsume.getWebSocketConsumeUri(topicNameV2),
                 "ws://localhost:8080/ws/v2/consumer/persistent/public/default/issue-11067/my-sub"
                         + "?subscriptionType=Exclusive&subscriptionMode=Durable");
     }
-
 }

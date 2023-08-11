@@ -34,8 +34,9 @@ public class PulsarTableLayoutHandle implements ConnectorTableLayoutHandle {
     private final TupleDomain<ColumnHandle> tupleDomain;
 
     @JsonCreator
-    public PulsarTableLayoutHandle(@JsonProperty("table") PulsarTableHandle table,
-                                   @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> domain) {
+    public PulsarTableLayoutHandle(
+            @JsonProperty("table") PulsarTableHandle table,
+            @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> domain) {
 
         this.table = requireNonNull(table, "table is null");
         this.tupleDomain = requireNonNull(domain, "tupleDomain is null");
@@ -60,8 +61,7 @@ public class PulsarTableLayoutHandle implements ConnectorTableLayoutHandle {
             return false;
         }
         PulsarTableLayoutHandle that = (PulsarTableLayoutHandle) o;
-        return Objects.equals(table, that.table)
-            && Objects.equals(tupleDomain, that.tupleDomain);
+        return Objects.equals(table, that.table) && Objects.equals(tupleDomain, that.tupleDomain);
     }
 
     @Override

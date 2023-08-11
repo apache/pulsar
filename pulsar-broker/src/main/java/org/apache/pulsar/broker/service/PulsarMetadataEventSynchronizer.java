@@ -50,14 +50,14 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     protected PulsarClientImpl client;
     protected volatile Producer<MetadataEvent> producer;
     protected volatile Consumer<MetadataEvent> consumer;
-    private final CopyOnWriteArrayList<Function<MetadataEvent, CompletableFuture<Void>>>
-    listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Function<MetadataEvent, CompletableFuture<Void>>> listeners =
+            new CopyOnWriteArrayList<>();
 
     private volatile boolean started = false;
     public static final String SUBSCRIPTION_NAME = "metadata-syncer";
     private static final int MAX_PRODUCER_PENDING_SIZE = 1000;
-    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0,
-            TimeUnit.MILLISECONDS);
+    protected final Backoff backOff =
+            new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
 
     public PulsarMetadataEventSynchronizer(PulsarService pulsar, String topicName) throws PulsarServerException {
         this.pulsar = pulsar;
@@ -102,29 +102,48 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             log.info("Producer is not started on {}, failed to publish {}", topicName, event);
             future.completeExceptionally(new IllegalStateException("producer is not started yet"));
         }
-        producer.newMessage().value(event).sendAsync().thenAccept(__ -> {
-            log.info("successfully published metadata change event {}", event);
-            future.complete(null);
-        }).exceptionally(ex -> {
-            log.warn("failed to publish metadata update {}, will retry in {}", topicName, MESSAGE_RATE_BACKOFF_MS, ex);
-            pulsar.getBrokerService().executor().schedule(() -> publishAsync(event, future), MESSAGE_RATE_BACKOFF_MS,
-                    TimeUnit.MILLISECONDS);
-            return null;
-        });
+        producer.newMessage()
+                .value(event)
+                .sendAsync()
+                .thenAccept(__ -> {
+                    log.info("successfully published metadata change event {}", event);
+                    future.complete(null);
+                })
+                .exceptionally(ex -> {
+                    log.warn(
+                            "failed to publish metadata update {}, will retry in {}",
+                            topicName,
+                            MESSAGE_RATE_BACKOFF_MS,
+                            ex);
+                    pulsar.getBrokerService()
+                            .executor()
+                            .schedule(
+                                    () -> publishAsync(event, future), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                    return null;
+                });
     }
 
     private void startProducer() {
         log.info("[{}] Starting producer", topicName);
-        client.newProducer(Schema.AVRO(MetadataEvent.class)).topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition).enableBatching(false).enableBatching(false)
+        client.newProducer(Schema.AVRO(MetadataEvent.class))
+                .topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .enableBatching(false)
+                .enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS) //
-                .maxPendingMessages(MAX_PRODUCER_PENDING_SIZE).createAsync().thenAccept(prod -> {
+                .maxPendingMessages(MAX_PRODUCER_PENDING_SIZE)
+                .createAsync()
+                .thenAccept(prod -> {
                     producer = prod;
                     started = true;
                     log.info("producer is created successfully {}", topicName);
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     long waitTimeMs = backOff.next();
-                    log.warn("[{}] Failed to create producer ({}), retrying in {} s", topicName, ex.getMessage(),
+                    log.warn(
+                            "[{}] Failed to create producer ({}), retrying in {} s",
+                            topicName,
+                            ex.getMessage(),
                             waitTimeMs / 1000.0);
                     // BackOff before retrying
                     brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
@@ -137,28 +156,39 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             return;
         }
         ConsumerBuilder<MetadataEvent> consumerBuilder = client.newConsumer(Schema.AVRO(MetadataEvent.class))
-                .topic(topicName).subscriptionName(SUBSCRIPTION_NAME).ackTimeout(60, TimeUnit.SECONDS)
-                .subscriptionType(SubscriptionType.Failover).messageListener((c, msg) -> {
-                    log.info("Processing metadata event for {} with listeners {}", msg.getValue().getPath(),
+                .topic(topicName)
+                .subscriptionName(SUBSCRIPTION_NAME)
+                .ackTimeout(60, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Failover)
+                .messageListener((c, msg) -> {
+                    log.info(
+                            "Processing metadata event for {} with listeners {}",
+                            msg.getValue().getPath(),
                             listeners.size());
                     try {
                         if (listeners.size() == 0) {
                             c.acknowledgeAsync(msg);
                             return;
-
                         }
                         if (listeners.size() == 1) {
-                            listeners.get(0).apply(msg.getValue()).thenApply(__ -> c.acknowledgeAsync(msg))
+                            listeners
+                                    .get(0)
+                                    .apply(msg.getValue())
+                                    .thenApply(__ -> c.acknowledgeAsync(msg))
                                     .exceptionally(ex -> {
-                                        log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName,
+                                        log.warn(
+                                                "Failed to synchronize {} for {}",
+                                                msg.getMessageId(),
+                                                topicName,
                                                 ex.getCause());
                                         return null;
                                     });
                         } else {
-                            FutureUtil
-                                    .waitForAll(listeners.stream().map(listener -> listener.apply(msg.getValue()))
+                            FutureUtil.waitForAll(listeners.stream()
+                                            .map(listener -> listener.apply(msg.getValue()))
                                             .collect(Collectors.toList()))
-                                    .thenApply(__ -> c.acknowledgeAsync(msg)).exceptionally(ex -> {
+                                    .thenApply(__ -> c.acknowledgeAsync(msg))
+                                    .exceptionally(ex -> {
                                         log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
                                         return null;
                                     });
@@ -167,17 +197,23 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                         log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
                     }
                 });
-        consumerBuilder.subscribeAsync().thenAccept(consumer -> {
-            log.info("successfully created consumer {}", topicName);
-            this.consumer = consumer;
-        }).exceptionally(ex -> {
-            long waitTimeMs = backOff.next();
-            log.warn("[{}] Failed to create consumer ({}), retrying in {} s", topicName, ex.getMessage(),
-                    waitTimeMs / 1000.0);
-            // BackOff before retrying
-            brokerService.executor().schedule(this::startConsumer, waitTimeMs, TimeUnit.MILLISECONDS);
-            return null;
-        });
+        consumerBuilder
+                .subscribeAsync()
+                .thenAccept(consumer -> {
+                    log.info("successfully created consumer {}", topicName);
+                    this.consumer = consumer;
+                })
+                .exceptionally(ex -> {
+                    long waitTimeMs = backOff.next();
+                    log.warn(
+                            "[{}] Failed to create consumer ({}), retrying in {} s",
+                            topicName,
+                            ex.getMessage(),
+                            waitTimeMs / 1000.0);
+                    // BackOff before retrying
+                    brokerService.executor().schedule(this::startConsumer, waitTimeMs, TimeUnit.MILLISECONDS);
+                    return null;
+                });
     }
 
     public boolean isStarted() {

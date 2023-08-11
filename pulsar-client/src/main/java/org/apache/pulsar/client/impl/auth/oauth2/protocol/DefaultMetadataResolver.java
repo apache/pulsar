@@ -104,7 +104,9 @@ public class DefaultMetadataResolver implements MetadataResolver {
      */
     public static URL getWellKnownMetadataUrl(URL issuerUrl) {
         try {
-            return URI.create(issuerUrl.toExternalForm() + "/.well-known/openid-configuration").normalize().toURL();
+            return URI.create(issuerUrl.toExternalForm() + "/.well-known/openid-configuration")
+                    .normalize()
+                    .toURL();
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e);
         }

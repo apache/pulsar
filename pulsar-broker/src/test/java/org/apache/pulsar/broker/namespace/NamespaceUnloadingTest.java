@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Producer;
 import org.testng.annotations.AfterMethod;
@@ -58,7 +56,9 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
         admin.namespaces().createNamespace("prop/ns-test-2", 16);
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-2", Sets.newHashSet("test"));
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-test-2/my-topic")
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://prop/ns-test-2/my-topic")
                 .create();
 
         assertTrue(admin.namespaces().getNamespaces("prop").contains("prop/ns-test-2"));
@@ -67,5 +67,4 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
 
         producer.close();
     }
-
 }

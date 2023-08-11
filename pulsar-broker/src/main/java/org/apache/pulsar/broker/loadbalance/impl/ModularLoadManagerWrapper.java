@@ -78,7 +78,8 @@ public class ModularLoadManagerWrapper implements LoadManager {
     private String getBrokerWebServiceUrl(String broker) {
         LocalBrokerData localData = (loadManager).getBrokerLocalData(broker);
         if (localData != null) {
-            return localData.getWebServiceUrl() != null ? localData.getWebServiceUrl()
+            return localData.getWebServiceUrl() != null
+                    ? localData.getWebServiceUrl()
                     : localData.getWebServiceUrlTls();
         }
         return String.format("http://%s", broker);
@@ -105,9 +106,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
-    public void setLoadReportForceUpdateFlag() {
-
-    }
+    public void setLoadReportForceUpdateFlag() {}
 
     @Override
     public void start() throws PulsarServerException {
@@ -148,11 +147,13 @@ public class ModularLoadManagerWrapper implements LoadManager {
         return loadManager.getAvailableBrokersAsync();
     }
 
-    private SimpleResourceUnit buildBrokerResourceUnit (String broker) {
+    private SimpleResourceUnit buildBrokerResourceUnit(String broker) {
         String webServiceUrl = getBrokerWebServiceUrl(broker);
         String brokerZnodeName = getBrokerZnodeName(broker, webServiceUrl);
-        return new SimpleResourceUnit(webServiceUrl,
-                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+        return new SimpleResourceUnit(
+                webServiceUrl,
+                new PulsarResourceDescription(),
+                Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
     }
 
     @Override

@@ -33,7 +33,6 @@ import software.amazon.awssdk.utils.StringUtils;
  *  This is a direct adaptation of the kinesis record for kcl v1,
  *  with a little branching added for dynamo-specific logic.
  */
-
 @Getter
 public class StreamsRecord implements Record<byte[]> {
     public static final String ARRIVAL_TIMESTAMP = "ARRIVAL_TIMESTAMP";
@@ -45,7 +44,8 @@ public class StreamsRecord implements Record<byte[]> {
     private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
-    private final Map<String, String> properties = new HashMap<> ();
+    private final Map<String, String> properties = new HashMap<>();
+
     public StreamsRecord(com.amazonaws.services.kinesis.model.Record record) {
         if (record instanceof RecordAdapter) {
             com.amazonaws.services.dynamodbv2.model.Record dynamoRecord = ((RecordAdapter) record).getInternalObject();
@@ -54,7 +54,8 @@ public class StreamsRecord implements Record<byte[]> {
             setProperty(SEQUENCE_NUMBER, dynamoRecord.getDynamodb().getSequenceNumber());
         } else {
             this.key = Optional.of(record.getPartitionKey());
-            setProperty(ARRIVAL_TIMESTAMP, record.getApproximateArrivalTimestamp().toString());
+            setProperty(
+                    ARRIVAL_TIMESTAMP, record.getApproximateArrivalTimestamp().toString());
             setProperty(ENCRYPTION_TYPE, record.getEncryptionType());
             setProperty(PARTITION_KEY, record.getPartitionKey());
             setProperty(SEQUENCE_NUMBER, record.getSequenceNumber());
@@ -65,7 +66,7 @@ public class StreamsRecord implements Record<byte[]> {
             try {
                 s = decoder.decode(record.getData()).toString();
             } catch (CharacterCodingException e) {
-               // Ignore
+                // Ignore
             }
             this.value = (s != null) ? s.getBytes() : null;
         } else {

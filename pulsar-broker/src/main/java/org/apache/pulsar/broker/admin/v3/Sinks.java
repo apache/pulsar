@@ -29,5 +29,4 @@ import org.apache.pulsar.broker.admin.impl.SinksBase;
 @Api(value = "/sinks", description = "Sinks admin apis", tags = "sinks")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Sinks extends SinksBase {
-}
+public class Sinks extends SinksBase {}

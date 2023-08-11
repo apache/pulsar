@@ -103,7 +103,6 @@ public interface LookupService extends AutoCloseable {
      * @param namespace : namespace-name
      * @return
      */
-    CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                               String topicPattern, String topicsHash);
-
+    CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(
+            NamespaceName namespace, Mode mode, String topicPattern, String topicsHash);
 }

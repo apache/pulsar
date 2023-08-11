@@ -26,7 +26,8 @@ public final class FunctionAuthUtils {
     public static FunctionAuthData getFunctionAuthData(
             Optional<Function.FunctionAuthenticationSpec> functionAuthenticationSpec) {
         return functionAuthenticationSpec
-                .map(authenticationSpec -> FunctionAuthData.builder().data(authenticationSpec.getData().toByteArray())
+                .map(authenticationSpec -> FunctionAuthData.builder()
+                        .data(authenticationSpec.getData().toByteArray())
                         .build())
                 .orElse(null);
     }

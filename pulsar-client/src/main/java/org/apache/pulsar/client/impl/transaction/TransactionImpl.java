@@ -51,7 +51,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  */
 @Slf4j
 @Getter
-public class TransactionImpl implements Transaction , TimerTask {
+public class TransactionImpl implements Transaction, TimerTask {
 
     private final PulsarClientImpl client;
     private final long transactionTimeoutMs;
@@ -70,10 +70,9 @@ public class TransactionImpl implements Transaction , TimerTask {
     private static final AtomicLongFieldUpdater<TransactionImpl> OP_COUNT_UPDATE =
             AtomicLongFieldUpdater.newUpdater(TransactionImpl.class, "opCount");
 
-
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
-        AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
+            AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
 
     private volatile boolean hasOpsFailed = false;
     private final Timeout timeout;
@@ -83,10 +82,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIME_OUT);
     }
 
-    TransactionImpl(PulsarClientImpl client,
-                    long transactionTimeoutMs,
-                    long txnIdLeastBits,
-                    long txnIdMostBits) {
+    TransactionImpl(PulsarClientImpl client, long transactionTimeoutMs, long txnIdLeastBits, long txnIdMostBits) {
         this.state = State.OPEN;
         this.client = client;
         this.transactionTimeoutMs = transactionTimeoutMs;
@@ -99,7 +95,6 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.tcClient = client.getTcClient();
         this.opFuture = CompletableFuture.completedFuture(null);
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
-
     }
 
     // register the topics that will be modified by this transaction
@@ -112,8 +107,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                     if (future != null) {
                         return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     } else {
-                        return tcClient.addPublishPartitionToTxnAsync(
-                                txnId, Lists.newArrayList(topic))
+                        return tcClient.addPublishPartitionToTxnAsync(txnId, Lists.newArrayList(topic))
                                 .thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     }
                 });
@@ -130,8 +124,11 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newSendFuture.whenComplete((messageId, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when send messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error(
+                        "The transaction [{}:{}] get an exception when send messages.",
+                        txnIdMostBits,
+                        txnIdLeastBits,
+                        e);
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }
@@ -153,8 +150,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                     if (future != null) {
                         return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     } else {
-                        return tcClient.addSubscriptionToTxnAsync(
-                                txnId, topic, subscription)
+                        return tcClient.addSubscriptionToTxnAsync(txnId, topic, subscription)
                                 .thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     }
                 });
@@ -171,8 +167,11 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newAckFuture.whenComplete((ignore, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when ack messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error(
+                        "The transaction [{}:{}] get an exception when ack messages.",
+                        txnIdMostBits,
+                        txnIdLeastBits,
+                        e);
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }
@@ -192,23 +191,22 @@ public class TransactionImpl implements Transaction , TimerTask {
             this.state = State.COMMITTING;
             opFuture.whenComplete((v, e) -> {
                 if (hasOpsFailed) {
-                    checkState(State.COMMITTING).thenCompose(__ -> internalAbort()).whenComplete((vx, ex) ->
-                            commitFuture.completeExceptionally(
+                    checkState(State.COMMITTING)
+                            .thenCompose(__ -> internalAbort())
+                            .whenComplete((vx, ex) -> commitFuture.completeExceptionally(
                                     new PulsarClientException.TransactionHasOperationFailedException()));
                 } else {
-                    tcClient.commitAsync(txnId)
-                            .whenComplete((vx, ex) -> {
-                                if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException
-                                            || ex instanceof InvalidTxnStatusException) {
-                                        this.state = State.ERROR;
-                                    }
-                                    commitFuture.completeExceptionally(ex);
-                                } else {
-                                    this.state = State.COMMITTED;
-                                    commitFuture.complete(vx);
-                                }
-                            });
+                    tcClient.commitAsync(txnId).whenComplete((vx, ex) -> {
+                        if (ex != null) {
+                            if (ex instanceof TransactionNotFoundException || ex instanceof InvalidTxnStatusException) {
+                                this.state = State.ERROR;
+                            }
+                            commitFuture.completeExceptionally(ex);
+                        } else {
+                            this.state = State.COMMITTED;
+                            commitFuture.complete(vx);
+                        }
+                    });
                 }
             });
             return commitFuture;
@@ -226,10 +224,8 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.state = State.ABORTING;
         opFuture.whenComplete((v, e) -> {
             tcClient.abortAsync(txnId).whenComplete((vx, ex) -> {
-
                 if (ex != null) {
-                    if (ex instanceof TransactionNotFoundException
-                            || ex instanceof InvalidTxnStatusException) {
+                    if (ex instanceof TransactionNotFoundException || ex instanceof InvalidTxnStatusException) {
                         this.state = State.ERROR;
                     }
                     abortFuture.completeExceptionally(ex);
@@ -237,7 +233,6 @@ public class TransactionImpl implements Transaction , TimerTask {
                     this.state = State.ABORTED;
                     abortFuture.complete(null);
                 }
-
             });
         });
 
@@ -258,9 +253,8 @@ public class TransactionImpl implements Transaction , TimerTask {
         if (state == State.OPEN) {
             return true;
         } else {
-            completableFuture
-                    .completeExceptionally(new InvalidTxnStatusException(
-                            txnId.toString(), state.name(), State.OPEN.name()));
+            completableFuture.completeExceptionally(
+                    new InvalidTxnStatusException(txnId.toString(), state.name(), State.OPEN.name()));
             return false;
         }
     }

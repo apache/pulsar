@@ -59,9 +59,8 @@ public class ClientAuthenticationTlsTest extends ProducerConsumerBase {
 
         conf.setBrokerClientTlsEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + getTlsFileForClient("admin.cert")
-                        + ",tlsKeyFile:" + getTlsFileForClient("admin.key-pk8"));
+        conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + getTlsFileForClient("admin.cert") + ",tlsKeyFile:"
+                + getTlsFileForClient("admin.key-pk8"));
         conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
     }
 
@@ -87,7 +86,8 @@ public class ClientAuthenticationTlsTest extends ProducerConsumerBase {
     @Test
     public void testAdminWithTrustCert() throws PulsarClientException, PulsarAdminException {
         @Cleanup
-        PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(getPulsar().getWebServiceAddressTls())
+        PulsarAdmin pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsar().getWebServiceAddressTls())
                 .sslProvider("JDK")
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .build();
@@ -97,7 +97,8 @@ public class ClientAuthenticationTlsTest extends ProducerConsumerBase {
     @Test
     public void testAdminWithFull() throws PulsarClientException, PulsarAdminException {
         @Cleanup
-        PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(getPulsar().getWebServiceAddressTls())
+        PulsarAdmin pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsar().getWebServiceAddressTls())
                 .sslProvider("JDK")
                 .authentication(authenticationTls)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
@@ -108,71 +109,83 @@ public class ClientAuthenticationTlsTest extends ProducerConsumerBase {
     @Test
     public void testAdminWithCertAndKey() throws PulsarClientException, PulsarAdminException {
         @Cleanup
-        PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(getPulsar().getWebServiceAddressTls())
+        PulsarAdmin pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsar().getWebServiceAddressTls())
                 .sslProvider("JDK")
                 .authentication(authenticationTls)
                 .build();
-        PulsarAdminException adminException =
-                expectThrows(PulsarAdminException.class, () -> pulsarAdmin.clusters().getClusters());
+        PulsarAdminException adminException = expectThrows(
+                PulsarAdminException.class, () -> pulsarAdmin.clusters().getClusters());
         assertTrue(adminException.getMessage().contains("PKIX path"));
     }
 
     @Test
     public void testAdminWithoutTls() throws PulsarClientException, PulsarAdminException {
         @Cleanup
-        PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(getPulsar().getWebServiceAddressTls())
+        PulsarAdmin pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsar().getWebServiceAddressTls())
                 .sslProvider("JDK")
                 .build();
-        PulsarAdminException adminException =
-                expectThrows(PulsarAdminException.class, () -> pulsarAdmin.clusters().getClusters());
+        PulsarAdminException adminException = expectThrows(
+                PulsarAdminException.class, () -> pulsarAdmin.clusters().getClusters());
         assertTrue(adminException.getMessage().contains("PKIX path"));
     }
 
     @Test
     public void testClientWithTrustCert() throws PulsarClientException, PulsarAdminException {
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPulsar().getBrokerServiceUrlTls())
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsar().getBrokerServiceUrlTls())
                 .sslProvider("JDK")
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .build();
         @Cleanup
-        Producer<byte[]> ignored = pulsarClient.newProducer().topic(UUID.randomUUID().toString()).create();
+        Producer<byte[]> ignored =
+                pulsarClient.newProducer().topic(UUID.randomUUID().toString()).create();
     }
 
     @Test
     public void testClientWithFull() throws PulsarClientException, PulsarAdminException {
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPulsar().getBrokerServiceUrlTls())
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsar().getBrokerServiceUrlTls())
                 .sslProvider("JDK")
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .authentication(authenticationTls)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .build();
         @Cleanup
-        Producer<byte[]> ignored = pulsarClient.newProducer().topic(UUID.randomUUID().toString()).create();
+        Producer<byte[]> ignored =
+                pulsarClient.newProducer().topic(UUID.randomUUID().toString()).create();
     }
 
     @Test
     public void testClientWithCertAndKey() throws PulsarClientException {
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPulsar().getBrokerServiceUrlTls())
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsar().getBrokerServiceUrlTls())
                 .sslProvider("JDK")
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .authentication(authenticationTls)
                 .build();
-        assertThrows(PulsarClientException.class,
-                () -> pulsarClient.newProducer().topic(UUID.randomUUID().toString()).create());
+        assertThrows(PulsarClientException.class, () -> pulsarClient
+                .newProducer()
+                .topic(UUID.randomUUID().toString())
+                .create());
     }
 
     @Test
     public void testClientWithoutTls() throws PulsarClientException, PulsarAdminException {
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPulsar().getBrokerServiceUrlTls())
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsar().getBrokerServiceUrlTls())
                 .sslProvider("JDK")
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .build();
-        assertThrows(PulsarClientException.class,
-                () -> pulsarClient.newProducer().topic(UUID.randomUUID().toString()).create());
+        assertThrows(PulsarClientException.class, () -> pulsarClient
+                .newProducer()
+                .topic(UUID.randomUUID().toString())
+                .create());
     }
 }

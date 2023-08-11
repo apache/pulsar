@@ -41,5 +41,4 @@ public interface MaterializedConfiguration {
     ImmutableMap<String, SinkRunner> getSinkRunners();
 
     ImmutableMap<String, Channel> getChannels();
-
 }

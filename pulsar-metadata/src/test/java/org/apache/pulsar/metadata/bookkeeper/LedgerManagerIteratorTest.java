@@ -62,7 +62,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
-
 /**
  * Test the ledger manager iterator.
  */
@@ -96,12 +95,15 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     }
 
     CompletableFuture<Versioned<LedgerMetadata>> createLedgerAsync(LedgerManager lm, long ledgerId) {
-        List<BookieId> ensemble = Lists.newArrayList(new BookieSocketAddress("192.0.2.1", 1234).toBookieId(),
+        List<BookieId> ensemble = Lists.newArrayList(
+                new BookieSocketAddress("192.0.2.1", 1234).toBookieId(),
                 new BookieSocketAddress("192.0.2.2", 1234).toBookieId(),
                 new BookieSocketAddress("192.0.2.3", 1234).toBookieId());
         LedgerMetadata meta = LedgerMetadataBuilder.create()
                 .withId(ledgerId)
-                .withEnsembleSize(3).withWriteQuorumSize(3).withAckQuorumSize(2)
+                .withEnsembleSize(3)
+                .withWriteQuorumSize(3)
+                .withAckQuorumSize(2)
                 .withPassword("passwd".getBytes())
                 .withDigestType(BookKeeper.DigestType.CRC32.toApiDigestType())
                 .newEnsembleEntry(0L, ensemble)
@@ -127,13 +129,18 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicInteger finalRC = new AtomicInteger();
 
-        lm.asyncProcessLedgers((ledgerId, callback) -> {
-            ledgersReadAsync.add(ledgerId);
-            callback.processResult(BKException.Code.OK, null, null);
-        }, (rc, s, obj) -> {
-            finalRC.set(rc);
-            latch.countDown();
-        }, null, BKException.Code.OK, BKException.Code.ReadException);
+        lm.asyncProcessLedgers(
+                (ledgerId, callback) -> {
+                    ledgersReadAsync.add(ledgerId);
+                    callback.processResult(BKException.Code.OK, null, null);
+                },
+                (rc, s, obj) -> {
+                    finalRC.set(rc);
+                    latch.countDown();
+                },
+                null,
+                BKException.Code.OK,
+                BKException.Code.ReadException);
 
         latch.await();
         assertEquals(finalRC.get(), BKException.Code.OK, "Final RC of asyncProcessLedgers");
@@ -143,11 +150,10 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 30000, dataProvider = "impl")
     public void testIterateNoLedgers(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
         LedgerRangeIterator lri = lm.getLedgerRanges(0);
         assertNotNull(lri);
         if (lri.hasNext()) {
@@ -160,11 +166,10 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 30000, dataProvider = "impl")
     public void testSingleLedger(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
 
         long id = 2020202;
         createLedger(lm, id);
@@ -182,11 +187,10 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 30000, dataProvider = "impl")
     public void testTwoLedgers(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
 
         Set<Long> ids = new TreeSet<>(Arrays.asList(101010101L, 2020340302L));
         for (Long id : ids) {
@@ -205,11 +209,10 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 240000, dataProvider = "impl")
     public void testSeveralContiguousLedgers(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
 
         Set<Long> ids = new TreeSet<>();
         List<CompletableFuture<?>> futures = new ArrayList<>();
@@ -232,11 +235,10 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 30000, dataProvider = "impl")
     public void testRemovalOfNodeJustTraversed(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
 
         /* For LHLM, first two should be leaves on the same node, second should be on adjacent level 4 node
          * Removing all 3 once the iterator hits the first should result in the whole tree path ending
@@ -244,18 +246,12 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
          * result in a few NodeExists errors (handled silently) as the iterator fails back up the tree
          * to the next path.
          */
-        Set<Long> toRemove = new TreeSet<>(
-                Arrays.asList(
-                        3394498498348983841L,
-                        3394498498348983842L,
-                        3394498498348993841L));
+        Set<Long> toRemove =
+                new TreeSet<>(Arrays.asList(3394498498348983841L, 3394498498348983842L, 3394498498348993841L));
 
         long first = 2345678901234567890L;
         // Nodes which should be listed anyway
-        Set<Long> mustHave = new TreeSet<>(
-                Arrays.asList(
-                        first,
-                        6334994393848474732L));
+        Set<Long> mustHave = new TreeSet<>(Arrays.asList(first, 6334994393848474732L));
 
         Set<Long> ids = new TreeSet<>();
         ids.addAll(toRemove);
@@ -286,31 +282,26 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 30000, dataProvider = "impl")
     public void validateEmptyL4PathSkipped(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String ledgersRoot = newLedgersRoot();
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, ledgersRoot);
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, ledgersRoot);
 
         Set<Long> ids = new TreeSet<>(
-                Arrays.asList(
-                        2345678901234567890L,
-                        3394498498348983841L,
-                        6334994393848474732L,
-                        7349370101927398483L));
+                Arrays.asList(2345678901234567890L, 3394498498348983841L, 6334994393848474732L, 7349370101927398483L));
         for (Long id : ids) {
             createLedger(lm, id);
         }
 
         String[] paths = {
-                ledgersRoot + "/633/4994/3938/4948", // Empty L4 path, must be skipped
-
+            ledgersRoot + "/633/4994/3938/4948", // Empty L4 path, must be skipped
         };
 
         for (String path : paths) {
-            store.put(path, "data".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+            store.put(path, "data".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                    .join();
         }
 
         LedgerRangeIterator lri = lm.getLedgerRanges(0);
@@ -334,34 +325,29 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 30000, dataProvider = "impl")
     public void testWithSeveralIncompletePaths(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String ledgersRoot = newLedgersRoot();
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, ledgersRoot);
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, ledgersRoot);
 
         Set<Long> ids = new TreeSet<>(
-                Arrays.asList(
-                        2345678901234567890L,
-                        3394498498348983841L,
-                        6334994393848474732L,
-                        7349370101927398483L));
+                Arrays.asList(2345678901234567890L, 3394498498348983841L, 6334994393848474732L, 7349370101927398483L));
         for (Long id : ids) {
             createLedger(lm, id);
         }
 
         String[] paths = {
-                ledgersRoot + "000/0000/0000", // top level, W-4292762
-                ledgersRoot + "/234/5678/9999", // shares two path segments with the first one, comes after
-                ledgersRoot + "/339/0000/0000", // shares one path segment with the second one, comes first
-                ledgersRoot + "/633/4994/3938/0000", // shares three path segments with the third one, comes first
-                ledgersRoot + "/922/3372/0000/0000", // close to max long, at end
-
+            ledgersRoot + "000/0000/0000", // top level, W-4292762
+            ledgersRoot + "/234/5678/9999", // shares two path segments with the first one, comes after
+            ledgersRoot + "/339/0000/0000", // shares one path segment with the second one, comes first
+            ledgersRoot + "/633/4994/3938/0000", // shares three path segments with the third one, comes first
+            ledgersRoot + "/922/3372/0000/0000", // close to max long, at end
         };
         for (String path : paths) {
-            store.put(path, "data".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+            store.put(path, "data".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                    .join();
         }
 
         LedgerRangeIterator lri = lm.getLedgerRanges(0);
@@ -376,13 +362,12 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     @Test(timeOut = 30000, dataProvider = "impl")
     public void checkConcurrentModifications(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String ledgersRoot = newLedgersRoot();
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, ledgersRoot);
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, ledgersRoot);
         final int numWriters = 10;
         final int numCheckers = 10;
         final int numLedgers = 100;
@@ -407,8 +392,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         final ConcurrentSkipListSet<Long> createdLedgers = new ConcurrentSkipListSet<>();
         for (int i = 0; i < numWriters; ++i) {
             Future<?> f = executor.submit(() -> {
-                @Cleanup
-                LedgerManager writerLM = new PulsarLedgerManager(store, ledgersRoot);
+                @Cleanup LedgerManager writerLM = new PulsarLedgerManager(store, ledgersRoot);
                 Random writerRNG = new Random(rng.nextLong());
 
                 latch.await();
@@ -432,8 +416,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
 
         for (int i = 0; i < numCheckers; ++i) {
             Future<?> f = executor.submit(() -> {
-                @Cleanup
-                LedgerManager checkerLM = new PulsarLedgerManager(store, ledgersRoot);
+                @Cleanup LedgerManager checkerLM = new PulsarLedgerManager(store, ledgersRoot);
                 latch.await();
 
                 while (MathUtils.elapsedNanos(start) < runtime) {
@@ -464,11 +447,10 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
     public void hierarchicalLedgerManagerAsyncProcessLedgersTest(String provider, Supplier<String> urlSupplier)
             throws Throwable {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
+        @Cleanup LedgerManager lm = new PulsarLedgerManager(store, newLedgersRoot());
         LedgerRangeIterator lri = lm.getLedgerRanges(0);
 
         Set<Long> ledgerIds = new TreeSet<>(Arrays.asList(1234L, 123456789123456789L));

@@ -19,12 +19,10 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.io.IOException;
 import java.util.HashMap;
-
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
@@ -54,7 +52,8 @@ public class BacklogQuotaCompatibilityTest {
         writePolicy.backlog_quota_map = quotaHashMap;
         byte[] serialize = simpleType.serialize("/path", writePolicy);
         Policies policies = simpleType.deserialize("/path", serialize, null);
-        BacklogQuota readBacklogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+        BacklogQuota readBacklogQuota =
+                policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
         Assert.assertEquals(readBacklogQuota.getLimitSize(), 1024);
         Assert.assertEquals(readBacklogQuota.getLimitTime(), 60);
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
@@ -72,7 +71,8 @@ public class BacklogQuotaCompatibilityTest {
         writePolicy.backlog_quota_map = quotaHashMap;
         byte[] serialize = simpleType.serialize("/path", writePolicy);
         Policies policies = simpleType.deserialize("/path", serialize, null);
-        BacklogQuota readBacklogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+        BacklogQuota readBacklogQuota =
+                policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
         Assert.assertEquals(readBacklogQuota.getLimit(), 1024);
         Assert.assertEquals(readBacklogQuota.getLimitTime(), 60);
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
@@ -101,11 +101,20 @@ public class BacklogQuotaCompatibilityTest {
                 + "\"UNDEFINED\",\"is_allow_auto_update_schema\":true,\"schema_validation_enforced\":false,"
                 + "\"subscription_types_enabled\":[]}\n";
         Policies policies = simpleType.deserialize(null, oldPolicyStr.getBytes(), null);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
+        assertEquals(
+                policies.backlog_quota_map
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage)
+                        .getLimitSize(),
                 1001);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTime(),
+        assertEquals(
+                policies.backlog_quota_map
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage)
+                        .getLimitTime(),
                 0);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getPolicy(),
+        assertEquals(
+                policies.backlog_quota_map
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage)
+                        .getPolicy(),
                 BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
     }
 
@@ -123,10 +132,15 @@ public class BacklogQuotaCompatibilityTest {
                 + "\"UNDEFINED\",\"is_allow_auto_update_schema\":true,\"schema_validation_enforced\":false,"
                 + "\"subscription_types_enabled\":[]}\n";
         Policies policies = simpleType.deserialize(null, oldPolicyStr.getBytes(), null);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
+        assertEquals(
+                policies.backlog_quota_map
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage)
+                        .getLimitSize(),
                 0);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTime(),
+        assertEquals(
+                policies.backlog_quota_map
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage)
+                        .getLimitTime(),
                 0);
     }
-
 }

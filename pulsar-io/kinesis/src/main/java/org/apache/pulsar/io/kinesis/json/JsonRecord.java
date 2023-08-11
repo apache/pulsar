@@ -37,5 +37,4 @@ public class JsonRecord {
         properties.put(key, value);
         return this;
     }
-
 }

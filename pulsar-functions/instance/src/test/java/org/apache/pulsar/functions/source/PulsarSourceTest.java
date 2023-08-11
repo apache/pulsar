@@ -60,24 +60,39 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarSourceTest {
 
-
     private static final String TOPIC = "persistent://sample/ns1/test_result";
-    private static final ConsumerConfig CONSUMER_CONFIG =  ConsumerConfig.builder()
-            .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build();
+    private static final ConsumerConfig CONSUMER_CONFIG = ConsumerConfig.builder()
+            .serdeClassName(TopicSchema.DEFAULT_SERDE)
+            .isRegexPattern(false)
+            .build();
 
     private static Map<String, ConsumerConfig> consumerConfigs = new HashMap<>();
+
     static {
         consumerConfigs.put(TOPIC, CONSUMER_CONFIG);
     }
 
     private static Map<String, ConsumerConfig> multipleConsumerConfigs = new HashMap<>();
+
     static {
-        multipleConsumerConfigs.put("persistent://sample/ns1/test_result1", ConsumerConfig.builder()
-                .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build());
-        multipleConsumerConfigs.put("persistent://sample/ns1/test_result2", ConsumerConfig.builder()
-                .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build());
-        multipleConsumerConfigs.put("persistent://sample/ns1/test_result3", ConsumerConfig.builder()
-                .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build());
+        multipleConsumerConfigs.put(
+                "persistent://sample/ns1/test_result1",
+                ConsumerConfig.builder()
+                        .serdeClassName(TopicSchema.DEFAULT_SERDE)
+                        .isRegexPattern(false)
+                        .build());
+        multipleConsumerConfigs.put(
+                "persistent://sample/ns1/test_result2",
+                ConsumerConfig.builder()
+                        .serdeClassName(TopicSchema.DEFAULT_SERDE)
+                        .isRegexPattern(false)
+                        .build());
+        multipleConsumerConfigs.put(
+                "persistent://sample/ns1/test_result3",
+                ConsumerConfig.builder()
+                        .serdeClassName(TopicSchema.DEFAULT_SERDE)
+                        .isRegexPattern(false)
+                        .build());
     }
 
     public static class TestSerDe implements SerDe<String> {
@@ -97,7 +112,7 @@ public class PulsarSourceTest {
     public static Object[] getPulsarSourceImpls() {
         MultiConsumerPulsarSourceConfig multiConsumerPulsarSourceConfig = getMultiConsumerPulsarConfigs(false);
         SingleConsumerPulsarSourceConfig singleConsumerPulsarSourceConfig = getSingleConsumerPulsarConfigs();
-        return new Object[]{singleConsumerPulsarSourceConfig, multiConsumerPulsarSourceConfig};
+        return new Object[] {singleConsumerPulsarSourceConfig, multiConsumerPulsarSourceConfig};
     }
 
     /**
@@ -107,13 +122,17 @@ public class PulsarSourceTest {
         PulsarClientImpl pulsarClient = Mockito.mock(PulsarClientImpl.class);
         ConsumerBuilder<?> goodConsumerBuilder = Mockito.mock(ConsumerBuilder.class);
         ConsumerBuilder<?> badConsumerBuilder = Mockito.mock(ConsumerBuilder.class);
-        Mockito.doReturn(goodConsumerBuilder).when(goodConsumerBuilder)
+        Mockito.doReturn(goodConsumerBuilder)
+                .when(goodConsumerBuilder)
                 .topics(Mockito.argThat(new TopicMatcher("persistent://sample/ns1/test_result")));
-        Mockito.doReturn(goodConsumerBuilder).when(goodConsumerBuilder)
+        Mockito.doReturn(goodConsumerBuilder)
+                .when(goodConsumerBuilder)
                 .topics(Mockito.argThat(new TopicMatcher("persistent://sample/ns1/test_result1")));
-        Mockito.doReturn(badConsumerBuilder).when(goodConsumerBuilder)
+        Mockito.doReturn(badConsumerBuilder)
+                .when(goodConsumerBuilder)
                 .topics(Mockito.argThat(new TopicMatcher("persistent://sample/ns1/test_result2")));
-        Mockito.doReturn(goodConsumerBuilder).when(goodConsumerBuilder)
+        Mockito.doReturn(goodConsumerBuilder)
+                .when(goodConsumerBuilder)
                 .topics(Mockito.argThat(new TopicMatcher("persistent://sample/ns1/test_result3")));
         Mockito.doReturn(goodConsumerBuilder).when(goodConsumerBuilder).cryptoFailureAction(any());
         Mockito.doReturn(goodConsumerBuilder).when(goodConsumerBuilder).subscriptionName(any());
@@ -133,12 +152,16 @@ public class PulsarSourceTest {
         Consumer<?> consumer = Mockito.mock(Consumer.class);
         Mockito.doReturn(consumer).when(goodConsumerBuilder).subscribe();
         Mockito.doReturn(goodConsumerBuilder).when(pulsarClient).newConsumer(any());
-        Mockito.doReturn(CompletableFuture.completedFuture(consumer)).when(goodConsumerBuilder).subscribeAsync();
+        Mockito.doReturn(CompletableFuture.completedFuture(consumer))
+                .when(goodConsumerBuilder)
+                .subscribeAsync();
         CompletableFuture<Consumer<?>> badFuture = new CompletableFuture<>();
         badFuture.completeExceptionally(new PulsarClientException("Some Error"));
         Mockito.doReturn(badFuture).when(badConsumerBuilder).subscribeAsync();
         Mockito.doThrow(PulsarClientException.class).when(badConsumerBuilder).subscribe();
-        Mockito.doReturn(CompletableFuture.completedFuture(Optional.empty())).when(pulsarClient).getSchema(anyString());
+        Mockito.doReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .when(pulsarClient)
+                .getSchema(anyString());
         return pulsarClient;
     }
 
@@ -154,7 +177,6 @@ public class PulsarSourceTest {
             return arg.contains(topic);
         }
     }
-
 
     private static MultiConsumerPulsarSourceConfig getMultiConsumerPulsarConfigs(boolean multiple) {
         MultiConsumerPulsarSourceConfig pulsarConfig = new MultiConsumerPulsarSourceConfig();
@@ -203,12 +225,16 @@ public class PulsarSourceTest {
     private PulsarSource getPulsarSource(PulsarSourceConfig pulsarSourceConfig) throws PulsarClientException {
         PulsarSource<?> pulsarSource;
         if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
-            pulsarSource = new SingleConsumerPulsarSource<>(getPulsarClient(),
-                    (SingleConsumerPulsarSourceConfig) pulsarSourceConfig, new HashMap<>(),
+            pulsarSource = new SingleConsumerPulsarSource<>(
+                    getPulsarClient(),
+                    (SingleConsumerPulsarSourceConfig) pulsarSourceConfig,
+                    new HashMap<>(),
                     Thread.currentThread().getContextClassLoader());
         } else {
-            pulsarSource = new MultiConsumerPulsarSource<>(getPulsarClient(),
-                    (MultiConsumerPulsarSourceConfig) pulsarSourceConfig, new HashMap<>(),
+            pulsarSource = new MultiConsumerPulsarSource<>(
+                    getPulsarClient(),
+                    (MultiConsumerPulsarSourceConfig) pulsarSourceConfig,
+                    new HashMap<>(),
                     Thread.currentThread().getContextClassLoader());
         }
 
@@ -231,8 +257,7 @@ public class PulsarSourceTest {
         // set type to void
         pulsarSourceConfig.setTypeClassName(Void.class.getName());
 
-        @Cleanup
-        PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
+        @Cleanup PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
         try {
             pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
             fail();
@@ -253,11 +278,12 @@ public class PulsarSourceTest {
         // set type to be inconsistent to that of SerDe
         pulsarSourceConfig.setTypeClassName(Integer.class.getName());
         String topic = "persistent://sample/ns1/test_result";
-        ConsumerConfig consumerConfig = ConsumerConfig.builder().serdeClassName(TestSerDe.class.getName()).build();
+        ConsumerConfig consumerConfig = ConsumerConfig.builder()
+                .serdeClassName(TestSerDe.class.getName())
+                .build();
         setTopicAndConsumerConfig(pulsarSourceConfig, topic, consumerConfig);
 
-        @Cleanup
-        PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
+        @Cleanup PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
         try {
             pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
@@ -278,12 +304,14 @@ public class PulsarSourceTest {
     public void testDefaultSerDe(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         // set type to void
         pulsarSourceConfig.setTypeClassName(String.class.getName());
-        consumerConfigs.put("persistent://sample/ns1/test_result",
-                ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
+        consumerConfigs.put(
+                "persistent://sample/ns1/test_result",
+                ConsumerConfig.builder()
+                        .serdeClassName(TopicSchema.DEFAULT_SERDE)
+                        .build());
         setTopicAndConsumerConfig(pulsarSourceConfig, TOPIC, CONSUMER_CONFIG);
 
-        @Cleanup
-        PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
+        @Cleanup PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
 
         pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
     }
@@ -292,12 +320,14 @@ public class PulsarSourceTest {
     public void testComplexOutputType(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         // set type to void
         pulsarSourceConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
-        consumerConfigs.put("persistent://sample/ns1/test_result",
-                ConsumerConfig.builder().serdeClassName(ComplexSerDe.class.getName()).build());
+        consumerConfigs.put(
+                "persistent://sample/ns1/test_result",
+                ConsumerConfig.builder()
+                        .serdeClassName(ComplexSerDe.class.getName())
+                        .build());
         setTopicAndConsumerConfig(pulsarSourceConfig, TOPIC, CONSUMER_CONFIG);
 
-        @Cleanup
-        PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
+        @Cleanup PulsarSource<?> pulsarSource = getPulsarSource(pulsarSourceConfig);
         pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
     }
 
@@ -305,9 +335,11 @@ public class PulsarSourceTest {
     public void testDanglingSubscriptions() throws Exception {
         MultiConsumerPulsarSourceConfig pulsarConfig = getMultiConsumerPulsarConfigs(true);
 
-        MultiConsumerPulsarSource<?> pulsarSource =
-                new MultiConsumerPulsarSource<>(getPulsarClient(), pulsarConfig, new HashMap<>(),
-                        Thread.currentThread().getContextClassLoader());
+        MultiConsumerPulsarSource<?> pulsarSource = new MultiConsumerPulsarSource<>(
+                getPulsarClient(),
+                pulsarConfig,
+                new HashMap<>(),
+                Thread.currentThread().getContextClassLoader());
         try {
             pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
             fail();
@@ -317,7 +349,6 @@ public class PulsarSourceTest {
         } catch (Exception e) {
             fail();
         }
-
     }
 
     @Test(dataProvider = "sourceImpls")
@@ -334,7 +365,8 @@ public class PulsarSourceTest {
         if (pulsarSource instanceof MultiConsumerPulsarSource) {
             ((MultiConsumerPulsarSource) pulsarSource).received(consumer, messageImpl);
         } else {
-            Mockito.doReturn(messageImpl).when(((SingleConsumerPulsarSource) pulsarSource).getInputConsumer())
+            Mockito.doReturn(messageImpl)
+                    .when(((SingleConsumerPulsarSource) pulsarSource).getInputConsumer())
                     .receive();
         }
         Mockito.verify(messageImpl.getSchemaInternal(), Mockito.times(1));
@@ -355,13 +387,14 @@ public class PulsarSourceTest {
 
         if (pulsarSourceConfig instanceof MultiConsumerPulsarSourceConfig) {
             MultiConsumerPulsarSourceConfig cfg = (MultiConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertEquals(pulsarSource.getInputConsumers().size(), cfg.getTopicSchema().size());
+            Assert.assertEquals(
+                    pulsarSource.getInputConsumers().size(),
+                    cfg.getTopicSchema().size());
             return;
         }
 
         fail("Unknown config type");
     }
-
 
     @Test(dataProvider = "sourceImpls")
     public void testPulsarRecordCustomAck(PulsarSourceConfig pulsarSourceConfig) throws Exception {
@@ -380,5 +413,4 @@ public class PulsarSourceTest {
         record.individualAck();
         Mockito.verify(consumer, Mockito.times(1)).acknowledgeAsync(message);
     }
-
 }

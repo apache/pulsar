@@ -28,13 +28,22 @@ public class ProxyContainer extends PulsarContainer<ProxyContainer> {
     public static final String NAME = "pulsar-proxy";
 
     public ProxyContainer(String clusterName, String hostName) {
-        super(clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT, BROKER_PORT_TLS, BROKER_HTTP_PORT,
-                BROKER_HTTPS_PORT, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
+        super(
+                clusterName,
+                hostName,
+                hostName,
+                "bin/run-proxy.sh",
+                BROKER_PORT,
+                BROKER_PORT_TLS,
+                BROKER_HTTP_PORT,
+                BROKER_HTTPS_PORT,
+                DEFAULT_HTTP_PATH,
+                DEFAULT_IMAGE_NAME);
     }
 
     @Override
     protected void afterStart() {
-        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/var/log/pulsar/proxy.log");
+        DockerUtils.runCommandAsyncWithLogging(
+                this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/proxy.log");
     }
 }

@@ -19,14 +19,12 @@
 package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertTrue;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -36,7 +34,7 @@ import org.testng.annotations.Test;
 public class FileModifiedTimeUpdaterTest {
     @DataProvider(name = "files")
     Object[] getFiles() {
-        return new Object[] { "/tmp/file.ini", "/tmp/file.log", "/tmp/f3/notes.txt" };
+        return new Object[] {"/tmp/file.ini", "/tmp/file.log", "/tmp/f3/notes.txt"};
     }
 
     public static class BasicAuthenticationData implements AuthenticationDataProvider {
@@ -107,14 +105,13 @@ public class FileModifiedTimeUpdaterTest {
         createFile(Paths.get(certFile));
         provider.certFilePath = certFile;
         provider.keyFilePath = certFile;
-        NettyClientSslContextRefresher refresher = new NettyClientSslContextRefresher(null, false, certFile,
-                provider, null, null, 1);
+        NettyClientSslContextRefresher refresher =
+                new NettyClientSslContextRefresher(null, false, certFile, provider, null, null, 1);
         Thread.sleep(5000);
         Paths.get(certFile).toFile().delete();
         // update the file
         createFile(Paths.get(certFile));
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(()-> refresher.needUpdate());
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> refresher.needUpdate());
         assertTrue(refresher.needUpdate());
     }
-
 }

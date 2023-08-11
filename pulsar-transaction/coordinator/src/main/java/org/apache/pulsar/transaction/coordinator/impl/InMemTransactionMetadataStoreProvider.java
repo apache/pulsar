@@ -34,15 +34,15 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 public class InMemTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
 
     @Override
-    public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
-                                                                 ManagedLedgerFactory managedLedgerFactory,
-                                                                 ManagedLedgerConfig managedLedgerConfig,
-                                                                 TransactionTimeoutTracker timeoutTracker,
-                                                                 TransactionRecoverTracker recoverTracker,
-                                                                 long maxActiveTransactionsPerCoordinator,
-                                                                 TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
-                                                                 Timer timer) {
-        return CompletableFuture.completedFuture(
-            new InMemTransactionMetadataStore(transactionCoordinatorId));
+    public CompletableFuture<TransactionMetadataStore> openStore(
+            TransactionCoordinatorID transactionCoordinatorId,
+            ManagedLedgerFactory managedLedgerFactory,
+            ManagedLedgerConfig managedLedgerConfig,
+            TransactionTimeoutTracker timeoutTracker,
+            TransactionRecoverTracker recoverTracker,
+            long maxActiveTransactionsPerCoordinator,
+            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+            Timer timer) {
+        return CompletableFuture.completedFuture(new InMemTransactionMetadataStore(transactionCoordinatorId));
     }
 }

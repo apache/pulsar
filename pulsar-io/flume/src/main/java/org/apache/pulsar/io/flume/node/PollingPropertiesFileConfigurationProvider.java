@@ -31,12 +31,10 @@ import org.apache.flume.lifecycle.LifecycleState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PollingPropertiesFileConfigurationProvider
-        extends PropertiesFileConfigurationProvider
+public class PollingPropertiesFileConfigurationProvider extends PropertiesFileConfigurationProvider
         implements LifecycleAware {
 
-    private static final Logger LOGGER =
-            LoggerFactory.getLogger(PollingPropertiesFileConfigurationProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PollingPropertiesFileConfigurationProvider.class);
 
     private final EventBus eventBus;
     private final File file;
@@ -46,8 +44,7 @@ public class PollingPropertiesFileConfigurationProvider
 
     private ScheduledExecutorService executorService;
 
-    public PollingPropertiesFileConfigurationProvider(String agentName,
-                                                      File file, EventBus eventBus, int interval) {
+    public PollingPropertiesFileConfigurationProvider(String agentName, File file, EventBus eventBus, int interval) {
         super(agentName, file);
         this.eventBus = eventBus;
         this.file = file;
@@ -60,18 +57,14 @@ public class PollingPropertiesFileConfigurationProvider
     public void start() {
         LOGGER.info("Configuration provider starting");
 
-        Preconditions.checkState(file != null,
-                "The parameter file must not be null");
+        Preconditions.checkState(file != null, "The parameter file must not be null");
 
         executorService = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("conf-file-poller-%d")
-                        .build());
+                new ThreadFactoryBuilder().setNameFormat("conf-file-poller-%d").build());
 
-        FileWatcherRunnable fileWatcherRunnable =
-                new FileWatcherRunnable(file, counterGroup);
+        FileWatcherRunnable fileWatcherRunnable = new FileWatcherRunnable(file, counterGroup);
 
-        executorService.scheduleWithFixedDelay(fileWatcherRunnable, 0, interval,
-                TimeUnit.SECONDS);
+        executorService.scheduleWithFixedDelay(fileWatcherRunnable, 0, interval, TimeUnit.SECONDS);
 
         lifecycleState = LifecycleState.START;
 
@@ -103,7 +96,6 @@ public class PollingPropertiesFileConfigurationProvider
     public synchronized LifecycleState getLifecycleState() {
         return lifecycleState;
     }
-
 
     @Override
     public String toString() {
@@ -143,11 +135,12 @@ public class PollingPropertiesFileConfigurationProvider
                 try {
                     eventBus.post(getConfiguration());
                 } catch (Exception e) {
-                    LOGGER.error("Failed to load configuration data. Exception follows.",
-                            e);
+                    LOGGER.error("Failed to load configuration data. Exception follows.", e);
                 } catch (NoClassDefFoundError e) {
-                    LOGGER.error("Failed to start agent because dependencies were not "
-                            + "found in classpath. Error follows.", e);
+                    LOGGER.error(
+                            "Failed to start agent because dependencies were not "
+                                    + "found in classpath. Error follows.",
+                            e);
                 } catch (Throwable t) {
                     // caught because the caller does not handle or log Throwables
                     LOGGER.error("Unhandled error", t);
@@ -155,5 +148,4 @@ public class PollingPropertiesFileConfigurationProvider
             }
         }
     }
-
 }

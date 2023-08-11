@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,8 +30,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
@@ -68,7 +67,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @DataProvider(name = "receiverQueueSize")
     public Object[][] getReceiverQueueSize() {
-        return new Object[][] { { 0 }, { 1000 } };
+        return new Object[][] {{0}, {1000}};
     }
 
     /**
@@ -76,7 +75,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
      */
     @DataProvider(name = "topicPartition")
     public Object[][] getTopicPartition() {
-        return new Object[][] {{ 0 }, { 3 }};
+        return new Object[][] {{0}, {3}};
     }
 
     @Test
@@ -87,10 +86,10 @@ public class InterceptorsTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(ns, Sets.newHashSet("test"));
         admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
-        abstract class BaseInterceptor implements
-                org.apache.pulsar.client.api.interceptor.ProducerInterceptor {
+        abstract class BaseInterceptor implements org.apache.pulsar.client.api.interceptor.ProducerInterceptor {
             private static final String set = "set";
             private String tag;
+
             private BaseInterceptor(String tag) {
                 this.tag = tag;
             }
@@ -101,14 +100,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public Message beforeSend(Producer producer, Message message) {
                 MessageImpl msg = (MessageImpl) message;
-                msg.getMessageBuilder()
-                   .addProperty().setKey(tag).setValue(set);
+                msg.getMessageBuilder().addProperty().setKey(tag).setValue(set);
                 return message;
             }
 
             @Override
-            public void onSendAcknowledgement(Producer producer, Message message,
-                                                     MessageId msgId, Throwable exception) {
+            public void onSendAcknowledgement(
+                    Producer producer, Message message, MessageId msgId, Throwable exception) {
                 if (!set.equals(message.getProperties().get(tag))) {
                     return;
                 }
@@ -125,31 +123,36 @@ public class InterceptorsTest extends ProducerConsumerBase {
         BaseInterceptor interceptor2 = new BaseInterceptor("int2") {
             @Override
             public boolean eligible(Message message) {
-                return SchemaType.STRING.equals(
-                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
+                return SchemaType.STRING.equals(((MessageImpl) message)
+                        .getSchemaInternal()
+                        .getSchemaInfo()
+                        .getType());
             }
         };
         BaseInterceptor interceptor3 = new BaseInterceptor("int3") {
             @Override
             public boolean eligible(Message message) {
-                return SchemaType.INT32.equals(
-                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
+                return SchemaType.INT32.equals(((MessageImpl) message)
+                        .getSchemaInternal()
+                        .getSchemaInfo()
+                        .getType());
             }
         };
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://" + ns + "/my-topic")
                 .intercept(interceptor1, interceptor2, interceptor3)
                 .create();
-        MessageId messageId = producer.newMessage().property("STR", "Y")
-                                      .value("Hello Pulsar!").send();
-        Assert.assertEquals(ackCallback.get(messageId),
-                            Arrays.asList(interceptor1.tag, interceptor2.tag));
+        MessageId messageId = producer.newMessage()
+                .property("STR", "Y")
+                .value("Hello Pulsar!")
+                .send();
+        Assert.assertEquals(ackCallback.get(messageId), Arrays.asList(interceptor1.tag, interceptor2.tag));
         log.info("Send result messageId: {}", messageId);
-        MessageId messageId2 = producer.newMessage(Schema.INT32).property("INT", "Y")
-                                       .value(18).send();
-        Assert.assertEquals(ackCallback.get(messageId2),
-                            Arrays.asList(interceptor1.tag, interceptor3.tag));
+        MessageId messageId2 =
+                producer.newMessage(Schema.INT32).property("INT", "Y").value(18).send();
+        Assert.assertEquals(ackCallback.get(messageId2), Arrays.asList(interceptor1.tag, interceptor3.tag));
         log.info("Send result messageId: {}", messageId2);
         producer.close();
     }
@@ -158,9 +161,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
     public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
@@ -168,14 +169,16 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
+            public void onSendAcknowledgement(
+                    Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
                 throw new IllegalArgumentException();
             }
         };
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-            .topic("persistent://my-property/my-ns/my-topic")
-            .intercept(interceptor)
-            .create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic")
+                .intercept(interceptor)
+                .create();
 
         MessageId messageId = producer.newMessage().value("Hello Pulsar!").send();
         Assert.assertNotNull(messageId);
@@ -186,9 +189,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
     public void testProducerInterceptorsWithErrors() throws PulsarClientException {
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
@@ -196,11 +197,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
+            public void onSendAcknowledgement(
+                    Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
                 throw new AbstractMethodError();
             }
         };
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .intercept(interceptor)
                 .create();
@@ -243,7 +246,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 throw new AbstractMethodError();
             }
         };
-        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer1 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic-exception")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
@@ -251,14 +255,16 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
-        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer2 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic-exception")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription-negative")
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic-exception")
                 .create();
 
@@ -287,9 +293,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
     public void testConsumerInterceptorWithSingleTopicSubscribe(Integer receiverQueueSize) throws Exception {
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
@@ -309,17 +313,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
 
             @Override
-            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
         };
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
@@ -327,7 +328,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .receiverQueueSize(receiverQueueSize)
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .enableBatching(false)
                 .create();
@@ -360,7 +362,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
 
         final CompletableFuture<Message<String>> future = new CompletableFuture<>();
-        consumer = pulsarClient.newConsumer(Schema.STRING)
+        consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
@@ -397,9 +400,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
@@ -419,25 +420,24 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
 
             @Override
-            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
         };
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .create();
 
-        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic1")
                 .create();
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic", "persistent://my-property/my-ns/my-topic1")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
@@ -469,9 +469,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
@@ -491,25 +489,24 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
 
             @Override
-            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
         };
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .create();
 
-        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer1 = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic1")
                 .create();
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topicsPattern("persistent://my-property/my-ns/my-.*")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
@@ -543,9 +540,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
@@ -561,31 +556,31 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                long acknowledged = ackHolder.stream().filter(m -> (m.compareTo(messageId) <= 0)).count();
+                long acknowledged = ackHolder.stream()
+                        .filter(m -> (m.compareTo(messageId) <= 0))
+                        .count();
                 Assert.assertEquals(acknowledged, 100);
                 ackHolder.clear();
                 log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
             }
 
             @Override
-            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
 
             @Override
-            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
         };
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionType(SubscriptionType.Failover)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .create();
 
@@ -619,9 +614,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
@@ -629,14 +622,10 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-
-            }
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {}
 
             @Override
-            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-
-            }
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {}
 
             @Override
             public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
@@ -644,12 +633,11 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-
-            }
+            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
         };
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionType(SubscriptionType.Failover)
                 .intercept(interceptor)
@@ -657,7 +645,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscription")
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .create();
 
@@ -689,9 +678,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
-            public void close() {
-
-            }
+            public void close() {}
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
@@ -699,18 +686,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-
-            }
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {}
 
             @Override
-            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-
-            }
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {}
 
             @Override
-            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
-            }
+            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {}
 
             @Override
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
@@ -718,11 +700,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
         };
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .create();
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("foo")
                 .intercept(interceptor)
@@ -787,16 +771,15 @@ public class InterceptorsTest extends ProducerConsumerBase {
         }
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         int msgCount = 10;
 
         ReaderInterceptorImpl interceptor1 = new ReaderInterceptorImpl(Integer.MAX_VALUE);
         ReaderInterceptorImpl interceptor2 = new ReaderInterceptorImpl(msgCount * 2);
         @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .intercept(interceptor1, interceptor2)
@@ -806,7 +789,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
         ReaderInterceptorImpl interceptor3 = new ReaderInterceptorImpl(msgCount * 2);
         AtomicInteger listenerReceiveCount = new AtomicInteger();
         @Cleanup
-        Reader<byte[]> reader2 = pulsarClient.newReader()
+        Reader<byte[]> reader2 = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .intercept(interceptor3)
@@ -819,32 +803,27 @@ public class InterceptorsTest extends ProducerConsumerBase {
         produceAndConsume(msgCount, producer, reader);
         Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount);
         Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount);
-        Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
-                () -> {
-                    Assert.assertEquals(listenerReceiveCount.get(), msgCount);
-                }
-        );
+        Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(listenerReceiveCount.get(), msgCount);
+        });
         Assert.assertEquals(interceptor3.beforeReadCount.get(), msgCount);
 
         if (topicPartition > 0) {
             // Make sure all interceptors still work well after update the topic partition.
             final int newPartition = topicPartition + 3;
             admin.topics().updatePartitionedTopic(topic, newPartition);
-            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
-                    () -> {
-                        Assert.assertEquals(interceptor1.newPartition.get(), newPartition);
-                        Assert.assertEquals(interceptor2.newPartition.get(), newPartition);
-                        Assert.assertEquals(interceptor3.newPartition.get(), newPartition);
-                    });
+            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+                Assert.assertEquals(interceptor1.newPartition.get(), newPartition);
+                Assert.assertEquals(interceptor2.newPartition.get(), newPartition);
+                Assert.assertEquals(interceptor3.newPartition.get(), newPartition);
+            });
 
             produceAndConsume(msgCount, producer, reader);
             Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount * 2);
             Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount * 2);
-            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
-                    () -> {
-                        Assert.assertEquals(listenerReceiveCount.get(), msgCount * 2);
-                    }
-            );
+            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+                Assert.assertEquals(listenerReceiveCount.get(), msgCount * 2);
+            });
             Assert.assertEquals(interceptor3.beforeReadCount.get(), msgCount * 2);
         }
 
@@ -867,5 +846,4 @@ public class InterceptorsTest extends ProducerConsumerBase {
             Assert.assertNotNull(message);
         }
     }
-
 }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.tutorial;
 
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -28,11 +27,14 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class SampleConsumer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException {
 
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        PulsarClient pulsarClient =
+                PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer() //
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer() //
                 .topic("persistent://my-tenant/my-ns/my-topic") //
-                .subscriptionName("my-subscription-name").subscribe();
+                .subscriptionName("my-subscription-name")
+                .subscribe();
 
         Message<byte[]> msg = null;
 
@@ -48,7 +50,7 @@ public class SampleConsumer {
         } catch (Exception e) {
             consumer.reconsumeLater(msg, 10, TimeUnit.SECONDS);
         }
-       
+
         pulsarClient.close();
     }
 }

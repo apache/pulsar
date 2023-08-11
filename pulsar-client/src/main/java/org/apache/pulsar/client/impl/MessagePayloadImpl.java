@@ -38,6 +38,7 @@ public class MessagePayloadImpl implements MessagePayload {
     };
 
     private final Recycler.Handle<MessagePayloadImpl> recyclerHandle;
+
     @Getter
     private ByteBuf byteBuf;
 

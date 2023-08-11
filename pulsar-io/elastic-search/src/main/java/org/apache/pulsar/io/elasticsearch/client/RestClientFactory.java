@@ -38,37 +38,43 @@ public class RestClientFactory {
     public static RestClient createClient(ElasticSearchConfig config, BulkProcessor.Listener bulkListener)
             throws IOException {
         if (config.getCompatibilityMode() == ElasticSearchConfig.CompatibilityMode.ELASTICSEARCH) {
-            log.info("Found compatibilityMode set to '{}', using the ElasticSearch Java client.",
+            log.info(
+                    "Found compatibilityMode set to '{}', using the ElasticSearch Java client.",
                     config.getCompatibilityMode());
             return new ElasticSearchJavaRestClient(config, bulkListener);
         } else if (config.getCompatibilityMode() == ElasticSearchConfig.CompatibilityMode.ELASTICSEARCH_7
                 || config.getCompatibilityMode() == ElasticSearchConfig.CompatibilityMode.OPENSEARCH) {
-            log.info("Found compatibilityMode set to '{}', using the OpenSearch High Level Rest API Client.",
+            log.info(
+                    "Found compatibilityMode set to '{}', using the OpenSearch High Level Rest API Client.",
                     config.getCompatibilityMode());
             return new OpenSearchHighLevelRestClient(config, bulkListener);
         }
-        log.info("Found compatibilityMode set to '{}', will try to auto detect the best client to use.",
+        log.info(
+                "Found compatibilityMode set to '{}', will try to auto detect the best client to use.",
                 config.getCompatibilityMode());
         try {
             final Map<String, Object> jsonResponse = requestInfo(config);
             final boolean useOpenSearchHighLevelClient = useOpenSearchHighLevelClient(jsonResponse);
-            log.info("useOpenSearchHighLevelClient={}, got info response: {}", useOpenSearchHighLevelClient,
+            log.info(
+                    "useOpenSearchHighLevelClient={}, got info response: {}",
+                    useOpenSearchHighLevelClient,
                     jsonResponse);
             if (useOpenSearchHighLevelClient) {
                 return new OpenSearchHighLevelRestClient(config, bulkListener);
             }
             return new ElasticSearchJavaRestClient(config, bulkListener);
         } catch (IOException ioException) {
-            log.warn("Got error while performing info request to detect Elastic version: {}",
-                    ioException.getMessage());
+            log.warn("Got error while performing info request to detect Elastic version: {}", ioException.getMessage());
             throw ioException;
         }
     }
 
     private static Map<String, Object> requestInfo(ElasticSearchConfig config) throws IOException {
         try (final OpenSearchHighLevelRestClient openSearchHighLevelRestClient =
-                     new OpenSearchHighLevelRestClient(config, null)) {
-            final Response response = openSearchHighLevelRestClient.getClient().getLowLevelClient()
+                new OpenSearchHighLevelRestClient(config, null)) {
+            final Response response = openSearchHighLevelRestClient
+                    .getClient()
+                    .getLowLevelClient()
                     .performRequest(new Request(HttpGet.METHOD_NAME, "/"));
 
             return (Map<String, Object>) MAPPER.readValue(response.getEntity().getContent(), Map.class);
@@ -100,7 +106,4 @@ public class RestClientFactory {
             return true;
         }
     }
-
-
-
 }

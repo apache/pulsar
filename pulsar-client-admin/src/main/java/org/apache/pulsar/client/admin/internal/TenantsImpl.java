@@ -46,7 +46,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
 
     @Override
     public CompletableFuture<List<String>> getTenantsAsync() {
-        return asyncGetRequest(this.adminTenants, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(this.adminTenants, new FutureCallback<List<String>>() {});
     }
 
     @Override
@@ -57,8 +57,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public CompletableFuture<TenantInfo> getTenantInfoAsync(String tenant) {
         WebTarget path = adminTenants.path(tenant);
-        return asyncGetRequest(path, new FutureCallback<TenantInfoImpl>(){})
-                .thenApply(tenantInfo -> tenantInfo);
+        return asyncGetRequest(path, new FutureCallback<TenantInfoImpl>() {}).thenApply(tenantInfo -> tenantInfo);
     }
 
     @Override

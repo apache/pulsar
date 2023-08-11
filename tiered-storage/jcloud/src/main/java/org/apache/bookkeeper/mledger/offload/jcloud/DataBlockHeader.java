@@ -53,4 +53,3 @@ public interface DataBlockHeader {
      */
     InputStream toStream();
 }
-

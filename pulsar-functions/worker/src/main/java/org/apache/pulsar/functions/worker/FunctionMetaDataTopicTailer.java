@@ -30,22 +30,25 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 
 @Slf4j
-public class FunctionMetaDataTopicTailer
-        implements Runnable, AutoCloseable {
+public class FunctionMetaDataTopicTailer implements Runnable, AutoCloseable {
 
     private final FunctionMetaDataManager functionMetaDataManager;
+
     @Getter
     private final Reader<byte[]> reader;
+
     private final Thread tailerThread;
     private volatile boolean isRunning;
     private ErrorNotifier errorNotifier;
     private volatile boolean exitOnEndOfTopic;
     private CompletableFuture<Void> exitFuture = new CompletableFuture<>();
 
-    public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
-                                       ReaderBuilder readerBuilder, WorkerConfig workerConfig,
-                                       MessageId lastMessageSeen,
-                                       ErrorNotifier errorNotifier)
+    public FunctionMetaDataTopicTailer(
+            FunctionMetaDataManager functionMetaDataManager,
+            ReaderBuilder readerBuilder,
+            WorkerConfig workerConfig,
+            MessageId lastMessageSeen,
+            ErrorNotifier errorNotifier)
             throws PulsarClientException {
         this.functionMetaDataManager = functionMetaDataManager;
         this.reader = createReader(workerConfig, readerBuilder, lastMessageSeen);
@@ -121,8 +124,8 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopped function metadata tailer");
     }
 
-    public static Reader createReader(WorkerConfig workerConfig, ReaderBuilder readerBuilder,
-                                      MessageId startMessageId) throws PulsarClientException {
+    public static Reader createReader(WorkerConfig workerConfig, ReaderBuilder readerBuilder, MessageId startMessageId)
+            throws PulsarClientException {
         ReaderBuilder builder = readerBuilder
                 .topic(workerConfig.getFunctionMetadataTopic())
                 .startMessageId(startMessageId)

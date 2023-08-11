@@ -31,8 +31,7 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
     private static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
 
     public DynamicConfigurationResources(MetadataStore store, int operationTimeoutSec) {
-        super(store, new TypeReference<Map<String, String>>() {
-        }, operationTimeoutSec);
+        super(store, new TypeReference<Map<String, String>>() {}, operationTimeoutSec);
     }
 
     public CompletableFuture<Optional<Map<String, String>>> getDynamicConfigurationAsync() {
@@ -44,8 +43,7 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
     }
 
     public void setDynamicConfigurationWithCreate(
-                                 Function<Optional<Map<String, String>>, Map<String, String>> createFunction)
-            throws MetadataStoreException {
+            Function<Optional<Map<String, String>>, Map<String, String>> createFunction) throws MetadataStoreException {
         super.setWithCreate(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
     }
 
@@ -55,12 +53,11 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
     }
 
     public CompletableFuture<Void> setDynamicConfigurationAsync(
-            Function<Map<String, String>, Map<String, String>> updateFunction){
+            Function<Map<String, String>, Map<String, String>> updateFunction) {
         return super.setAsync(BROKER_SERVICE_CONFIGURATION_PATH, updateFunction);
     }
 
-    public void setDynamicConfiguration(
-            Function<Map<String, String>, Map<String, String>> updateFunction)
+    public void setDynamicConfiguration(Function<Map<String, String>, Map<String, String>> updateFunction)
             throws MetadataStoreException {
         super.set(BROKER_SERVICE_CONFIGURATION_PATH, updateFunction);
     }

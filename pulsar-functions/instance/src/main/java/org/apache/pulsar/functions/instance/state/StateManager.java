@@ -43,5 +43,4 @@ public interface StateManager extends AutoCloseable {
     StateStore getStore(String tenant, String namespace, String name);
 
     void close();
-
 }

@@ -198,7 +198,8 @@ public class OverloadShedderTest {
         data.setBandwidthIn(new ResourceUsage(30, 100));
         data.setBandwidthOut(new ResourceUsage(20, 100));
 
-        assertEquals(data.printResourceUsage(),
+        assertEquals(
+                data.printResourceUsage(),
                 "cpu: 10.00%, memory: 50.00%, directMemory: 90.00%, bandwidthIn: 30.00%, bandwidthOut: 20.00%");
     }
 }

@@ -43,15 +43,20 @@ public class RestMessagePublishContext implements Topic.PublishContext {
         if (exception != null) {
             positionFuture.completeExceptionally(exception);
             if (log.isInfoEnabled()) {
-                log.info("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. "
+                log.info(
+                        "Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. "
                                 + "triggered send callback.",
-                        ledgerId, entryId);
+                        ledgerId,
+                        entryId);
             }
         } else {
             if (log.isInfoEnabled()) {
-                log.info("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. "
+                log.info(
+                        "Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. "
                                 + "triggered send callback.",
-                        topic.getName(), ledgerId, entryId);
+                        topic.getName(),
+                        ledgerId,
+                        entryId);
             }
             topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             positionFuture.complete(PositionImpl.get(ledgerId, entryId));
@@ -60,8 +65,8 @@ public class RestMessagePublishContext implements Topic.PublishContext {
     }
 
     // recycler
-    public static RestMessagePublishContext get(CompletableFuture<PositionImpl> positionFuture, Topic topic,
-                                                     long startTimeNs) {
+    public static RestMessagePublishContext get(
+            CompletableFuture<PositionImpl> positionFuture, Topic topic, long startTimeNs) {
         RestMessagePublishContext callback = RECYCLER.get();
         callback.positionFuture = positionFuture;
         callback.topic = topic;

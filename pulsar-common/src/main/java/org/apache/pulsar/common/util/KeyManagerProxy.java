@@ -51,8 +51,8 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
     private volatile X509ExtendedKeyManager keyManager;
     private FileModifiedTimeUpdater certFile, keyFile;
 
-    public KeyManagerProxy(String certFilePath, String keyFilePath, int refreshDurationSec,
-            ScheduledExecutorService executor) {
+    public KeyManagerProxy(
+            String certFilePath, String keyFilePath, int refreshDurationSec, ScheduledExecutorService executor) {
         this.certFile = new FileModifiedTimeUpdater(certFilePath);
         this.keyFile = new FileModifiedTimeUpdater(keyFilePath);
         try {
@@ -67,8 +67,8 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
             log.warn("Failed to update key Manager", e);
             throw new IllegalArgumentException(e);
         }
-        executor.scheduleWithFixedDelay(() -> updateKeyManagerSafely(), refreshDurationSec, refreshDurationSec,
-                TimeUnit.SECONDS);
+        executor.scheduleWithFixedDelay(
+                () -> updateKeyManagerSafely(), refreshDurationSec, refreshDurationSec, TimeUnit.SECONDS);
     }
 
     private void updateKeyManagerSafely() {
@@ -99,13 +99,13 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
             String alias = certificate.getSubjectX500Principal().getName();
             privateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFile.getFileName());
             keyStore.load(null);
-            keyStore.setKeyEntry(alias, privateKey, KEYSTORE_PASSWORD, new X509Certificate[] { certificate });
+            keyStore.setKeyEntry(alias, privateKey, KEYSTORE_PASSWORD, new X509Certificate[] {certificate});
         } catch (IOException | KeyManagementException e) {
             throw new IllegalArgumentException(e);
         }
 
-        final KeyManagerFactory keyManagerFactory = KeyManagerFactory
-                .getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        final KeyManagerFactory keyManagerFactory =
+                KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         keyManagerFactory.init(keyStore, KEYSTORE_PASSWORD);
         this.keyManager = (X509ExtendedKeyManager) keyManagerFactory.getKeyManagers()[0];
     }
@@ -149,5 +149,4 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
     public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
         return keyManager.chooseEngineServerAlias(keyType, issuers, engine);
     }
-
 }

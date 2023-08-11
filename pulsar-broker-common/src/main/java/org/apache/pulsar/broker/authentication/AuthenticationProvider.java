@@ -97,10 +97,8 @@ public interface AuthenticationProvider extends Closeable {
     /**
      * Create an authentication data State use passed in AuthenticationDataSource.
      */
-    default AuthenticationState newAuthState(AuthData authData,
-                                             SocketAddress remoteAddress,
-                                             SSLSession sslSession)
-        throws AuthenticationException {
+    default AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
+            throws AuthenticationException {
         return new OneStageAuthenticationState(authData, remoteAddress, sslSession, this);
     }
 
@@ -116,8 +114,7 @@ public interface AuthenticationProvider extends Closeable {
      * the http request. Removing this method removes an unnecessary step in the authentication flow.</p>
      */
     @Deprecated(since = "3.0.0")
-    default AuthenticationState newHttpAuthState(HttpServletRequest request)
-            throws AuthenticationException {
+    default AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
         return new OneStageAuthenticationState(request, this);
     }
 
@@ -135,8 +132,8 @@ public interface AuthenticationProvider extends Closeable {
      * @throws Exception when authentication failed
      * and return whether we should do following chain.doFilter or not.
      */
-    default CompletableFuture<Boolean> authenticateHttpRequestAsync(HttpServletRequest request,
-                                                                    HttpServletResponse response) {
+    default CompletableFuture<Boolean> authenticateHttpRequestAsync(
+            HttpServletRequest request, HttpServletResponse response) {
         try {
             return CompletableFuture.completedFuture(this.authenticateHttpRequest(request, response));
         } catch (Exception e) {
@@ -163,7 +160,8 @@ public interface AuthenticationProvider extends Closeable {
     default boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         try {
             AuthenticationState authenticationState = newHttpAuthState(request);
-            String role = authenticateAsync(authenticationState.getAuthDataSource()).get();
+            String role =
+                    authenticateAsync(authenticationState.getAuthDataSource()).get();
             request.setAttribute(AuthenticatedRoleAttributeName, role);
             request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
             return true;

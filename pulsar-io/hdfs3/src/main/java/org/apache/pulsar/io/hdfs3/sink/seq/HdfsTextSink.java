@@ -29,8 +29,7 @@ import org.apache.pulsar.io.core.KeyValue;
 /**
  * A Simple Sink class for Hdfs Sequence File.
  */
-public class HdfsTextSink extends
-     HdfsAbstractSequenceFileSink<String, String, Text, Text> {
+public class HdfsTextSink extends HdfsAbstractSequenceFileSink<String, String, Text, Text> {
 
     @Override
     protected List<Option> getOptions() throws IllegalArgumentException, IOException {
@@ -42,12 +41,12 @@ public class HdfsTextSink extends
 
     @Override
     public KeyValue<String, String> extractKeyValue(Record<String> record) {
-       String key = record.getKey().orElseGet(() -> record.getValue());
-       return new KeyValue<>(key, record.getValue());
+        String key = record.getKey().orElseGet(() -> record.getValue());
+        return new KeyValue<>(key, record.getValue());
     }
 
     @Override
     public KeyValue<Text, Text> convert(KeyValue<String, String> kv) {
-       return new KeyValue<>(new Text(kv.getKey()), new Text(kv.getValue()));
+        return new KeyValue<>(new Text(kv.getKey()), new Text(kv.getValue()));
     }
 }

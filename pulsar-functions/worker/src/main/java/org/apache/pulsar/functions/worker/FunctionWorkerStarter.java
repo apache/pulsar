@@ -33,14 +33,18 @@ public class FunctionWorkerStarter {
 
     private static class WorkerArguments {
         @Parameter(
-            names = { "-c", "--conf" },
-            description = "Configuration File for Function Worker")
+                names = {"-c", "--conf"},
+                description = "Configuration File for Function Worker")
         private String configFile;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 

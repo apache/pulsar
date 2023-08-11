@@ -36,71 +36,100 @@ import org.apache.pulsar.client.api.ProxyProtocol;
  */
 public abstract class PerformanceBaseArguments {
 
-    @Parameter(names = { "-h", "--help" }, description = "Print help message", help = true)
+    @Parameter(
+            names = {"-h", "--help"},
+            description = "Print help message",
+            help = true)
     boolean help;
 
-    @Parameter(names = { "-cf", "--conf-file" }, description = "Pulsar configuration file")
+    @Parameter(
+            names = {"-cf", "--conf-file"},
+            description = "Pulsar configuration file")
     public String confFile;
 
-    @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
+    @Parameter(
+            names = {"-u", "--service-url"},
+            description = "Pulsar Service URL")
     public String serviceURL;
 
-    @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
+    @Parameter(
+            names = {"--auth-plugin"},
+            description = "Authentication plugin class name")
     public String authPluginClassName;
 
     @Parameter(
-            names = { "--auth-params" },
+            names = {"--auth-params"},
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
                     + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
     public String authParams;
 
-    @Parameter(names = {
-            "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
+    @Parameter(
+            names = {"--trust-cert-file"},
+            description = "Path for the trusted TLS certificate file")
     public String tlsTrustCertsFilePath = "";
 
-    @Parameter(names = {
-            "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
+    @Parameter(
+            names = {"--tls-allow-insecure"},
+            description = "Allow insecure TLS connection")
     public Boolean tlsAllowInsecureConnection = null;
 
-    @Parameter(names = {
-            "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification")
+    @Parameter(
+            names = {"--tls-enable-hostname-verification"},
+            description = "Enable TLS hostname verification")
     public Boolean tlsHostnameVerificationEnable = null;
 
-    @Parameter(names = { "-c",
-            "--max-connections" }, description = "Max number of TCP connections to a single broker")
+    @Parameter(
+            names = {"-c", "--max-connections"},
+            description = "Max number of TCP connections to a single broker")
     public int maxConnections = 1;
 
-    @Parameter(names = { "-i",
-            "--stats-interval-seconds" },
+    @Parameter(
+            names = {"-i", "--stats-interval-seconds"},
             description = "Statistics Interval Seconds. If 0, statistics will be disabled")
     public long statsIntervalSeconds = 0;
 
-    @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
-            + "used for handling connections to brokers. The default value is 1.")
+    @Parameter(
+            names = {"-ioThreads", "--num-io-threads"},
+            description = "Set the number of threads to be "
+                    + "used for handling connections to brokers. The default value is 1.")
     public int ioThreads = 1;
 
-    @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
+    @Parameter(
+            names = {"-bw", "--busy-wait"},
+            description = "Enable Busy-Wait on the Pulsar client")
     public boolean enableBusyWait = false;
 
-    @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+    @Parameter(
+            names = {"--listener-name"},
+            description = "Listener name for the broker.")
     public String listenerName = null;
 
-    @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
-            + " to be used for message listeners")
+    @Parameter(
+            names = {"-lt", "--num-listener-threads"},
+            description = "Set the number of threads" + " to be used for message listeners")
     public int listenerThreads = 1;
 
-    @Parameter(names = {"-mlr", "--max-lookup-request"}, description = "Maximum number of lookup requests allowed "
-            + "on each broker connection to prevent overloading a broker")
+    @Parameter(
+            names = {"-mlr", "--max-lookup-request"},
+            description = "Maximum number of lookup requests allowed "
+                    + "on each broker connection to prevent overloading a broker")
     public int maxLookupRequest = 50000;
 
-    @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    @Parameter(
+            names = {"--proxy-url"},
+            description = "Proxy-server URL to which to connect.")
     String proxyServiceURL = null;
 
-    @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    @Parameter(
+            names = {"--proxy-protocol"},
+            description = "Proxy protocol to select type of routing at proxy.")
     ProxyProtocol proxyProtocol = null;
 
-    @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+    @Parameter(
+            names = {"--auth_plugin"},
+            description = "Authentication plugin class name",
+            hidden = true)
     public String deprecatedAuthPluginClassName;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
@@ -142,14 +171,11 @@ public abstract class PerformanceBaseArguments {
         }
 
         if (tlsAllowInsecureConnection == null) {
-            tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                    .getProperty("tlsAllowInsecureConnection", ""));
+            tlsAllowInsecureConnection = Boolean.parseBoolean(prop.getProperty("tlsAllowInsecureConnection", ""));
         }
 
         if (tlsHostnameVerificationEnable == null) {
-            tlsHostnameVerificationEnable = Boolean.parseBoolean(prop
-                    .getProperty("tlsEnableHostnameVerification", ""));
-
+            tlsHostnameVerificationEnable = Boolean.parseBoolean(prop.getProperty("tlsEnableHostnameVerification", ""));
         }
 
         if (proxyServiceURL == null) {
@@ -168,7 +194,6 @@ public abstract class PerformanceBaseArguments {
                 e.printStackTrace();
                 exit(1);
             }
-
         }
 
         fillArgumentsFromProperties(prop);
@@ -227,5 +252,4 @@ public abstract class PerformanceBaseArguments {
             PerfClientUtils.exit(1);
         }
     }
-
 }

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -44,15 +43,19 @@ public class BytesKeyTest extends ProducerConsumerBase {
 
     private void byteKeysTest(boolean batching) throws Exception {
         Random r = new Random(0);
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-            .topic("persistent://my-property/my-ns/my-topic1")
-            .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-            .enableBatching(batching)
-            .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
-            .batchingMaxMessages(Integer.MAX_VALUE)
-            .topic("persistent://my-property/my-ns/my-topic1").create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .enableBatching(batching)
+                .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
+                .batchingMaxMessages(Integer.MAX_VALUE)
+                .topic("persistent://my-property/my-ns/my-topic1")
+                .create();
 
         byte[] byteKey = new byte[1000];
         r.nextBytes(byteKey);

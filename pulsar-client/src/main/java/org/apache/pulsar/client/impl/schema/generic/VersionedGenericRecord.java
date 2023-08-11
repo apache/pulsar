@@ -30,8 +30,7 @@ abstract class VersionedGenericRecord implements GenericRecord {
     protected final byte[] schemaVersion;
     protected final List<Field> fields;
 
-    protected VersionedGenericRecord(byte[] schemaVersion,
-                                     List<Field> fields) {
+    protected VersionedGenericRecord(byte[] schemaVersion, List<Field> fields) {
         this.schemaVersion = schemaVersion;
         this.fields = fields;
     }
@@ -45,5 +44,4 @@ abstract class VersionedGenericRecord implements GenericRecord {
     public List<Field> getFields() {
         return fields;
     }
-
 }

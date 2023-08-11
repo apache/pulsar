@@ -63,7 +63,6 @@ public abstract class TransactionMetadataStoreState {
 
     public TransactionMetadataStoreState(State state) {
         STATE_UPDATER.set(this, state);
-
     }
 
     protected boolean changeToReadyState() {

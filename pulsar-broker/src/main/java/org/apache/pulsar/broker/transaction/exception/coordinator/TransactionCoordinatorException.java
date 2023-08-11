@@ -41,7 +41,6 @@ public abstract class TransactionCoordinatorException extends TransactionExcepti
         super(cause);
     }
 
-
     /**
      * Exceptions are thrown when txnAction is unsupported.
      */

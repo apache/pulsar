@@ -33,9 +33,10 @@ public class LongSchema extends AbstractSchema<Long> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("INT64")
-            .type(SchemaType.INT64)
-            .schema(new byte[0]).build();
+                .name("INT64")
+                .type(SchemaType.INT64)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new LongSchema();
     }
 

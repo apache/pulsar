@@ -48,20 +48,20 @@ public class Topics extends TopicsBase {
     @POST
     @Path("/persistent/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Produce message to a persistent topic.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
-            @ApiResponse(code = 412, message = "Namespace name is not valid"),
-            @ApiResponse(code = 500, message = "Internal server error") })
-    public void produceOnPersistentTopic(@Suspended final AsyncResponse asyncResponse,
-                               @ApiParam(value = "Specify the tenant", required = true)
-                               @PathParam("tenant") String tenant,
-                               @ApiParam(value = "Specify the namespace", required = true)
-                               @PathParam("namespace") String namespace,
-                               @ApiParam(value = "Specify topic name", required = true)
-                               @PathParam("topic") @Encoded String encodedTopic,
-                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                               ProducerMessages producerMessages) {
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
+                @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+                @ApiResponse(code = 412, message = "Namespace name is not valid"),
+                @ApiResponse(code = 500, message = "Internal server error")
+            })
+    public void produceOnPersistentTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true) @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true) @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true) @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            ProducerMessages producerMessages) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
@@ -74,24 +74,25 @@ public class Topics extends TopicsBase {
 
     @POST
     @Path("/persistent/{tenant}/{namespace}/{topic}/partitions/{partition}")
-    @ApiOperation(value = "Produce message to a partition of a persistent topic.",
-            response = String.class, responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
-            @ApiResponse(code = 412, message = "Namespace name is not valid"),
-            @ApiResponse(code = 500, message = "Internal server error") })
-    public void produceOnPersistentTopicPartition(@Suspended final AsyncResponse asyncResponse,
-                                        @ApiParam(value = "Specify the tenant", required = true)
-                                        @PathParam("tenant") String tenant,
-                                        @ApiParam(value = "Specify the namespace", required = true)
-                                        @PathParam("namespace") String namespace,
-                                        @ApiParam(value = "Specify topic name", required = true)
-                                        @PathParam("topic") @Encoded String encodedTopic,
-                                        @ApiParam(value = "Specify topic partition", required = true)
-                                        @PathParam("partition") int partition,
-                                        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                                        ProducerMessages producerMessages) {
+    @ApiOperation(
+            value = "Produce message to a partition of a persistent topic.",
+            response = String.class,
+            responseContainer = "List")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
+                @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+                @ApiResponse(code = 412, message = "Namespace name is not valid"),
+                @ApiResponse(code = 500, message = "Internal server error")
+            })
+    public void produceOnPersistentTopicPartition(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true) @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true) @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true) @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Specify topic partition", required = true) @PathParam("partition") int partition,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            ProducerMessages producerMessages) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
@@ -105,21 +106,20 @@ public class Topics extends TopicsBase {
     @POST
     @Path("/non-persistent/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Produce message to a persistent topic.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
-            @ApiResponse(code = 412, message = "Namespace name is not valid"),
-            @ApiResponse(code = 500, message = "Internal server error") })
-    public void produceOnNonPersistentTopic(@Suspended final AsyncResponse asyncResponse,
-                                         @ApiParam(value = "Specify the tenant", required = true)
-                                         @PathParam("tenant") String tenant,
-                                         @ApiParam(value = "Specify the namespace", required = true)
-                                         @PathParam("namespace") String namespace,
-                                         @ApiParam(value = "Specify topic name", required = true)
-                                         @PathParam("topic") @Encoded String encodedTopic,
-                                         @QueryParam("authoritative") @DefaultValue("false")
-                                                        boolean authoritative,
-                                         ProducerMessages producerMessages) {
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
+                @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+                @ApiResponse(code = 412, message = "Namespace name is not valid"),
+                @ApiResponse(code = 500, message = "Internal server error")
+            })
+    public void produceOnNonPersistentTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true) @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true) @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true) @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            ProducerMessages producerMessages) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
@@ -132,25 +132,25 @@ public class Topics extends TopicsBase {
 
     @POST
     @Path("/non-persistent/{tenant}/{namespace}/{topic}/partitions/{partition}")
-    @ApiOperation(value = "Produce message to a partition of a persistent topic.",
-            response = String.class, responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
-            @ApiResponse(code = 412, message = "Namespace name is not valid"),
-            @ApiResponse(code = 500, message = "Internal server error") })
-    public void produceOnNonPersistentTopicPartition(@Suspended final AsyncResponse asyncResponse,
-                                                  @ApiParam(value = "Specify the tenant", required = true)
-                                                  @PathParam("tenant") String tenant,
-                                                  @ApiParam(value = "Specify the namespace", required = true)
-                                                  @PathParam("namespace") String namespace,
-                                                  @ApiParam(value = "Specify topic name", required = true)
-                                                  @PathParam("topic") @Encoded String encodedTopic,
-                                                  @ApiParam(value = "Specify topic partition", required = true)
-                                                  @PathParam("partition") int partition,
-                                                  @QueryParam("authoritative") @DefaultValue("false")
-                                                                 boolean authoritative,
-                                                  ProducerMessages producerMessages) {
+    @ApiOperation(
+            value = "Produce message to a partition of a persistent topic.",
+            response = String.class,
+            responseContainer = "List")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
+                @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+                @ApiResponse(code = 412, message = "Namespace name is not valid"),
+                @ApiResponse(code = 500, message = "Internal server error")
+            })
+    public void produceOnNonPersistentTopicPartition(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true) @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true) @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true) @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Specify topic partition", required = true) @PathParam("partition") int partition,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            ProducerMessages producerMessages) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
@@ -160,5 +160,4 @@ public class Topics extends TopicsBase {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
-
 }

@@ -39,19 +39,14 @@ public class TenantInfoImpl implements TenantInfo {
      */
     @ApiModelProperty(
             value = "Comma separated list of auth principal allowed to administrate the tenant.",
-            name = "adminRoles"
-    )
+            name = "adminRoles")
     private Set<String> adminRoles;
 
     /**
      * List of clusters this tenant is restricted on.
      */
-    @ApiModelProperty(
-            value = "Comma separated allowed clusters.",
-            name = "allowedClusters"
-    )
+    @ApiModelProperty(value = "Comma separated allowed clusters.", name = "allowedClusters")
     private Set<String> allowedClusters;
-
 
     public static TenantInfoImplBuilder builder() {
         return new TenantInfoImplBuilder();
@@ -61,8 +56,7 @@ public class TenantInfoImpl implements TenantInfo {
         private Set<String> adminRoles;
         private Set<String> allowedClusters;
 
-        TenantInfoImplBuilder() {
-        }
+        TenantInfoImplBuilder() {}
 
         public TenantInfoImplBuilder adminRoles(Set<String> adminRoles) {
             this.adminRoles = adminRoles;

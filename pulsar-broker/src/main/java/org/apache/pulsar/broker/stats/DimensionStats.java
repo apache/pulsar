@@ -40,11 +40,11 @@ public class DimensionStats {
     private final Summary summary;
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999};
     private static final List<String> QUANTILE_LABEL = Collections.unmodifiableList(Arrays.asList("quantile"));
-    private static final List<List<String>> QUANTILE_LABEL_VALUES = Collections.unmodifiableList(
-            Arrays.stream(QUANTILES).mapToObj(Collector::doubleToGoString)
+    private static final List<List<String>> QUANTILE_LABEL_VALUES =
+            Collections.unmodifiableList(Arrays.stream(QUANTILES)
+                    .mapToObj(Collector::doubleToGoString)
                     .map(Collections::singletonList)
                     .collect(Collectors.toList()));
-
 
     public DimensionStats(String name, long updateDurationInSec) {
         this(name, updateDurationInSec, true);
@@ -76,7 +76,6 @@ public class DimensionStats {
     public DimensionStatsSnapshot getSnapshot() {
         return new DimensionStatsSnapshot(summary.collect());
     }
-
 
     public class DimensionStatsSnapshot {
         private final List<Collector.MetricFamilySamples> samples;

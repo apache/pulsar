@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.io.Resources;
 import io.etcd.jetcd.launcher.EtcdCluster;
-
 import io.etcd.jetcd.test.EtcdClusterExtension;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -44,11 +43,16 @@ public class EtcdMetadataStoreTest {
     @Test
     public void testCluster() throws Exception {
         @Cleanup
-        EtcdCluster etcdCluster = EtcdClusterExtension.builder().withClusterName("test-cluster").withNodes(3)
-                .withSsl(false).build().cluster();
+        EtcdCluster etcdCluster = EtcdClusterExtension.builder()
+                .withClusterName("test-cluster")
+                .withNodes(3)
+                .withSsl(false)
+                .build()
+                .cluster();
         etcdCluster.start();
 
-        EtcdConfig etcdConfig = EtcdConfig.builder().useTls(false)
+        EtcdConfig etcdConfig = EtcdConfig.builder()
+                .useTls(false)
                 .tlsProvider(null)
                 .authority("etcd0")
                 .build();
@@ -56,75 +60,99 @@ public class EtcdMetadataStoreTest {
         Path etcdConfigPath = Files.createTempFile("etcd_config_cluster", ".yml");
         new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
 
-        String metadataURL =
-                "etcd:" + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+        String metadataURL = "etcd:"
+                + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
 
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(metadataURL,
-                MetadataStoreConfig.builder().configFilePath(etcdConfigPath.toString()).build());
+        MetadataStore store = MetadataStoreFactory.create(
+                metadataURL,
+                MetadataStoreConfig.builder()
+                        .configFilePath(etcdConfigPath.toString())
+                        .build());
 
-        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
 
         assertTrue(store.exists("/test").join());
-
     }
 
     @Test
     public void testClusterWithTls() throws Exception {
         @Cleanup
-        EtcdCluster etcdCluster = EtcdClusterExtension.builder().withClusterName("test-cluster").withNodes(3)
-                .withSsl(true).build().cluster();
+        EtcdCluster etcdCluster = EtcdClusterExtension.builder()
+                .withClusterName("test-cluster")
+                .withNodes(3)
+                .withSsl(true)
+                .build()
+                .cluster();
         etcdCluster.start();
 
-        EtcdConfig etcdConfig = EtcdConfig.builder().useTls(true)
+        EtcdConfig etcdConfig = EtcdConfig.builder()
+                .useTls(true)
                 .tlsProvider(null)
                 .authority("etcd0")
                 .tlsTrustCertsFilePath(Resources.getResource("ssl/cert/ca.pem").getPath())
-                .tlsKeyFilePath(Resources.getResource("ssl/cert/client-key-pk8.pem").getPath())
-                .tlsCertificateFilePath(Resources.getResource("ssl/cert/client.pem").getPath())
+                .tlsKeyFilePath(
+                        Resources.getResource("ssl/cert/client-key-pk8.pem").getPath())
+                .tlsCertificateFilePath(
+                        Resources.getResource("ssl/cert/client.pem").getPath())
                 .build();
 
         Path etcdConfigPath = Files.createTempFile("etcd_config_cluster_ssl", ".yml");
         new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
 
-        String metadataURL =
-                "etcd:" + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+        String metadataURL = "etcd:"
+                + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
 
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(metadataURL,
-                MetadataStoreConfig.builder().configFilePath(etcdConfigPath.toString()).build());
+        MetadataStore store = MetadataStoreFactory.create(
+                metadataURL,
+                MetadataStoreConfig.builder()
+                        .configFilePath(etcdConfigPath.toString())
+                        .build());
 
-        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
 
         assertTrue(store.exists("/test").join());
-
     }
 
     @Test
     public void testTlsInstance() throws Exception {
         @Cleanup
-        EtcdCluster etcdCluster = EtcdClusterExtension.builder().withClusterName("test-tls").withNodes(1)
-                .withSsl(true).build().cluster();
+        EtcdCluster etcdCluster = EtcdClusterExtension.builder()
+                .withClusterName("test-tls")
+                .withNodes(1)
+                .withSsl(true)
+                .build()
+                .cluster();
         etcdCluster.start();
 
-        EtcdConfig etcdConfig = EtcdConfig.builder().useTls(true)
+        EtcdConfig etcdConfig = EtcdConfig.builder()
+                .useTls(true)
                 .tlsProvider(null)
                 .authority("etcd0")
                 .tlsTrustCertsFilePath(Resources.getResource("ssl/cert/ca.pem").getPath())
-                .tlsKeyFilePath(Resources.getResource("ssl/cert/client-key-pk8.pem").getPath())
-                .tlsCertificateFilePath(Resources.getResource("ssl/cert/client.pem").getPath())
+                .tlsKeyFilePath(
+                        Resources.getResource("ssl/cert/client-key-pk8.pem").getPath())
+                .tlsCertificateFilePath(
+                        Resources.getResource("ssl/cert/client.pem").getPath())
                 .build();
         Path etcdConfigPath = Files.createTempFile("etcd_config", ".yml");
         new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
 
-        String metadataURL =
-                "etcd:" + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+        String metadataURL = "etcd:"
+                + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
 
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(metadataURL,
-                MetadataStoreConfig.builder().configFilePath(etcdConfigPath.toString()).build());
+        MetadataStore store = MetadataStoreFactory.create(
+                metadataURL,
+                MetadataStoreConfig.builder()
+                        .configFilePath(etcdConfigPath.toString())
+                        .build());
 
-        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
 
         assertTrue(store.exists("/test").join());
     }

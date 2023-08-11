@@ -100,7 +100,9 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             PulsarRecordCursor pulsarRecordCursor = entry.getValue();
 
             PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
-            when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(completedFuture(topicsToSchemas.get(entry.getKey().getSchemaName())));
+            when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any()))
+                    .thenReturn(
+                            completedFuture(topicsToSchemas.get(entry.getKey().getSchemaName())));
             pulsarRecordCursor.setPulsarSqlSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
 
             TopicName topicName = entry.getKey();
@@ -113,22 +115,33 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         columnsSeen.add(fooColumnHandles.get(i).getName());
                     } else {
                         if (fooColumnHandles.get(i).getName().equals("field1")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("field1").apply(count)).longValue());
+                            assertEquals(
+                                    pulsarRecordCursor.getLong(i),
+                                    ((Integer) fooFunctions.get("field1").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field2")) {
-                            assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("field2").apply(count)).getBytes());
+                            assertEquals(
+                                    pulsarRecordCursor.getSlice(i).getBytes(),
+                                    ((String) fooFunctions.get("field2").apply(count)).getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field3")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits((Float) fooFunctions.get("field3").apply(count)));
+                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits((Float)
+                                    fooFunctions.get("field3").apply(count)));
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field4")) {
-                            assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("field4").apply(count)).doubleValue());
+                            assertEquals(
+                                    pulsarRecordCursor.getDouble(i),
+                                    ((Double) fooFunctions.get("field4").apply(count)).doubleValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field5")) {
-                            assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("field5").apply(count)).booleanValue());
+                            assertEquals(
+                                    pulsarRecordCursor.getBoolean(i),
+                                    ((Boolean) fooFunctions.get("field5").apply(count)).booleanValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field6")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("field6").apply(count)).longValue());
+                            assertEquals(
+                                    pulsarRecordCursor.getLong(i),
+                                    ((Long) fooFunctions.get("field6").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("timestamp")) {
                             pulsarRecordCursor.getLong(i);
@@ -142,22 +155,34 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         } else if (fooColumnHandles.get(i).getName().equals("bar")) {
                             assertTrue(fooColumnHandles.get(i).getType() instanceof RowType);
                             columnsSeen.add(fooColumnHandles.get(i).getName());
-                        }else if (fooColumnHandles.get(i).getName().equals("field7")) {
-                            assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), fooFunctions.get("field7").apply(count).toString().getBytes());
+                        } else if (fooColumnHandles.get(i).getName().equals("field7")) {
+                            assertEquals(
+                                    pulsarRecordCursor.getSlice(i).getBytes(),
+                                    fooFunctions
+                                            .get("field7")
+                                            .apply(count)
+                                            .toString()
+                                            .getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
-                        }else if (fooColumnHandles.get(i).getName().equals("decimal")) {
+                        } else if (fooColumnHandles.get(i).getName().equals("decimal")) {
                             Type type = fooColumnHandles.get(i).getType();
                             // In JsonDecoder, decimal trans to varcharType
                             if (type instanceof VarcharType) {
-                                assertEquals(new String(pulsarRecordCursor.getSlice(i).getBytes()),
+                                assertEquals(
+                                        new String(
+                                                pulsarRecordCursor.getSlice(i).getBytes()),
                                         fooFunctions.get("decimal").apply(count).toString());
                             } else {
-                                DecimalType decimalType = (DecimalType) fooColumnHandles.get(i).getType();
-                                assertEquals(BigDecimal.valueOf(pulsarRecordCursor.getLong(i), decimalType.getScale()), fooFunctions.get("decimal").apply(count));
+                                DecimalType decimalType =
+                                        (DecimalType) fooColumnHandles.get(i).getType();
+                                assertEquals(
+                                        BigDecimal.valueOf(pulsarRecordCursor.getLong(i), decimalType.getScale()),
+                                        fooFunctions.get("decimal").apply(count));
                             }
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else {
-                            if (PulsarInternalColumn.getInternalFieldsMap().containsKey(fooColumnHandles.get(i).getName())) {
+                            if (PulsarInternalColumn.getInternalFieldsMap()
+                                    .containsKey(fooColumnHandles.get(i).getName())) {
                                 columnsSeen.add(fooColumnHandles.get(i).getName());
                             }
                         }
@@ -166,7 +191,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                 assertEquals(columnsSeen.size(), fooColumnHandles.size());
                 count++;
             }
-            assertEquals(count, topicsToNumEntries.get(topicName.getSchemaName()).longValue());
+            assertEquals(
+                    count, topicsToNumEntries.get(topicName.getSchemaName()).longValue());
             assertEquals(pulsarRecordCursor.getCompletedBytes(), completedBytes);
             cleanup();
             pulsarRecordCursor.close();
@@ -182,8 +208,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         for (KeyValueEncodingType encodingType :
                 Arrays.asList(KeyValueEncodingType.INLINE, KeyValueEncodingType.SEPARATED)) {
 
-            KeyValueSchemaImpl schema = (KeyValueSchemaImpl) Schema.KeyValue(Schema.JSON(Foo.class), Schema.AVRO(Boo.class),
-                    encodingType);
+            KeyValueSchemaImpl schema =
+                    (KeyValueSchemaImpl) Schema.KeyValue(Schema.JSON(Foo.class), Schema.AVRO(Boo.class), encodingType);
 
             Foo foo = new Foo();
             foo.field1 = "field1-value";
@@ -194,9 +220,10 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             boo.field3 = 10.2;
 
             KeyValue message = new KeyValue<>(foo, boo);
-            List<PulsarColumnHandle> ColumnHandles = getColumnColumnHandles(topicName, schema.getSchemaInfo(), PulsarColumnHandle.HandleKeyValueType.NONE, true);
-            PulsarRecordCursor pulsarRecordCursor = mockKeyValueSchemaPulsarRecordCursor(entriesNum, topicName,
-                    schema, message, ColumnHandles);
+            List<PulsarColumnHandle> ColumnHandles = getColumnColumnHandles(
+                    topicName, schema.getSchemaInfo(), PulsarColumnHandle.HandleKeyValueType.NONE, true);
+            PulsarRecordCursor pulsarRecordCursor =
+                    mockKeyValueSchemaPulsarRecordCursor(entriesNum, topicName, schema, message, ColumnHandles);
 
             assertNotNull(pulsarRecordCursor);
             Long count = 0L;
@@ -215,16 +242,21 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         } else if (ColumnHandles.get(i).getName().equals("field3")) {
                             assertEquals((Double) pulsarRecordCursor.getDouble(i), (Double) boo.field3);
                             columnsSeen.add(ColumnHandles.get(i).getName());
-                        } else if (ColumnHandles.get(i).getName().equals(PulsarColumnMetadata.KEY_SCHEMA_COLUMN_PREFIX +
-                                "field1")) {
+                        } else if (ColumnHandles.get(i)
+                                .getName()
+                                .equals(PulsarColumnMetadata.KEY_SCHEMA_COLUMN_PREFIX + "field1")) {
                             assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), foo.field1.getBytes());
                             columnsSeen.add(ColumnHandles.get(i).getName());
-                        } else if (ColumnHandles.get(i).getName().equals(PulsarColumnMetadata.KEY_SCHEMA_COLUMN_PREFIX +
-                                "field2")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), Long.valueOf(foo.field2).longValue());
+                        } else if (ColumnHandles.get(i)
+                                .getName()
+                                .equals(PulsarColumnMetadata.KEY_SCHEMA_COLUMN_PREFIX + "field2")) {
+                            assertEquals(
+                                    pulsarRecordCursor.getLong(i),
+                                    Long.valueOf(foo.field2).longValue());
                             columnsSeen.add(ColumnHandles.get(i).getName());
                         } else {
-                            if (PulsarInternalColumn.getInternalFieldsMap().containsKey(ColumnHandles.get(i).getName())) {
+                            if (PulsarInternalColumn.getInternalFieldsMap()
+                                    .containsKey(ColumnHandles.get(i).getName())) {
                                 columnsSeen.add(ColumnHandles.get(i).getName());
                             }
                         }
@@ -247,16 +279,16 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         for (KeyValueEncodingType encodingType :
                 Arrays.asList(KeyValueEncodingType.INLINE, KeyValueEncodingType.SEPARATED)) {
 
-            KeyValueSchemaImpl schema = (KeyValueSchemaImpl) Schema.KeyValue(Schema.INT32, Schema.STRING,
-                    encodingType);
+            KeyValueSchemaImpl schema = (KeyValueSchemaImpl) Schema.KeyValue(Schema.INT32, Schema.STRING, encodingType);
 
             String value = "primitive_message_value";
             Integer key = 23;
             KeyValue message = new KeyValue<>(key, value);
 
-            List<PulsarColumnHandle> ColumnHandles = getColumnColumnHandles(topicName, schema.getSchemaInfo(), PulsarColumnHandle.HandleKeyValueType.NONE, true);
-            PulsarRecordCursor pulsarRecordCursor = mockKeyValueSchemaPulsarRecordCursor(entriesNum, topicName,
-                    schema, message, ColumnHandles);
+            List<PulsarColumnHandle> ColumnHandles = getColumnColumnHandles(
+                    topicName, schema.getSchemaInfo(), PulsarColumnHandle.HandleKeyValueType.NONE, true);
+            PulsarRecordCursor pulsarRecordCursor =
+                    mockKeyValueSchemaPulsarRecordCursor(entriesNum, topicName, schema, message, ColumnHandles);
 
             assertNotNull(pulsarRecordCursor);
             Long count = 0L;
@@ -269,12 +301,14 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         if (ColumnHandles.get(i).getName().equals(PRIMITIVE_COLUMN_NAME)) {
                             assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), value.getBytes());
                             columnsSeen.add(ColumnHandles.get(i).getName());
-                        } else if (ColumnHandles.get(i).getName().equals(KEY_SCHEMA_COLUMN_PREFIX +
-                                PRIMITIVE_COLUMN_NAME)) {
+                        } else if (ColumnHandles.get(i)
+                                .getName()
+                                .equals(KEY_SCHEMA_COLUMN_PREFIX + PRIMITIVE_COLUMN_NAME)) {
                             assertEquals((Long) pulsarRecordCursor.getLong(i), Long.valueOf(key));
                             columnsSeen.add(ColumnHandles.get(i).getName());
                         } else {
-                            if (PulsarInternalColumn.getInternalFieldsMap().containsKey(ColumnHandles.get(i).getName())) {
+                            if (PulsarInternalColumn.getInternalFieldsMap()
+                                    .containsKey(ColumnHandles.get(i).getName())) {
                                 columnsSeen.add(ColumnHandles.get(i).getName());
                             }
                         }
@@ -288,7 +322,6 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         }
     }
 
-
     /**
      * mock a simple PulsarRecordCursor for KeyValueSchema test.
      * @param entriesNum
@@ -299,8 +332,13 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
      * @return
      * @throws Exception
      */
-    private PulsarRecordCursor mockKeyValueSchemaPulsarRecordCursor(final Long entriesNum, final TopicName topicName,
-                                                                    final KeyValueSchemaImpl schema, KeyValue message, List<PulsarColumnHandle> ColumnHandles) throws Exception {
+    private PulsarRecordCursor mockKeyValueSchemaPulsarRecordCursor(
+            final Long entriesNum,
+            final TopicName topicName,
+            final KeyValueSchemaImpl schema,
+            KeyValue message,
+            List<PulsarColumnHandle> ColumnHandles)
+            throws Exception {
 
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
 
@@ -320,14 +358,16 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                 doReturn(entriesNum).when(readOnlyCursor).getNumberOfEntries();
 
                 doAnswer(new Answer<Void>() {
-                    @Override
-                    public Void answer(InvocationOnMock invocation) throws Throwable {
-                        Object[] args = invocation.getArguments();
-                        Integer skipEntries = (Integer) args[0];
-                        positions.put(topic, positions.get(topic) + skipEntries);
-                        return null;
-                    }
-                }).when(readOnlyCursor).skipEntries(anyInt());
+                            @Override
+                            public Void answer(InvocationOnMock invocation) throws Throwable {
+                                Object[] args = invocation.getArguments();
+                                Integer skipEntries = (Integer) args[0];
+                                positions.put(topic, positions.get(topic) + skipEntries);
+                                return null;
+                            }
+                        })
+                        .when(readOnlyCursor)
+                        .skipEntries(anyInt());
 
                 when(readOnlyCursor.getReadPosition()).thenAnswer(new Answer<PositionImpl>() {
                     @Override
@@ -337,54 +377,60 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                 });
 
                 doAnswer(new Answer() {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                        Object[] args = invocationOnMock.getArguments();
-                        Integer readEntries = (Integer) args[0];
-                        AsyncCallbacks.ReadEntriesCallback callback = (AsyncCallbacks.ReadEntriesCallback) args[2];
-                        Object ctx = args[3];
-
-                        new Thread(new Runnable() {
                             @Override
-                            public void run() {
-                                List<Entry> entries = new LinkedList<>();
-                                for (int i = 0; i < readEntries; i++) {
+                            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                                Object[] args = invocationOnMock.getArguments();
+                                Integer readEntries = (Integer) args[0];
+                                AsyncCallbacks.ReadEntriesCallback callback =
+                                        (AsyncCallbacks.ReadEntriesCallback) args[2];
+                                Object ctx = args[3];
 
-                                    MessageMetadata messageMetadata =
-                                            new MessageMetadata()
-                                                    .setProducerName("test-producer")
-                                                    .setSequenceId(positions.get(topic))
-                                                    .setPublishTime(System.currentTimeMillis());
+                                new Thread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                List<Entry> entries = new LinkedList<>();
+                                                for (int i = 0; i < readEntries; i++) {
 
-                                    if (i % 2 == 0) {
-                                        messageMetadata.setSchemaVersion(new LongSchemaVersion(1L).bytes());
-                                    }
+                                                    MessageMetadata messageMetadata = new MessageMetadata()
+                                                            .setProducerName("test-producer")
+                                                            .setSequenceId(positions.get(topic))
+                                                            .setPublishTime(System.currentTimeMillis());
 
-                                    if (KeyValueEncodingType.SEPARATED.equals(schema.getKeyValueEncodingType())) {
-                                        messageMetadata
-                                                .setPartitionKey(new String(schema
-                                                        .getKeySchema().encode(message.getKey()), Charset.forName(
-                                                        "UTF-8")))
-                                                .setPartitionKeyB64Encoded(false);
-                                    }
+                                                    if (i % 2 == 0) {
+                                                        messageMetadata.setSchemaVersion(
+                                                                new LongSchemaVersion(1L).bytes());
+                                                    }
 
-                                    ByteBuf dataPayload = io.netty.buffer.Unpooled
-                                            .copiedBuffer(schema.encode(message));
+                                                    if (KeyValueEncodingType.SEPARATED.equals(
+                                                            schema.getKeyValueEncodingType())) {
+                                                        messageMetadata
+                                                                .setPartitionKey(new String(
+                                                                        schema.getKeySchema()
+                                                                                .encode(message.getKey()),
+                                                                        Charset.forName("UTF-8")))
+                                                                .setPartitionKeyB64Encoded(false);
+                                                    }
 
-                                    ByteBuf byteBuf = serializeMetadataAndPayload(
-                                            Commands.ChecksumType.Crc32c, messageMetadata, dataPayload);
+                                                    ByteBuf dataPayload = io.netty.buffer.Unpooled.copiedBuffer(
+                                                            schema.encode(message));
 
-                                    entries.add(EntryImpl.create(0, positions.get(topic), byteBuf));
-                                    positions.put(topic, positions.get(topic) + 1);
-                                }
+                                                    ByteBuf byteBuf = serializeMetadataAndPayload(
+                                                            Commands.ChecksumType.Crc32c, messageMetadata, dataPayload);
 
-                                callback.readEntriesComplete(entries, ctx);
+                                                    entries.add(EntryImpl.create(0, positions.get(topic), byteBuf));
+                                                    positions.put(topic, positions.get(topic) + 1);
+                                                }
+
+                                                callback.readEntriesComplete(entries, ctx);
+                                            }
+                                        })
+                                        .start();
+
+                                return null;
                             }
-                        }).start();
-
-                        return null;
-                    }
-                }).when(readOnlyCursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
+                        })
+                        .when(readOnlyCursor)
+                        .asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
 
                 when(readOnlyCursor.hasMoreEntries()).thenAnswer(new Answer<Boolean>() {
                     @Override
@@ -397,13 +443,17 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                     @Override
                     public Long answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
-                        com.google.common.collect.Range<PositionImpl> range
-                                = (com.google.common.collect.Range<PositionImpl>) args[0];
-                        return (range.upperEndpoint().getEntryId() + 1) - range.lowerEndpoint().getEntryId();
+                        com.google.common.collect.Range<PositionImpl> range =
+                                (com.google.common.collect.Range<PositionImpl>) args[0];
+                        return (range.upperEndpoint().getEntryId() + 1)
+                                - range.lowerEndpoint().getEntryId();
                     }
                 });
 
-                when(readOnlyCursor.getCurrentLedgerInfo()).thenReturn(MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder().setLedgerId(0).build());
+                when(readOnlyCursor.getCurrentLedgerInfo())
+                        .thenReturn(MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder()
+                                .setLedgerId(0)
+                                .build());
 
                 return readOnlyCursor;
             }
@@ -411,20 +461,31 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
         ObjectMapper objectMapper = new ObjectMapper();
 
-        PulsarSplit split = new PulsarSplit(0, pulsarConnectorId.toString(),
-                topicName.getNamespace(), topicName.getLocalName(), topicName.getLocalName(),
+        PulsarSplit split = new PulsarSplit(
+                0,
+                pulsarConnectorId.toString(),
+                topicName.getNamespace(),
+                topicName.getLocalName(),
+                topicName.getLocalName(),
                 entriesNum,
-                new String(schema.getSchemaInfo().getSchema(),  "ISO8859-1"),
+                new String(schema.getSchemaInfo().getSchema(), "ISO8859-1"),
                 schema.getSchemaInfo().getType(),
-                0, entriesNum,
-                0, 0, TupleDomain.all(),
-                objectMapper.writeValueAsString(
-                        schema.getSchemaInfo().getProperties()), null);
+                0,
+                entriesNum,
+                0,
+                0,
+                TupleDomain.all(),
+                objectMapper.writeValueAsString(schema.getSchemaInfo().getProperties()),
+                null);
 
         PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
-                ColumnHandles, split,
-                pulsarConnectorConfig, managedLedgerFactory, new ManagedLedgerConfig(),
-                new PulsarConnectorMetricsTracker(new NullStatsProvider()), dispatchingRowDecoderFactory));
+                ColumnHandles,
+                split,
+                pulsarConnectorConfig,
+                managedLedgerFactory,
+                new ManagedLedgerConfig(),
+                new PulsarConnectorMetricsTracker(new NullStatsProvider()),
+                dispatchingRowDecoderFactory));
 
         PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
         when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(completedFuture(schema.getSchemaInfo()));
@@ -432,7 +493,6 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
         return pulsarRecordCursor;
     }
-
 
     static final String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
     static final String PRIMITIVE_COLUMN_NAME = "__value__";
@@ -462,10 +522,15 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         PulsarConnectorConfig connectorConfig = spy(PulsarConnectorConfig.class);
         Mockito.when(connectorConfig.getPulsarAdmin()).thenReturn(pulsarAdmin);
         PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
-                new ArrayList<>(), pulsarSplit, connectorConfig, Mockito.mock(ManagedLedgerFactory.class),
-                new ManagedLedgerConfig(), null, null));
+                new ArrayList<>(),
+                pulsarSplit,
+                connectorConfig,
+                Mockito.mock(ManagedLedgerFactory.class),
+                new ManagedLedgerConfig(),
+                null,
+                null));
 
-        Class<PulsarRecordCursor> clazz =  PulsarRecordCursor.class;
+        Class<PulsarRecordCursor> clazz = PulsarRecordCursor.class;
         Method getSchemaInfo = clazz.getDeclaredMethod("getSchemaInfo", PulsarSplit.class);
         getSchemaInfo.setAccessible(true);
         Field currentMessage = clazz.getDeclaredField("currentMessage");
@@ -482,7 +547,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
         assertEquals(SchemaType.BYTES, schemaInfo.getType());
 
-        Mockito.when(pulsarSplit.getSchemaName()).thenReturn(Schema.BYTEBUFFER.getSchemaInfo().getName());
+        Mockito.when(pulsarSplit.getSchemaName())
+                .thenReturn(Schema.BYTEBUFFER.getSchemaInfo().getName());
         schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
         assertEquals(SchemaType.BYTES, schemaInfo.getType());
 
@@ -490,7 +556,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         Mockito.when(pulsarSplit.getSchemaType()).thenReturn(SchemaType.AVRO);
         Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(0).bytes());
         Mockito.when(schemas.getSchemaInfoAsync(anyString(), eq(0L)))
-                .thenReturn(CompletableFuture.completedFuture(Schema.AVRO(Foo.class).getSchemaInfo()));
+                .thenReturn(
+                        CompletableFuture.completedFuture(Schema.AVRO(Foo.class).getSchemaInfo()));
         schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
         assertEquals(SchemaType.AVRO, schemaInfo.getType());
 
@@ -509,19 +576,20 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
         // If the schemaVersion of the message is null, try to get the latest schema.
         Mockito.when(rawMessage.getSchemaVersion()).thenReturn(null);
-        Mockito.when(pulsarSplit.getSchemaInfo()).thenReturn(Schema.AVRO(Foo.class).getSchemaInfo());
+        Mockito.when(pulsarSplit.getSchemaInfo())
+                .thenReturn(Schema.AVRO(Foo.class).getSchemaInfo());
         schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
         assertEquals(Schema.AVRO(Foo.class).getSchemaInfo(), schemaInfo);
 
         // If the specific version schema is null, throw runtime exception.
         Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(1L).bytes());
-        Mockito.when(schemas.getSchemaInfoAsync(schemaTopic, 1))
-                .thenReturn(CompletableFuture.completedFuture(null));
+        Mockito.when(schemas.getSchemaInfoAsync(schemaTopic, 1)).thenReturn(CompletableFuture.completedFuture(null));
         try {
             schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
             fail("The specific version " + 1 + " schema is null, should fail.");
         } catch (InvocationTargetException e) {
-            String schemaVersion = BytesSchemaVersion.of(new LongSchemaVersion(1L).bytes()).toString();
+            String schemaVersion =
+                    BytesSchemaVersion.of(new LongSchemaVersion(1L).bytes()).toString();
             assertTrue(e.getCause() instanceof RuntimeException);
             assertTrue(e.getCause().getMessage().contains("schema of the table " + topic + " is null"));
         }
@@ -529,9 +597,9 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         // Get the specific version schema.
         Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(2L).bytes());
         Mockito.when(schemas.getSchemaInfoAsync(schemaTopic, 2))
-                .thenReturn(CompletableFuture.completedFuture(Schema.AVRO(Foo.class).getSchemaInfo()));
+                .thenReturn(
+                        CompletableFuture.completedFuture(Schema.AVRO(Foo.class).getSchemaInfo()));
         schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
         assertEquals(Schema.AVRO(Foo.class).getSchemaInfo(), schemaInfo);
     }
-
 }

@@ -35,9 +35,7 @@ abstract class AbstractHierarchicalLedgerManager {
     protected final ScheduledExecutorService scheduler;
     protected final String ledgerRootPath;
 
-    AbstractHierarchicalLedgerManager(MetadataStore store,
-                                      ScheduledExecutorService scheduler,
-                                      String ledgerRootPath) {
+    AbstractHierarchicalLedgerManager(MetadataStore store, ScheduledExecutorService scheduler, String ledgerRootPath) {
         this.store = store;
         this.scheduler = scheduler;
         this.ledgerRootPath = ledgerRootPath;
@@ -64,9 +62,12 @@ abstract class AbstractHierarchicalLedgerManager {
      * Process hash nodes in a given path.
      */
     void asyncProcessLevelNodes(
-            final String path, final BookkeeperInternalCallbacks.Processor<String> processor,
-            final AsyncCallback.VoidCallback finalCb, final Object context,
-            final int successRc, final int failureRc) {
+            final String path,
+            final BookkeeperInternalCallbacks.Processor<String> processor,
+            final AsyncCallback.VoidCallback finalCb,
+            final Object context,
+            final int successRc,
+            final int failureRc) {
 
         store.getChildren(path)
                 .thenAccept(levelNodes -> {
@@ -78,7 +79,8 @@ abstract class AbstractHierarchicalLedgerManager {
                     AsyncListProcessor<String> listProcessor = new AsyncListProcessor<>(scheduler);
                     // process its children
                     listProcessor.process(levelNodes, processor, finalCb, context, successRc, failureRc);
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     log.error("Error polling hash nodes of {}: {}", path, ex.getMessage());
                     finalCb.processResult(failureRc, null, context);
                     return null;
@@ -119,9 +121,13 @@ abstract class AbstractHierarchicalLedgerManager {
          * @param failureRc
          *          RC passed to final callback on failure
          */
-        public void process(final List<T> data, final BookkeeperInternalCallbacks.Processor<T> processor,
-                            final AsyncCallback.VoidCallback finalCb, final Object context,
-                            final int successRc, final int failureRc) {
+        public void process(
+                final List<T> data,
+                final BookkeeperInternalCallbacks.Processor<T> processor,
+                final AsyncCallback.VoidCallback finalCb,
+                final Object context,
+                final int successRc,
+                final int failureRc) {
             if (data == null || data.size() == 0) {
                 finalCb.processResult(successRc, null, context);
                 return;
@@ -150,7 +156,6 @@ abstract class AbstractHierarchicalLedgerManager {
                 }
             });
         }
-
     }
 
     // get ledger from all level nodes
@@ -185,13 +190,16 @@ abstract class AbstractHierarchicalLedgerManager {
      *          RC passed to finalCb when either ledger is processed failed
      */
     protected void asyncProcessLedgersInSingleNode(
-            final String path, final BookkeeperInternalCallbacks.Processor<Long> processor,
-            final AsyncCallback.VoidCallback finalCb, final Object ctx,
-            final int successRc, final int failureRc) {
+            final String path,
+            final BookkeeperInternalCallbacks.Processor<Long> processor,
+            final AsyncCallback.VoidCallback finalCb,
+            final Object ctx,
+            final int successRc,
+            final int failureRc) {
         store.getChildren(path)
                 .thenAccept(ledgerNodes -> {
-                    Set<Long> activeLedgers = HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes,
-                            ledgerRootPath, path);
+                    Set<Long> activeLedgers =
+                            HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes, ledgerRootPath, path);
                     if (log.isDebugEnabled()) {
                         log.debug("Processing ledgers: {}", activeLedgers);
                     }
@@ -202,18 +210,16 @@ abstract class AbstractHierarchicalLedgerManager {
                         return;
                     }
 
-                    BookkeeperInternalCallbacks.MultiCallback
-                            mcb = new BookkeeperInternalCallbacks.MultiCallback(activeLedgers.size(), finalCb, ctx,
-                            successRc, failureRc);
+                    BookkeeperInternalCallbacks.MultiCallback mcb = new BookkeeperInternalCallbacks.MultiCallback(
+                            activeLedgers.size(), finalCb, ctx, successRc, failureRc);
                     // start loop over all ledgers
                     for (Long ledger : activeLedgers) {
                         processor.process(ledger, mcb);
                     }
-
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     finalCb.processResult(failureRc, null, ctx);
                     return null;
                 });
     }
-
 }

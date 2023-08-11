@@ -67,8 +67,8 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
         proxyConfig.setTlsAllowInsecureConnection(false);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -95,8 +95,9 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .build();
         @Cleanup
-        Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/"+ UUID.randomUUID()).create();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/" + UUID.randomUUID())
+                .create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -114,8 +115,9 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .build();
         @Cleanup
-        Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/"+ UUID.randomUUID()).create();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/" + UUID.randomUUID())
+                .create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -132,7 +134,8 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .build();
 
-        assertThrows(PulsarClientException.class,
-                () -> client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/"+ UUID.randomUUID()).create());
+        assertThrows(PulsarClientException.class, () -> client.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/" + UUID.randomUUID())
+                .create());
     }
 }

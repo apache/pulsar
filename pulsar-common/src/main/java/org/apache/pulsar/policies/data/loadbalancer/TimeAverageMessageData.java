@@ -42,8 +42,7 @@ public class TimeAverageMessageData {
     private double msgRateOut;
 
     // For JSON only.
-    public TimeAverageMessageData() {
-    }
+    public TimeAverageMessageData() {}
 
     /**
      * Initialize this TimeAverageData to 0 values.
@@ -83,8 +82,11 @@ public class TimeAverageMessageData {
      * @param newMsgRateOut
      *            Most recently observed message rate out.
      */
-    public void update(final double newMsgThroughputIn, final double newMsgThroughputOut, final double newMsgRateIn,
-                       final double newMsgRateOut) {
+    public void update(
+            final double newMsgThroughputIn,
+            final double newMsgThroughputOut,
+            final double newMsgRateIn,
+            final double newMsgRateOut) {
         // If max samples has been reached, don't increase numSamples.
         numSamples = Math.min(numSamples + 1, maxSamples);
         msgThroughputIn = getUpdatedValue(msgThroughputIn, newMsgThroughputIn);

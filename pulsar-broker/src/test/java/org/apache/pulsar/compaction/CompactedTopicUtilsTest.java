@@ -39,19 +39,22 @@ public class CompactedTopicUtilsTest {
         PositionImpl lastCompactedPosition = PositionImpl.get(1, 100);
         TopicCompactionService service = Mockito.mock(TopicCompactionService.class);
         Mockito.doReturn(CompletableFuture.completedFuture(Collections.emptyList()))
-                .when(service).readCompactedEntries(Mockito.any(), Mockito.intThat(argument -> argument > 0));
-        Mockito.doReturn(CompletableFuture.completedFuture(lastCompactedPosition)).when(service)
+                .when(service)
+                .readCompactedEntries(Mockito.any(), Mockito.intThat(argument -> argument > 0));
+        Mockito.doReturn(CompletableFuture.completedFuture(lastCompactedPosition))
+                .when(service)
                 .getLastCompactedPosition();
-
 
         PositionImpl initPosition = PositionImpl.get(1, 90);
         AtomicReference<PositionImpl> readPositionRef = new AtomicReference<>(initPosition.getNext());
         ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
         Mockito.doReturn(readPositionRef.get()).when(cursor).getReadPosition();
         Mockito.doAnswer(invocation -> {
-            readPositionRef.set(invocation.getArgument(0));
-            return null;
-        }).when(cursor).seek(Mockito.any());
+                    readPositionRef.set(invocation.getArgument(0));
+                    return null;
+                })
+                .when(cursor)
+                .seek(Mockito.any());
 
         CompletableFuture<List<Entry>> completableFuture = new CompletableFuture<>();
         final AtomicReference<Throwable> throwableRef = new AtomicReference<>();
@@ -68,8 +71,7 @@ public class CompactedTopicUtilsTest {
             }
         };
 
-        CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 1, 100, false,
-                readEntriesCallback, false, null);
+        CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 1, 100, false, readEntriesCallback, false, null);
 
         List<Entry> entries = completableFuture.get();
         Assert.assertTrue(entries.isEmpty());

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.net;
 
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import com.google.common.base.CharMatcher;
@@ -87,8 +86,7 @@ public class ServiceURI {
                 List<String> multiHosts = new ArrayList<>();
                 multiHosts.add(serviceURI.getServiceHosts()[0]);
                 multiHosts.addAll(hosts.subList(1, hosts.size()));
-                multiHosts = multiHosts
-                        .stream()
+                multiHosts = multiHosts.stream()
                         .map(host -> validateHostName(serviceURI.getServiceName(), serviceURI.getServiceInfos(), host))
                         .collect(Collectors.toList());
                 return new ServiceURI(
@@ -134,8 +132,9 @@ public class ServiceURI {
         }
 
         String userAndHostInformation = uri.getAuthority();
-        checkArgument(!Strings.isNullOrEmpty(userAndHostInformation),
-            "authority component is missing in service uri : " + uri);
+        checkArgument(
+                !Strings.isNullOrEmpty(userAndHostInformation),
+                "authority component is missing in service uri : " + uri);
 
         String serviceUser;
         List<String> serviceHosts;
@@ -148,27 +147,23 @@ public class ServiceURI {
             serviceUser = null;
             serviceHosts = splitter.splitToList(userAndHostInformation);
         }
-        serviceHosts = serviceHosts
-            .stream()
-            .map(host -> validateHostName(serviceName, serviceInfos, host))
-            .collect(Collectors.toList());
+        serviceHosts = serviceHosts.stream()
+                .map(host -> validateHostName(serviceName, serviceInfos, host))
+                .collect(Collectors.toList());
 
         String servicePath = uri.getPath();
-        checkArgument(null != servicePath,
-            "service path component is missing in service uri : " + uri);
+        checkArgument(null != servicePath, "service path component is missing in service uri : " + uri);
 
         return new ServiceURI(
-            serviceName,
-            serviceInfos,
-            serviceUser,
-            serviceHosts.toArray(new String[serviceHosts.size()]),
-            servicePath,
-            uri);
+                serviceName,
+                serviceInfos,
+                serviceUser,
+                serviceHosts.toArray(new String[serviceHosts.size()]),
+                servicePath,
+                uri);
     }
 
-    private static String validateHostName(String serviceName,
-                                           String[] serviceInfos,
-                                           String hostname) {
+    private static String validateHostName(String serviceName, String[] serviceInfos, String hostname) {
         URI uri = null;
         try {
             uri = URI.create("dummyscheme://" + hostname);
@@ -222,8 +217,8 @@ public class ServiceURI {
                 } else if (serviceInfos.length == 1 && serviceInfos[0].equalsIgnoreCase(SSL_SERVICE)) {
                     port = BINARY_TLS_PORT;
                 } else {
-                    throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+"
-                        + Arrays.toString(serviceInfos));
+                    throw new IllegalArgumentException(
+                            "Invalid pulsar service : " + serviceName + "+" + Arrays.toString(serviceInfos));
                 }
                 break;
             case HTTP_SERVICE:

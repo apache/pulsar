@@ -41,8 +41,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     protected static final int FALSE = 0;
     protected static final int TRUE = 1;
     protected static final AtomicIntegerFieldUpdater<AbstractDispatcherMultipleConsumers> IS_CLOSED_UPDATER =
-            AtomicIntegerFieldUpdater
-                    .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
+            AtomicIntegerFieldUpdater.newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
 
     protected AbstractDispatcherMultipleConsumers(Subscription subscription, ServiceConfiguration serviceConfig) {
@@ -121,7 +120,8 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
             currentConsumerRoundRobinIndex = 0;
         }
 
-        int currentRoundRobinConsumerPriority = consumerList.get(currentConsumerRoundRobinIndex).getPriorityLevel();
+        int currentRoundRobinConsumerPriority =
+                consumerList.get(currentConsumerRoundRobinIndex).getPriorityLevel();
 
         // first find available-consumer on higher level unless currentIndex is not on highest level which is 0
         if (currentRoundRobinConsumerPriority != 0) {
@@ -157,7 +157,6 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
         return consumerList.get(ThreadLocalRandom.current().nextInt(consumerList.size()));
     }
-
 
     /**
      * Finds index of first available consumer which has higher priority then given targetPriority.
@@ -199,7 +198,8 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         int scanIndex = currentRoundRobinIndex + 1;
         int endPriorityLevelIndex = currentRoundRobinIndex;
         do {
-            Consumer scanConsumer = scanIndex < consumerList.size() ? consumerList.get(scanIndex)
+            Consumer scanConsumer = scanIndex < consumerList.size()
+                    ? consumerList.get(scanIndex)
                     : null /* reached to last consumer of list */;
 
             // if reached to last consumer of list then check from beginning to currentRRIndex of the list
@@ -240,6 +240,4 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
-
-
 }

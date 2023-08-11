@@ -79,33 +79,35 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     @Override
     public CompletableFuture<Void> startAsync() {
         if (STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING)) {
-            return pulsarClient.getLookup().getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
-                .thenCompose(partitionMeta -> {
-                    List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
-                    }
-                    if (partitionMeta.partitions > 0) {
-                        handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
-                        for (int i = 0; i < partitionMeta.partitions; i++) {
-                            CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-                            connectFutureList.add(connectFuture);
-                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
-                                    i, pulsarClient, getTCAssignTopicName(i), connectFuture);
-                            handlers[i] = handler;
-                            handlerMap.put(i, handler);
-                            handler.start();
+            return pulsarClient
+                    .getLookup()
+                    .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
+                    .thenCompose(partitionMeta -> {
+                        List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
                         }
-                    } else {
-                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
-                                "The broker doesn't enable the transaction coordinator, "
-                                        + "or the transaction coordinator has not initialized"));
-                    }
+                        if (partitionMeta.partitions > 0) {
+                            handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
+                            for (int i = 0; i < partitionMeta.partitions; i++) {
+                                CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+                                connectFutureList.add(connectFuture);
+                                TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                                        i, pulsarClient, getTCAssignTopicName(i), connectFuture);
+                                handlers[i] = handler;
+                                handlerMap.put(i, handler);
+                                handler.start();
+                            }
+                        } else {
+                            return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
+                                    "The broker doesn't enable the transaction coordinator, "
+                                            + "or the transaction coordinator has not initialized"));
+                        }
 
-                    STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
+                        STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
 
-                    return FutureUtil.waitForAll(connectFutureList);
-                });
+                        return FutureUtil.waitForAll(connectFutureList);
+                    });
         } else {
             return FutureUtil.failedFuture(
                     new CoordinatorClientStateException("Can not start while current state is " + state));
@@ -113,8 +115,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     private String getTCAssignTopicName(int partition) {
-        return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
-                + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
+        return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
     }
 
     @Override
@@ -190,9 +191,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
-                            txnID.getMostSigBits()));
+            return FutureUtil.failedFuture(new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                    txnID.getMostSigBits()));
         }
         return handler.addPublishPartitionToTxnAsync(txnID, partitions);
     }
@@ -211,13 +211,10 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription) {
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
-                            txnID.getMostSigBits()));
+            return FutureUtil.failedFuture(new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                    txnID.getMostSigBits()));
         }
-        Subscription sub = new Subscription()
-                .setTopic(topic)
-                .setSubscription(subscription);
+        Subscription sub = new Subscription().setTopic(topic).setSubscription(subscription);
         return handler.addSubscriptionToTxn(txnID, Collections.singletonList(sub));
     }
 
@@ -234,9 +231,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public CompletableFuture<Void> commitAsync(TxnID txnID) {
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
-                            txnID.getMostSigBits()));
+            return FutureUtil.failedFuture(new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                    txnID.getMostSigBits()));
         }
         return handler.endTxnAsync(txnID, TxnAction.COMMIT);
     }
@@ -254,9 +250,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public CompletableFuture<Void> abortAsync(TxnID txnID) {
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
-                            txnID.getMostSigBits()));
+            return FutureUtil.failedFuture(new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                    txnID.getMostSigBits()));
         }
         return handler.endTxnAsync(txnID, TxnAction.ABORT);
     }

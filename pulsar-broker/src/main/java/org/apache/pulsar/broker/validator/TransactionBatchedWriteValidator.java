@@ -22,32 +22,32 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 
 public class TransactionBatchedWriteValidator {
 
-    public static void validate(ServiceConfiguration configuration){
-        if (configuration.isTransactionPendingAckBatchedWriteEnabled()){
-            if (configuration.getTransactionPendingAckBatchedWriteMaxRecords() < 10){
+    public static void validate(ServiceConfiguration configuration) {
+        if (configuration.isTransactionPendingAckBatchedWriteEnabled()) {
+            if (configuration.getTransactionPendingAckBatchedWriteMaxRecords() < 10) {
                 throw new IllegalArgumentException("Configuration field "
                         + "'transactionPendingAckBatchedWriteMaxRecords' value must be greater than or equal to 10");
             }
-            if (configuration.getTransactionPendingAckBatchedWriteMaxSize() < 1024 * 128){
+            if (configuration.getTransactionPendingAckBatchedWriteMaxSize() < 1024 * 128) {
                 throw new IllegalArgumentException("Configuration field "
                         + "'transactionPendingAckBatchedWriteMaxSize' value must be greater than or equal to 128k");
             }
-            if (configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis() < 1){
+            if (configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis() < 1) {
                 throw new IllegalArgumentException("Configuration field "
                         + "'transactionPendingAckBatchedWriteMaxDelayInMillis' value must be greater than or equal to"
                         + " 1");
             }
         }
-        if (configuration.isTransactionLogBatchedWriteEnabled()){
-            if (configuration.getTransactionLogBatchedWriteMaxRecords() < 10){
+        if (configuration.isTransactionLogBatchedWriteEnabled()) {
+            if (configuration.getTransactionLogBatchedWriteMaxRecords() < 10) {
                 throw new IllegalArgumentException("Configuration field "
                         + "'transactionLogBatchedWriteMaxRecords' value must be greater than or equal to 10");
             }
-            if (configuration.getTransactionLogBatchedWriteMaxSize() < 1024 * 128){
+            if (configuration.getTransactionLogBatchedWriteMaxSize() < 1024 * 128) {
                 throw new IllegalArgumentException("Configuration field "
                         + "'transactionLogBatchedWriteMaxSize' value must be greater than or equal to 128k");
             }
-            if (configuration.getTransactionLogBatchedWriteMaxDelayInMillis() < 1){
+            if (configuration.getTransactionLogBatchedWriteMaxDelayInMillis() < 1) {
                 throw new IllegalArgumentException("Configuration field "
                         + "'transactionLogBatchedWriteMaxDelayInMillis' value must be greater than or equal to 1");
             }

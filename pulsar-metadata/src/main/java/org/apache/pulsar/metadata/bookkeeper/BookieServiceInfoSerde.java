@@ -32,8 +32,7 @@ import org.apache.pulsar.metadata.api.Stat;
 @Slf4j
 public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> {
 
-    private BookieServiceInfoSerde() {
-    }
+    private BookieServiceInfoSerde() {}
 
     static final BookieServiceInfoSerde INSTANCE = new BookieServiceInfoSerde();
 
@@ -46,13 +45,13 @@ public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> 
             BookieServiceInfoFormat.Builder builder = BookieServiceInfoFormat.newBuilder();
             List<BookieServiceInfoFormat.Endpoint> bsiEndpoints = bookieServiceInfo.getEndpoints().stream()
                     .map(e -> BookieServiceInfoFormat.Endpoint.newBuilder()
-                                .setId(e.getId())
-                                .setPort(e.getPort())
-                                .setHost(e.getHost())
-                                .setProtocol(e.getProtocol())
-                                .addAllAuth(e.getAuth())
-                                .addAllExtensions(e.getExtensions())
-                                .build())
+                            .setId(e.getId())
+                            .setPort(e.getPort())
+                            .setHost(e.getHost())
+                            .setProtocol(e.getProtocol())
+                            .addAllAuth(e.getAuth())
+                            .addAllExtensions(e.getExtensions())
+                            .build())
                     .collect(Collectors.toList());
 
             builder.addAllEndpoints(bsiEndpoints);
@@ -92,7 +91,6 @@ public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> 
         bsi.setProperties(builder.getPropertiesMap());
 
         return bsi;
-
     }
 
     /**

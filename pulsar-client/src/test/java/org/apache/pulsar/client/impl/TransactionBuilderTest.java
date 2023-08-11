@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 public class TransactionBuilderTest {
 
@@ -36,11 +36,11 @@ public class TransactionBuilderTest {
         try {
             client.newTransaction()
                     .withTransactionTimeout(1, TimeUnit.MINUTES)
-                    .build().get();
+                    .build()
+                    .get();
             Assert.fail("Expect exception");
         } catch (InterruptedException | ExecutionException ex) {
-            Assert.assertTrue(ex.getCause()
-                    instanceof PulsarClientException.InvalidConfigurationException);
+            Assert.assertTrue(ex.getCause() instanceof PulsarClientException.InvalidConfigurationException);
         }
         client.close();
     }

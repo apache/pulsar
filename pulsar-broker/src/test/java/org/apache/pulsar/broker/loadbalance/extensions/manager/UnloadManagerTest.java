@@ -26,7 +26,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -50,11 +49,9 @@ public class UnloadManagerTest {
     public void testEventPubFutureHasException() {
         UnloadCounter counter = new UnloadCounter();
         UnloadManager manager = new UnloadManager(counter);
-        var unloadDecision =
-                new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
-        CompletableFuture<Void> future =
-                manager.waitAsync(FutureUtil.failedFuture(new Exception("test")),
-                        "bundle-1", unloadDecision, 10, TimeUnit.SECONDS);
+        var unloadDecision = new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
+        CompletableFuture<Void> future = manager.waitAsync(
+                FutureUtil.failedFuture(new Exception("test")), "bundle-1", unloadDecision, 10, TimeUnit.SECONDS);
 
         assertTrue(future.isCompletedExceptionally());
         try {
@@ -70,11 +67,9 @@ public class UnloadManagerTest {
     public void testTimeout() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
         UnloadManager manager = new UnloadManager(counter);
-        var unloadDecision =
-                new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision, 3, TimeUnit.SECONDS);
+        var unloadDecision = new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
+        CompletableFuture<Void> future = manager.waitAsync(
+                CompletableFuture.completedFuture(null), "bundle-1", unloadDecision, 3, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
@@ -94,50 +89,48 @@ public class UnloadManagerTest {
     public void testSuccess() throws IllegalAccessException, ExecutionException, InterruptedException {
         UnloadCounter counter = new UnloadCounter();
         UnloadManager manager = new UnloadManager(counter);
-        var unloadDecision =
-                new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
+        var unloadDecision = new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
+        CompletableFuture<Void> future = manager.waitAsync(
+                CompletableFuture.completedFuture(null), "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Assigning, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(
+                "bundle-1", new ServiceUnitStateData(ServiceUnitState.Assigning, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Deleted, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(
+                "bundle-1", new ServiceUnitStateData(ServiceUnitState.Deleted, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(
+                "bundle-1", new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(
+                "bundle-1", new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Init, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(
+                "bundle-1", new ServiceUnitStateData(ServiceUnitState.Init, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Free, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(
+                "bundle-1", new ServiceUnitStateData(ServiceUnitState.Free, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 1);
 
         // Success with Owned state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
+        future = manager.waitAsync(
+                CompletableFuture.completedFuture(null), "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
-                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", VERSION_ID_INIT), null);
+        manager.handleEvent(
+                "bundle-1", new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
 
@@ -148,16 +141,15 @@ public class UnloadManagerTest {
     public void testFailedStage() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
         UnloadManager manager = new UnloadManager(counter);
-        var unloadDecision =
-                new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
+        var unloadDecision = new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
+        CompletableFuture<Void> future = manager.waitAsync(
+                CompletableFuture.completedFuture(null), "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1",
+        manager.handleEvent(
+                "bundle-1",
                 new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", VERSION_ID_INIT),
                 new IllegalStateException("Failed stage."));
 
@@ -177,11 +169,9 @@ public class UnloadManagerTest {
     public void testClose() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
         UnloadManager manager = new UnloadManager(counter);
-        var unloadDecision =
-                new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision,5, TimeUnit.SECONDS);
+        var unloadDecision = new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
+        CompletableFuture<Void> future = manager.waitAsync(
+                CompletableFuture.completedFuture(null), "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
         manager.close();
@@ -203,5 +193,4 @@ public class UnloadManagerTest {
 
         return inFlightUnloadRequest;
     }
-
 }

@@ -28,53 +28,54 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class TimeSchema extends AbstractSchema<Time> {
 
-   private static final TimeSchema INSTANCE;
-   private static final SchemaInfo SCHEMA_INFO;
+    private static final TimeSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
 
-   static {
-       SCHEMA_INFO = SchemaInfoImpl.builder()
-             .name("Time")
-             .type(SchemaType.TIME)
-             .schema(new byte[0]).build();
-       INSTANCE = new TimeSchema();
-   }
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("Time")
+                .type(SchemaType.TIME)
+                .schema(new byte[0])
+                .build();
+        INSTANCE = new TimeSchema();
+    }
 
-   public static TimeSchema of() {
-      return INSTANCE;
-   }
+    public static TimeSchema of() {
+        return INSTANCE;
+    }
 
-   @Override
-   public byte[] encode(Time message) {
-      if (null == message) {
-         return null;
-      }
+    @Override
+    public byte[] encode(Time message) {
+        if (null == message) {
+            return null;
+        }
 
-      Long time = message.getTime();
-      return LongSchema.of().encode(time);
-   }
+        Long time = message.getTime();
+        return LongSchema.of().encode(time);
+    }
 
-   @Override
-   public Time decode(byte[] bytes) {
-      if (null == bytes) {
-         return null;
-      }
+    @Override
+    public Time decode(byte[] bytes) {
+        if (null == bytes) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(bytes);
-      return new Time(decode);
-   }
+        Long decode = LongSchema.of().decode(bytes);
+        return new Time(decode);
+    }
 
-   @Override
-   public Time decode(ByteBuf byteBuf) {
-      if (null == byteBuf) {
-         return null;
-      }
+    @Override
+    public Time decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(byteBuf);
-      return new Time(decode);
-   }
+        Long decode = LongSchema.of().decode(byteBuf);
+        return new Time(decode);
+    }
 
-   @Override
-   public SchemaInfo getSchemaInfo() {
-      return SCHEMA_INFO;
-   }
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        return SCHEMA_INFO;
+    }
 }

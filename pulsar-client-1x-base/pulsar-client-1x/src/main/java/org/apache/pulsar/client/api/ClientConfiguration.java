@@ -384,5 +384,4 @@ public class ClientConfiguration implements Serializable {
     public ClientConfigurationData getConfigurationData() {
         return confData;
     }
-
 }

@@ -67,8 +67,7 @@ public interface TxnMeta {
      * @throws InvalidTxnStatusException if the transaction is not in
      *         {@link TxnStatus#OPEN}
      */
-    TxnMeta addProducedPartitions(List<String> partitions)
-        throws InvalidTxnStatusException;
+    TxnMeta addProducedPartitions(List<String> partitions) throws InvalidTxnStatusException;
 
     /**
      * Add the list of acked partitions to the transaction.
@@ -78,8 +77,7 @@ public interface TxnMeta {
      * @throws InvalidTxnStatusException if the transaction is not in
      *         {@link TxnStatus#OPEN}
      */
-    TxnMeta addAckedPartitions(List<TransactionSubscription> subscriptions)
-        throws InvalidTxnStatusException;
+    TxnMeta addAckedPartitions(List<TransactionSubscription> subscriptions) throws InvalidTxnStatusException;
 
     /**
      * Update the transaction stats from the <tt>newStatus</tt> only when
@@ -91,8 +89,7 @@ public interface TxnMeta {
      * @throws InvalidTxnStatusException if the transaction is not in the expected
      *         status, or it can not be transitioned to the new status
      */
-    TxnMeta updateTxnStatus(TxnStatus newStatus,
-                            TxnStatus expectedStatus) throws InvalidTxnStatusException;
+    TxnMeta updateTxnStatus(TxnStatus newStatus, TxnStatus expectedStatus) throws InvalidTxnStatusException;
 
     /**
      * Return the transaction open timestamp.

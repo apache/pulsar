@@ -38,11 +38,8 @@ public class StreamingDataBlockHeaderImpl implements DataBlockHeader {
     // This is bigger than header size. Leaving some place for alignment and future enhancement.
     // Payload use this as the start offset.
     public static final int HEADER_MAX_SIZE = 128;
-    private static final int HEADER_BYTES_USED = 4 /* magic */
-            + 8 /* header len */
-            + 8 /* block len */
-            + 8 /* first entry id */
-            + 8 /* ledger id */;
+    private static final int HEADER_BYTES_USED =
+            4 /* magic */ + 8 /* header len */ + 8 /* block len */ + 8 /* first entry id */ + 8 /* ledger id */;
     private static final byte[] PADDING = new byte[HEADER_MAX_SIZE - HEADER_BYTES_USED];
 
     public long getLedgerId() {
@@ -95,8 +92,8 @@ public class StreamingDataBlockHeaderImpl implements DataBlockHeader {
         DataInputStream dis = new DataInputStream(countingStream);
         int magic = dis.readInt();
         if (magic != MAGIC_WORD) {
-            throw new IOException("Data block header magic word not match. read: " + magic
-                    + " expected: " + MAGIC_WORD);
+            throw new IOException(
+                    "Data block header magic word not match. read: " + magic + " expected: " + MAGIC_WORD);
         }
 
         long headerLen = dis.readLong();
@@ -132,8 +129,8 @@ public class StreamingDataBlockHeaderImpl implements DataBlockHeader {
 
     @Override
     public String toString() {
-        return String.format("StreamingDataBlockHeader(len:%d,hlen:%d,firstEntry:%d,ledger:%d)",
+        return String.format(
+                "StreamingDataBlockHeader(len:%d,hlen:%d,firstEntry:%d,ledger:%d)",
                 blockLength, headerLength, firstEntryId, ledgerId);
     }
 }
-

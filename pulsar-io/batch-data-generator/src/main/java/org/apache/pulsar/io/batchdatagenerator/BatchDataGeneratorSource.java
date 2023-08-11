@@ -37,8 +37,8 @@ public class BatchDataGeneratorSource implements BatchSource<Person> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) {
-       this.fairy = Fairy.create();
-       this.sourceContext = sourceContext;
+        this.fairy = Fairy.create();
+        this.sourceContext = sourceContext;
     }
 
     @Override
@@ -68,7 +68,5 @@ public class BatchDataGeneratorSource implements BatchSource<Person> {
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 }

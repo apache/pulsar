@@ -21,16 +21,8 @@ package org.apache.pulsar.tests.integration.messaging;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
-
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.annotations.BeforeMethod;
-
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -38,6 +30,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.testng.annotations.BeforeMethod;
 
 @Slf4j
 public abstract class MessagingBase extends PulsarTestSuite {
@@ -66,8 +64,8 @@ public abstract class MessagingBase extends PulsarTestSuite {
         return topicName;
     }
 
-    protected <T extends Comparable<T>> void receiveMessagesCheckOrderAndDuplicate
-            (List<Consumer<T>> consumerList, int messagesToReceive) throws PulsarClientException {
+    protected <T extends Comparable<T>> void receiveMessagesCheckOrderAndDuplicate(
+            List<Consumer<T>> consumerList, int messagesToReceive) throws PulsarClientException {
         Set<T> messagesReceived = Sets.newHashSet();
         for (Consumer<T> consumer : consumerList) {
             Message<T> currentReceived;
@@ -83,8 +81,13 @@ public abstract class MessagingBase extends PulsarTestSuite {
                 if (currentReceived != null) {
                     consumer.acknowledge(currentReceived);
                     if (lastReceivedMap.containsKey(currentReceived.getTopicName())) {
-                        assertTrue(currentReceived.getMessageId().compareTo(
-                                lastReceivedMap.get(currentReceived.getTopicName()).getMessageId()) > 0,
+                        assertTrue(
+                                currentReceived
+                                                .getMessageId()
+                                                .compareTo(lastReceivedMap
+                                                        .get(currentReceived.getTopicName())
+                                                        .getMessageId())
+                                        > 0,
                                 "Received messages are not in order.");
                     }
                 } else {
@@ -92,15 +95,16 @@ public abstract class MessagingBase extends PulsarTestSuite {
                 }
                 lastReceivedMap.put(currentReceived.getTopicName(), currentReceived);
                 // Make sure that there are no duplicates
-                assertTrue(messagesReceived.add(currentReceived.getValue()),
+                assertTrue(
+                        messagesReceived.add(currentReceived.getValue()),
                         "Received duplicate message " + currentReceived.getValue());
             }
         }
         assertEquals(messagesToReceive, messagesReceived.size());
     }
 
-    protected <T> void receiveMessagesCheckDuplicate
-            (List<Consumer<T>> consumerList, int messagesToReceive) throws PulsarClientException {
+    protected <T> void receiveMessagesCheckDuplicate(List<Consumer<T>> consumerList, int messagesToReceive)
+            throws PulsarClientException {
         Set<T> messagesReceived = Sets.newHashSet();
         for (Consumer<T> consumer : consumerList) {
             Message<T> currentReceived = null;
@@ -114,7 +118,8 @@ public abstract class MessagingBase extends PulsarTestSuite {
                 if (currentReceived != null) {
                     consumer.acknowledge(currentReceived);
                     // Make sure that there are no duplicates
-                    assertTrue(messagesReceived.add(currentReceived.getValue()),
+                    assertTrue(
+                            messagesReceived.add(currentReceived.getValue()),
                             "Received duplicate message " + currentReceived.getValue());
                 } else {
                     break;
@@ -124,8 +129,8 @@ public abstract class MessagingBase extends PulsarTestSuite {
         assertEquals(messagesReceived.size(), messagesToReceive);
     }
 
-    protected <T> void receiveMessagesCheckStickyKeyAndDuplicate
-            (List<Consumer<T>> consumerList, int messagesToReceive) throws PulsarClientException {
+    protected <T> void receiveMessagesCheckStickyKeyAndDuplicate(List<Consumer<T>> consumerList, int messagesToReceive)
+            throws PulsarClientException {
         Map<String, Set<String>> consumerKeys = Maps.newHashMap();
         Set<T> messagesReceived = Sets.newHashSet();
         for (Consumer<T> consumer : consumerList) {
@@ -143,7 +148,8 @@ public abstract class MessagingBase extends PulsarTestSuite {
                     consumerKeys.putIfAbsent(consumer.getConsumerName(), Sets.newHashSet());
                     consumerKeys.get(consumer.getConsumerName()).add(currentReceived.getKey());
                     // Make sure that there are no duplicates
-                    assertTrue(messagesReceived.add(currentReceived.getValue()),
+                    assertTrue(
+                            messagesReceived.add(currentReceived.getValue()),
                             "Received duplicate message " + currentReceived.getValue());
                 } else {
                     break;
@@ -153,8 +159,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         // Make sure key will not be distributed to multiple consumers
         Set<String> allKeys = Sets.newHashSet();
         consumerKeys.forEach((k, v) -> v.forEach(key -> {
-            assertTrue(allKeys.add(key),
-                    "Key "+ key +  "is distributed to multiple consumers" );
+            assertTrue(allKeys.add(key), "Key " + key + "is distributed to multiple consumers");
         }));
         assertEquals(messagesReceived.size(), messagesToReceive);
     }

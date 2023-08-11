@@ -46,7 +46,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     @Override
     public CompletableFuture<ResourceQuota> getDefaultResourceQuotaAsync() {
-        return asyncGetRequest(adminV2Quotas, new FutureCallback<ResourceQuota>(){});
+        return asyncGetRequest(adminV2Quotas, new FutureCallback<ResourceQuota>() {});
     }
 
     @Override
@@ -68,7 +68,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     public CompletableFuture<ResourceQuota> getNamespaceBundleResourceQuotaAsync(String namespace, String bundle) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle);
-        return asyncGetRequest(path, new FutureCallback<ResourceQuota>(){});
+        return asyncGetRequest(path, new FutureCallback<ResourceQuota>() {});
     }
 
     @Override
@@ -104,4 +104,3 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         return namespacePath;
     }
 }
-

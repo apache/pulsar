@@ -102,20 +102,20 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testConsumerStatsOnZeroMaxUnackedMessagesPerConsumer() throws PulsarClientException, InterruptedException, PulsarAdminException {
+    public void testConsumerStatsOnZeroMaxUnackedMessagesPerConsumer()
+            throws PulsarClientException, InterruptedException, PulsarAdminException {
         Assert.assertEquals(pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer(), 0);
         final String topicName = "persistent://my-property/my-ns/testConsumerStatsOnZeroMaxUnackedMessagesPerConsumer";
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName("sub")
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         final int messages = 10;
         for (int i = 0; i < messages; i++) {
@@ -134,9 +134,33 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         TopicStats stats = admin.topics().getStats(topicName);
         Assert.assertEquals(stats.getSubscriptions().size(), 1);
-        Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().size(), 1);
-        Assert.assertFalse(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
-        Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().get(0).getUnackedMessages(), messages);
+        Assert.assertEquals(
+                stats.getSubscriptions()
+                        .entrySet()
+                        .iterator()
+                        .next()
+                        .getValue()
+                        .getConsumers()
+                        .size(),
+                1);
+        Assert.assertFalse(stats.getSubscriptions()
+                .entrySet()
+                .iterator()
+                .next()
+                .getValue()
+                .getConsumers()
+                .get(0)
+                .isBlockedConsumerOnUnackedMsgs());
+        Assert.assertEquals(
+                stats.getSubscriptions()
+                        .entrySet()
+                        .iterator()
+                        .next()
+                        .getValue()
+                        .getConsumers()
+                        .get(0)
+                        .getUnackedMessages(),
+                messages);
 
         for (int i = 0; i < messages; i++) {
             consumer.acknowledge(consumer.receive());
@@ -150,23 +174,39 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         stats = admin.topics().getStats(topicName);
 
-        Assert.assertFalse(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
-        Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().get(0).getUnackedMessages(), 0);
+        Assert.assertFalse(stats.getSubscriptions()
+                .entrySet()
+                .iterator()
+                .next()
+                .getValue()
+                .getConsumers()
+                .get(0)
+                .isBlockedConsumerOnUnackedMsgs());
+        Assert.assertEquals(
+                stats.getSubscriptions()
+                        .entrySet()
+                        .iterator()
+                        .next()
+                        .getValue()
+                        .getConsumers()
+                        .get(0)
+                        .getUnackedMessages(),
+                0);
     }
 
     @Test
-    public void testAckStatsOnPartitionedTopicForExclusiveSubscription() throws PulsarAdminException, PulsarClientException, InterruptedException {
+    public void testAckStatsOnPartitionedTopicForExclusiveSubscription()
+            throws PulsarAdminException, PulsarClientException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/testAckStatsOnPartitionedTopicForExclusiveSubscription";
         admin.topics().createPartitionedTopic(topic, 3);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("sub")
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         final int messages = 10;
         for (int i = 0; i < messages; i++) {
@@ -186,25 +226,44 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         for (int i = 0; i < 3; i++) {
             TopicStats stats = admin.topics().getStats(topic + "-partition-" + i);
             Assert.assertEquals(stats.getSubscriptions().size(), 1);
-            Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().size(), 1);
-            Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().get(0).getUnackedMessages(), 0);
+            Assert.assertEquals(
+                    stats.getSubscriptions()
+                            .entrySet()
+                            .iterator()
+                            .next()
+                            .getValue()
+                            .getConsumers()
+                            .size(),
+                    1);
+            Assert.assertEquals(
+                    stats.getSubscriptions()
+                            .entrySet()
+                            .iterator()
+                            .next()
+                            .getValue()
+                            .getConsumers()
+                            .get(0)
+                            .getUnackedMessages(),
+                    0);
         }
     }
 
     @Test
     public void testUpdateStatsForActiveConsumerAndSubscription() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testUpdateStatsForActiveConsumerAndSubscription";
-        pulsarClient.newConsumer()
+        pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("my-subscription")
                 .subscribe();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
         Assert.assertNotNull(topicRef);
         Assert.assertEquals(topicRef.getSubscriptions().size(), 1);
-        List<org.apache.pulsar.broker.service.Consumer> consumers = topicRef.getSubscriptions()
-                .get("my-subscription").getConsumers();
+        List<org.apache.pulsar.broker.service.Consumer> consumers =
+                topicRef.getSubscriptions().get("my-subscription").getConsumers();
         Assert.assertEquals(consumers.size(), 1);
         ConsumerStatsImpl consumerStats = new ConsumerStatsImpl();
         consumerStats.msgOutCounter = 10;
@@ -246,7 +305,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         final String topicName = "persistent://prop/use/ns-abc/testConsumerStatsOutput";
         final String subName = "my-subscription";
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(subName)
@@ -254,8 +314,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         TopicStats stats = admin.topics().getStats(topicName);
         ObjectMapper mapper = ObjectMapperFactory.create();
-        ConsumerStats consumerStats = stats.getSubscriptions()
-                .get(subName).getConsumers().get(0);
+        ConsumerStats consumerStats =
+                stats.getSubscriptions().get(subName).getConsumers().get(0);
         Assert.assertTrue(consumerStats.getLastConsumedFlowTimestamp() > 0);
         JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(consumerStats));
         Iterator<String> itr = node.fieldNames();
@@ -266,7 +326,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         consumer.close();
     }
-
 
     @Test
     public void testPersistentTopicMessageAckRateMetricTopicLevel() throws Exception {
@@ -280,33 +339,38 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         testMessageAckRateMetric(topicName, false);
     }
 
-    private void testMessageAckRateMetric(String topicName, boolean exposeTopicLevelMetrics)
-            throws Exception {
+    private void testMessageAckRateMetric(String topicName, boolean exposeTopicLevelMetrics) throws Exception {
         final int messages = 1000;
         String subName = "test_sub";
         CountDownLatch latch = new CountDownLatch(messages);
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
-                .enableBatching(true).batchingMaxMessages(10).create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxMessages(10)
+                .create();
 
         MessageListener<String> listener = (consumer, msg) -> {
             try {
                 consumer.acknowledge(msg);
                 latch.countDown();
             } catch (PulsarClientException e) {
-                //ignore
+                // ignore
             }
         };
         @Cleanup
-        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> c1 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener(listener)
                 .subscribe();
         @Cleanup
-        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> c2 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -350,11 +414,13 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             double totalAckRate = ackRateMetric.stream()
                     .filter(metric -> metric.tags.get("consumer_name").equals(consumer1Name)
                             || metric.tags.get("consumer_name").equals(consumer2Name))
-                    .mapToDouble(metric -> metric.value).sum();
+                    .mapToDouble(metric -> metric.value)
+                    .sum();
             double totalRateOut = rateOutMetric.stream()
                     .filter(metric -> metric.tags.get("consumer_name").equals(consumer1Name)
                             || metric.tags.get("consumer_name").equals(consumer2Name))
-                    .mapToDouble(metric -> metric.value).sum();
+                    .mapToDouble(metric -> metric.value)
+                    .sum();
 
             Assert.assertTrue(totalAckRate > 0D);
             Assert.assertTrue(totalRateOut > 0D);
@@ -362,10 +428,12 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         } else {
             double totalAckRate = ackRateMetric.stream()
                     .filter(metric -> namespace.equals(metric.tags.get("namespace")))
-                    .mapToDouble(metric -> metric.value).sum();
+                    .mapToDouble(metric -> metric.value)
+                    .sum();
             double totalRateOut = rateOutMetric.stream()
                     .filter(metric -> namespace.equals(metric.tags.get("namespace")))
-                    .mapToDouble(metric -> metric.value).sum();
+                    .mapToDouble(metric -> metric.value)
+                    .sum();
 
             Assert.assertTrue(totalAckRate > 0D);
             Assert.assertTrue(totalRateOut > 0D);
@@ -379,9 +447,11 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         final String topic = "persistent://public/default/testFilterState";
         String subName = "sub";
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .producerName("producer1")
-                .enableBatching(true).topic(topic)
+                .enableBatching(true)
+                .topic(topic)
                 .batchingMaxMessages(20)
                 .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
                 .batchingMaxBytes(Integer.MAX_VALUE)
@@ -395,9 +465,11 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         FutureUtil.waitForAll(futures);
         producer.close();
 
-        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer2 = pulsarClient
+                .newProducer(Schema.STRING)
                 .producerName("producer2")
-                .enableBatching(false).topic(topic)
+                .enableBatching(false)
+                .topic(topic)
                 .create();
         producer2.newMessage().value("producer2-message").send();
         producer2.close();
@@ -405,13 +477,12 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         // mock entry filters
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter = new EntryFilterProducerTest();
-        EntryFilterWithClassLoader
-                loader = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter,
-                narClassLoader);
+        EntryFilterWithClassLoader loader =
+                spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter, narClassLoader);
         Pair<String, List<EntryFilter>> entryFilters = Pair.of("filter", List.of(loader));
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicReference(topic).get();
+        PersistentTopic topicRef = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topic).get();
         Field field1 = topicRef.getClass().getSuperclass().getDeclaredField("entryFilters");
         field1.setAccessible(true);
         field1.set(topicRef, entryFilters);
@@ -420,8 +491,13 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         metadataConsumer.put("matchValueAccept", "producer1");
         metadataConsumer.put("matchValueReschedule", "producer2");
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).properties(metadataConsumer)
-                .subscriptionName(subName).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .properties(metadataConsumer)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
         int counter = 0;
         while (true) {
@@ -437,8 +513,12 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         assertEquals(21, counter);
 
-        ConsumerStats consumerStats =
-                admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers().get(0);
+        ConsumerStats consumerStats = admin.topics()
+                .getStats(topic)
+                .getSubscriptions()
+                .get(subName)
+                .getConsumers()
+                .get(0);
 
         assertEquals(21, consumerStats.getMsgOutCounter());
 

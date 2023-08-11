@@ -56,5 +56,4 @@ public class PartitionedTopicStatsImpl extends TopicStatsImpl implements Partiti
         partitions.clear();
         metadata.partitions = 0;
     }
-
 }

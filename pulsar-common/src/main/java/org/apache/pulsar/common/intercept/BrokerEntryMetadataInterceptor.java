@@ -37,6 +37,5 @@ public interface BrokerEntryMetadataInterceptor {
     /**
      * Called by ManagedLedger to intercept adding an entry with numberOfMessages.
      */
-    BrokerEntryMetadata interceptWithNumberOfMessages(BrokerEntryMetadata brokerMetadata,
-            int numberOfMessages);
+    BrokerEntryMetadata interceptWithNumberOfMessages(BrokerEntryMetadata brokerMetadata, int numberOfMessages);
 }

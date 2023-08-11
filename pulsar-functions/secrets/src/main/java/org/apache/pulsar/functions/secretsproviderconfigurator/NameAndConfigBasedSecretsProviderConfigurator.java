@@ -31,10 +31,12 @@ import org.apache.pulsar.functions.proto.Function;
 public class NameAndConfigBasedSecretsProviderConfigurator implements SecretsProviderConfigurator {
     private String className;
     private Map<String, String> config;
+
     public NameAndConfigBasedSecretsProviderConfigurator(String className, Map<String, String> config) {
         this.className = className;
         this.config = config;
     }
+
     @Override
     public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
         return className;
@@ -51,20 +53,19 @@ public class NameAndConfigBasedSecretsProviderConfigurator implements SecretsPro
     // attached as secretRef to the environment variables
     // of a pod and kubernetes magically makes the secret pointed to by this combination available as a env variable.
     @Override
-    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                          Function.FunctionDetails functionDetails) {
+    public void configureKubernetesRuntimeSecretsProvider(
+            V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
-    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                       Function.FunctionDetails functionDetails) {
+    public void configureProcessRuntimeSecretsProvider(
+            ProcessBuilder processBuilder, Function.FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
     public Type getSecretObjectType() {
-        return new TypeToken<Map<String, String>>() {
-        }.getType();
+        return new TypeToken<Map<String, String>>() {}.getType();
     }
 }

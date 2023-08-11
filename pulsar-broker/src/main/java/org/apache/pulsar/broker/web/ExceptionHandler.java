@@ -41,8 +41,8 @@ public class ExceptionHandler {
     public void handle(ServletResponse response, Exception ex) throws IOException {
         if (ex instanceof InterceptException) {
             if (response instanceof org.eclipse.jetty.server.Response) {
-                String errorData = ObjectMapperFactory
-                        .getMapper().writer().writeValueAsString(new ErrorData(ex.getMessage()));
+                String errorData =
+                        ObjectMapperFactory.getMapper().writer().writeValueAsString(new ErrorData(ex.getMessage()));
                 byte[] errorBytes = errorData.getBytes(StandardCharsets.UTF_8);
                 int errorCode = ((InterceptException) ex).getErrorCode();
                 HttpFields httpFields = new HttpFields();
@@ -53,16 +53,15 @@ public class ExceptionHandler {
                 info.setReason(errorData);
                 info.setStatus(errorCode);
                 info.setContentLength(errorBytes.length);
-                ((org.eclipse.jetty.server.Response) response).getHttpChannel().sendResponse(info,
-                        ByteBuffer.wrap(errorBytes),
-                        true);
+                ((org.eclipse.jetty.server.Response) response)
+                        .getHttpChannel()
+                        .sendResponse(info, ByteBuffer.wrap(errorBytes), true);
             } else {
-                ((HttpServletResponse) response).sendError(((InterceptException) ex).getErrorCode(),
-                        ex.getMessage());
+                ((HttpServletResponse) response).sendError(((InterceptException) ex).getErrorCode(), ex.getMessage());
             }
         } else {
-            ((HttpServletResponse) response).sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
-                    ex.getMessage());
+            ((HttpServletResponse) response)
+                    .sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), ex.getMessage());
         }
     }
 }

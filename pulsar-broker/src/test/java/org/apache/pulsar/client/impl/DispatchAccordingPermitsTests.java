@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
@@ -32,8 +33,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-impl")
 public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
@@ -64,7 +63,8 @@ public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
         final String subName = "test";
         admin.topics().createSubscription(topic, "test", MessageId.earliest);
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .create();
@@ -84,7 +84,8 @@ public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
             producer.flush();
         }
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -99,6 +100,7 @@ public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
         Assert.assertEquals(consumerImpl.incomingMessages.size(), 0);
 
         TopicStats stats = admin.topics().getStats(topic);
-        Assert.assertTrue(stats.getSubscriptions().get(subName).getConsumers().get(0).getAvailablePermits() > 0);
+        Assert.assertTrue(
+                stats.getSubscriptions().get(subName).getConsumers().get(0).getAvailablePermits() > 0);
     }
 }

@@ -32,8 +32,7 @@ class NeverSchemaValidator implements SchemaValidator {
     static final NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
 
     @Override
-    public void validate(Schema toValidate, Iterable<Schema> existing)
-            throws SchemaValidationException {
+    public void validate(Schema toValidate, Iterable<Schema> existing) throws SchemaValidationException {
         for (Schema s : existing) {
             // only throw exception if there are existing schemas
             throw new SchemaValidationException(toValidate, toValidate);

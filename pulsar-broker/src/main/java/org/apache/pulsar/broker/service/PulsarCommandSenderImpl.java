@@ -91,21 +91,23 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
-                                            SchemaVersion schemaVersion, Optional<Long> topicEpoch,
-                                            boolean isProducerReady) {
-        BaseCommand command = Commands.newProducerSuccessCommand(requestId, producerName, lastSequenceId,
-                schemaVersion, topicEpoch, isProducerReady);
+    public void sendProducerSuccessResponse(
+            long requestId,
+            String producerName,
+            long lastSequenceId,
+            SchemaVersion schemaVersion,
+            Optional<Long> topicEpoch,
+            boolean isProducerReady) {
+        BaseCommand command = Commands.newProducerSuccessCommand(
+                requestId, producerName, lastSequenceId, schemaVersion, topicEpoch, isProducerReady);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
     }
 
     @Override
-    public void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
-                                        long entryId) {
-        BaseCommand command = Commands.newSendReceiptCommand(producerId, sequenceId, highestId, ledgerId,
-                entryId);
+    public void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId, long entryId) {
+        BaseCommand command = Commands.newSendReceiptCommand(producerId, sequenceId, highestId, ledgerId, entryId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -120,10 +122,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
-                                                 boolean filtered, boolean changed, long requestId) {
-        BaseCommand command = Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash,
-                filtered, changed, requestId);
+    public void sendGetTopicsOfNamespaceResponse(
+            List<String> topics, String topicsHash, boolean filtered, boolean changed, long requestId) {
+        BaseCommand command =
+                Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash, filtered, changed, requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -155,8 +157,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendGetOrCreateSchemaErrorResponse(long requestId, ServerError error, String errorMessage) {
-        BaseCommand command =
-                Commands.newGetOrCreateSchemaResponseErrorCommand(requestId, error, errorMessage);
+        BaseCommand command = Commands.newGetOrCreateSchemaResponseErrorCommand(requestId, error, errorMessage);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -164,19 +165,23 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers) {
-        BaseCommand command = Commands.newConnectedCommand(
-                clientProtocolVersion, maxMessageSize, supportsTopicWatchers);
+        BaseCommand command =
+                Commands.newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
     }
 
     @Override
-    public void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                                   CommandLookupTopicResponse.LookupType response,
-                                   long requestId, boolean proxyThroughServiceUrl) {
-        BaseCommand command = Commands.newLookupResponseCommand(brokerServiceUrl, brokerServiceUrlTls,
-                authoritative, response, requestId, proxyThroughServiceUrl);
+    public void sendLookupResponse(
+            String brokerServiceUrl,
+            String brokerServiceUrlTls,
+            boolean authoritative,
+            CommandLookupTopicResponse.LookupType response,
+            long requestId,
+            boolean proxyThroughServiceUrl) {
+        BaseCommand command = Commands.newLookupResponseCommand(
+                brokerServiceUrl, brokerServiceUrlTls, authoritative, response, requestId, proxyThroughServiceUrl);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -220,10 +225,16 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public ChannelPromise sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
-                                                 int partitionIdx, List<? extends Entry> entries,
-                                                 EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-                                                 RedeliveryTracker redeliveryTracker, long epoch) {
+    public ChannelPromise sendMessagesToConsumer(
+            long consumerId,
+            String topicName,
+            Subscription subscription,
+            int partitionIdx,
+            List<? extends Entry> entries,
+            EntryBatchSizes batchSizes,
+            EntryBatchIndexesAcks batchIndexesAcks,
+            RedeliveryTracker redeliveryTracker,
+            long epoch) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
         ctx.channel().eventLoop().execute(() -> {
@@ -241,9 +252,13 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 int batchSize = batchSizes.getBatchSize(i);
 
                 if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
-                    log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
-                            topicName, subscription,
-                            consumerId, entry.getLedgerId(), entry.getEntryId());
+                    log.warn(
+                            "[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
+                            topicName,
+                            subscription,
+                            consumerId,
+                            entry.getLedgerId(),
+                            entry.getEntryId());
                     ctx.close();
                     entry.release();
                     continue;
@@ -257,8 +272,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 // features is not enabled
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v18.getValue()
                         || !cnx.supportBrokerMetadata()
-                        || !cnx.getBrokerService().getPulsar().getConfig()
-                        .isExposingBrokerEntryMetadataToClientEnabled()) {
+                        || !cnx.getBrokerService()
+                                .getPulsar()
+                                .getConfig()
+                                .isExposingBrokerEntryMetadataToClientEnabled()) {
                     Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
                 }
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
@@ -267,17 +284,29 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{} with batchSize {}",
-                            topicName, subscription,  consumerId, entry.getLedgerId(), entry.getEntryId(), batchSize);
+                    log.debug(
+                            "[{}-{}] Sending message to consumerId {}, msg id {}-{} with batchSize {}",
+                            topicName,
+                            subscription,
+                            consumerId,
+                            entry.getLedgerId(),
+                            entry.getEntryId(),
+                            batchSize);
                 }
 
-                int redeliveryCount = redeliveryTracker
-                        .getRedeliveryCount(entry.getLedgerId(), entry.getEntryId());
+                int redeliveryCount = redeliveryTracker.getRedeliveryCount(entry.getLedgerId(), entry.getEntryId());
 
                 ctx.write(
-                        cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,
-                                redeliveryCount, metadataAndPayload,
-                                batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName, epoch),
+                        cnx.newMessageAndIntercept(
+                                consumerId,
+                                entry.getLedgerId(),
+                                entry.getEntryId(),
+                                partitionIdx,
+                                redeliveryCount,
+                                metadataAndPayload,
+                                batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i),
+                                topicName,
+                                epoch),
                         ctx.voidPromise());
                 entriesToRelease.add(entry);
             }
@@ -317,8 +346,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendNewTxnResponse(long requestId, TxnID txnID, long tcID) {
-        BaseCommand command = Commands.newTxnResponse(requestId, txnID.getLeastSigBits(),
-                txnID.getMostSigBits());
+        BaseCommand command = Commands.newTxnResponse(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits());
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -337,8 +365,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendEndTxnResponse(long requestId, TxnID txnID, int txnAction) {
-        BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getLeastSigBits(),
-                txnID.getMostSigBits());
+        BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits());
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -349,8 +376,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message) {
-        BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getLeastSigBits(),
-                txnID.getMostSigBits(), error, message);
+        BaseCommand command =
+                Commands.newEndTxnResponse(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -363,8 +390,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash) {
+    public void sendWatchTopicListUpdate(
+            long watcherId, List<String> newTopics, List<String> deletedTopics, String topicsHash) {
         BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
         interceptAndWriteCommand(command);
     }

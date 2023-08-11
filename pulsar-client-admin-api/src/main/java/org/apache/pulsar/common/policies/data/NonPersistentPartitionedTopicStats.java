@@ -23,7 +23,7 @@ import java.util.Map;
 /**
  * Statistics for a non-persistent partitioned topic.
  */
-public interface NonPersistentPartitionedTopicStats extends PartitionedTopicStats{
+public interface NonPersistentPartitionedTopicStats extends PartitionedTopicStats {
     Map<String, ? extends NonPersistentTopicStats> getPartitions();
 
     NonPersistentTopicStats add(NonPersistentTopicStats ts);

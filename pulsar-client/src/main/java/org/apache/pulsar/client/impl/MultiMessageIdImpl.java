@@ -54,8 +54,8 @@ public class MultiMessageIdImpl implements MessageId {
     @Override
     public int compareTo(MessageId o) {
         if (!(o instanceof MultiMessageIdImpl)) {
-            throw new IllegalArgumentException(
-                "expected MultiMessageIdImpl object. Got instance of " + o.getClass().getName());
+            throw new IllegalArgumentException("expected MultiMessageIdImpl object. Got instance of "
+                    + o.getClass().getName());
         }
 
         MultiMessageIdImpl other = (MultiMessageIdImpl) o;
@@ -73,8 +73,7 @@ public class MultiMessageIdImpl implements MessageId {
         for (Entry<String, MessageId> entry : map.entrySet()) {
             MessageId otherMessage = otherMap.get(entry.getKey());
             if (otherMessage == null) {
-                throw new IllegalArgumentException(
-                    "Other MessageId not have topic " + entry.getKey());
+                throw new IllegalArgumentException("Other MessageId not have topic " + entry.getKey());
             }
 
             int currentResult = entry.getValue().compareTo(otherMessage);
@@ -83,8 +82,7 @@ public class MultiMessageIdImpl implements MessageId {
             } else if (currentResult == 0) {
                 continue;
             } else if (result != currentResult) {
-                throw new IllegalArgumentException(
-                    "Different MessageId in Map get different compare result");
+                throw new IllegalArgumentException("Different MessageId in Map get different compare result");
             } else {
                 continue;
             }

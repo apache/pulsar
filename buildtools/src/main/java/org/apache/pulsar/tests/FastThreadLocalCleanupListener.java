@@ -40,8 +40,7 @@ public class FastThreadLocalCleanupListener extends BetweenTestClassesListenerAd
         }
         Package pkg = clazz.getPackage();
         if (pkg != null && pkg.getName() != null) {
-            return pkg.getName()
-                    .startsWith(FAST_THREAD_LOCAL_CLEANUP_PACKAGE);
+            return pkg.getName().startsWith(FAST_THREAD_LOCAL_CLEANUP_PACKAGE);
         } else {
             return false;
         }
@@ -52,10 +51,12 @@ public class FastThreadLocalCleanupListener extends BetweenTestClassesListenerAd
         if (FAST_THREAD_LOCAL_CLEANUP_ENABLED && FastThreadLocalStateCleaner.isEnabled()) {
             LOG.info("Cleaning up FastThreadLocal thread local state.");
             CLEANER.cleanupAllFastThreadLocals((thread, value) -> {
-                LOG.info("Cleaning FastThreadLocal state for thread {}, instance of class {}, value is {}", thread,
-                        value.getClass().getName(), value);
+                LOG.info(
+                        "Cleaning FastThreadLocal state for thread {}, instance of class {}, value is {}",
+                        thread,
+                        value.getClass().getName(),
+                        value);
             });
         }
     }
-
 }

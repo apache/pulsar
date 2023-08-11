@@ -19,15 +19,17 @@
 package org.apache.pulsar.client.tutorial;
 
 import java.io.IOException;
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 
 public class SampleProducer {
     public static void main(String[] args) throws InterruptedException, IOException {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
-        Producer<byte[]> producer = client.newProducer().topic("persistent://my-tenant/my-ns/my-topic").create();
+        Producer<byte[]> producer = client.newProducer()
+                .topic("persistent://my-tenant/my-ns/my-topic")
+                .create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("my-message".getBytes());

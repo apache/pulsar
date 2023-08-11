@@ -51,8 +51,7 @@ public class MongoSourceConfig extends MongoAbstractConfig {
                     + "The field values can be of two types: incr and full. "
                     + "When it is set to incr, the source connector will only watch for changes made from now on. "
                     + "When it is set to full, the source connector will synchronize currently existing messages "
-                    + "and watch for future changes."
-    )
+                    + "and watch for future changes.")
     private SyncType syncType = DEFAULT_SYNC_TYPE;
 
     @JsonCreator
@@ -62,8 +61,7 @@ public class MongoSourceConfig extends MongoAbstractConfig {
             @JsonProperty("collection") String collection,
             @JsonProperty("batchSize") int batchSize,
             @JsonProperty("batchTimeMs") long batchTimeMs,
-            @JsonProperty("syncType") String syncType
-    ) {
+            @JsonProperty("syncType") String syncType) {
         super(mongoUri, database, collection, batchSize, batchTimeMs);
         setSyncType(syncType);
     }
@@ -77,8 +75,7 @@ public class MongoSourceConfig extends MongoAbstractConfig {
 
     public static MongoSourceConfig load(Map<String, Object> map) throws IOException {
         final ObjectMapper mapper = new ObjectMapper();
-        final MongoSourceConfig cfg =
-                mapper.readValue(mapper.writeValueAsString(map), MongoSourceConfig.class);
+        final MongoSourceConfig cfg = mapper.readValue(mapper.writeValueAsString(map), MongoSourceConfig.class);
 
         return cfg;
     }

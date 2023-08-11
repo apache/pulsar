@@ -22,15 +22,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SampleCryptoConsumer {
@@ -74,10 +72,14 @@ public class SampleCryptoConsumer {
         }
 
         // Create pulsar client
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-tenant/my-ns/my-topic")
+        PulsarClient pulsarClient =
+                PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-tenant/my-ns/my-topic")
                 .subscriptionName("my-subscription-name")
-                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem")).subscribe();
+                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
+                .subscribe();
 
         Message<byte[]> msg = null;
 

@@ -38,13 +38,23 @@ public class BrokerLookupDataTest {
         String pulsarServiceUrl = "pulsar://localhost:6650";
         String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        Map<String, String> protocols = new HashMap<>(){{
-            put("kafka", "9092");
-        }};
+        Map<String, String> protocols = new HashMap<>() {
+            {
+                put("kafka", "9092");
+            }
+        };
         BrokerLookupData lookupData = new BrokerLookupData(
-                webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
-                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(),"3.0");
+                webServiceUrl,
+                webServiceUrlTls,
+                pulsarServiceUrl,
+                pulsarServiceUrlTls,
+                advertisedListeners,
+                protocols,
+                true,
+                true,
+                ExtensibleLoadManagerImpl.class.getName(),
+                System.currentTimeMillis(),
+                "3.0");
         assertEquals(webServiceUrl, lookupData.webServiceUrl());
         assertEquals(webServiceUrlTls, lookupData.webServiceUrlTls());
         assertEquals(pulsarServiceUrl, lookupData.pulsarServiceUrl());
@@ -54,7 +64,6 @@ public class BrokerLookupDataTest {
         assertTrue(lookupData.persistentTopicsEnabled());
         assertTrue(lookupData.nonPersistentTopicsEnabled());
         assertEquals("3.0", lookupData.brokerVersion());
-
 
         LookupResult lookupResult = lookupData.toLookupResult();
         assertEquals(webServiceUrl, lookupResult.getLookupData().getHttpUrl());

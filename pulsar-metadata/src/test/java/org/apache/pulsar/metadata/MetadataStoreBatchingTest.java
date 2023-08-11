@@ -21,7 +21,6 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -49,10 +48,12 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testBatchWrite(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
-                .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
-                .build());
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
+                MetadataStoreConfig.builder()
+                        .batchingEnabled(true)
+                        .batchingMaxDelayMillis(1_000)
+                        .build());
 
         String key1 = newKey();
         CompletableFuture<Stat> f1 = store.put(key1, new byte[0], Optional.empty());
@@ -69,10 +70,12 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testBatching(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
+                MetadataStoreConfig.builder()
                         .batchingEnabled(true)
                         .batchingMaxDelayMillis(1_000)
-                .build());
+                        .build());
 
         String key1 = newKey();
         store.put(key1, new byte[0], Optional.empty()).join();
@@ -92,10 +95,12 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testPutVersionErrors(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
-                .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
-                .build());
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
+                MetadataStoreConfig.builder()
+                        .batchingEnabled(true)
+                        .batchingMaxDelayMillis(1_000)
+                        .build());
 
         String key1 = newKey();
 
@@ -116,7 +121,6 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         assertTrue(f3.join().getVersion() >= 0L);
         assertTrue(f3.join().isFirstVersion());
 
-
         try {
             f4.join();
         } catch (CompletionException ce) {
@@ -127,10 +131,12 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testSequential(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder()
-                .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
-                .build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
+                MetadataStoreConfig.builder()
+                        .batchingEnabled(true)
+                        .batchingMaxDelayMillis(1_000)
+                        .build());
 
         String key1 = newKey();
 
@@ -143,18 +149,18 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
         FutureUtil.waitForAll(putFutures).join();
 
-
         assertEquals(store.getChildren(key1).join().size(), 10);
     }
-
 
     @Test(dataProvider = "impl")
     public void testBigBatchSize(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
-                .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
-                .build());
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
+                MetadataStoreConfig.builder()
+                        .batchingEnabled(true)
+                        .batchingMaxDelayMillis(1_000)
+                        .build());
 
         String key1 = newKey();
 
@@ -170,7 +176,6 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         }
 
         FutureUtil.waitForAll(putFutures).join();
-
 
         List<CompletableFuture<Optional<GetResult>>> getFutures = new ArrayList<>();
 

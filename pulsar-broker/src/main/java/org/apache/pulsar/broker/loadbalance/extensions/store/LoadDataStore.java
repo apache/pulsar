@@ -75,7 +75,6 @@ public interface LoadDataStore<T> extends Closeable {
      */
     int size();
 
-
     /**
      * Closes the table view.
      */
@@ -85,5 +84,4 @@ public interface LoadDataStore<T> extends Closeable {
      * Starts the table view.
      */
     void startTableView() throws LoadDataStoreException;
-
 }

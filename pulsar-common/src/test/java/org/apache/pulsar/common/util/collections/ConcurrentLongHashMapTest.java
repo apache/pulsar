@@ -23,9 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +37,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongFunction;
-
 import lombok.Cleanup;
 import org.testng.annotations.Test;
 
@@ -48,9 +45,7 @@ public class ConcurrentLongHashMapTest {
     @Test
     public void testConstructor() {
         try {
-            ConcurrentLongHashMap.<String>newBuilder()
-                    .expectedItems(0)
-                    .build();
+            ConcurrentLongHashMap.<String>newBuilder().expectedItems(0).build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
@@ -79,9 +74,8 @@ public class ConcurrentLongHashMapTest {
 
     @Test
     public void simpleInsertions() {
-        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .expectedItems(16)
-                .build();
+        ConcurrentLongHashMap<String> map =
+                ConcurrentLongHashMap.<String>newBuilder().expectedItems(16).build();
 
         assertTrue(map.isEmpty());
         assertNull(map.put(1, "one"));
@@ -174,7 +168,7 @@ public class ConcurrentLongHashMapTest {
         assertNull(map.put(5, "v5"));
         assertTrue(map.capacity() == 8);
 
-        //verify that the map does not keep shrinking at every remove() operation
+        // verify that the map does not keep shrinking at every remove() operation
         assertNull(map.put(6, "v6"));
         assertTrue(map.remove(6, "v6"));
         assertTrue(map.capacity() == 8);
@@ -215,8 +209,8 @@ public class ConcurrentLongHashMapTest {
 
     @Test
     public void testRemove() {
-        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .build();
+        ConcurrentLongHashMap<String> map =
+                ConcurrentLongHashMap.<String>newBuilder().build();
 
         assertTrue(map.isEmpty());
         assertNull(map.put(1, "one"));
@@ -293,8 +287,8 @@ public class ConcurrentLongHashMapTest {
 
     @Test
     public void concurrentInsertions() throws Throwable {
-        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .build();
+        ConcurrentLongHashMap<String> map =
+                ConcurrentLongHashMap.<String>newBuilder().build();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -328,8 +322,8 @@ public class ConcurrentLongHashMapTest {
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
-        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .build();
+        ConcurrentLongHashMap<String> map =
+                ConcurrentLongHashMap.<String>newBuilder().build();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -417,8 +411,8 @@ public class ConcurrentLongHashMapTest {
 
     @Test
     public void testIteration() {
-        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .build();
+        ConcurrentLongHashMap<String> map =
+                ConcurrentLongHashMap.<String>newBuilder().build();
 
         assertEquals(map.keys(), Collections.emptyList());
         assertEquals(map.values(), Collections.emptyList());
@@ -498,8 +492,8 @@ public class ConcurrentLongHashMapTest {
 
     @Test
     public void testPutIfAbsent() {
-        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .build();
+        ConcurrentLongHashMap<String> map =
+                ConcurrentLongHashMap.<String>newBuilder().build();
         assertNull(map.putIfAbsent(1, "one"));
         assertEquals(map.get(1), "one");
 

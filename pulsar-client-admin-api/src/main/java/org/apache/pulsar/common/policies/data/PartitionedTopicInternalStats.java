@@ -46,5 +46,4 @@ public class PartitionedTopicInternalStats {
         partitions.clear();
         metadata.partitions = 0;
     }
-
 }

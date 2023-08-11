@@ -27,8 +27,7 @@ public class PrecisePublishLimiterTest {
 
     @Test
     void shouldResetMsgLimitAfterUpdate() {
-        PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
-        });
+        PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {});
         precisePublishLimiter.update(new PublishRate(1, 1));
         assertFalse(precisePublishLimiter.tryAcquire(99, 99));
         precisePublishLimiter.update(new PublishRate(-1, 100));
@@ -37,8 +36,7 @@ public class PrecisePublishLimiterTest {
 
     @Test
     void shouldResetBytesLimitAfterUpdate() {
-        PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
-        });
+        PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {});
         precisePublishLimiter.update(new PublishRate(1, 1));
         assertFalse(precisePublishLimiter.tryAcquire(99, 99));
         precisePublishLimiter.update(new PublishRate(100, -1));
@@ -48,8 +46,8 @@ public class PrecisePublishLimiterTest {
     @Test
     void shouldCloseResources() throws Exception {
         for (int i = 0; i < 20000; i++) {
-            PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(100, 100), () -> {
-            });
+            PrecisePublishLimiter precisePublishLimiter =
+                    new PrecisePublishLimiter(new PublishRate(100, 100), () -> {});
             precisePublishLimiter.tryAcquire(99, 99);
             precisePublishLimiter.close();
         }

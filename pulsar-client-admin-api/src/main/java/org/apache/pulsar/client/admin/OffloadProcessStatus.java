@@ -27,7 +27,9 @@ import org.apache.pulsar.client.api.MessageId;
 public interface OffloadProcessStatus {
 
     MessageId getFirstUnoffloadedMessage();
+
     String getLastError();
+
     LongRunningProcessStatus.Status getStatus();
 
     static OffloadProcessStatus forStatus(LongRunningProcessStatus.Status status) {
@@ -35,13 +37,11 @@ public interface OffloadProcessStatus {
     }
 
     static OffloadProcessStatus forError(String lastError) {
-        return DefaultImplementation.newOffloadProcessStatus(LongRunningProcessStatus.Status.ERROR, lastError,
-                MessageId.earliest);
+        return DefaultImplementation.newOffloadProcessStatus(
+                LongRunningProcessStatus.Status.ERROR, lastError, MessageId.earliest);
     }
 
     static OffloadProcessStatus forSuccess(MessageId messageId) {
-        return DefaultImplementation.newOffloadProcessStatus(LongRunningProcessStatus.Status.SUCCESS, "",
-                messageId);
+        return DefaultImplementation.newOffloadProcessStatus(LongRunningProcessStatus.Status.SUCCESS, "", messageId);
     }
-
 }

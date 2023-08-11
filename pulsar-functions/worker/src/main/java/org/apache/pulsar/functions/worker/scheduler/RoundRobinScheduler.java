@@ -34,8 +34,8 @@ import org.apache.pulsar.functions.proto.Function.Instance;
 public class RoundRobinScheduler implements IScheduler {
 
     @Override
-    public List<Assignment> schedule(List<Instance> unassignedFunctionInstances,
-                                     List<Assignment> currentAssignments, Set<String> workers) {
+    public List<Assignment> schedule(
+            List<Instance> unassignedFunctionInstances, List<Assignment> currentAssignments, Set<String> workers) {
 
         Map<String, List<Instance>> workerIdToAssignment = new HashMap<>();
         List<Assignment> newAssignments = new ArrayList<>();
@@ -52,8 +52,10 @@ public class RoundRobinScheduler implements IScheduler {
 
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
             String workerId = findNextWorker(workerIdToAssignment);
-            Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
-                    .setWorkerId(workerId).build();
+            Assignment newAssignment = Assignment.newBuilder()
+                    .setInstance(unassignedFunctionInstance)
+                    .setWorkerId(workerId)
+                    .build();
             workerIdToAssignment.get(workerId).add(newAssignment.getInstance());
             newAssignments.add(newAssignment);
         }
@@ -82,9 +84,9 @@ public class RoundRobinScheduler implements IScheduler {
 
         workers.forEach(workerId -> workerToAssignmentMap.put(workerId, new LinkedList<>()));
 
-        currentAssignments.forEach(
-                assignment -> workerToAssignmentMap.computeIfAbsent(assignment.getWorkerId(), s -> new LinkedList<>())
-                        .add(assignment.getInstance()));
+        currentAssignments.forEach(assignment -> workerToAssignmentMap
+                .computeIfAbsent(assignment.getWorkerId(), s -> new LinkedList<>())
+                .add(assignment.getInstance()));
 
         List<Assignment> newAssignments = new LinkedList<>();
 
@@ -98,8 +100,10 @@ public class RoundRobinScheduler implements IScheduler {
             Map.Entry<String, List<Instance>> leastAssignmentsWorker =
                     findWorkerWithLeastAssignments(workerToAssignmentMap);
 
-            if (mostAssignmentsWorker.getValue().size() == leastAssignmentsWorker.getValue().size()
-                    || mostAssignmentsWorker.getValue().size() == leastAssignmentsWorker.getValue().size() + 1) {
+            if (mostAssignmentsWorker.getValue().size()
+                            == leastAssignmentsWorker.getValue().size()
+                    || mostAssignmentsWorker.getValue().size()
+                            == leastAssignmentsWorker.getValue().size() + 1) {
                 break;
             }
 
@@ -126,13 +130,15 @@ public class RoundRobinScheduler implements IScheduler {
 
     private Map.Entry<String, List<Instance>> findWorkerWithLeastAssignments(
             Map<String, List<Instance>> workerToAssignmentMap) {
-        return workerToAssignmentMap.entrySet().stream().min(Comparator.comparingInt(o -> o.getValue().size())).get();
-
+        return workerToAssignmentMap.entrySet().stream()
+                .min(Comparator.comparingInt(o -> o.getValue().size()))
+                .get();
     }
 
     private Map.Entry<String, List<Instance>> findWorkerWithMostAssignments(
             Map<String, List<Instance>> workerToAssignmentMap) {
-        return workerToAssignmentMap.entrySet().stream().max(Comparator.comparingInt(o -> o.getValue().size())).get();
+        return workerToAssignmentMap.entrySet().stream()
+                .max(Comparator.comparingInt(o -> o.getValue().size()))
+                .get();
     }
-
 }

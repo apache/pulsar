@@ -37,13 +37,17 @@ public class DynamicSkipUnknownPropertyHandler extends DeserializationProblemHan
     private boolean skipUnknownProperty = true;
 
     @Override
-    public boolean handleUnknownProperty(DeserializationContext deserializationContext, JsonParser p,
-                                         JsonDeserializer<?> deserializer, Object beanOrClass,
-                                         String propertyName) throws IOException {
+    public boolean handleUnknownProperty(
+            DeserializationContext deserializationContext,
+            JsonParser p,
+            JsonDeserializer<?> deserializer,
+            Object beanOrClass,
+            String propertyName)
+            throws IOException {
         Collection<Object> propIds = (deserializer == null) ? null : deserializer.getKnownPropertyNames();
-        UnrecognizedPropertyException unrecognizedPropertyException = UnrecognizedPropertyException
-                .from(p, beanOrClass, propertyName, propIds);
-        if (skipUnknownProperty){
+        UnrecognizedPropertyException unrecognizedPropertyException =
+                UnrecognizedPropertyException.from(p, beanOrClass, propertyName, propIds);
+        if (skipUnknownProperty) {
             if (log.isDebugEnabled()) {
                 log.debug(unrecognizedPropertyException.getMessage());
             }

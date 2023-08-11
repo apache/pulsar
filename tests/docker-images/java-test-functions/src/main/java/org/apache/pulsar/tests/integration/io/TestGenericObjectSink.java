@@ -35,8 +35,7 @@ import org.apache.pulsar.io.core.SinkContext;
 public class TestGenericObjectSink implements Sink<GenericObject> {
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sourceContext) throws Exception {
-    }
+    public void open(Map<String, Object> config, SinkContext sourceContext) throws Exception {}
 
     public void write(Record<GenericObject> record) {
         log.info("topic {}", record.getTopicName().orElse(null));
@@ -49,11 +48,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
 
         String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
         log.info("expectedRecordType {}", expectedRecordType);
-        if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
+        if (!expectedRecordType.equals(
+                record.getSchema().getSchemaInfo().getType().name())) {
             final String message = String.format(
                     "Unexpected record type %s is not %s",
-                    record.getSchema().getSchemaInfo().getType().name(),
-                    expectedRecordType);
+                    record.getSchema().getSchemaInfo().getType().name(), expectedRecordType);
             throw new RuntimeException(message);
         }
 
@@ -76,7 +75,10 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         final GenericObject value = record.getValue();
         log.info("value {}", value);
         log.info("value schema type {}", value.getSchemaType());
-        log.info("value native object {} class {}", value.getNativeObject(), value.getNativeObject().getClass());
+        log.info(
+                "value native object {} class {}",
+                value.getNativeObject(),
+                value.getNativeObject().getClass());
 
         String expectedSchemaDefinition = record.getProperties().getOrDefault("expectedSchemaDefinition", "");
         log.info("schemaDefinition {}", record.getSchema().getSchemaInfo().getSchemaDefinition());
@@ -92,7 +94,8 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
 
         // testing that actually the Sink is able to use Native AVRO
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
-            GenericRecord nativeGenericRecord = (GenericRecord) record.getValue().getNativeObject();
+            GenericRecord nativeGenericRecord =
+                    (GenericRecord) record.getValue().getNativeObject();
             log.info("Schema from AVRO generic object {}", nativeGenericRecord.getSchema());
         }
 
@@ -112,7 +115,5 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

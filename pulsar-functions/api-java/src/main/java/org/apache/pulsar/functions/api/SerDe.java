@@ -28,5 +28,6 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceStability.Stable
 public interface SerDe<T> {
     T deserialize(byte[] input);
+
     byte[] serialize(T input);
 }

@@ -85,5 +85,4 @@ public @interface FieldContext {
      * @return true if the setting is deprecated, otherwise false.
      */
     boolean deprecated() default false;
-
 }

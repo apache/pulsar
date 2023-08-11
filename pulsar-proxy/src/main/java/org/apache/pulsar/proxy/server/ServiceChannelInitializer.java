@@ -81,8 +81,10 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                 serverSslCtxRefresher = new NettyServerSslContextBuilder(
                         sslProvider,
                         serviceConfig.isTlsAllowInsecureConnection(),
-                        serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                        serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(),
+                        serviceConfig.getTlsTrustCertsFilePath(),
+                        serviceConfig.getTlsCertificateFilePath(),
+                        serviceConfig.getTlsKeyFilePath(),
+                        serviceConfig.getTlsCiphers(),
                         serviceConfig.getTlsProtocols(),
                         serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
                         serviceConfig.getTlsCertRefreshCheckDurationSec());
@@ -94,26 +96,33 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024,
-                true));
+        ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024, true));
         if (serverSslCtxRefresher != null && this.enableTls) {
             SslContext sslContext = serverSslCtxRefresher.get();
             if (sslContext != null) {
                 ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
             }
         } else if (this.tlsEnabledWithKeyStore && serverSSLContextAutoRefreshBuilder != null) {
-            ch.pipeline().addLast(TLS_HANDLER,
-                    new SslHandler(serverSSLContextAutoRefreshBuilder.get().createSSLEngine()));
+            ch.pipeline()
+                    .addLast(
+                            TLS_HANDLER,
+                            new SslHandler(
+                                    serverSSLContextAutoRefreshBuilder.get().createSSLEngine()));
         }
         if (brokerProxyReadTimeoutMs > 0) {
-            ch.pipeline().addLast("readTimeoutHandler",
-                    new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
+            ch.pipeline()
+                    .addLast(
+                            "readTimeoutHandler",
+                            new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
         }
         if (proxyService.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                this.maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+        ch.pipeline()
+                .addLast(
+                        "frameDecoder",
+                        new LengthFieldBasedFrameDecoder(
+                                this.maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
 
         ch.pipeline().addLast("handler", new ProxyConnection(proxyService, proxyService.getDnsAddressResolverGroup()));
     }

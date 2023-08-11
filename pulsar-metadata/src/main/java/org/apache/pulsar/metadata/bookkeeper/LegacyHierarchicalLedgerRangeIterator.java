@@ -46,7 +46,6 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
     private static final String MAX_ID_SUFFIX = "9999";
     private static final String MIN_ID_SUFFIX = "0000";
 
-
     private final MetadataStore store;
     private final String ledgersRoot;
 
@@ -79,7 +78,8 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
             if (!isLedgerParentNode(curL1Nodes)) {
                 continue;
             }
-            List<String> l2Nodes = store.getChildren(ledgersRoot + "/" + curL1Nodes).get();
+            List<String> l2Nodes =
+                    store.getChildren(ledgersRoot + "/" + curL1Nodes).get();
             l2NodesIter = l2Nodes.iterator();
             if (!l2NodesIter.hasNext()) {
                 l2NodesIter = null;
@@ -147,12 +147,10 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
      *          2nd level node name
      * @throws IOException
      */
-    LedgerManager.LedgerRange getLedgerRangeByLevel(final String level1, final String level2)
-            throws IOException {
+    LedgerManager.LedgerRange getLedgerRangeByLevel(final String level1, final String level2) throws IOException {
         StringBuilder nodeBuilder = threadLocalNodeBuilder.get();
         nodeBuilder.setLength(0);
-        nodeBuilder.append(ledgersRoot).append("/")
-                .append(level1).append("/").append(level2);
+        nodeBuilder.append(ledgersRoot).append("/").append(level1).append("/").append(level2);
         String nodePath = nodeBuilder.toString();
         List<String> ledgerNodes = null;
         try {
@@ -166,12 +164,11 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
         NavigableSet<Long> zkActiveLedgers =
                 HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes, ledgersRoot, nodePath);
         if (log.isDebugEnabled()) {
-            log.debug("All active ledgers from ZK for hash node "
-                    + level1 + "/" + level2 + " : " + zkActiveLedgers);
+            log.debug("All active ledgers from ZK for hash node " + level1 + "/" + level2 + " : " + zkActiveLedgers);
         }
 
-        return new LedgerManager.LedgerRange(zkActiveLedgers.subSet(getStartLedgerIdByLevel(level1, level2), true,
-                getEndLedgerIdByLevel(level1, level2), true));
+        return new LedgerManager.LedgerRange(zkActiveLedgers.subSet(
+                getStartLedgerIdByLevel(level1, level2), true, getEndLedgerIdByLevel(level1, level2), true));
     }
 
     /**

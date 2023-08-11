@@ -34,9 +34,8 @@ public abstract class DebeziumSource extends KafkaConnectSource {
     private static final String DEFAULT_OFFSET_TOPIC = "debezium-offset-topic";
     private static final String DEFAULT_HISTORY_TOPIC = "debezium-history-topic";
 
-    public static void throwExceptionIfConfigNotMatch(Map<String, Object> config,
-                                                       String key,
-                                                       String value) throws IllegalArgumentException {
+    public static void throwExceptionIfConfigNotMatch(Map<String, Object> config, String key, String value)
+            throws IllegalArgumentException {
         Object orig = config.get(key);
         if (orig == null) {
             config.put(key, value);
@@ -99,11 +98,15 @@ public abstract class DebeziumSource extends KafkaConnectSource {
 
         String sourceName = sourceContext.getSourceName();
         // database.history.pulsar.topic: history topic name
-        setConfigIfNull(config, PulsarDatabaseHistory.TOPIC.name(),
-            topicNamespace + "/" + sourceName + "-" + DEFAULT_HISTORY_TOPIC);
+        setConfigIfNull(
+                config,
+                PulsarDatabaseHistory.TOPIC.name(),
+                topicNamespace + "/" + sourceName + "-" + DEFAULT_HISTORY_TOPIC);
         // offset.storage.topic: offset topic name
-        setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
-            topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
+        setConfigIfNull(
+                config,
+                PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
+                topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
 
         // pass pulsar.client.builder if database.history.pulsar.service.url is not provided
         if (StringUtils.isEmpty(pulsarUrl)) {
@@ -113,5 +116,4 @@ public abstract class DebeziumSource extends KafkaConnectSource {
 
         super.open(config, sourceContext);
     }
-
 }

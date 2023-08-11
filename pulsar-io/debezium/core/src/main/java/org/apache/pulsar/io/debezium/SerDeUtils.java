@@ -33,17 +33,16 @@ public class SerDeUtils {
     public static Object deserialize(String objectBase64Encoded, ClassLoader classLoader) {
         byte[] data = Base64.getDecoder().decode(objectBase64Encoded);
         try (InputStream bai = new ByteArrayInputStream(data);
-             PulsarClientBuilderInputStream ois = new PulsarClientBuilderInputStream(bai, classLoader)) {
-           return ois.readObject();
+                PulsarClientBuilderInputStream ois = new PulsarClientBuilderInputStream(bai, classLoader)) {
+            return ois.readObject();
         } catch (Exception e) {
-            throw new RuntimeException(
-                    "Failed to initialize the pulsar client to store debezium database history", e);
+            throw new RuntimeException("Failed to initialize the pulsar client to store debezium database history", e);
         }
     }
 
     public static String serialize(Object obj) throws Exception {
         try (ByteArrayOutputStream bao = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(bao)) {
+                ObjectOutputStream oos = new ObjectOutputStream(bao)) {
             oos.writeObject(obj);
             oos.flush();
             byte[] data = bao.toByteArray();
@@ -53,6 +52,7 @@ public class SerDeUtils {
 
     static class PulsarClientBuilderInputStream extends ObjectInputStream {
         private final ClassLoader classLoader;
+
         public PulsarClientBuilderInputStream(InputStream in, ClassLoader ldr) throws IOException {
             super(in);
             this.classLoader = ldr;

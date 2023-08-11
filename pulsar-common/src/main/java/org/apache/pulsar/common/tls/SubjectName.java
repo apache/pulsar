@@ -19,7 +19,6 @@
 /**
  * From Apache HTTP client
  */
-
 package org.apache.pulsar.common.tls;
 
 import lombok.Data;

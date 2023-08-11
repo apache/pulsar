@@ -168,13 +168,13 @@ class InMemTransactionBuffer implements TransactionBuffer {
             }
         }
 
-        public void appendEntry(long sequenceId, ByteBuf entry) throws
-                TransactionBufferException.TransactionSealedException {
+        public void appendEntry(long sequenceId, ByteBuf entry)
+                throws TransactionBufferException.TransactionSealedException {
             synchronized (this) {
                 if (TxnStatus.OPEN != status) {
                     // the transaction is not open anymore, reject the append operations
-                    throw new TransactionBufferException
-                            .TransactionSealedException("Transaction `" + txnid + "` is already sealed");
+                    throw new TransactionBufferException.TransactionSealedException(
+                            "Transaction `" + txnid + "` is already sealed");
                 }
             }
 
@@ -183,13 +183,13 @@ class InMemTransactionBuffer implements TransactionBuffer {
             }
         }
 
-        public TransactionBufferReader newReader(long sequenceId) throws
-                TransactionBufferException.TransactionNotSealedException {
+        public TransactionBufferReader newReader(long sequenceId)
+                throws TransactionBufferException.TransactionNotSealedException {
             synchronized (this) {
                 if (TxnStatus.COMMITTED != status) {
                     // the transaction is not committed yet, hence the buffer is not sealed
-                    throw new TransactionBufferException
-                            .TransactionNotSealedException("Transaction `" + txnid + "` is not sealed yet");
+                    throw new TransactionBufferException.TransactionNotSealedException(
+                            "Transaction `" + txnid + "` is not sealed yet");
                 }
             }
 
@@ -201,17 +201,13 @@ class InMemTransactionBuffer implements TransactionBuffer {
             }
 
             return new InMemTransactionBufferReader(
-                txnid,
-                entriesToRead.entrySet().iterator(),
-                committedAtLedgerId,
-                committedAtEntryId
-            );
+                    txnid, entriesToRead.entrySet().iterator(), committedAtLedgerId, committedAtEntryId);
         }
-
     }
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
+
     public InMemTransactionBuffer(Topic topic) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
@@ -233,7 +229,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         TxnBuffer buffer = buffers.get(txnID);
         if (null == buffer) {
             throw new TransactionBufferException.TransactionNotFoundException(
-                "Transaction `" + txnID + "` doesn't exist in the transaction buffer");
+                    "Transaction `" + txnID + "` doesn't exist in the transaction buffer");
         }
         return buffer;
     }
@@ -255,9 +251,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId,
-                                                     long sequenceId,
-                                                     ByteBuf buffer) {
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
         CompletableFuture appendFuture = new CompletableFuture();
@@ -271,8 +265,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(
-            TxnID txnID, long startSequenceId) {
+    public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId) {
         CompletableFuture<TransactionBufferReader> openFuture = new CompletableFuture<>();
         try {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
@@ -307,9 +300,8 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     private void addTxnToTxnIdex(TxnID txnId, long committedAtLedgerId) {
         synchronized (txnIndex) {
-            txnIndex
-                .computeIfAbsent(committedAtLedgerId, ledgerId -> new HashSet<>())
-                .add(txnId);
+            txnIndex.computeIfAbsent(committedAtLedgerId, ledgerId -> new HashSet<>())
+                    .add(txnId);
         }
     }
 
@@ -367,7 +359,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     @Override
     public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
-        //no-op
+        // no-op
     }
 
     @Override
@@ -395,7 +387,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return getStats(lowWaterMarks, false);
     }
 
-
     @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
@@ -406,8 +397,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return this.buffers.values().stream()
                 .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.OPEN)
                         || txnBuffer.status.equals(TxnStatus.COMMITTING)
-                        || txnBuffer.status.equals(TxnStatus.ABORTING)
-                )
+                        || txnBuffer.status.equals(TxnStatus.ABORTING))
                 .count();
     }
 

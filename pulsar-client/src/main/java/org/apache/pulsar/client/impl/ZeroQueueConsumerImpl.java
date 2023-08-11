@@ -46,13 +46,31 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
     private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
-    public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-             ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
-             CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
-             ConsumerInterceptors<T> interceptors,
-             boolean createTopicIfDoesNotExist) {
-        super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false, subscribeFuture,
-                startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
+    public ZeroQueueConsumerImpl(
+            PulsarClientImpl client,
+            String topic,
+            ConsumerConfigurationData<T> conf,
+            ExecutorProvider executorProvider,
+            int partitionIndex,
+            boolean hasParentConsumer,
+            CompletableFuture<Consumer<T>> subscribeFuture,
+            MessageId startMessageId,
+            Schema<T> schema,
+            ConsumerInterceptors<T> interceptors,
+            boolean createTopicIfDoesNotExist) {
+        super(
+                client,
+                topic,
+                conf,
+                executorProvider,
+                partitionIndex,
+                hasParentConsumer,
+                false,
+                subscribeFuture,
+                startMessageId,
+                0 /* startMessageRollbackDurationInSec */,
+                schema,
+                interceptors,
                 createTopicIfDoesNotExist);
     }
 
@@ -169,7 +187,10 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             stats.updateNumMsgsReceived(message);
             try {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
+                    log.debug(
+                            "[{}][{}] Calling message listener for unqueued message {}",
+                            topic,
+                            subscription,
                             message.getMessageId());
                 }
                 waitingOnListenerForZeroQueueSize = true;
@@ -178,8 +199,12 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
                 listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
-                log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
-                        message.getMessageId(), t);
+                log.error(
+                        "[{}][{}] Message listener error in processing unqueued message: {}",
+                        topic,
+                        subscription,
+                        message.getMessageId(),
+                        t);
             }
             increaseAvailablePermits(cnx());
             waitingOnListenerForZeroQueueSize = false;
@@ -192,26 +217,34 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     @Override
-    void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
-                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
-                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch) {
+    void receiveIndividualMessagesFromBatch(
+            BrokerEntryMetadata brokerEntryMetadata,
+            MessageMetadata msgMetadata,
+            int redeliveryCount,
+            List<Long> ackSet,
+            ByteBuf uncompressedPayload,
+            MessageIdData messageId,
+            ClientCnx cnx,
+            long consumerEpoch) {
         log.warn(
                 "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
-                subscription, consumerName);
+                subscription,
+                consumerName);
         // close connection
         closeAsync().handle((ok, e) -> {
             // notify callback with failure result
-            notifyPendingReceivedCallback(null,
-                    new PulsarClientException.InvalidMessageException(
-                            format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
-                                    subscription, consumerName)));
+            notifyPendingReceivedCallback(
+                    null,
+                    new PulsarClientException.InvalidMessageException(format(
+                            "Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
+                            subscription, consumerName)));
             return null;
         });
     }
 
     @Override
     protected void setCurrentReceiverQueueSize(int newSize) {
-        //receiver queue size is fixed as 0.
+        // receiver queue size is fixed as 0.
         throw new NotImplementedException("Receiver queue size can't be changed in ZeroQueueConsumerImpl");
     }
 }

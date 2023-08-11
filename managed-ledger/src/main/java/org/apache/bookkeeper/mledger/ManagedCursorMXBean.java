@@ -99,5 +99,4 @@ public interface ManagedCursorMXBean {
      * @return the size of data read from cursor (in bytes)
      */
     long getReadCursorLedgerSize();
-
 }

@@ -82,28 +82,27 @@ public class KeyStoreSSLContext {
     private final String tmfAlgorithm = DEFAULT_SSL_TRUSTMANAGER_ALGORITHM;
 
     // only init vars, before using it, need to call createSSLContext to create ssl context.
-    public KeyStoreSSLContext(Mode mode,
-                              String sslProviderString,
-                              String keyStoreTypeString,
-                              String keyStorePath,
-                              String keyStorePassword,
-                              boolean allowInsecureConnection,
-                              String trustStoreTypeString,
-                              String trustStorePath,
-                              String trustStorePassword,
-                              boolean requireTrustedClientCertOnConnect,
-                              Set<String> ciphers,
-                              Set<String> protocols) {
+    public KeyStoreSSLContext(
+            Mode mode,
+            String sslProviderString,
+            String keyStoreTypeString,
+            String keyStorePath,
+            String keyStorePassword,
+            boolean allowInsecureConnection,
+            String trustStoreTypeString,
+            String trustStorePath,
+            String trustStorePassword,
+            boolean requireTrustedClientCertOnConnect,
+            Set<String> ciphers,
+            Set<String> protocols) {
         this.mode = mode;
         this.sslProviderString = sslProviderString;
-        this.keyStoreTypeString = Strings.isNullOrEmpty(keyStoreTypeString)
-                ? DEFAULT_KEYSTORE_TYPE
-                : keyStoreTypeString;
+        this.keyStoreTypeString =
+                Strings.isNullOrEmpty(keyStoreTypeString) ? DEFAULT_KEYSTORE_TYPE : keyStoreTypeString;
         this.keyStorePath = keyStorePath;
         this.keyStorePassword = keyStorePassword;
-        this.trustStoreTypeString = Strings.isNullOrEmpty(trustStoreTypeString)
-                ? DEFAULT_KEYSTORE_TYPE
-                : trustStoreTypeString;
+        this.trustStoreTypeString =
+                Strings.isNullOrEmpty(trustStoreTypeString) ? DEFAULT_KEYSTORE_TYPE : trustStoreTypeString;
         this.trustStorePath = trustStorePath;
         if (trustStorePassword == null) {
             this.trustStorePassword = "";
@@ -209,18 +208,20 @@ public class KeyStoreSSLContext {
         return sslEngine;
     }
 
-    public static KeyStoreSSLContext createClientKeyStoreSslContext(String sslProviderString,
-                                                            String keyStoreTypeString,
-                                                            String keyStorePath,
-                                                            String keyStorePassword,
-                                                            boolean allowInsecureConnection,
-                                                            String trustStoreTypeString,
-                                                            String trustStorePath,
-                                                            String trustStorePassword,
-                                                            Set<String> ciphers,
-                                                            Set<String> protocols)
+    public static KeyStoreSSLContext createClientKeyStoreSslContext(
+            String sslProviderString,
+            String keyStoreTypeString,
+            String keyStorePath,
+            String keyStorePassword,
+            boolean allowInsecureConnection,
+            String trustStoreTypeString,
+            String trustStorePath,
+            String trustStorePassword,
+            Set<String> ciphers,
+            Set<String> protocols)
             throws GeneralSecurityException, IOException {
-        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
+        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(
+                Mode.CLIENT,
                 sslProviderString,
                 keyStoreTypeString,
                 keyStorePath,
@@ -237,20 +238,21 @@ public class KeyStoreSSLContext {
         return keyStoreSSLContext;
     }
 
-
-    public static KeyStoreSSLContext createServerKeyStoreSslContext(String sslProviderString,
-                                                    String keyStoreTypeString,
-                                                    String keyStorePath,
-                                                    String keyStorePassword,
-                                                    boolean allowInsecureConnection,
-                                                    String trustStoreTypeString,
-                                                    String trustStorePath,
-                                                    String trustStorePassword,
-                                                    boolean requireTrustedClientCertOnConnect,
-                                                    Set<String> ciphers,
-                                                    Set<String> protocols)
+    public static KeyStoreSSLContext createServerKeyStoreSslContext(
+            String sslProviderString,
+            String keyStoreTypeString,
+            String keyStorePath,
+            String keyStorePassword,
+            boolean allowInsecureConnection,
+            String trustStoreTypeString,
+            String trustStorePath,
+            String trustStorePassword,
+            boolean requireTrustedClientCertOnConnect,
+            Set<String> ciphers,
+            Set<String> protocols)
             throws GeneralSecurityException, IOException {
-        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.SERVER,
+        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(
+                Mode.SERVER,
                 sslProviderString,
                 keyStoreTypeString,
                 keyStorePath,
@@ -269,44 +271,48 @@ public class KeyStoreSSLContext {
 
     // the web server only use this method to get SSLContext, it won't use this to configure engine
     // no need ciphers and protocols
-    public static SSLContext createServerSslContext(String sslProviderString,
-                                                    String keyStoreTypeString,
-                                                    String keyStorePath,
-                                                    String keyStorePassword,
-                                                    boolean allowInsecureConnection,
-                                                    String trustStoreTypeString,
-                                                    String trustStorePath,
-                                                    String trustStorePassword,
-                                                    boolean requireTrustedClientCertOnConnect)
+    public static SSLContext createServerSslContext(
+            String sslProviderString,
+            String keyStoreTypeString,
+            String keyStorePath,
+            String keyStorePassword,
+            boolean allowInsecureConnection,
+            String trustStoreTypeString,
+            String trustStorePath,
+            String trustStorePassword,
+            boolean requireTrustedClientCertOnConnect)
             throws GeneralSecurityException, IOException {
 
         return createServerKeyStoreSslContext(
-                sslProviderString,
-                keyStoreTypeString,
-                keyStorePath,
-                keyStorePassword,
-                allowInsecureConnection,
-                trustStoreTypeString,
-                trustStorePath,
-                trustStorePassword,
-                requireTrustedClientCertOnConnect,
-                null,
-                null).getSslContext();
+                        sslProviderString,
+                        keyStoreTypeString,
+                        keyStorePath,
+                        keyStorePassword,
+                        allowInsecureConnection,
+                        trustStoreTypeString,
+                        trustStorePath,
+                        trustStorePassword,
+                        requireTrustedClientCertOnConnect,
+                        null,
+                        null)
+                .getSslContext();
     }
 
     // for web client
-    public static SSLContext createClientSslContext(String sslProviderString,
-                                                    String keyStoreTypeString,
-                                                    String keyStorePath,
-                                                    String keyStorePassword,
-                                                    boolean allowInsecureConnection,
-                                                    String trustStoreTypeString,
-                                                    String trustStorePath,
-                                                    String trustStorePassword,
-                                                    Set<String> ciphers,
-                                                    Set<String> protocol)
+    public static SSLContext createClientSslContext(
+            String sslProviderString,
+            String keyStoreTypeString,
+            String keyStorePath,
+            String keyStorePassword,
+            boolean allowInsecureConnection,
+            String trustStoreTypeString,
+            String trustStorePath,
+            String trustStorePassword,
+            Set<String> ciphers,
+            Set<String> protocol)
             throws GeneralSecurityException, IOException {
-        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
+        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(
+                Mode.CLIENT,
                 sslProviderString,
                 keyStoreTypeString,
                 keyStorePath,
@@ -323,14 +329,16 @@ public class KeyStoreSSLContext {
     }
 
     // for web client
-    public static SSLContext createClientSslContext(String keyStoreTypeString,
-                                                    String keyStorePath,
-                                                    String keyStorePassword,
-                                                    String trustStoreTypeString,
-                                                    String trustStorePath,
-                                                    String trustStorePassword)
+    public static SSLContext createClientSslContext(
+            String keyStoreTypeString,
+            String keyStorePath,
+            String keyStorePassword,
+            String trustStoreTypeString,
+            String trustStorePath,
+            String trustStorePassword)
             throws GeneralSecurityException, IOException {
-        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
+        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(
+                Mode.CLIENT,
                 null,
                 keyStoreTypeString,
                 keyStorePath,

@@ -53,7 +53,7 @@ public class BrokerLoadData {
 
     // Message data from the most recent namespace bundle stats.
     private double msgThroughputIn; // bytes/sec
-    private double msgThroughputOut;  // bytes/sec
+    private double msgThroughputOut; // bytes/sec
     private double msgRateIn; // messages/sec
     private double msgRateOut; // messages/sec
     private int bundleCount;
@@ -75,6 +75,7 @@ public class BrokerLoadData {
      * The historical resource percentage is configured by loadBalancerHistoryResourcePercentage.
      */
     private double weightedMaxEMA;
+
     private double msgThroughputEMA;
     private long updatedAt;
 
@@ -110,14 +111,15 @@ public class BrokerLoadData {
      * @param conf
      *            Service configuration to compute load data features.
      */
-    public void update(final SystemResourceUsage usage,
-                       double msgThroughputIn,
-                       double msgThroughputOut,
-                       double msgRateIn,
-                       double msgRateOut,
-                       int bundleCount,
-                       int topics,
-                       ServiceConfiguration conf) {
+    public void update(
+            final SystemResourceUsage usage,
+            double msgThroughputIn,
+            double msgThroughputOut,
+            double msgRateIn,
+            double msgRateOut,
+            int bundleCount,
+            int topics,
+            ServiceConfiguration conf) {
         updateSystemResourceUsage(usage.cpu, usage.memory, usage.directMemory, usage.bandwidthIn, usage.bandwidthOut);
         this.msgThroughputIn = msgThroughputIn;
         this.msgThroughputOut = msgThroughputOut;
@@ -151,9 +153,12 @@ public class BrokerLoadData {
     }
 
     // Update resource usage given each individual usage.
-    private void updateSystemResourceUsage(final ResourceUsage cpu, final ResourceUsage memory,
-                                           final ResourceUsage directMemory, final ResourceUsage bandwidthIn,
-                                           final ResourceUsage bandwidthOut) {
+    private void updateSystemResourceUsage(
+            final ResourceUsage cpu,
+            final ResourceUsage memory,
+            final ResourceUsage directMemory,
+            final ResourceUsage bandwidthIn,
+            final ResourceUsage bandwidthOut) {
         this.cpu = cpu;
         this.memory = memory;
         this.directMemory = directMemory;
@@ -168,35 +173,48 @@ public class BrokerLoadData {
     }
 
     private void updateMaxResourceUsage() {
-        maxResourceUsage = LocalBrokerData.max(cpu.percentUsage(), directMemory.percentUsage(),
-                bandwidthIn.percentUsage(),
-                bandwidthOut.percentUsage()) / 100;
+        maxResourceUsage = LocalBrokerData.max(
+                        cpu.percentUsage(),
+                        directMemory.percentUsage(),
+                        bandwidthIn.percentUsage(),
+                        bandwidthOut.percentUsage())
+                / 100;
     }
 
-    private double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
-                                                final double directMemoryWeight, final double bandwidthInWeight,
-                                                final double bandwidthOutWeight) {
-        return LocalBrokerData.max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
-                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
+    private double getMaxResourceUsageWithWeight(
+            final double cpuWeight,
+            final double memoryWeight,
+            final double directMemoryWeight,
+            final double bandwidthInWeight,
+            final double bandwidthOutWeight) {
+        return LocalBrokerData.max(
+                        cpu.percentUsage() * cpuWeight,
+                        memory.percentUsage() * memoryWeight,
+                        directMemory.percentUsage() * directMemoryWeight,
+                        bandwidthIn.percentUsage() * bandwidthInWeight,
+                        bandwidthOut.percentUsage() * bandwidthOutWeight)
+                / 100;
     }
 
     private void updateWeightedMaxEMA(ServiceConfiguration conf) {
         var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         var weightedMax = getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerMemoryResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight());
-        weightedMaxEMA = updatedAt == 0 ? weightedMax :
-                weightedMaxEMA * historyPercentage + (1 - historyPercentage) * weightedMax;
+        weightedMaxEMA = updatedAt == 0
+                ? weightedMax
+                : weightedMaxEMA * historyPercentage + (1 - historyPercentage) * weightedMax;
     }
 
     private void updateMsgThroughputEMA(ServiceConfiguration conf) {
         var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         double msgThroughput = msgThroughputIn + msgThroughputOut;
-        msgThroughputEMA = updatedAt == 0 ? msgThroughput :
-                msgThroughputEMA * historyPercentage + (1 - historyPercentage) * msgThroughput;
+        msgThroughputEMA = updatedAt == 0
+                ? msgThroughput
+                : msgThroughputEMA * historyPercentage + (1 - historyPercentage) * msgThroughput;
     }
 
     public void clear() {
@@ -219,7 +237,8 @@ public class BrokerLoadData {
     }
 
     public String toString(ServiceConfiguration conf) {
-        return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
+        return String.format(
+                "cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
                         + "bandwithIn= %.2f%%, bandwithOut= %.2f%%, "
                         + "cpuWeight= %f, memoryWeight= %f, directMemoryWeight= %f, "
                         + "bandwithInResourceWeight= %f, bandwithOutResourceWeight= %f, "
@@ -227,19 +246,26 @@ public class BrokerLoadData {
                         + "bundleCount= %d, "
                         + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, msgThroughputEMA= %.2f, "
                         + "updatedAt= %d, reportedAt= %d",
-
-                cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(),
-                bandwidthIn.percentUsage(), bandwidthOut.percentUsage(),
+                cpu.percentUsage(),
+                memory.percentUsage(),
+                directMemory.percentUsage(),
+                bandwidthIn.percentUsage(),
+                bandwidthOut.percentUsage(),
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight(),
-                msgThroughputIn, msgThroughputOut, msgRateIn, msgRateOut,
+                msgThroughputIn,
+                msgThroughputOut,
+                msgRateIn,
+                msgRateOut,
                 bundleCount,
-                maxResourceUsage * 100, weightedMaxEMA * 100, msgThroughputEMA,
-                updatedAt, reportedAt
-        );
+                maxResourceUsage * 100,
+                weightedMaxEMA * 100,
+                msgThroughputEMA,
+                updatedAt,
+                reportedAt);
     }
 
     public List<Metrics> toMetrics(String advertisedBrokerAddress) {
@@ -272,5 +298,4 @@ public class BrokerLoadData {
         }
         return metrics;
     }
-
 }

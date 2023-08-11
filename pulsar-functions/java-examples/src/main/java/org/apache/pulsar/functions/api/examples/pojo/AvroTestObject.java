@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.api.examples.pojo;
 
 import lombok.Data;
 
-
 /**
  * Avro test object.
  */
@@ -29,5 +28,4 @@ public class AvroTestObject {
 
     private Integer baseValue;
     private String objectValue;
-
 }

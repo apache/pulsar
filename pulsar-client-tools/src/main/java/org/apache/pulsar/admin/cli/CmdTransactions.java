@@ -34,7 +34,10 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction coordinator stats")
     private class GetCoordinatorStats extends CliCommand {
-        @Parameter(names = {"-c", "--coordinator-id"}, description = "The coordinator id", required = false)
+        @Parameter(
+                names = {"-c", "--coordinator-id"},
+                description = "The coordinator id",
+                required = false)
         private Integer coordinatorId;
 
         @Override
@@ -49,14 +52,19 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction buffer stats")
     private class GetTransactionBufferStats extends CliCommand {
-        @Parameter(names = {"-t", "--topic"}, description = "The topic", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "The topic",
+                required = true)
         private String topic;
 
-        @Parameter(names = {"-l", "--low-water-mark"},
+        @Parameter(
+                names = {"-l", "--low-water-mark"},
                 description = "Whether to get information about lowWaterMarks stored in transaction buffer.")
         private boolean lowWaterMark;
 
-        @Parameter(names = {"-s", "--segment-stats"},
+        @Parameter(
+                names = {"-s", "--segment-stats"},
                 description = "Whether to get segment statistics.")
         private boolean segmentStats = false;
 
@@ -69,13 +77,20 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction pending ack stats")
     private class GetPendingAckStats extends CliCommand {
-        @Parameter(names = {"-t", "--topic"}, description = "The topic name", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "The topic name",
+                required = true)
         private String topic;
 
-        @Parameter(names = {"-s", "--sub-name"}, description = "The subscription name", required = true)
+        @Parameter(
+                names = {"-s", "--sub-name"},
+                description = "The subscription name",
+                required = true)
         private String subName;
 
-        @Parameter(names = {"-l", "--low-water-mark"},
+        @Parameter(
+                names = {"-l", "--low-water-mark"},
                 description = "Whether to get information about lowWaterMarks stored in transaction pending ack.")
         private boolean lowWaterMarks;
 
@@ -87,35 +102,56 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction in pending ack stats")
     private class GetTransactionInPendingAckStats extends CliCommand {
-        @Parameter(names = {"-m", "--most-sig-bits"}, description = "The most sig bits", required = true)
+        @Parameter(
+                names = {"-m", "--most-sig-bits"},
+                description = "The most sig bits",
+                required = true)
         private int mostSigBits;
 
-        @Parameter(names = {"-l", "--least-sig-bits"}, description = "The least sig bits", required = true)
+        @Parameter(
+                names = {"-l", "--least-sig-bits"},
+                description = "The least sig bits",
+                required = true)
         private long leastSigBits;
 
-        @Parameter(names = {"-t", "--topic"}, description = "The topic name", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "The topic name",
+                required = true)
         private String topic;
 
-        @Parameter(names = {"-s", "--sub-name"}, description = "The subscription name", required = true)
+        @Parameter(
+                names = {"-s", "--sub-name"},
+                description = "The subscription name",
+                required = true)
         private String subName;
 
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
-                    topic, subName));
+            print(getAdmin()
+                    .transactions()
+                    .getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits), topic, subName));
         }
     }
 
-
     @Parameters(commandDescription = "Get transaction in buffer stats")
     private class GetTransactionInBufferStats extends CliCommand {
-        @Parameter(names = {"-m", "--most-sig-bits"}, description = "The most sig bits", required = true)
+        @Parameter(
+                names = {"-m", "--most-sig-bits"},
+                description = "The most sig bits",
+                required = true)
         private int mostSigBits;
 
-        @Parameter(names = {"-l", "--least-sig-bits"}, description = "The least sig bits", required = true)
+        @Parameter(
+                names = {"-l", "--least-sig-bits"},
+                description = "The least sig bits",
+                required = true)
         private long leastSigBits;
 
-        @Parameter(names = {"-t", "--topic"}, description = "The topic name", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "The topic name",
+                required = true)
         private String topic;
 
         @Override
@@ -126,10 +162,16 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction metadata")
     private class GetTransactionMetadata extends CliCommand {
-        @Parameter(names = {"-m", "--most-sig-bits"}, description = "The most sig bits", required = true)
+        @Parameter(
+                names = {"-m", "--most-sig-bits"},
+                description = "The most sig bits",
+                required = true)
         private int mostSigBits;
 
-        @Parameter(names = {"-l", "--least-sig-bits"}, description = "The least sig bits", required = true)
+        @Parameter(
+                names = {"-l", "--least-sig-bits"},
+                description = "The least sig bits",
+                required = true)
         private long leastSigBits;
 
         @Override
@@ -140,11 +182,16 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get slow transactions.")
     private class GetSlowTransactions extends CliCommand {
-        @Parameter(names = {"-c", "--coordinator-id"}, description = "The coordinator id", required = false)
+        @Parameter(
+                names = {"-c", "--coordinator-id"},
+                description = "The coordinator id",
+                required = false)
         private Integer coordinatorId;
 
-        @Parameter(names = { "-t", "--time" }, description = "The transaction timeout time. "
-                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true)
+        @Parameter(
+                names = {"-t", "--time"},
+                description = "The transaction timeout time. " + "(eg: 1s, 10s, 1m, 5h, 3d)",
+                required = true)
         private String timeoutStr = "1s";
 
         @Override
@@ -156,8 +203,9 @@ public class CmdTransactions extends CmdBase {
                 throw new ParameterException(exception.getMessage());
             }
             if (coordinatorId != null) {
-                print(getAdmin().transactions().getSlowTransactionsByCoordinatorId(coordinatorId,
-                        timeout, TimeUnit.MILLISECONDS));
+                print(getAdmin()
+                        .transactions()
+                        .getSlowTransactionsByCoordinatorId(coordinatorId, timeout, TimeUnit.MILLISECONDS));
             } else {
                 print(getAdmin().transactions().getSlowTransactions(timeout, TimeUnit.MILLISECONDS));
             }
@@ -166,11 +214,17 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction coordinator internal stats")
     private class GetCoordinatorInternalStats extends CliCommand {
-        @Parameter(names = {"-c", "--coordinator-id"}, description = "The coordinator id", required = true)
+        @Parameter(
+                names = {"-c", "--coordinator-id"},
+                description = "The coordinator id",
+                required = true)
         private int coordinatorId;
 
-        @Parameter(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        @Parameter(
+                names = {"-m", "--metadata"},
+                description = "Flag to include ledger metadata")
         private boolean metadata = false;
+
         @Override
         void run() throws Exception {
             print(getAdmin().transactions().getCoordinatorInternalStats(coordinatorId, metadata));
@@ -179,14 +233,23 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get pending ack internal stats")
     private class GetPendingAckInternalStats extends CliCommand {
-        @Parameter(names = {"-t", "--topic"}, description = "Topic name", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "Topic name",
+                required = true)
         private String topic;
 
-        @Parameter(names = {"-s", "--subscription-name"}, description = "Subscription name", required = true)
+        @Parameter(
+                names = {"-s", "--subscription-name"},
+                description = "Subscription name",
+                required = true)
         private String subName;
 
-        @Parameter(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        @Parameter(
+                names = {"-m", "--metadata"},
+                description = "Flag to include ledger metadata")
         private boolean metadata = false;
+
         @Override
         void run() throws Exception {
             print(getAdmin().transactions().getPendingAckInternalStats(topic, subName, metadata));
@@ -195,10 +258,15 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction buffer internal stats")
     private class GetTransactionBufferInternalStats extends CliCommand {
-        @Parameter(names = {"-t", "--topic"}, description = "Topic name", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "Topic name",
+                required = true)
         private String topic;
 
-        @Parameter(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        @Parameter(
+                names = {"-m", "--metadata"},
+                description = "Flag to include ledger metadata")
         private boolean metadata = false;
 
         @Override
@@ -209,8 +277,11 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Update the scale of transaction coordinators")
     private class ScaleTransactionCoordinators extends CliCommand {
-        @Parameter(names = { "-r", "--replicas" }, description = "The scale of the transaction coordinators")
+        @Parameter(
+                names = {"-r", "--replicas"},
+                description = "The scale of the transaction coordinators")
         private int replicas;
+
         @Override
         void run() throws Exception {
             getAdmin().transactions().scaleTransactionCoordinators(replicas);
@@ -219,19 +290,33 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get the position stats in transaction pending ack")
     private class GetPositionStatsInPendingAck extends CliCommand {
-        @Parameter(names = {"-t", "--topic"}, description = "The topic name", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "The topic name",
+                required = true)
         private String topic;
 
-        @Parameter(names = {"-s", "--subscription-name"}, description = "Subscription name", required = true)
+        @Parameter(
+                names = {"-s", "--subscription-name"},
+                description = "Subscription name",
+                required = true)
         private String subName;
 
-        @Parameter(names = {"-l", "--ledger-id"}, description = "Ledger ID of the position", required = true)
+        @Parameter(
+                names = {"-l", "--ledger-id"},
+                description = "Ledger ID of the position",
+                required = true)
         private Long ledgerId;
 
-        @Parameter(names = {"-e", "--entry-id"}, description = "Entry ID of the position", required = true)
+        @Parameter(
+                names = {"-e", "--entry-id"},
+                description = "Entry ID of the position",
+                required = true)
         private Long entryId;
 
-        @Parameter(names = {"-b", "--batch-index"}, description = "Batch index of the position")
+        @Parameter(
+                names = {"-b", "--batch-index"},
+                description = "Batch index of the position")
         private Integer batchIndex;
 
         @Override
@@ -244,18 +329,11 @@ public class CmdTransactions extends CmdBase {
     private class ListTransactionCoordinators extends CliCommand {
         @Override
         void run() throws Exception {
-            print(getAdmin()
-                    .transactions()
-                    .listTransactionCoordinators()
-                    .stream()
+            print(getAdmin().transactions().listTransactionCoordinators().stream()
                     .collect(Collectors.toMap(
-                            TransactionCoordinatorInfo::getId,
-                            TransactionCoordinatorInfo::getBrokerServiceUrl
-                    ))
-            );
+                            TransactionCoordinatorInfo::getId, TransactionCoordinatorInfo::getBrokerServiceUrl)));
         }
     }
-
 
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
@@ -272,6 +350,5 @@ public class CmdTransactions extends CmdBase {
         jcommander.addCommand("scale-transactionCoordinators", new ScaleTransactionCoordinators());
         jcommander.addCommand("position-stats-in-pending-ack", new GetPositionStatsInPendingAck());
         jcommander.addCommand("coordinators-list", new ListTransactionCoordinators());
-
     }
 }

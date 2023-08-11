@@ -20,9 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -63,15 +61,22 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(50)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -161,14 +166,21 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Create consumer,doesn't set the ackTimeout
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(50).subscriptionType(SubscriptionType.Shared).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(50)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -203,15 +215,22 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                .subscriptionType(SubscriptionType.Exclusive).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(50)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -301,15 +320,22 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                .subscriptionType(SubscriptionType.Failover).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(50)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -393,7 +419,10 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     private static long getUnackedMessagesCountInPartitionedConsumer(Consumer<byte[]> c) {
         MultiTopicsConsumerImpl<byte[]> pc = (MultiTopicsConsumerImpl<byte[]>) c;
         return pc.getUnAckedMessageTracker().size()
-                + pc.getConsumers().stream().mapToLong(consumer -> consumer.getUnAckedMessageTracker().size()).sum();
+                + pc.getConsumers().stream()
+                        .mapToLong(
+                                consumer -> consumer.getUnAckedMessageTracker().size())
+                        .sum();
     }
 
     @Test(timeOut = testTimeout)
@@ -409,14 +438,22 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(50)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {

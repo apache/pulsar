@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
 
-    //Use PIP-117 new defaults so that the package management service is enabled.
+    // Use PIP-117 new defaults so that the package management service is enabled.
     @Override
     public void setUpCluster() throws Exception {
         incrementSetupNumber();
@@ -67,8 +67,8 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
         log.info("\tHttp Service Url : {}", container.getHttpServiceUrl());
 
         // add cluster to public tenant
-        ContainerExecResult result = container.execCmd(
-                "/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
+        ContainerExecResult result =
+                container.execCmd("/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
         assertEquals(0, result.getExitCode());
         log.info("public/default namespace policies are {}", result.getStdout());
     }
@@ -76,7 +76,8 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
     @Test(groups = {"sink"})
     public void testSinkWithTransformFunction() throws Exception {
 
-        @Cleanup PulsarClient client = PulsarClient.builder()
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(container.getPlainTextServiceUrl())
                 .build();
 
@@ -101,11 +102,12 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
         getSinkInfoSuccess(sinkName);
         getSinkStatus(sinkName);
 
-        @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .create();
+        @Cleanup
+        Producer<String> producer =
+                client.newProducer(Schema.STRING).topic(topicName).create();
 
-        @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(logTopicName)
                 .subscriptionName("sub")
                 .subscribe();
@@ -133,9 +135,10 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
     @Test(groups = {"sink"})
     public void testGenericObjectSinkWithTransformFunction() throws Exception {
 
-        @Cleanup PulsarClient client = PulsarClient.builder()
-            .serviceUrl(container.getPlainTextServiceUrl())
-            .build();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(container.getPlainTextServiceUrl())
+                .build();
 
         final int numRecords = 10;
 
@@ -147,26 +150,28 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
         submitPackage(packageName, "package-function", JAVAJAR);
 
         submitSinkConnector(
-            sinkName,
-            topicName,
-            "org.apache.pulsar.tests.integration.io.TestLoggingSink",
-            JAVAJAR,
-            "{\"log-topic\": \"" + logTopicName + "\"}",
-            packageName,
-            "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction");
+                sinkName,
+                topicName,
+                "org.apache.pulsar.tests.integration.io.TestLoggingSink",
+                JAVAJAR,
+                "{\"log-topic\": \"" + logTopicName + "\"}",
+                packageName,
+                "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction");
 
         getSinkInfoSuccess(sinkName);
         getSinkStatus(sinkName);
 
         try {
-            @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(logTopicName)
-                .subscriptionName("sub")
-                .subscribe();
+            @Cleanup
+            Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                    .topic(logTopicName)
+                    .subscriptionName("sub")
+                    .subscribe();
 
-            @Cleanup Producer<Users.UserV1> producer1 = client.newProducer(Schema.AVRO(Users.UserV1.class))
-                .topic(topicName)
-                .create();
+            @Cleanup
+            Producer<Users.UserV1> producer1 = client.newProducer(Schema.AVRO(Users.UserV1.class))
+                    .topic(topicName)
+                    .create();
 
             for (int i = 0; i < numRecords; i++) {
                 producer1.send(new Users.UserV1("foo" + i, i));
@@ -179,9 +184,10 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
             }
 
             // Test with schema evolution
-            @Cleanup Producer<Users.UserV2> producer2 = client.newProducer(Schema.AVRO(Users.UserV2.class))
-                .topic(topicName)
-                .create();
+            @Cleanup
+            Producer<Users.UserV2> producer2 = client.newProducer(Schema.AVRO(Users.UserV2.class))
+                    .topic(topicName)
+                    .create();
 
             for (int i = 0; i < numRecords; i++) {
                 producer2.send(new Users.UserV2("foo" + i, i, "bar" + i));
@@ -190,7 +196,7 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
             for (int i = 0; i < numRecords; i++) {
                 Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
                 assertNotNull(receive);
-                assertEquals(receive.getValue(), "AVRO - {\"name\": \"foo" + i + "\", \"phone\": \"bar"+ i + "\"}");
+                assertEquals(receive.getValue(), "AVRO - {\"name\": \"foo" + i + "\", \"phone\": \"bar" + i + "\"}");
             }
 
             for (int i = 0; i < numRecords; i++) {
@@ -213,9 +219,10 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
     @Test(groups = {"sink"})
     public void testKeyValueSinkWithTransformFunction() throws Exception {
 
-        @Cleanup PulsarClient client = PulsarClient.builder()
-            .serviceUrl(container.getPlainTextServiceUrl())
-            .build();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(container.getPlainTextServiceUrl())
+                .build();
 
         final int numRecords = 10;
 
@@ -227,41 +234,44 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
         submitPackage(packageName, "package-function", JAVAJAR);
 
         submitSinkConnector(
-            sinkName,
-            topicName,
-            "org.apache.pulsar.tests.integration.io.TestLoggingSink",
-            JAVAJAR,
-            "{\"log-topic\": \"" + logTopicName + "\"}",
-            packageName,
-            "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction");
+                sinkName,
+                topicName,
+                "org.apache.pulsar.tests.integration.io.TestLoggingSink",
+                JAVAJAR,
+                "{\"log-topic\": \"" + logTopicName + "\"}",
+                packageName,
+                "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction");
 
         getSinkInfoSuccess(sinkName);
         getSinkStatus(sinkName);
 
         try {
-            @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(logTopicName)
-                .subscriptionName("sub")
-                .subscribe();
+            @Cleanup
+            Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                    .topic(logTopicName)
+                    .subscriptionName("sub")
+                    .subscribe();
 
-            @Cleanup Producer<KeyValue<Users.UserV1, Users.UserV1>> producer = client
-                .newProducer(Schema.KeyValue(
-                    Schema.AVRO(Users.UserV1.class),
-                    Schema.AVRO(Users.UserV1.class), KeyValueEncodingType.SEPARATED))
-                .topic(topicName)
-                .create();
+            @Cleanup
+            Producer<KeyValue<Users.UserV1, Users.UserV1>> producer = client.newProducer(Schema.KeyValue(
+                            Schema.AVRO(Users.UserV1.class),
+                            Schema.AVRO(Users.UserV1.class),
+                            KeyValueEncodingType.SEPARATED))
+                    .topic(topicName)
+                    .create();
 
             for (int i = 0; i < numRecords; i++) {
-                producer.send(new KeyValue<>(new Users.UserV1("foo" + i, i),
-                    new Users.UserV1("bar" + i, i + 100)));
+                producer.send(new KeyValue<>(new Users.UserV1("foo" + i, i), new Users.UserV1("bar" + i, i + 100)));
             }
 
             for (int i = 0; i < numRecords; i++) {
                 Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
                 assertNotNull(receive);
-                assertEquals(receive.getValue(), "KEY_VALUE - (key = {\"age\": " + i
-                    + ", \"name\": \"foo" + i + "\"}, value = "
-                    + "{\"name\": \"bar" + i + "\"})");
+                assertEquals(
+                        receive.getValue(),
+                        "KEY_VALUE - (key = {\"age\": " + i
+                                + ", \"name\": \"foo" + i + "\"}, value = "
+                                + "{\"name\": \"bar" + i + "\"})");
             }
         } finally {
             dumpFunctionLogs(sinkName);
@@ -271,46 +281,53 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
         getSinkInfoNotFound(sinkName);
     }
 
-
     private void submitPackage(String packageName, String description, String packagePath) throws Exception {
         String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "packages", "upload",
-                packageName,
-                "--description", description,
-                "--path", packagePath
-
+            PulsarCluster.ADMIN_SCRIPT,
+            "packages",
+            "upload",
+            packageName,
+            "--description",
+            description,
+            "--path",
+            packagePath
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
-        assertTrue(
-                result.getStdout().contains("successfully"),
-                result.getStdout());
+        assertTrue(result.getStdout().contains("successfully"), result.getStdout());
     }
 
-    private void submitSinkConnector(String sinkName,
-                                     String inputTopicName,
-                                     String className,
-                                     String archive,
-                                     String configs,
-                                     String transformFunction,
-                                     String transformFunctionClassName) throws Exception {
+    private void submitSinkConnector(
+            String sinkName,
+            String inputTopicName,
+            String className,
+            String archive,
+            String configs,
+            String transformFunction,
+            String transformFunctionClassName)
+            throws Exception {
         String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "sinks", "create",
-                "--name", sinkName,
-                "-i", inputTopicName,
-                "--archive", archive,
-                "--classname", className,
-                "--sink-config", configs,
-                "--transform-function", transformFunction,
-                "--transform-function-classname", transformFunctionClassName
+            PulsarCluster.ADMIN_SCRIPT,
+            "sinks",
+            "create",
+            "--name",
+            sinkName,
+            "-i",
+            inputTopicName,
+            "--archive",
+            archive,
+            "--classname",
+            className,
+            "--sink-config",
+            configs,
+            "--transform-function",
+            transformFunction,
+            "--transform-function-classname",
+            transformFunctionClassName
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
-        assertTrue(
-                result.getStdout().contains("Created successfully"),
-                result.getStdout());
+        assertTrue(result.getStdout().contains("Created successfully"), result.getStdout());
     }
 
     private void getSinkInfoSuccess(String sinkName) throws Exception {
@@ -318,10 +335,12 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
                 "get",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sinkName
-        );
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sinkName);
         assertTrue(result.getStdout().contains("\"name\": \"" + sinkName + "\""));
     }
 
@@ -330,10 +349,12 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
                 "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sinkName
-        );
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sinkName);
         log.info(result.getStdout());
         log.info(result.getStderr());
         assertTrue(result.getStdout().contains("\"running\" : true"));
@@ -344,10 +365,12 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
                 "delete",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sinkName
-        );
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sinkName);
         assertTrue(result.getStdout().contains("successfully"));
         result.assertNoStderr();
     }
@@ -358,13 +381,15 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
                     PulsarCluster.ADMIN_SCRIPT,
                     "sinks",
                     "get",
-                    "--tenant", "public",
-                    "--namespace", "default",
-                    "--name", sinkName);
+                    "--tenant",
+                    "public",
+                    "--namespace",
+                    "default",
+                    "--name",
+                    sinkName);
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
             assertTrue(e.getResult().getStderr().contains(sinkName + " doesn't exist"));
         }
     }
 }
-

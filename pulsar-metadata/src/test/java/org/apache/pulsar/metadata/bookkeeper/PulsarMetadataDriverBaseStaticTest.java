@@ -72,14 +72,16 @@ public class PulsarMetadataDriverBaseStaticTest {
     @SuppressWarnings("deprecation")
     @Test
     public void testResolveLedgerManagerFactoryFlat() {
-        assertEquals(ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("zk+flat://127.0.0.1/ledgers")),
+        assertEquals(
+                ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("zk+flat://127.0.0.1/ledgers")),
                 org.apache.bookkeeper.meta.FlatLedgerManagerFactory.class);
     }
 
     @SuppressWarnings("deprecation")
     @Test
     public void testResolveLedgerManagerFactoryMs() {
-        assertEquals(ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("zk+ms://127.0.0.1/ledgers")),
+        assertEquals(
+                ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("zk+ms://127.0.0.1/ledgers")),
                 org.apache.bookkeeper.meta.MSLedgerManagerFactory.class);
     }
 
@@ -94,13 +96,11 @@ public class PulsarMetadataDriverBaseStaticTest {
     public void testResolveLedgerManagerFactoryLongHierarchical() {
         assertEquals(
                 ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("zk+longhierarchical://127.0.0.1/ledgers")),
-                LongHierarchicalLedgerManagerFactory.class
-        );
+                LongHierarchicalLedgerManagerFactory.class);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testResolveLedgerManagerFactoryUnknownLedgerManagerFactory() {
-        ZKMetadataDriverBase.resolveLedgerManagerFactory(
-            URI.create("zk+unknown://127.0.0.1/ledgers"));
+        ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("zk+unknown://127.0.0.1/ledgers"));
     }
 }

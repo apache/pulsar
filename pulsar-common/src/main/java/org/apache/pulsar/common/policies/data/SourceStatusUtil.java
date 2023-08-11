@@ -26,5 +26,4 @@ public class SourceStatusUtil {
     public static SourceStatus decode(String json) throws IOException {
         return ObjectMapperFactory.getMapper().reader().readValue(json, SourceStatus.class);
     }
-
 }

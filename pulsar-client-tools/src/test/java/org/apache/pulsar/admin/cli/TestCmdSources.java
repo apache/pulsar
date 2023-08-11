@@ -26,7 +26,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
-
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
@@ -35,7 +34,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
-
 import java.util.UUID;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -54,13 +52,13 @@ import org.testng.annotations.Test;
 
 public class TestCmdSources {
 
-            private static final String TENANT = "test-tenant";
+    private static final String TENANT = "test-tenant";
     private static final String NAMESPACE = "test-namespace";
     private static final String NAME = "test";
     private static final String TOPIC_NAME = "src_topic_1";
     private static final String SERDE_CLASS_NAME = "";
-    private static final FunctionConfig.ProcessingGuarantees PROCESSING_GUARANTEES
-            = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
+    private static final FunctionConfig.ProcessingGuarantees PROCESSING_GUARANTEES =
+            FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
     private static final String JAR_FILE_NAME = "dummy.nar";
     private String JAR_FILE_PATH;
@@ -69,8 +67,9 @@ public class TestCmdSources {
     private static final Long DISK = 1024L * 1024L * 1024L;
     private static final String SINK_CONFIG_STRING =
             "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\",\"int\":1000,\"int_string\":\"1000\",\"float\":1000.0,\"float_string\":\"1000.0\"}";
-    private static final String BATCH_SOURCE_CONFIG_STRING = "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\","
-			+ "\"discoveryTriggererConfig\": {\"cron\": \"5 0 0 0 0 *\"} }";
+    private static final String BATCH_SOURCE_CONFIG_STRING =
+            "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\","
+                    + "\"discoveryTriggererConfig\": {\"cron\": \"5 0 0 0 0 *\"} }";
 
     private PulsarAdmin pulsarAdmin;
     private Sources source;
@@ -96,7 +95,10 @@ public class TestCmdSources {
         deleteSource = spy(CmdSources.getDeleteSource());
 
         Mockito.doNothing().when(localSourceRunner).runCmd();
-        JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
+        JAR_FILE_PATH = Thread.currentThread()
+                .getContextClassLoader()
+                .getResource(JAR_FILE_NAME)
+                .getFile();
         jarClassLoader = ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH));
         oldContextClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(jarClassLoader);
@@ -129,9 +131,9 @@ public class TestCmdSources {
         sourceConfig.setConfigs(createSource.parseConfigs(SINK_CONFIG_STRING));
         return sourceConfig;
     }
-    
+
     public BatchSourceConfig getBatchSourceConfig() {
-    	return createSource.parseBatchSourceConfigs(BATCH_SOURCE_CONFIG_STRING);
+        return createSource.parseBatchSourceConfigs(BATCH_SOURCE_CONFIG_STRING);
     }
 
     @Test
@@ -141,15 +143,16 @@ public class TestCmdSources {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
+                TOPIC_NAME,
+                SERDE_CLASS_NAME,
+                PROCESSING_GUARANTEES,
                 PARALLELISM,
                 JAR_FILE_PATH,
                 CPU,
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
-                sourceConfig
-        );
+                sourceConfig);
     }
 
     @Test
@@ -169,8 +172,7 @@ public class TestCmdSources {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
-                sourceConfig
-        );
+                sourceConfig);
     }
 
     @Test
@@ -181,18 +183,21 @@ public class TestCmdSources {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, null,
+                TOPIC_NAME,
+                SERDE_CLASS_NAME,
+                null,
                 PARALLELISM,
                 JAR_FILE_PATH,
                 CPU,
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
-                sourceConfig
-        );
+                sourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specified")
+    @Test(
+            expectedExceptions = ParameterException.class,
+            expectedExceptionsMessageRegExp = "Source archive not specified")
     public void testMissingArchive() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setArchive(null);
@@ -200,18 +205,21 @@ public class TestCmdSources {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
+                TOPIC_NAME,
+                SERDE_CLASS_NAME,
+                PROCESSING_GUARANTEES,
                 PARALLELISM,
                 null,
                 CPU,
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
-                sourceConfig
-        );
+                sourceConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testInvalidJar() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         String fakeJar = "/tmp/foo.jar";
@@ -220,15 +228,16 @@ public class TestCmdSources {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
+                TOPIC_NAME,
+                SERDE_CLASS_NAME,
+                PROCESSING_GUARANTEES,
                 PARALLELISM,
                 fakeJar,
                 CPU,
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
-                sourceConfig
-        );
+                sourceConfig);
     }
 
     @Test
@@ -239,22 +248,24 @@ public class TestCmdSources {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
+                TOPIC_NAME,
+                SERDE_CLASS_NAME,
+                PROCESSING_GUARANTEES,
                 PARALLELISM,
                 JAR_FILE_PATH,
                 CPU,
                 RAM,
                 DISK,
                 null,
-                sourceConfig
-        );
+                sourceConfig);
     }
 
     private void testCmdSourceCliMissingArgs(
             String tenant,
             String namespace,
             String name,
-            String topicName, String serdeClassName,
+            String topicName,
+            String serdeClassName,
             FunctionConfig.ProcessingGuarantees processingGuarantees,
             Integer parallelism,
             String jarFile,
@@ -262,14 +273,15 @@ public class TestCmdSources {
             Long ram,
             Long disk,
             String sourceConfigString,
-            SourceConfig sourceConfig) throws Exception {
+            SourceConfig sourceConfig)
+            throws Exception {
 
         // test create source
         createSource.tenant = tenant;
         createSource.namespace = namespace;
         createSource.name = name;
         createSource.destinationTopicName = topicName;
-        createSource.deserializationClassName  = serdeClassName;
+        createSource.deserializationClassName = serdeClassName;
         createSource.processingGuarantees = processingGuarantees;
         createSource.parallelism = parallelism;
         createSource.archive = jarFile;
@@ -287,7 +299,7 @@ public class TestCmdSources {
         updateSource.namespace = namespace;
         updateSource.name = name;
         updateSource.destinationTopicName = topicName;
-        updateSource.deserializationClassName  = serdeClassName;
+        updateSource.deserializationClassName = serdeClassName;
         updateSource.processingGuarantees = processingGuarantees;
         updateSource.parallelism = parallelism;
         updateSource.archive = jarFile;
@@ -305,7 +317,7 @@ public class TestCmdSources {
         localSourceRunner.namespace = namespace;
         localSourceRunner.name = name;
         localSourceRunner.destinationTopicName = topicName;
-        localSourceRunner.deserializationClassName  = serdeClassName;
+        localSourceRunner.deserializationClassName = serdeClassName;
         localSourceRunner.processingGuarantees = processingGuarantees;
         localSourceRunner.parallelism = parallelism;
         localSourceRunner.archive = jarFile;
@@ -322,7 +334,6 @@ public class TestCmdSources {
         verify(updateSource).validateSourceConfigs(eq(sourceConfig));
         verify(localSourceRunner).validateSourceConfigs(eq(sourceConfig));
     }
-
 
     @Test
     public void testCmdSourceConfigFileCorrect() throws Exception {
@@ -370,7 +381,9 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specified")
+    @Test(
+            expectedExceptions = ParameterException.class,
+            expectedExceptionsMessageRegExp = "Source archive not specified")
     public void testCmdSourceConfigFileMissingJar() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive(null);
@@ -380,7 +393,9 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testCmdSourceConfigFileInvalidJar() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive("/tmp/foo.jar");
@@ -392,30 +407,33 @@ public class TestCmdSources {
 
     @Test
     public void testBatchSourceConfigCorrect() throws Exception {
-    	SourceConfig testSourceConfig = getSourceConfig();
-    	testSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
-    	
-    	SourceConfig expectedSourceConfig = getSourceConfig();
+        SourceConfig testSourceConfig = getSourceConfig();
+        testSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
+
+        SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
-    
+
     /*
      * Test where the DiscoveryTriggererClassName is null
      */
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Discovery Triggerer not specified")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Discovery Triggerer not specified")
     public void testBatchSourceConfigMissingDiscoveryTriggererClassName() throws Exception {
-    	SourceConfig testSourceConfig = getSourceConfig();
-    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
-    	batchSourceConfig.setDiscoveryTriggererClassName(null);
-    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
-    	
-    	SourceConfig expectedSourceConfig = getSourceConfig();
+        SourceConfig testSourceConfig = getSourceConfig();
+        BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
+        batchSourceConfig.setDiscoveryTriggererClassName(null);
+        testSourceConfig.setBatchSourceConfig(batchSourceConfig);
+
+        SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
-    
-    public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
+
+    public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig)
+            throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
 
@@ -452,13 +470,13 @@ public class TestCmdSources {
         verifyNoSuchFileParameterException(updateSource);
         verifyNoSuchFileParameterException(localSourceRunner);
     }
-    
-    private void verifyNoSuchFileParameterException(org.apache.pulsar.admin.cli.CmdSources.SourceDetailsCommand command) {
+
+    private void verifyNoSuchFileParameterException(
+            org.apache.pulsar.admin.cli.CmdSources.SourceDetailsCommand command) {
         command.sourceConfigFile = UUID.randomUUID().toString();
         ParameterException e = Assert.expectThrows(ParameterException.class, command::processArguments);
         assertTrue(e.getMessage().endsWith("(No such file or directory)"));
     }
-    
 
     @Test
     public void testCliOverwriteConfigFile() throws Exception {
@@ -473,8 +491,9 @@ public class TestCmdSources {
         testSourceConfig.setParallelism(PARALLELISM + 1);
         testSourceConfig.setArchive(JAR_FILE_PATH + "-prime");
         testSourceConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
-        testSourceConfig.setConfigs(createSource.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
-
+        testSourceConfig.setConfigs(
+                createSource.parseConfigs(
+                        "{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
 
         SourceConfig expectedSourceConfig = getSourceConfig();
 
@@ -498,8 +517,7 @@ public class TestCmdSources {
                 DISK,
                 SINK_CONFIG_STRING,
                 file.getAbsolutePath(),
-                expectedSourceConfig
-        );
+                expectedSourceConfig);
     }
 
     private void testMixCliAndConfigFile(
@@ -516,9 +534,8 @@ public class TestCmdSources {
             Long disk,
             String sourceConfigString,
             String sourceConfigFile,
-            SourceConfig sourceConfig
-    ) throws Exception {
-
+            SourceConfig sourceConfig)
+            throws Exception {
 
         // test create source
         createSource.tenant = tenant;
@@ -554,7 +571,6 @@ public class TestCmdSources {
         updateSource.sourceConfigString = sourceConfigString;
         updateSource.sourceConfigFile = sourceConfigFile;
 
-
         updateSource.processArguments();
 
         updateSource.runCmd();
@@ -573,7 +589,6 @@ public class TestCmdSources {
         localSourceRunner.disk = disk;
         localSourceRunner.sourceConfigString = sourceConfigString;
         localSourceRunner.sourceConfigFile = sourceConfigFile;
-
 
         localSourceRunner.processArguments();
 
@@ -610,7 +625,9 @@ public class TestCmdSources {
         verify(source).deleteSource(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the source")
+    @Test(
+            expectedExceptions = RuntimeException.class,
+            expectedExceptionsMessageRegExp = "You must specify a name for the source")
     public void testDeleteMissingName() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = NAMESPACE;
@@ -634,13 +651,16 @@ public class TestCmdSources {
 
         updateSource.runCmd();
 
-        verify(source).updateSource(eq(SourceConfig.builder()
-                .tenant(PUBLIC_TENANT)
-                .namespace(DEFAULT_NAMESPACE)
-                .name(updateSource.name)
-                .archive(updateSource.archive)
-                .build()), eq(updateSource.archive), eq(new UpdateOptionsImpl()));
-
+        verify(source)
+                .updateSource(
+                        eq(SourceConfig.builder()
+                                .tenant(PUBLIC_TENANT)
+                                .namespace(DEFAULT_NAMESPACE)
+                                .name(updateSource.name)
+                                .archive(updateSource.archive)
+                                .build()),
+                        eq(updateSource.archive),
+                        eq(new UpdateOptionsImpl()));
 
         updateSource.archive = null;
 
@@ -655,15 +675,16 @@ public class TestCmdSources {
 
         updateSource.runCmd();
 
-        verify(source).updateSource(eq(SourceConfig.builder()
-                .tenant(PUBLIC_TENANT)
-                .namespace(DEFAULT_NAMESPACE)
-                .name(updateSource.name)
-                .parallelism(2)
-                .build()), eq(null), eq(updateOptions));
-
-
-
+        verify(source)
+                .updateSource(
+                        eq(SourceConfig.builder()
+                                .tenant(PUBLIC_TENANT)
+                                .namespace(DEFAULT_NAMESPACE)
+                                .name(updateSource.name)
+                                .parallelism(2)
+                                .build()),
+                        eq(null),
+                        eq(updateOptions));
     }
 
     @Test

@@ -56,7 +56,8 @@ class ReflectionUtils {
                 // when the API is loaded in a separate classloader as the impl
                 // the classloader that loaded the impl needs to be a child classloader of the classloader
                 // that loaded the API
-                return (Class<T>) Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+                return (Class<T>)
+                        Class.forName(className, true, Thread.currentThread().getContextClassLoader());
             }
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new RuntimeException(e);

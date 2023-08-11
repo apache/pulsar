@@ -20,7 +20,8 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -28,8 +29,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.testng.annotations.Test;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Unit test for {@link BrokerLoadManagerClassFilter}.
@@ -56,21 +55,25 @@ public class BrokerLoadManagerClassFilterTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
 
-        Set<String> brokers = new HashSet<>(){{
-            add("broker1");
-            add("broker2");
-            add("broker3");
-        }};
+        Set<String> brokers = new HashSet<>() {
+            {
+                add("broker1");
+                add("broker2");
+                add("broker3");
+            }
+        };
         filter.filter(brokers, null, loadData, conf);
 
         assertEquals(brokers.size(), 1);
         assertTrue(brokers.contains("broker1"));
 
-        brokers = new HashSet<>(){{
-            add("broker1");
-            add("broker2");
-            add("broker3");
-        }};
+        brokers = new HashSet<>() {
+            {
+                add("broker1");
+                add("broker2");
+                add("broker3");
+            }
+        };
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         filter.filter(brokers, null, loadData, conf);
         assertEquals(brokers.size(), 1);

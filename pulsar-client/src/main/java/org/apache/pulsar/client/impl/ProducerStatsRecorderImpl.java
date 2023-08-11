@@ -62,7 +62,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private volatile double[] batchSizePctValues = new double[PERCENTILES.length];
     private volatile double[] msgSizePctValues = new double[PERCENTILES.length];
 
-    private static final double[] PERCENTILES = { 0.5, 0.75, 0.95, 0.99, 0.999, 1.0 };
+    private static final double[] PERCENTILES = {0.5, 0.75, 0.95, 0.99, 0.999, 1.0};
 
     public ProducerStatsRecorderImpl() {
         numMsgsSent = new LongAdder();
@@ -78,8 +78,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         msgSizeDs = DoublesSketch.builder().build(256);
     }
 
-    public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
-            ProducerImpl<?> producer) {
+    public ProducerStatsRecorderImpl(
+            PulsarClientImpl pulsarClient, ProducerConfigurationData conf, ProducerImpl<?> producer) {
         this.pulsarClient = pulsarClient;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
         this.producer = producer;
@@ -98,7 +98,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     }
 
     private void init(ProducerConfigurationData conf) {
-        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways().writer()
+        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways()
+                .writer()
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
@@ -109,7 +110,6 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         }
 
         stat = (timeout) -> {
-
             if (timeout.isCancelled()) {
                 return;
             }
@@ -122,7 +122,6 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
             }
-
         };
 
         oldTime = System.nanoTime();
@@ -166,8 +165,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         sendMsgsRate = currentNumMsgsSent / elapsed;
         sendBytesRate = currentNumBytesSent / elapsed;
 
-        if ((currentNumMsgsSent | currentNumSendFailedMsgs | currentNumAcksReceived
-                | currentNumMsgsSent) != 0) {
+        if ((currentNumMsgsSent | currentNumSendFailedMsgs | currentNumAcksReceived | currentNumMsgsSent) != 0) {
 
             for (int i = 0; i < latencyPctValues.length; i++) {
                 if (Double.isNaN(latencyPctValues[i])) {
@@ -175,7 +173,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 }
             }
 
-            log.info("[{}] [{}] --- Publish throughput: {} msg/s --- {} Mbit/s --- "
+            log.info(
+                    "[{}] [{}] --- Publish throughput: {} msg/s --- {} Mbit/s --- "
                             + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
                             + "BatchSize: med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - max: {} --- "
                             + "MsgSize: med: {} bytes - 95pct: {} bytes - 99pct: {} bytes - 99.9pct: {} bytes "
@@ -185,16 +184,23 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                     producer.getProducerName(),
                     THROUGHPUT_FORMAT.format(sendMsgsRate),
                     THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
-                    DEC.format(latencyPctValues[0]), DEC.format(latencyPctValues[2]),
-                    DEC.format(latencyPctValues[3]), DEC.format(latencyPctValues[4]),
+                    DEC.format(latencyPctValues[0]),
+                    DEC.format(latencyPctValues[2]),
+                    DEC.format(latencyPctValues[3]),
+                    DEC.format(latencyPctValues[4]),
                     DEC.format(latencyPctValues[5]),
-                    DEC.format(batchSizePctValues[0]), DEC.format(batchSizePctValues[2]),
-                    DEC.format(batchSizePctValues[3]), DEC.format(batchSizePctValues[4]),
+                    DEC.format(batchSizePctValues[0]),
+                    DEC.format(batchSizePctValues[2]),
+                    DEC.format(batchSizePctValues[3]),
+                    DEC.format(batchSizePctValues[4]),
                     DEC.format(batchSizePctValues[5]),
-                    DEC.format(msgSizePctValues[0]), DEC.format(msgSizePctValues[2]),
-                    DEC.format(msgSizePctValues[3]), DEC.format(msgSizePctValues[4]),
+                    DEC.format(msgSizePctValues[0]),
+                    DEC.format(msgSizePctValues[2]),
+                    DEC.format(msgSizePctValues[3]),
+                    DEC.format(msgSizePctValues[4]),
                     DEC.format(msgSizePctValues[5]),
-                    THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs,
+                    THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed),
+                    currentNumSendFailedMsgs,
                     getPendingQueueSize());
         }
     }

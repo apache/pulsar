@@ -55,11 +55,10 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     protected static final double MB = 1024 * 1024;
     private static final double evictionTriggerThresholdPercent = 0.98;
 
-
     public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory) {
         this.maxSize = factory.getConfig().getMaxCacheSize();
-        this.inflightReadsLimiter = new InflightReadsLimiter(
-                factory.getConfig().getManagedLedgerMaxReadsInFlightSize());
+        this.inflightReadsLimiter =
+                new InflightReadsLimiter(factory.getConfig().getManagedLedgerMaxReadsInFlightSize());
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
         this.cacheEvictionWatermark = factory.getConfig().getCacheEvictionWatermark();
         this.evictionPolicy = new EntryCacheDefaultEvictionPolicy();
@@ -75,7 +74,8 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             return new EntryCacheDisabled(ml);
         }
 
-        EntryCache newEntryCache = new RangeEntryCacheImpl(this, ml, mlFactory.getConfig().isCopyEntriesInCache());
+        EntryCache newEntryCache =
+                new RangeEntryCacheImpl(this, ml, mlFactory.getConfig().isCopyEntriesInCache());
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
             return currentEntryCache;
@@ -120,7 +120,9 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
                 // percentage limit
                 long sizeToEvict = currentSize - (long) (maxSize * cacheEvictionWatermark);
                 long startTime = System.nanoTime();
-                log.info("Triggering cache eviction. total size: {} Mb -- Need to discard: {} Mb", currentSize / MB,
+                log.info(
+                        "Triggering cache eviction. total size: {} Mb -- Need to discard: {} Mb",
+                        currentSize / MB,
                         sizeToEvict / MB);
 
                 try {
@@ -129,7 +131,9 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
                     long endTime = System.nanoTime();
                     double durationMs = TimeUnit.NANOSECONDS.toMicros(endTime - startTime) / 1000.0;
 
-                    log.info("Eviction completed. Removed {} Mb in {} ms", (currentSize - this.currentSize.get()) / MB,
+                    log.info(
+                            "Eviction completed. Removed {} Mb in {} ms",
+                            (currentSize - this.currentSize.get()) / MB,
                             durationMs);
                 } finally {
                     mlFactoryMBean.recordCacheEviction();
@@ -179,11 +183,13 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
         if (interceptor != null) {
             ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
-            processorHandle = interceptor
-                    .processPayloadBeforeEntryCache(duplicateBuffer);
+            processorHandle = interceptor.processPayloadBeforeEntryCache(duplicateBuffer);
             if (processorHandle != null) {
-                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(),
-                        ledgerEntry.getLength(), processorHandle.getProcessedPayload());
+                ledgerEntry = LedgerEntryImpl.create(
+                        ledgerEntry.getLedgerId(),
+                        ledgerEntry.getEntryId(),
+                        ledgerEntry.getLength(),
+                        processorHandle.getProcessedPayload());
             } else {
                 duplicateBuffer.release();
             }

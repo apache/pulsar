@@ -24,10 +24,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.ImmutableMap;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.ByteBufferDeserializer;
@@ -50,48 +53,55 @@ import org.bouncycastle.util.encoders.Base64;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
 @Slf4j
 public class KafkaBytesSourceTest {
 
     @Test
     public void testNoKeyValueSchema() throws Exception {
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                StringDeserializer.class.getName(), Schema.STRING);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(), Schema.STRING, StringDeserializer.class.getName(), Schema.STRING);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                ByteBufferDeserializer.class.getName(), Schema.BYTEBUFFER);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(),
+                Schema.STRING,
+                ByteBufferDeserializer.class.getName(),
+                Schema.BYTEBUFFER);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                BytesDeserializer.class.getName(), Schema.BYTEBUFFER);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(),
+                Schema.STRING,
+                BytesDeserializer.class.getName(),
+                Schema.BYTEBUFFER);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                DoubleDeserializer.class.getName(), Schema.DOUBLE);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(), Schema.STRING, DoubleDeserializer.class.getName(), Schema.DOUBLE);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                FloatDeserializer.class.getName(), Schema.FLOAT);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(), Schema.STRING, FloatDeserializer.class.getName(), Schema.FLOAT);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                IntegerDeserializer.class.getName(), Schema.INT32);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(), Schema.STRING, IntegerDeserializer.class.getName(), Schema.INT32);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                LongDeserializer.class.getName(), Schema.INT64);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(), Schema.STRING, LongDeserializer.class.getName(), Schema.INT64);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                ShortDeserializer.class.getName(), Schema.INT16);
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(), Schema.STRING, ShortDeserializer.class.getName(), Schema.INT16);
 
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                KafkaAvroDeserializer.class.getName(), KafkaBytesSource.DeferredSchemaPlaceholder.INSTANCE);
-
+        validateSchemaNoKeyValue(
+                StringDeserializer.class.getName(),
+                Schema.STRING,
+                KafkaAvroDeserializer.class.getName(),
+                KafkaBytesSource.DeferredSchemaPlaceholder.INSTANCE);
     }
 
-    private void validateSchemaNoKeyValue(String keyDeserializationClass, Schema<?> expectedKeySchema,
-                                          String valueDeserializationClass, Schema<?> expectedValueSchema) throws Exception {
+    private void validateSchemaNoKeyValue(
+            String keyDeserializationClass,
+            Schema<?> expectedKeySchema,
+            String valueDeserializationClass,
+            Schema<?> expectedValueSchema)
+            throws Exception {
         try (KafkaBytesSource source = new KafkaBytesSource()) {
             Map<String, Object> config = new HashMap<>();
             config.put("topic", "test");
@@ -99,22 +109,31 @@ public class KafkaBytesSourceTest {
             config.put("groupId", "test");
             config.put("valueDeserializationClass", valueDeserializationClass);
             config.put("keyDeserializationClass", keyDeserializationClass);
-            config.put("consumerConfigProperties", ImmutableMap.builder()
-                    .put("schema.registry.url", "http://localhost:8081")
-                    .build());
+            config.put(
+                    "consumerConfigProperties",
+                    ImmutableMap.builder()
+                            .put("schema.registry.url", "http://localhost:8081")
+                            .build());
             source.open(config, Mockito.mock(SourceContext.class));
             assertFalse(source.isProduceKeyValue());
             Schema<ByteBuffer> keySchema = source.getKeySchema();
             Schema<ByteBuffer> valueSchema = source.getValueSchema();
-            assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
-            assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
+            assertEquals(
+                    keySchema.getSchemaInfo().getType(),
+                    expectedKeySchema.getSchemaInfo().getType());
+            assertEquals(
+                    valueSchema.getSchemaInfo().getType(),
+                    expectedValueSchema.getSchemaInfo().getType());
         }
     }
 
     @Test
     public void testKeyValueSchema() throws Exception {
-        validateSchemaKeyValue(IntegerDeserializer.class.getName(), Schema.INT32,
-                StringDeserializer.class.getName(), Schema.STRING,
+        validateSchemaKeyValue(
+                IntegerDeserializer.class.getName(),
+                Schema.INT32,
+                StringDeserializer.class.getName(),
+                Schema.STRING,
                 ByteBuffer.wrap(new IntegerSerializer().serialize("test", 10)),
                 ByteBuffer.wrap(new StringSerializer().serialize("test", "test")));
     }
@@ -131,13 +150,15 @@ public class KafkaBytesSourceTest {
             config.put("groupId", "test");
             config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
             config.put("keyDeserializationClass", StringDeserializer.class.getName());
-            config.put("consumerConfigProperties", ImmutableMap.builder()
-                    .put("schema.registry.url", "http://localhost:8081")
-                    .build());
+            config.put(
+                    "consumerConfigProperties",
+                    ImmutableMap.builder()
+                            .put("schema.registry.url", "http://localhost:8081")
+                            .build());
             source.open(config, Mockito.mock(SourceContext.class));
             ConsumerRecord<Object, Object> record = new ConsumerRecord<>("test", 88, 99, key, value);
             record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
-            record.headers().add("k2", new byte[]{0xF});
+            record.headers().add("k2", new byte[] {0xF});
 
             Map<String, String> props = source.copyKafkaHeaders(record);
             assertEquals(props.size(), 5);
@@ -151,7 +172,7 @@ public class KafkaBytesSourceTest {
             assertEquals(props.get("__kafka_partition"), "88");
             assertEquals(props.get("__kafka_offset"), "99");
             assertEquals(Base64.decode(props.get("k1")), "v1".getBytes(StandardCharsets.UTF_8));
-            assertEquals(Base64.decode(props.get("k2")), new byte[]{0xF});
+            assertEquals(Base64.decode(props.get("k2")), new byte[] {0xF});
         }
     }
 
@@ -166,23 +187,29 @@ public class KafkaBytesSourceTest {
             config.put("groupId", "test");
             config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
             config.put("keyDeserializationClass", StringDeserializer.class.getName());
-            config.put("consumerConfigProperties", ImmutableMap.builder()
-                    .put("schema.registry.url", "http://localhost:8081")
-                    .build());
+            config.put(
+                    "consumerConfigProperties",
+                    ImmutableMap.builder()
+                            .put("schema.registry.url", "http://localhost:8081")
+                            .build());
             source.open(config, Mockito.mock(SourceContext.class));
             ConsumerRecord<Object, Object> record = new ConsumerRecord<>("test", 88, 99, key, value);
             record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
-            record.headers().add("k2", new byte[]{0xF});
+            record.headers().add("k2", new byte[] {0xF});
 
             Map<String, String> props = source.copyKafkaHeaders(record);
             assertTrue(props.isEmpty());
         }
     }
 
-    private void validateSchemaKeyValue(String keyDeserializationClass, Schema<?> expectedKeySchema,
-                                          String valueDeserializationClass, Schema<?> expectedValueSchema,
-                                          ByteBuffer key,
-                                        ByteBuffer value) throws Exception {
+    private void validateSchemaKeyValue(
+            String keyDeserializationClass,
+            Schema<?> expectedKeySchema,
+            String valueDeserializationClass,
+            Schema<?> expectedValueSchema,
+            ByteBuffer key,
+            ByteBuffer value)
+            throws Exception {
         try (KafkaBytesSource source = new KafkaBytesSource()) {
             Map<String, Object> config = new HashMap<>();
             config.put("topic", "test");
@@ -190,15 +217,21 @@ public class KafkaBytesSourceTest {
             config.put("groupId", "test");
             config.put("valueDeserializationClass", valueDeserializationClass);
             config.put("keyDeserializationClass", keyDeserializationClass);
-            config.put("consumerConfigProperties", ImmutableMap.builder()
-                    .put("schema.registry.url", "http://localhost:8081")
-                    .build());
+            config.put(
+                    "consumerConfigProperties",
+                    ImmutableMap.builder()
+                            .put("schema.registry.url", "http://localhost:8081")
+                            .build());
             source.open(config, Mockito.mock(SourceContext.class));
             assertTrue(source.isProduceKeyValue());
             Schema<ByteBuffer> keySchema = source.getKeySchema();
             Schema<ByteBuffer> valueSchema = source.getValueSchema();
-            assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
-            assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
+            assertEquals(
+                    keySchema.getSchemaInfo().getType(),
+                    expectedKeySchema.getSchemaInfo().getType());
+            assertEquals(
+                    valueSchema.getSchemaInfo().getType(),
+                    expectedValueSchema.getSchemaInfo().getType());
 
             KafkaRecord<ByteBuffer> record = source.buildRecord(new ConsumerRecord<>("test", 0, 0, key, value));
             assertThat(record, instanceOf(KeyValueKafkaRecord.class));
@@ -218,7 +251,7 @@ public class KafkaBytesSourceTest {
     }
 
     private static byte[] toArray(ByteBuffer b) {
-        byte[]res = new byte[b.remaining()];
+        byte[] res = new byte[b.remaining()];
         b.mark();
         b.get(res);
         b.reset();

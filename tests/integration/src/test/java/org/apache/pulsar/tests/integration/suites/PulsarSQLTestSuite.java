@@ -23,7 +23,6 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -47,7 +46,8 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
     protected PulsarClient pulsarClient = null;
 
     @Override
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+            String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         specBuilder.queryLastMessage(true);
         specBuilder.clusterName("pulsar-sql-test");
         specBuilder.numBrokers(1);
@@ -82,7 +82,8 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
             log.error("The presto work container isn't exist.");
             return;
         }
-        String url = String.format("jdbc:trino://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
+        String url = String.format(
+                "jdbc:trino://%s", pulsarCluster.getPrestoWorkerContainer().getUrl());
         connection = DriverManager.getConnection(url, "test", null);
     }
 

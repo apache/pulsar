@@ -68,41 +68,44 @@ public class LookupImpl extends BaseResource implements Lookup {
     @Override
     public CompletableFuture<Map<String, String>> lookupPartitionedTopicAsync(String topic) {
         CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
-        topics.getPartitionedTopicMetadataAsync(topic).thenAccept(partitionedTopicMetadata -> {
-            int partitions = partitionedTopicMetadata.partitions;
-            if (partitions <= 0) {
-               future.completeExceptionally(
-                        new PulsarAdminException("Topic " + topic + " is not a partitioned topic"));
-               return;
-            }
+        topics.getPartitionedTopicMetadataAsync(topic)
+                .thenAccept(partitionedTopicMetadata -> {
+                    int partitions = partitionedTopicMetadata.partitions;
+                    if (partitions <= 0) {
+                        future.completeExceptionally(
+                                new PulsarAdminException("Topic " + topic + " is not a partitioned topic"));
+                        return;
+                    }
 
-            Map<String, CompletableFuture<String>> lookupResult = new LinkedHashMap<>(partitions);
-            for (int i = 0; i < partitions; i++) {
-                String partitionTopicName = topic + "-partition-" + i;
-                lookupResult.put(partitionTopicName, lookupTopicAsync(partitionTopicName));
-            }
+                    Map<String, CompletableFuture<String>> lookupResult = new LinkedHashMap<>(partitions);
+                    for (int i = 0; i < partitions; i++) {
+                        String partitionTopicName = topic + "-partition-" + i;
+                        lookupResult.put(partitionTopicName, lookupTopicAsync(partitionTopicName));
+                    }
 
-            FutureUtil.waitForAll(new ArrayList<>(lookupResult.values())).whenComplete((url, throwable) ->{
-               if (throwable != null) {
-                   future.completeExceptionally(getApiException(throwable.getCause()));
-                   return;
-               }
-               Map<String, String> result = new LinkedHashMap<>();
-               for (Map.Entry<String, CompletableFuture<String>> entry : lookupResult.entrySet()) {
-                   try {
-                       result.put(entry.getKey(), entry.getValue().get());
-                   } catch (InterruptedException | ExecutionException e) {
-                       future.completeExceptionally(e);
-                       return;
-                   }
-               }
-               future.complete(result);
-            });
-
-        }).exceptionally(throwable -> {
-            future.completeExceptionally(getApiException(throwable.getCause()));
-            return null;
-        });
+                    FutureUtil.waitForAll(new ArrayList<>(lookupResult.values()))
+                            .whenComplete((url, throwable) -> {
+                                if (throwable != null) {
+                                    future.completeExceptionally(getApiException(throwable.getCause()));
+                                    return;
+                                }
+                                Map<String, String> result = new LinkedHashMap<>();
+                                for (Map.Entry<String, CompletableFuture<String>> entry : lookupResult.entrySet()) {
+                                    try {
+                                        result.put(
+                                                entry.getKey(), entry.getValue().get());
+                                    } catch (InterruptedException | ExecutionException e) {
+                                        future.completeExceptionally(e);
+                                        return;
+                                    }
+                                }
+                                future.complete(result);
+                            });
+                })
+                .exceptionally(throwable -> {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                    return null;
+                });
 
         return future;
     }
@@ -117,7 +120,6 @@ public class LookupImpl extends BaseResource implements Lookup {
         TopicName topicName = TopicName.get(topic);
         String prefix = topicName.isV2() ? "/topic" : "/destination";
         WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
-        return asyncGetRequest(path, new FutureCallback<String>(){});
+        return asyncGetRequest(path, new FutureCallback<String>() {});
     }
-
 }

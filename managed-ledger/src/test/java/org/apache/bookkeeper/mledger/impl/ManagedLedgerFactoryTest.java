@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -109,9 +108,7 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         managedLedger2.close();
     }
 
-    private void waitManagedLedgerStateEquals(ManagedLedgerImpl managedLedger, ManagedLedgerImpl.State expectedStat){
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(managedLedger.getState() == expectedStat));
+    private void waitManagedLedgerStateEquals(ManagedLedgerImpl managedLedger, ManagedLedgerImpl.State expectedStat) {
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(managedLedger.getState() == expectedStat));
     }
-
 }

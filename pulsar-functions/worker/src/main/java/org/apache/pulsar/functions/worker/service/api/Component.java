@@ -41,51 +41,85 @@ public interface Component<W extends WorkerService> {
 
     void deregisterFunction(String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
-    FunctionConfig getFunctionInfo(String tenant, String namespace, String componentName,
-                                   AuthenticationParameters authParams);
+    FunctionConfig getFunctionInfo(
+            String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
-    void stopFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
-                              AuthenticationParameters authParams);
+    void stopFunctionInstance(
+            String tenant,
+            String namespace,
+            String componentName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    void startFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
-                               AuthenticationParameters authParams);
+    void startFunctionInstance(
+            String tenant,
+            String namespace,
+            String componentName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    void restartFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
-                                 AuthenticationParameters authParams);
+    void restartFunctionInstance(
+            String tenant,
+            String namespace,
+            String componentName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    void startFunctionInstances(String tenant, String namespace, String componentName,
-                                AuthenticationParameters authParams);
+    void startFunctionInstances(
+            String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
-    void stopFunctionInstances(String tenant, String namespace, String componentName,
-                               AuthenticationParameters authParams);
+    void stopFunctionInstances(
+            String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
-    void restartFunctionInstances(String tenant, String namespace, String componentName,
-                                  AuthenticationParameters authParams);
+    void restartFunctionInstances(
+            String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
-    FunctionStatsImpl getFunctionStats(String tenant, String namespace, String componentName, URI uri,
-                                       AuthenticationParameters authParams);
+    FunctionStatsImpl getFunctionStats(
+            String tenant, String namespace, String componentName, URI uri, AuthenticationParameters authParams);
 
-    FunctionInstanceStatsDataImpl getFunctionsInstanceStats(String tenant, String namespace, String componentName,
-                                                            String instanceId, URI uri,
-                                                            AuthenticationParameters authParams);
+    FunctionInstanceStatsDataImpl getFunctionsInstanceStats(
+            String tenant,
+            String namespace,
+            String componentName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    String triggerFunction(String tenant, String namespace, String functionName, String input,
-                           InputStream uploadedInputStream, String topic, AuthenticationParameters authParams);
+    String triggerFunction(
+            String tenant,
+            String namespace,
+            String functionName,
+            String input,
+            InputStream uploadedInputStream,
+            String topic,
+            AuthenticationParameters authParams);
 
     List<String> listFunctions(String tenant, String namespace, AuthenticationParameters authParams);
 
-    FunctionState getFunctionState(String tenant, String namespace, String functionName, String key,
-                                   AuthenticationParameters authParams);
+    FunctionState getFunctionState(
+            String tenant, String namespace, String functionName, String key, AuthenticationParameters authParams);
 
-    void putFunctionState(String tenant, String namespace, String functionName, String key, FunctionState state,
-                          AuthenticationParameters authParams);
+    void putFunctionState(
+            String tenant,
+            String namespace,
+            String functionName,
+            String key,
+            FunctionState state,
+            AuthenticationParameters authParams);
 
     void uploadFunction(InputStream uploadedInputStream, String path, AuthenticationParameters authParams);
 
     StreamingOutput downloadFunction(String path, AuthenticationParameters authParams);
 
-    StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
-                                     AuthenticationParameters authParams, boolean transformFunction);
+    StreamingOutput downloadFunction(
+            String tenant,
+            String namespace,
+            String componentName,
+            AuthenticationParameters authParams,
+            boolean transformFunction);
 
     List<ConnectorDefinition> getListOfConnectors();
 

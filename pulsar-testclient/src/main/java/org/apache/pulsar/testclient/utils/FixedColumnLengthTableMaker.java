@@ -108,8 +108,10 @@ public class FixedColumnLengthTableMaker {
             numColumns = Math.max(numColumns, row.length);
         }
         // Total length of the table in characters.
-        int totalLength = numColumns * (leftPadding + rightPadding + separator.length()) - separator.length()
-                + leftBorder.length() + rightBorder.length();
+        int totalLength = numColumns * (leftPadding + rightPadding + separator.length())
+                - separator.length()
+                + leftBorder.length()
+                + rightBorder.length();
         for (int i = 0; i < numColumns; ++i) {
             totalLength += lengthFor(i);
         }
@@ -154,5 +156,4 @@ public class FixedColumnLengthTableMaker {
         addHorizontalBorder(totalLength, builder, bottomBorder);
         return builder.toString();
     }
-
 }

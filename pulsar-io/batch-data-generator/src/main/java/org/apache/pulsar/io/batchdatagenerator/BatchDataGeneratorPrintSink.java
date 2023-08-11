@@ -28,9 +28,7 @@ import org.apache.pulsar.io.core.SinkContext;
 public class BatchDataGeneratorPrintSink implements Sink<Person> {
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) {
-
-    }
+    public void open(Map<String, Object> config, SinkContext sinkContext) {}
 
     @Override
     public void write(Record<Person> record) {
@@ -39,7 +37,5 @@ public class BatchDataGeneratorPrintSink implements Sink<Person> {
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 }

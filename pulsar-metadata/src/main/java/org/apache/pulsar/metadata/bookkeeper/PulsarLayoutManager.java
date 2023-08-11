@@ -49,7 +49,8 @@ class PulsarLayoutManager implements LayoutManager {
     @Override
     public LedgerLayout readLedgerLayout() throws IOException {
         try {
-            byte[] layoutData = store.get(layoutPath).get()
+            byte[] layoutData = store.get(layoutPath)
+                    .get()
                     .orElseThrow(() -> new BookieException.MetadataStoreException("Layout node not found"))
                     .getValue();
             return LedgerLayout.parseLayout(layoutData);

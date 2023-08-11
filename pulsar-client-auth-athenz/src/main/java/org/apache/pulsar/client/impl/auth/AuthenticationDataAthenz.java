@@ -59,5 +59,4 @@ public class AuthenticationDataAthenz implements AuthenticationDataProvider {
     public String getCommandData() {
         return roleToken;
     }
-
 }

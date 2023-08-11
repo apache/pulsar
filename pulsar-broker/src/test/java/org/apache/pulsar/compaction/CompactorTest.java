@@ -19,13 +19,10 @@
 package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.client.impl.RawReaderTest.extractKey;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -36,7 +33,6 @@ import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -48,8 +44,8 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -64,26 +60,29 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     protected BookKeeper bk;
     protected Compactor compactor;
 
-
-
     @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.clusters()
+                .createCluster(
+                        "use",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
-        compactionScheduler = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+        compactionScheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                .setNameFormat("compactor")
+                .setDaemon(true)
+                .build());
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
         compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
-
 
     @AfterMethod(alwaysRun = true)
     @Override
@@ -101,16 +100,19 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         return compactor;
     }
 
-    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics) throws Exception {
+    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics)
+            throws Exception {
 
         long compactedLedgerId = compact(topic);
 
-        LedgerHandle ledger = bk.openLedger(compactedLedgerId,
-                                            Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                                            Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
-        Assert.assertEquals(ledger.getLastAddConfirmed() + 1, // 0..lac
-                            expected.size(),
-                            "Should have as many entries as there is keys");
+        LedgerHandle ledger = bk.openLedger(
+                compactedLedgerId,
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        Assert.assertEquals(
+                ledger.getLastAddConfirmed() + 1, // 0..lac
+                expected.size(),
+                "Should have as many entries as there is keys");
 
         List<String> keys = new ArrayList<>();
         Enumeration<LedgerEntry> entries = ledger.readEntries(0, ledger.getLastAddConfirmed());
@@ -123,12 +125,12 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             ByteBuf payload = extractPayload(m);
             byte[] bytes = new byte[payload.readableBytes()];
             payload.readBytes(bytes);
-            Assert.assertEquals(bytes, expected.remove(key),
-                                "Compacted version should match expected version");
+            Assert.assertEquals(bytes, expected.remove(key), "Compacted version should match expected version");
             m.close();
         }
         if (checkMetrics) {
-            CompactionRecord compactionRecord = getCompactor().getStats().getCompactionRecordForTopic(topic).get();
+            CompactionRecord compactionRecord =
+                    getCompactor().getStats().getCompactionRecordForTopic(topic).get();
             long compactedTopicRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
             long lastCompactSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
             long lastCompactFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
@@ -148,22 +150,21 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         final int numMessages = 1000;
         final int maxKeys = 10;
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         Map<String, byte[]> expected = new HashMap<>();
         Random r = new Random(0);
 
         for (int j = 0; j < numMessages; j++) {
             int keyIndex = r.nextInt(maxKeys);
-            String key = "key"+keyIndex;
+            String key = "key" + keyIndex;
             byte[] data = ("my-message-" + key + "-" + j).getBytes();
-            producer.newMessage()
-                    .key(key)
-                    .value(data)
-                    .send();
+            producer.newMessage().key(key).value(data).send();
             expected.put(key, data);
         }
         compactAndVerify(topic, expected, true);
@@ -173,34 +174,24 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testCompactAddCompact() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         Map<String, byte[]> expected = new HashMap<>();
 
-        producer.newMessage()
-                .key("a")
-                .value("A_1".getBytes())
-                .send();
-        producer.newMessage()
-                .key("b")
-                .value("B_1".getBytes())
-                .send();
-        producer.newMessage()
-                .key("a")
-                .value("A_2".getBytes())
-                .send();
+        producer.newMessage().key("a").value("A_1".getBytes()).send();
+        producer.newMessage().key("b").value("B_1".getBytes()).send();
+        producer.newMessage().key("a").value("A_2".getBytes()).send();
         expected.put("a", "A_2".getBytes());
         expected.put("b", "B_1".getBytes());
 
         compactAndVerify(topic, new HashMap<>(expected), false);
 
-        producer.newMessage()
-                .key("b")
-                .value("B_2".getBytes())
-                .send();
+        producer.newMessage().key("b").value("B_2".getBytes()).send();
         expected.put("b", "B_2".getBytes());
 
         compactAndVerify(topic, expected, false);
@@ -210,23 +201,17 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testCompactedInOrder() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
-        producer.newMessage()
-                .key("c")
-                .value("C_1".getBytes()).send();
-        producer.newMessage()
-                .key("a")
-                .value("A_1".getBytes()).send();
-        producer.newMessage()
-                .key("b")
-                .value("B_1".getBytes()).send();
-        producer.newMessage()
-                .key("a")
-                .value("A_2".getBytes()).send();
+        producer.newMessage().key("c").value("C_1".getBytes()).send();
+        producer.newMessage().key("a").value("A_1".getBytes()).send();
+        producer.newMessage().key("b").value("B_1".getBytes()).send();
+        producer.newMessage().key("a").value("A_2".getBytes()).send();
         Map<String, byte[]> expected = new HashMap<>();
         expected.put("a", "A_2".getBytes());
         expected.put("b", "B_1".getBytes());
@@ -242,7 +227,12 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
         // trigger creation of topic on server side
-        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
+        pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub1")
+                .subscribe()
+                .close();
 
         compact(topic);
     }
@@ -251,8 +241,11 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testPhaseOneLoopTimeConfiguration() {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setBrokerServiceCompactionPhaseOneLoopTimeInSeconds(60);
-        TwoPhaseCompactor compactor = new TwoPhaseCompactor(configuration, Mockito.mock(PulsarClientImpl.class),
-                Mockito.mock(BookKeeper.class), compactionScheduler);
+        TwoPhaseCompactor compactor = new TwoPhaseCompactor(
+                configuration,
+                Mockito.mock(PulsarClientImpl.class),
+                Mockito.mock(BookKeeper.class),
+                compactionScheduler);
         Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
     }
 
@@ -260,7 +253,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         ByteBuf payloadAndMetadata = m.getHeadersAndPayload();
         Commands.skipChecksumIfPresent(payloadAndMetadata);
         int metadataSize = payloadAndMetadata.readInt(); // metadata size
-         byte[] metadata = new byte[metadataSize];
+        byte[] metadata = new byte[metadataSize];
         payloadAndMetadata.readBytes(metadata);
         return payloadAndMetadata.slice();
     }

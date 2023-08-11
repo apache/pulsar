@@ -52,13 +52,14 @@ public class GenericObjectFunction implements Function<GenericObject, Void> {
         if (isStruct) {
             // GenericRecord must stay wrapped
             context.newOutputMessage(context.getOutputTopic(), (Schema) currentRecord.getSchema())
-                    .value(genericObject).send();
+                    .value(genericObject)
+                    .send();
         } else {
             // primitives and KeyValue must be unwrapped
             context.newOutputMessage(context.getOutputTopic(), (Schema) currentRecord.getSchema())
-                    .value(genericObject.getNativeObject()).send();
+                    .value(genericObject.getNativeObject())
+                    .send();
         }
         return null;
     }
 }
-

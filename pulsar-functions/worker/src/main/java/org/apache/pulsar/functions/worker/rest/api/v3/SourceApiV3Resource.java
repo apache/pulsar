@@ -32,5 +32,4 @@ import javax.ws.rs.core.MediaType;
 /**
  * @deprecated in favor of {@link SourcesApiV3Resource}
  */
-public class SourceApiV3Resource extends SourcesApiV3Resource {
-}
+public class SourceApiV3Resource extends SourcesApiV3Resource {}

@@ -59,10 +59,15 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         conf.setSystemTopicEnabled(false);
         super.internalSetup();
 
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "public", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default", Sets.newHashSet("test"));
     }
 
@@ -93,11 +98,11 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
 
     PulsarClient newClient() throws Exception {
         return PulsarClient.builder()
-            .serviceUrl(pulsar.getBrokerServiceUrl())
-            .connectionTimeout(2, TimeUnit.SECONDS)
-            .operationTimeout(1, TimeUnit.SECONDS)
-            .lookupTimeout(10, TimeUnit.SECONDS)
-            .build();
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .connectionTimeout(2, TimeUnit.SECONDS)
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .lookupTimeout(10, TimeUnit.SECONDS)
+                .build();
     }
 
     @Test
@@ -113,76 +118,84 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTimeoutRetriesOnPartitionMetadata() throws Exception {
         try (PulsarClient client = newClient();
-             Reader<byte[]> reader = client
-                .newReader().topic("TIMEOUT:2,OK:3").startMessageId(MessageId.latest)
-                .startMessageIdInclusive().readerName(subscription).create()) {
-        }
+                Reader<byte[]> reader = client.newReader()
+                        .topic("TIMEOUT:2,OK:3")
+                        .startMessageId(MessageId.latest)
+                        .startMessageIdInclusive()
+                        .readerName(subscription)
+                        .create()) {}
     }
 
     @Test
     public void testTooManyRetriesOnPartitionMetadata() throws Exception {
         try (PulsarClient client = newClient();
-             Reader<byte[]> reader = client
-                .newReader().topic("TOO_MANY:2,OK:3").startMessageId(MessageId.latest)
-                .startMessageIdInclusive().readerName(subscription).create()) {
-        }
+                Reader<byte[]> reader = client.newReader()
+                        .topic("TOO_MANY:2,OK:3")
+                        .startMessageId(MessageId.latest)
+                        .startMessageIdInclusive()
+                        .readerName(subscription)
+                        .create()) {}
     }
 
     @Test
     public void testTooManyOnLookup() throws Exception {
         try (PulsarClient client = newClient();
-             Reader<byte[]> reader = client
-                .newReader().topic("OK:1,TOO_MANY:2,OK:3").startMessageId(MessageId.latest)
-                .startMessageIdInclusive().readerName(subscription).create()) {
-        }
+                Reader<byte[]> reader = client.newReader()
+                        .topic("OK:1,TOO_MANY:2,OK:3")
+                        .startMessageId(MessageId.latest)
+                        .startMessageIdInclusive()
+                        .readerName(subscription)
+                        .create()) {}
     }
 
     @Test
     public void testTimeoutOnLookup() throws Exception {
         try (PulsarClient client = newClient();
-             Reader<byte[]> reader = client
-                .newReader().topic("OK:1,TIMEOUT:2,OK:3").startMessageId(MessageId.latest)
-                .startMessageIdInclusive().readerName(subscription).create()) {
-        }
+                Reader<byte[]> reader = client.newReader()
+                        .topic("OK:1,TIMEOUT:2,OK:3")
+                        .startMessageId(MessageId.latest)
+                        .startMessageIdInclusive()
+                        .readerName(subscription)
+                        .create()) {}
     }
 
     @Test
     public void testManyFailures() throws Exception {
         try (PulsarClient client = newClient();
-             Reader<byte[]> reader = client
-                .newReader().topic("TOO_MANY:1,TIMEOUT:1,OK:1,TIMEOUT:1,TOO_MANY:1,OK:3")
-                .startMessageId(MessageId.latest)
-                .startMessageIdInclusive().readerName(subscription).create()) {
-        }
+                Reader<byte[]> reader = client.newReader()
+                        .topic("TOO_MANY:1,TIMEOUT:1,OK:1,TIMEOUT:1,TOO_MANY:1,OK:3")
+                        .startMessageId(MessageId.latest)
+                        .startMessageIdInclusive()
+                        .readerName(subscription)
+                        .create()) {}
     }
 
     @Test
     public void testProducerTimeoutOnPMR() throws Exception {
         try (PulsarClient client = newClient();
-             Producer<byte[]> producer = client.newProducer().topic("TIMEOUT:2,OK:3").create()) {
-        }
+                Producer<byte[]> producer =
+                        client.newProducer().topic("TIMEOUT:2,OK:3").create()) {}
     }
 
     @Test
     public void testProducerTooManyOnPMR() throws Exception {
         try (PulsarClient client = newClient();
-             Producer<byte[]> producer = client.newProducer().topic("TOO_MANY:2,OK:3").create()) {
-        }
-
+                Producer<byte[]> producer =
+                        client.newProducer().topic("TOO_MANY:2,OK:3").create()) {}
     }
 
     @Test
     public void testProducerTimeoutOnLookup() throws Exception {
         try (PulsarClient client = newClient();
-             Producer<byte[]> producer = client.newProducer().topic("OK:1,TIMEOUT:2,OK:3").create()) {
-        }
+                Producer<byte[]> producer =
+                        client.newProducer().topic("OK:1,TIMEOUT:2,OK:3").create()) {}
     }
 
     @Test
     public void testProducerTooManyOnLookup() throws Exception {
         try (PulsarClient client = newClient();
-             Producer<byte[]> producer = client.newProducer().topic("OK:1,TOO_MANY:2,OK:3").create()) {
-        }
+                Producer<byte[]> producer =
+                        client.newProducer().topic("OK:1,TOO_MANY:2,OK:3").create()) {}
     }
 
     /**
@@ -199,8 +212,10 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCloseConnectionOnBrokerRejectedRequest() throws Exception {
         String lookupUrl = pulsar.getBrokerServiceUrl();
-        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
-                .maxNumberOfRejectedRequestPerConnection(1).build()) {
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
+                .maxNumberOfRejectedRequestPerConnection(1)
+                .build()) {
 
             // need 2 TooManyRequests because it takes the count before incrementing
             pulsarClient.newProducer().topic("TOO_MANY:2").create().close();
@@ -208,8 +223,10 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(connectionsCreated.get(), 2);
         }
 
-        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
-             .maxNumberOfRejectedRequestPerConnection(100).build()) {
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
+                .maxNumberOfRejectedRequestPerConnection(100)
+                .build()) {
 
             pulsarClient.newProducer().topic("TOO_MANY:2").create().close();
             pulsarClient.newProducer().topic("TOO_MANY:4").create().close();
@@ -220,7 +237,8 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCloseConnectionOnBrokerTimeout() throws Exception {
         String lookupUrl = pulsar.getBrokerServiceUrl();
-        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
                 .maxNumberOfRejectedRequestPerConnection(1)
                 .connectionTimeout(2, TimeUnit.SECONDS)
                 .operationTimeout(1, TimeUnit.SECONDS)
@@ -233,7 +251,8 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(connectionsCreated.get(), 2);
         }
 
-        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
                 .maxNumberOfRejectedRequestPerConnection(100)
                 .connectionTimeout(2, TimeUnit.SECONDS)
                 .operationTimeout(1, TimeUnit.SECONDS)
@@ -262,21 +281,19 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
 
         private Queue<LookupError> errorList(String topicName) {
-            return failureMap.compute(
-                    topicName,
-                    (k, v) -> {
-                        if (v == null) {
-                            v = new ArrayBlockingQueue<LookupError>(100);
-                            for (String e : k.split(",")) {
-                                String[] parts = e.split(":");
-                                LookupError error = Enum.valueOf(LookupError.class, parts[0]);
-                                for (int i = 0; i < Integer.parseInt(parts[1]); i++) {
-                                    v.add(error);
-                                }
-                            }
+            return failureMap.compute(topicName, (k, v) -> {
+                if (v == null) {
+                    v = new ArrayBlockingQueue<LookupError>(100);
+                    for (String e : k.split(",")) {
+                        String[] parts = e.split(":");
+                        LookupError error = Enum.valueOf(LookupError.class, parts[0]);
+                        for (int i = 0; i < Integer.parseInt(parts[1]); i++) {
+                            v.add(error);
                         }
-                        return v;
-                    });
+                    }
+                }
+                return v;
+            });
         }
 
         @Override

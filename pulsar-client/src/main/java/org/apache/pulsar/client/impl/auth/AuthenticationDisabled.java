@@ -34,8 +34,7 @@ public class AuthenticationDisabled implements Authentication, EncodedAuthentica
      */
     private static final long serialVersionUID = 1L;
 
-    public AuthenticationDisabled() {
-    }
+    public AuthenticationDisabled() {}
 
     @Override
     public String getAuthMethodName() {
@@ -48,17 +47,14 @@ public class AuthenticationDisabled implements Authentication, EncodedAuthentica
     }
 
     @Override
-    public void configure(String encodedAuthParamString) {
-    }
+    public void configure(String encodedAuthParamString) {}
 
     @Override
     @Deprecated
-    public void configure(Map<String, String> authParams) {
-    }
+    public void configure(Map<String, String> authParams) {}
 
     @Override
-    public void start() throws PulsarClientException {
-    }
+    public void start() throws PulsarClientException {}
 
     @Override
     public void close() throws IOException {

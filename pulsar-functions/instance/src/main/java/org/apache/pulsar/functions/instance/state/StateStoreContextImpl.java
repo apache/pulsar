@@ -23,5 +23,4 @@ import org.apache.pulsar.functions.api.StateStoreContext;
 /**
  * Default implementation of {@link StateStoreContext}.
  */
-public class StateStoreContextImpl implements StateStoreContext {
-}
+public class StateStoreContextImpl implements StateStoreContext {}

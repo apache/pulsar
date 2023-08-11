@@ -52,21 +52,22 @@ public class FunctionCacheEntry implements AutoCloseable {
 
     private final Set<String> classpaths;
 
-    FunctionCacheEntry(Collection<String> requiredJarFiles,
-                       Collection<URL> requiredClasspaths,
-                       URL[] libraryURLs,
-                       String initialInstanceId, ClassLoader rootClassLoader) {
+    FunctionCacheEntry(
+            Collection<String> requiredJarFiles,
+            Collection<URL> requiredClasspaths,
+            URL[] libraryURLs,
+            String initialInstanceId,
+            ClassLoader rootClassLoader) {
         this.classLoader = FunctionClassLoaders.create(libraryURLs, rootClassLoader);
 
-        this.classpaths = requiredClasspaths.stream()
-            .map(URL::toString)
-            .collect(Collectors.toSet());
+        this.classpaths = requiredClasspaths.stream().map(URL::toString).collect(Collectors.toSet());
         this.jarFiles = new HashSet<>(requiredJarFiles);
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 
-    FunctionCacheEntry(String narArchive, String initialInstanceId, ClassLoader rootClassLoader,
-                       String narExtractionDirectory) throws IOException {
+    FunctionCacheEntry(
+            String narArchive, String initialInstanceId, ClassLoader rootClassLoader, String narExtractionDirectory)
+            throws IOException {
 
         this.classLoader = NarClassLoaderBuilder.builder()
                 .narFile(new File(narArchive))
@@ -82,24 +83,21 @@ public class FunctionCacheEntry implements AutoCloseable {
         return executionHolders.contains(iid);
     }
 
-    public void register(String eid,
-                         Collection<String> requiredJarFiles,
-                         Collection<URL> requiredClassPaths) {
-        if (jarFiles.size() != requiredJarFiles.size()
-            || !new HashSet<>(requiredJarFiles).containsAll(jarFiles)) {
-            throw new IllegalStateException(
-                "The function registration references a different set of jar files than "
-                + " previous registrations for this function : old = " + jarFiles
-                + ", new = " + requiredJarFiles);
+    public void register(String eid, Collection<String> requiredJarFiles, Collection<URL> requiredClassPaths) {
+        if (jarFiles.size() != requiredJarFiles.size() || !new HashSet<>(requiredJarFiles).containsAll(jarFiles)) {
+            throw new IllegalStateException("The function registration references a different set of jar files than "
+                    + " previous registrations for this function : old = " + jarFiles
+                    + ", new = " + requiredJarFiles);
         }
 
         if (classpaths.size() != requiredClassPaths.size()
-            || !requiredClassPaths.stream().map(URL::toString).collect(Collectors.toSet())
-                .containsAll(classpaths)) {
-            throw new IllegalStateException(
-                "The function registration references a different set of classpaths than "
-                + " previous registrations for this function : old = " + classpaths
-                + ", new = " + requiredClassPaths);
+                || !requiredClassPaths.stream()
+                        .map(URL::toString)
+                        .collect(Collectors.toSet())
+                        .containsAll(classpaths)) {
+            throw new IllegalStateException("The function registration references a different set of classpaths than "
+                    + " previous registrations for this function : old = " + classpaths
+                    + ", new = " + requiredClassPaths);
         }
 
         this.executionHolders.add(eid);
@@ -115,8 +113,7 @@ public class FunctionCacheEntry implements AutoCloseable {
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to release function code class loader for "
-                + Arrays.toString(jarFiles.toArray()));
+            log.warn("Failed to release function code class loader for " + Arrays.toString(jarFiles.toArray()));
         }
     }
 }

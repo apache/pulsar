@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -26,6 +25,7 @@ import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -38,7 +38,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.Multimap;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -62,9 +61,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -105,22 +104,27 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         String subName = "individual-test";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .enableBatching(true)
                 .batchingMaxMessages(200)
                 .create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
-        Transaction abortTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction abortTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
         List<MessageId> pendingAckMessageIds = new ArrayList<>();
         List<MessageId> normalAckMessageIds = new ArrayList<>();
@@ -135,14 +139,20 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             }
         }
 
-        //in order to test pending ack replay
+        // in order to test pending ack replay
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
         Awaitility.await().until(consumer::isConnected);
-        Transaction commitTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction commitTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
-        Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction txn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
         // this messageIds are ack by transaction
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
@@ -168,11 +178,17 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
         Awaitility.await().until(consumer::isConnected);
 
-        abortTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        abortTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
-        commitTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        commitTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
         // normalAckMessageIds are ack and then commit, so ack fail
         for (int i = 0; i < normalAckMessageIds.size(); i++) {
             try {
@@ -191,12 +207,15 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         abortTxn.abort().get();
         commitTxn.commit().get();
 
-        PersistentTopic topic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false).get().get();
+        PersistentTopic topic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false)
+                .get()
+                .get();
         Field field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
         field.setAccessible(true);
-        PendingAckHandleImpl pendingAckHandle =
-                (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
+        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
         field = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field.setAccessible(true);
         CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture =
@@ -210,8 +229,9 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // in order to check out the pending ack cursor is clear whether or not.
         Awaitility.await()
-                .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
-                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+                .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition()).compareTo((PositionImpl)
+                                managedCursor.getManagedLedger().getLastConfirmedEntry())
+                        == -1);
     }
 
     @Test
@@ -220,12 +240,14 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         String subName = "testMetric" + UUID.randomUUID();
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .create();
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -242,8 +264,11 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 break;
             }
 
-            Transaction txn = pulsarClient.newTransaction()
-                    .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            Transaction txn = pulsarClient
+                    .newTransaction()
+                    .withTransactionTimeout(10, TimeUnit.SECONDS)
+                    .build()
+                    .get();
             consumer.acknowledgeCumulativeAsync(message.getMessageId(), txn).get();
             if (a % 2 == 0) {
                 txn.abort().get();
@@ -252,8 +277,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             }
         }
 
-        @Cleanup
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        @Cleanup ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsarServiceList.get(0), true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
@@ -272,13 +296,15 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Assert.assertTrue(count > 0);
 
         for (PrometheusMetricsTest.Metric metric : abortedCount) {
-            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
+            if (metric.tags.get("subscription").equals(subName)
+                    && metric.tags.get("status").equals("succeed")) {
                 assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
                 assertTrue(metric.value > 0);
             }
         }
         for (PrometheusMetricsTest.Metric metric : committedCount) {
-            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
+            if (metric.tags.get("subscription").equals(subName)
+                    && metric.tags.get("status").equals("succeed")) {
                 assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
                 assertTrue(metric.value > 0);
             }
@@ -293,22 +319,27 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         String subName = "cumulative-test";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .enableBatching(true)
                 .batchingMaxMessages(200)
                 .create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(PENDING_ACK_REPLAY_TOPIC)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
-        Transaction abortTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction abortTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
         List<MessageId> pendingAckMessageIds = new ArrayList<>();
         for (int i = 0; i < messageCount; i++) {
@@ -318,29 +349,38 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         for (int i = 0; i < messageCount; i++) {
             Message<byte[]> message = consumer.receive();
             pendingAckMessageIds.add(message.getMessageId());
-            consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
+            consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn)
+                    .get();
         }
 
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
-        Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction txn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
         Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
             try {
-                consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), txn).get();
+                consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), txn)
+                        .get();
                 fail();
             } catch (ExecutionException e) {
                 assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
             }
         }
-        Transaction commitTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction commitTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
         abortTxn.abort().get();
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
-            consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), commitTxn).get();
+            consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), commitTxn)
+                    .get();
         }
         commitTxn.commit().get();
 
@@ -349,19 +389,23 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
             try {
-                consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), txn).get();
+                consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), txn)
+                        .get();
                 fail();
             } catch (ExecutionException e) {
                 assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
             }
         }
 
-        PersistentTopic topic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false).get().get();
+        PersistentTopic topic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false)
+                .get()
+                .get();
         Field field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
         field.setAccessible(true);
-        PendingAckHandleImpl pendingAckHandle =
-                (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
+        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
         field = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field.setAccessible(true);
         CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture =
@@ -375,8 +419,9 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // in order to check out the pending ack cursor is clear whether or not.
         Awaitility.await()
-                .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
-                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
+                .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition()).compareTo((PositionImpl)
+                                managedCursor.getManagedLedger().getLastConfirmedEntry())
+                        == 0);
     }
 
     @Test
@@ -384,10 +429,11 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         String subName = "test-delete";
 
-        String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE1), "test-delete").toString();
+        String topic = TopicName.get(TopicDomain.persistent.toString(), NamespaceName.get(NAMESPACE1), "test-delete")
+                .toString();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
@@ -413,10 +459,11 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         String subName1 = "test-delete";
         String subName2 = "test-delete";
 
-        String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE1), "test-delete").toString();
+        String topic = TopicName.get(TopicDomain.persistent.toString(), NamespaceName.get(NAMESPACE1), "test-delete")
+                .toString();
         @Cleanup
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Failover)
@@ -426,7 +473,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer1.close();
 
         @Cleanup
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Failover)
@@ -449,16 +497,19 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(5);
         getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
         String subName = "test-log-delete";
-        String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE1), "test-log-delete").toString();
+        String topic = TopicName.get(
+                        TopicDomain.persistent.toString(), NamespaceName.get(NAMESPACE1), "test-log-delete")
+                .toString();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscribe();
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false)
@@ -469,14 +520,19 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
         // init
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-        Transaction transaction = pulsarClient.newTransaction()
+        Transaction transaction = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
         consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
 
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
-                .getBrokerService().getTopic(topic, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
 
         PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
         Field field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
@@ -499,16 +555,21 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Assert.assertEquals(maxIndexLag, 5);
         transaction.commit().get();
 
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
-                        ((MessageIdImpl)message.getMessageId()).getEntryId()));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        persistentSubscription
+                                .getCursor()
+                                .getPersistentMarkDeletedPosition()
+                                .getEntryId(),
+                        ((MessageIdImpl) message.getMessageId()).getEntryId()));
         // 7 more acks. Will find that there are still only two records in the map.
-        Transaction transaction1 = pulsarClient.newTransaction()
+        Transaction transaction1 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
         Message<byte[]> message0 = null;
-        //remove previous index
+        // remove previous index
         for (int i = 0; i < 4; i++) {
             message0 = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
@@ -516,9 +577,9 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Assert.assertEquals(pendingAckLogIndex.size(), 1);
         maxIndexLag = (long) field4.get(pendingAckStore);
         Assert.assertEquals(maxIndexLag, 5);
-        //add new index
+        // add new index
         for (int i = 0; i < 9; i++) {
-            message0= consumer.receive(5, TimeUnit.SECONDS);
+            message0 = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
         }
 
@@ -528,11 +589,16 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         transaction1.commit().get();
         Message<byte[]> message1 = message0;
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
-                        ((MessageIdImpl)message1.getMessageId()).getEntryId()));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        persistentSubscription
+                                .getCursor()
+                                .getPersistentMarkDeletedPosition()
+                                .getEntryId(),
+                        ((MessageIdImpl) message1.getMessageId()).getEntryId()));
 
-        Transaction transaction2 = pulsarClient.newTransaction()
+        Transaction transaction2 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
@@ -546,13 +612,14 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
     @Test
     public void testPendingAckLowWaterMarkRemoveFirstTxn() throws Exception {
-        String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE1), "test").toString();
+        String topic = TopicName.get(TopicDomain.persistent.toString(), NamespaceName.get(NAMESPACE1), "test")
+                .toString();
 
         String subName = "subName";
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
@@ -560,7 +627,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscribe();
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
@@ -569,7 +637,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             producer.newMessage().send();
         }
 
-        Transaction transaction1 = pulsarClient.newTransaction()
+        Transaction transaction1 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
@@ -578,24 +647,29 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message1.getMessageId(), transaction1);
         transaction1.commit().get();
 
-
-        Transaction transaction2 = pulsarClient.newTransaction()
+        Transaction transaction2 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
-        while (transaction1.getTxnID().getMostSigBits() != transaction2.getTxnID().getMostSigBits()) {
-            transaction2 = pulsarClient.newTransaction()
+        while (transaction1.getTxnID().getMostSigBits()
+                != transaction2.getTxnID().getMostSigBits()) {
+            transaction2 = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(5, TimeUnit.SECONDS)
                     .build()
                     .get();
         }
 
-        Transaction transaction3 = pulsarClient.newTransaction()
+        Transaction transaction3 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
-        while (transaction1.getTxnID().getMostSigBits() != transaction3.getTxnID().getMostSigBits()) {
-            transaction3 = pulsarClient.newTransaction()
+        while (transaction1.getTxnID().getMostSigBits()
+                != transaction3.getTxnID().getMostSigBits()) {
+            transaction3 = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(5, TimeUnit.SECONDS)
                     .build()
                     .get();
@@ -620,14 +694,12 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message5.getMessageId(), transaction3);
         transaction3.commit().get();
 
-
-        PersistentTopic persistentTopic =
-                (PersistentTopic) getPulsarServiceList()
-                        .get(0)
-                        .getBrokerService()
-                        .getTopic(topic, false)
-                        .get()
-                        .get();
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
 
         PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
         Field field1 = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
@@ -655,7 +727,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             return true;
         });
 
-
         LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
 
@@ -665,24 +736,30 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
     @Test
     public void testTransactionConflictExceptionWhenAckBatchMessage() throws Exception {
-        String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE1), "test").toString();
+        String topic = TopicName.get(TopicDomain.persistent.toString(), NamespaceName.get(NAMESPACE1), "test")
+                .toString();
 
         String subscriptionName = "my-subscription-batch";
-        pulsarServiceList.get(0).getBrokerService()
-                .getManagedLedgerConfig(TopicName.get(topic)).get()
+        pulsarServiceList
+                .get(0)
+                .getBrokerService()
+                .getManagedLedgerConfig(TopicName.get(topic))
+                .get()
                 .setDeletionAtBatchIndexLevelEnabled(true);
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .enableBatching(true)
                 .batchingMaxMessages(3)
                 // set batch max publish delay big enough to make sure entry has 3 messages
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
-                .topic(topic).create();
+                .topic(topic)
+                .create();
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -706,7 +783,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             messageIds.add(messageId);
         }
 
-        Transaction transaction = pulsarClient.newTransaction()
+        Transaction transaction = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.DAYS)
                 .build()
                 .get();
@@ -717,7 +795,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         BatchMessageIdImpl messageId = (BatchMessageIdImpl) message2.getMessageId();
         consumer.acknowledgeAsync(messageId, transaction).get();
 
-        Transaction transaction2 = pulsarClient.newTransaction()
+        Transaction transaction2 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.DAYS)
                 .build()
                 .get();
@@ -733,8 +812,11 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
     @Test
     public void testGetSubPatternTopicFilterTxnInternalTopic() throws Exception {
-        String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE1), "testGetSubPatternTopicFilterTxnInternalTopic").toString();
+        String topic = TopicName.get(
+                        TopicDomain.persistent.toString(),
+                        NamespaceName.get(NAMESPACE1),
+                        "testGetSubPatternTopicFilterTxnInternalTopic")
+                .toString();
 
         int partition = 3;
         admin.topics().createPartitionedTopic(topic, partition);
@@ -742,11 +824,14 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         String subscriptionName = "sub";
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .enableBatching(false)
-                .topic(topic).create();
+                .topic(topic)
+                .create();
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .topic(topic)
@@ -758,7 +843,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // creat pending ack managedLedger
         for (int i = 0; i < partition; i++) {
-            Transaction transaction = pulsarClient.newTransaction()
+            Transaction transaction = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(5, TimeUnit.SECONDS)
                     .build()
                     .get();
@@ -767,11 +853,13 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
 
         consumer.close();
-        admin.namespaces().getTopics(NAMESPACE1).forEach(name ->
-                assertFalse(SystemTopicNames.isTransactionInternalName(TopicName.get(name))));
+        admin.namespaces()
+                .getTopics(NAMESPACE1)
+                .forEach(name -> assertFalse(SystemTopicNames.isTransactionInternalName(TopicName.get(name))));
 
         @Cleanup
-        Consumer<String> patternConsumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> patternConsumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .subscriptionName("patternSub")
                 .subscriptionType(SubscriptionType.Shared)
                 .topicsPattern("persistent://" + NAMESPACE1 + "/.*")
@@ -791,46 +879,57 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
     @Test
     public void testGetManagedLegerConfigFailThenUnload() throws Exception {
-        String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE1), "testGetManagedLegerConfigFailThenUnload").toString();
+        String topic = TopicName.get(
+                        TopicDomain.persistent.toString(),
+                        NamespaceName.get(NAMESPACE1),
+                        "testGetManagedLegerConfigFailThenUnload")
+                .toString();
 
         String subscriptionName = "sub";
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .enableBatching(false)
-                .topic(topic).create();
+                .topic(topic)
+                .create();
 
-        PersistentTopic persistentTopic =
-                (PersistentTopic) getPulsarServiceList()
-                        .get(0)
-                        .getBrokerService()
-                        .getTopic(topic, false)
-                        .get().orElse(null);
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .orElse(null);
 
         assertNotNull(persistentTopic);
         BrokerService brokerService = spy(persistentTopic.getBrokerService());
         doReturn(FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException("test")))
-                .when(brokerService).getManagedLedgerConfig(any());
+                .when(brokerService)
+                .getManagedLedgerConfig(any());
         Field field = AbstractTopic.class.getDeclaredField("brokerService");
         field.setAccessible(true);
         field.set(persistentTopic, brokerService);
 
         // init pending ack store
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .topic(topic)
                 .subscribe();
 
         producer.send("test");
-        Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
         // pending ack init fail, so the ack will throw exception
         try {
-            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction)
+                    .get();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
         }

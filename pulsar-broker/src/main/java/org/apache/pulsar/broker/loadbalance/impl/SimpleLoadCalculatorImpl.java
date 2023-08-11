@@ -42,5 +42,4 @@ public class SimpleLoadCalculatorImpl implements LoadCalculator {
         // calibrated resource cost is:
         // "msgInRate" => { "CPU": 0.5, "NIC-inbw": 200 }
     }
-
 }

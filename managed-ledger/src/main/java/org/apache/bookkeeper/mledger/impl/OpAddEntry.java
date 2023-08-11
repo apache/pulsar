@@ -36,7 +36,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 
-
 /**
  * Handles the life-cycle of an addEntry() operation.
  *
@@ -51,16 +50,19 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
     @SuppressWarnings("unused")
     private static final AtomicReferenceFieldUpdater<OpAddEntry, AddEntryCallback> callbackUpdater =
             AtomicReferenceFieldUpdater.newUpdater(OpAddEntry.class, AddEntryCallback.class, "callback");
+
     protected volatile AddEntryCallback callback;
     Object ctx;
     volatile long addOpCount;
-    private static final AtomicLongFieldUpdater<OpAddEntry> ADD_OP_COUNT_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(OpAddEntry.class, "addOpCount");
+    private static final AtomicLongFieldUpdater<OpAddEntry> ADD_OP_COUNT_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(OpAddEntry.class, "addOpCount");
     private boolean closeWhenDone;
     private long startTime;
     volatile long lastInitTime;
+
     @SuppressWarnings("unused")
     ByteBuf data;
+
     private int dataLength;
     private ManagedLedgerInterceptor.PayloadProcessorHandle payloadProcessorHandle = null;
 
@@ -75,8 +77,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         CLOSED
     }
 
-    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback,
-                                                  Object ctx) {
+    public static OpAddEntry createNoRetainBuffer(
+            ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
@@ -84,8 +86,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         return op;
     }
 
-    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages,
-                                                  AddEntryCallback callback, Object ctx) {
+    public static OpAddEntry createNoRetainBuffer(
+            ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
         op.numberOfMessages = numberOfMessages;
         if (log.isDebugEnabled()) {
@@ -94,8 +96,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         return op;
     }
 
-    private static OpAddEntry createOpAddEntryNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data,
-                                                             AddEntryCallback callback, Object ctx) {
+    private static OpAddEntry createOpAddEntryNoRetainBuffer(
+            ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
@@ -130,8 +132,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             lastInitTime = System.nanoTime();
             if (ml.getManagedLedgerInterceptor() != null) {
                 long originalDataLen = data.readableBytes();
-                payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this,
-                        duplicateBuffer);
+                payloadProcessorHandle =
+                        ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this, duplicateBuffer);
                 if (payloadProcessorHandle != null) {
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
                     // If data len of entry changes, correct "dataLength" and "currentLedgerSize".
@@ -151,7 +153,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
-            //Use entryId in PublishContext and call addComplete directly.
+            // Use entryId in PublishContext and call addComplete directly.
             this.addComplete(BKException.Code.OK, ledger, ((Position) ctx).getEntryId(), addOpCount);
         } else {
             log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
@@ -174,7 +176,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
     @Override
     public void addComplete(int rc, final LedgerHandle lh, long entryId, Object ctx) {
         if (!STATE_UPDATER.compareAndSet(OpAddEntry.this, State.INITIATED, State.COMPLETED)) {
-            log.warn("[{}] The add op is terminal legacy callback for entry {}-{} adding.", ml.getName(), lh.getId(),
+            log.warn(
+                    "[{}] The add op is terminal legacy callback for entry {}-{} adding.",
+                    ml.getName(),
+                    lh.getId(),
                     entryId);
             OpAddEntry.this.recycle();
             return;
@@ -182,11 +187,17 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
 
         if (ledger != null && lh != null) {
             if (ledger.getId() != lh.getId()) {
-                log.warn("[{}] ledgerId {} doesn't match with acked ledgerId {}", ml.getName(), ledger.getId(),
+                log.warn(
+                        "[{}] ledgerId {} doesn't match with acked ledgerId {}",
+                        ml.getName(),
+                        ledger.getId(),
                         lh.getId());
             }
-            checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s",
-                    ledger.getId(), lh.getId());
+            checkArgument(
+                    ledger.getId() == lh.getId(),
+                    "ledgerId %s doesn't match with acked ledgerId %s",
+                    ledger.getId(),
+                    lh.getId());
         }
 
         if (!checkAndCompleteOp(ctx)) {
@@ -196,8 +207,14 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
 
         this.entryId = entryId;
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] write-complete: ledger-id={} entry-id={} size={} rc={}", this, ml.getName(),
-                    lh == null ? -1 : lh.getId(), entryId, dataLength, rc);
+            log.debug(
+                    "[{}] [{}] write-complete: ledger-id={} entry-id={} size={} rc={}",
+                    this,
+                    ml.getName(),
+                    lh == null ? -1 : lh.getId(),
+                    entryId,
+                    dataLength,
+                    rc);
         }
 
         if (rc != BKException.Code.OK) {
@@ -264,7 +281,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
 
     @Override
     public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
-        checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
+        checkArgument(
+                ledger.getId() == lh.getId(),
+                "ledgerId %s doesn't match with acked ledgerId %s",
+                ledger.getId(),
                 lh.getId());
 
         if (rc == BKException.Code.OK) {

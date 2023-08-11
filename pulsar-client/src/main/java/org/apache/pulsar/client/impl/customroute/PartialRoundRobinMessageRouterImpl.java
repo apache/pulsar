@@ -35,6 +35,7 @@ public class PartialRoundRobinMessageRouterImpl implements MessageRouter {
     private final List<Integer> partialList = new CopyOnWriteArrayList<>();
     private static final AtomicIntegerFieldUpdater<PartialRoundRobinMessageRouterImpl> PARTITION_INDEX_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PartialRoundRobinMessageRouterImpl.class, "partitionIndex");
+
     @SuppressWarnings("unused")
     private volatile int partitionIndex = 0;
 
@@ -55,8 +56,7 @@ public class PartialRoundRobinMessageRouterImpl implements MessageRouter {
      */
     public int choosePartition(Message<?> msg, TopicMetadata metadata) {
         final List<Integer> newPartialList = new ArrayList<>(getOrCreatePartialList(metadata));
-        return newPartialList
-                .get(signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), newPartialList.size()));
+        return newPartialList.get(signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), newPartialList.size()));
     }
 
     private List<Integer> getOrCreatePartialList(TopicMetadata metadata) {
@@ -64,18 +64,24 @@ public class PartialRoundRobinMessageRouterImpl implements MessageRouter {
                 || partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
             synchronized (this) {
                 if (partialList.isEmpty()) {
-                    partialList.addAll(IntStream.range(0, metadata.numPartitions()).boxed()
+                    partialList.addAll(IntStream.range(0, metadata.numPartitions())
+                            .boxed()
                             .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
                                 Collections.shuffle(list);
                                 return list.stream();
-                            })).limit(numPartitionsLimit).collect(Collectors.toList()));
+                            }))
+                            .limit(numPartitionsLimit)
+                            .collect(Collectors.toList()));
                 } else if (partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
-                    partialList.addAll(IntStream.range(0, metadata.numPartitions()).boxed()
+                    partialList.addAll(IntStream.range(0, metadata.numPartitions())
+                            .boxed()
                             .filter(e -> !partialList.contains(e))
                             .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
                                 Collections.shuffle(list);
                                 return list.stream();
-                            })).limit(numPartitionsLimit - partialList.size()).collect(Collectors.toList()));
+                            }))
+                            .limit(numPartitionsLimit - partialList.size())
+                            .collect(Collectors.toList()));
                 }
             }
         }

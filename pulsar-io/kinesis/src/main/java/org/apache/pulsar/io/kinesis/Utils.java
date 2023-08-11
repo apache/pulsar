@@ -83,8 +83,8 @@ public class Utils {
             int[] propertiesOffsetArray = new int[properties.size()];
             int i = 0;
             for (Entry<String, String> property : properties.entrySet()) {
-                propertiesOffsetArray[i++] = KeyValue.createKeyValue(builder, builder.createString(property.getKey()),
-                        builder.createString(property.getValue()));
+                propertiesOffsetArray[i++] = KeyValue.createKeyValue(
+                        builder, builder.createString(property.getKey()), builder.createString(property.getValue()));
             }
             propertiesOffset = Message.createPropertiesVector(builder, propertiesOffsetArray);
         }
@@ -113,23 +113,23 @@ public class Utils {
         return ByteBuffer.wrap(bb.array(), space, bb.capacity() - space);
     }
 
-    private static int createEncryptionCtxOffset(final FlatBufferBuilder builder,
-                                                 EncryptionContext ctx) {
+    private static int createEncryptionCtxOffset(final FlatBufferBuilder builder, EncryptionContext ctx) {
         if (ctx == null) {
             return -1;
         }
         int[] keysOffsets = new int[ctx.getKeys().size()];
         int keyIndex = 0;
-        for (Entry<String, org.apache.pulsar.common.api.EncryptionContext.EncryptionKey> entry : ctx.getKeys()
-                .entrySet()) {
+        for (Entry<String, org.apache.pulsar.common.api.EncryptionContext.EncryptionKey> entry :
+                ctx.getKeys().entrySet()) {
             int key = builder.createString(entry.getKey());
-            int value = EncryptionKey.createValueVector(builder, entry.getValue().getKeyValue());
+            int value =
+                    EncryptionKey.createValueVector(builder, entry.getValue().getKeyValue());
             Map<String, String> metadata = entry.getValue().getMetadata();
             int[] metadataOffsets = new int[metadata.size()];
             int i = 0;
             for (Entry<String, String> m : metadata.entrySet()) {
-                metadataOffsets[i++] = KeyValue.createKeyValue(builder, builder.createString(m.getKey()),
-                        builder.createString(m.getValue()));
+                metadataOffsets[i++] = KeyValue.createKeyValue(
+                        builder, builder.createString(m.getKey()), builder.createString(m.getValue()));
             }
             int metadataOffset = -1;
             if (metadata.size() > 0) {
@@ -153,16 +153,21 @@ public class Utils {
             case LZ4:
                 compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4;
                 break;
-        case ZLIB:
-            compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.ZLIB;
-            break;
-        default:
-            compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.NONE;
-
+            case ZLIB:
+                compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.ZLIB;
+                break;
+            default:
+                compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.NONE;
         }
-        return EncryptionCtx.createEncryptionCtx(builder, keysOffset, param, algo, compressionType,
-                ctx.getUncompressedMessageSize(), batchSize, ctx.getBatchSize().isPresent());
-
+        return EncryptionCtx.createEncryptionCtx(
+                builder,
+                keysOffset,
+                param,
+                algo,
+                compressionType,
+                ctx.getUncompressedMessageSize(),
+                batchSize,
+                ctx.getBatchSize().isPresent());
     }
 
     /**
@@ -201,24 +206,26 @@ public class Utils {
             });
             encryptionCtxJson.add(KEY_MAP_FIELD, keyBase64Map);
             encryptionCtxJson.add(KEY_METADATA_MAP_FIELD, keyMetadataMap);
-            encryptionCtxJson.addProperty(ENCRYPTION_PARAM_FIELD,
-                    getEncoder().encodeToString(encryptionCtx.getParam()));
+            encryptionCtxJson.addProperty(
+                    ENCRYPTION_PARAM_FIELD, getEncoder().encodeToString(encryptionCtx.getParam()));
             encryptionCtxJson.addProperty(ALGO_FIELD, encryptionCtx.getAlgorithm());
             if (encryptionCtx.getCompressionType() != null) {
-                encryptionCtxJson.addProperty(COMPRESSION_TYPE_FIELD, encryptionCtx.getCompressionType().name());
+                encryptionCtxJson.addProperty(
+                        COMPRESSION_TYPE_FIELD,
+                        encryptionCtx.getCompressionType().name());
                 encryptionCtxJson.addProperty(UNCPRESSED_MSG_SIZE_FIELD, encryptionCtx.getUncompressedMessageSize());
             }
             if (encryptionCtx.getBatchSize().isPresent()) {
-                encryptionCtxJson.addProperty(BATCH_SIZE_FIELD, encryptionCtx.getBatchSize().get());
+                encryptionCtxJson.addProperty(
+                        BATCH_SIZE_FIELD, encryptionCtx.getBatchSize().get());
             }
             result.add(ENCRYPTION_CTX_FIELD, encryptionCtxJson);
         }
         return result.toString();
     }
 
-    public static String serializeRecordToJsonExpandingValue(ObjectMapper mapper, Record<GenericObject> record,
-                                                             boolean flatten)
-            throws JsonProcessingException {
+    public static String serializeRecordToJsonExpandingValue(
+            ObjectMapper mapper, Record<GenericObject> record, boolean flatten) throws JsonProcessingException {
         JsonRecord jsonRecord = new JsonRecord();
         GenericObject value = record.getValue();
         if (value != null) {
@@ -253,12 +260,18 @@ public class Utils {
                         (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>) val;
                 Map<String, Object> jsonKeyValue = new HashMap<>();
                 if (keyValue.getKey() != null) {
-                    jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
-                            keyValue.getKey().getNativeObject()));
+                    jsonKeyValue.put(
+                            "key",
+                            toJsonSerializable(
+                                    keyValueSchema.getKeySchema(),
+                                    keyValue.getKey().getNativeObject()));
                 }
                 if (keyValue.getValue() != null) {
-                    jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
-                            keyValue.getValue().getNativeObject()));
+                    jsonKeyValue.put(
+                            "value",
+                            toJsonSerializable(
+                                    keyValueSchema.getValueSchema(),
+                                    keyValue.getValue().getNativeObject()));
                 }
                 return jsonKeyValue;
             case AVRO:
@@ -266,9 +279,8 @@ public class Utils {
             case JSON:
                 return val;
             default:
-                throw new UnsupportedOperationException("Unsupported key schemaType="
-                        + schema.getSchemaInfo().getType());
+                throw new UnsupportedOperationException(
+                        "Unsupported key schemaType=" + schema.getSchemaInfo().getType());
         }
     }
-
 }

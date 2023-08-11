@@ -19,16 +19,15 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import static org.testng.Assert.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.testng.annotations.Test;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
 
 /**
  * Unit test for {@link BrokerLoadManagerClassFilter}.
@@ -46,22 +45,24 @@ public class BrokerLoadManagerClassFilterTest extends BrokerFilterTestBase {
                 "broker2", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName()),
                 "broker3", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),
                 "broker4", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),
-                "broker5", getLookupData("3.0.0", null)
-        );
+                "broker5", getLookupData("3.0.0", null));
 
-        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
-        assertEquals(result, Map.of(
-                "broker1", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName()),
-                "broker2", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName())
-        ));
+        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(originalBrokers), null, context)
+                .get();
+        assertEquals(
+                result,
+                Map.of(
+                        "broker1", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName()),
+                        "broker2", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName())));
 
         context.brokerConfiguration().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        result = filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
+        result = filter.filterAsync(new HashMap<>(originalBrokers), null, context)
+                .get();
 
-        assertEquals(result, Map.of(
-                "broker3", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),
-                "broker4", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName())
-        ));
-
+        assertEquals(
+                result,
+                Map.of(
+                        "broker3", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),
+                        "broker4", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName())));
     }
 }

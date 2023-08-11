@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-
 /**
  * This Function simulates a pulsar function encountering runtime errors.
  */
@@ -31,4 +30,3 @@ public class UserExceptionFunction implements Function<String, String> {
         throw new RuntimeException("This wont work");
     }
 }
-

@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 public class FileModifiedTimeUpdater {
     @Getter
     String fileName;
+
     @Getter
     FileTime lastModifiedTime;
 

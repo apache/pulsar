@@ -46,7 +46,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     protected final String topicName;
     protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer>
             ACTIVE_CONSUMER_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
-            AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
+                    AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
     private volatile Consumer activeConsumer = null;
     protected final CopyOnWriteArrayList<Consumer> consumers;
     protected StickyKeyConsumerSelector stickyKeyConsumerSelector;
@@ -66,9 +66,13 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     protected boolean isFirstRead = true;
     private static final int CONSUMER_CONSISTENT_HASH_REPLICAS = 100;
 
-    public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-                                                  String topicName, Subscription subscription,
-                                                  ServiceConfiguration serviceConfig, ManagedCursor cursor) {
+    public AbstractDispatcherSingleActiveConsumer(
+            SubType subscriptionType,
+            int partitionIndex,
+            String topicName,
+            Subscription subscription,
+            ServiceConfiguration serviceConfig,
+            ManagedCursor cursor) {
         super(subscription, serviceConfig);
         this.topicName = topicName;
         this.consumers = new CopyOnWriteArrayList<>();
@@ -86,8 +90,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     protected void notifyActiveConsumerChanged(Consumer activeConsumer) {
         if (null != activeConsumer && subscriptionType == SubType.Failover) {
-            consumers.forEach(consumer ->
-                consumer.notifyActiveConsumerChange(activeConsumer));
+            consumers.forEach(consumer -> consumer.notifyActiveConsumerChange(activeConsumer));
         }
     }
 
@@ -143,7 +146,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     private int peekConsumerIndexFromHashRing(NavigableMap<Integer, Integer> hashRing) {
         int hash = Murmur3Hash32.getInstance().makeHash(topicName);
         Map.Entry<Integer, Integer> ceilingEntry = hashRing.ceilingEntry(hash);
-        return ceilingEntry != null ? ceilingEntry.getValue() : hashRing.firstEntry().getValue();
+        return ceilingEntry != null
+                ? ceilingEntry.getValue()
+                : hashRing.firstEntry().getValue();
     }
 
     private NavigableMap<Integer, Integer> makeHashRing(int consumerSize) {
@@ -170,7 +175,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {
-            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit",
+            log.warn(
+                    "[{}] Attempting to add consumer to subscription which reached max consumers limit",
                     this.topicName);
             return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
@@ -307,5 +313,4 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractDispatcherSingleActiveConsumer.class);
-
 }

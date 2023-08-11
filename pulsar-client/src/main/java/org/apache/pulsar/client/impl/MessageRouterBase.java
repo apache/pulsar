@@ -28,12 +28,12 @@ public abstract class MessageRouterBase implements MessageRouter {
 
     MessageRouterBase(HashingScheme hashingScheme) {
         switch (hashingScheme) {
-        case JavaStringHash:
-            this.hash = JavaStringHash.getInstance();
-            break;
-        case Murmur3_32Hash:
-        default:
-            this.hash = Murmur3Hash32.getInstance();
+            case JavaStringHash:
+                this.hash = JavaStringHash.getInstance();
+                break;
+            case Murmur3_32Hash:
+            default:
+                this.hash = Murmur3Hash32.getInstance();
         }
     }
 }

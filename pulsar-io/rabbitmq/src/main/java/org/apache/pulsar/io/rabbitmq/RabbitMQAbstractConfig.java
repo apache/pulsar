@@ -34,42 +34,30 @@ public class RabbitMQAbstractConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The connection name used for connecting to RabbitMQ")
+    @FieldDoc(required = true, defaultValue = "", help = "The connection name used for connecting to RabbitMQ")
     private String connectionName;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The RabbitMQ host to connect to")
+    @FieldDoc(required = true, defaultValue = "", help = "The RabbitMQ host to connect to")
     private String host;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "5672",
-        help = "The RabbitMQ port to connect to")
+    @FieldDoc(required = true, defaultValue = "5672", help = "The RabbitMQ port to connect to")
     private int port = 5672;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "/",
-        help = "The virtual host used for connecting to RabbitMQ")
+    @FieldDoc(required = true, defaultValue = "/", help = "The virtual host used for connecting to RabbitMQ")
     private String virtualHost = "/";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "guest",
-        sensitive = true,
-        help = "The username used to authenticate to RabbitMQ")
+            required = false,
+            defaultValue = "guest",
+            sensitive = true,
+            help = "The username used to authenticate to RabbitMQ")
     private String username = "guest";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "guest",
-        sensitive = true,
-        help = "The password used to authenticate to RabbitMQ")
+            required = false,
+            defaultValue = "guest",
+            sensitive = true,
+            help = "The password used to authenticate to RabbitMQ")
     private String password = "guest";
 
     @FieldDoc(
@@ -79,33 +67,30 @@ public class RabbitMQAbstractConfig implements Serializable {
     private String queueName;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "0",
-        help = "Initially requested maximum channel number. 0 for unlimited")
+            required = false,
+            defaultValue = "0",
+            help = "Initially requested maximum channel number. 0 for unlimited")
     private int requestedChannelMax = 0;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "0",
-        help = "Initially requested maximum frame size, in octets. 0 for unlimited")
+            required = false,
+            defaultValue = "0",
+            help = "Initially requested maximum frame size, in octets. 0 for unlimited")
     private int requestedFrameMax = 0;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "60000",
-        help = "Connection TCP establishment timeout in milliseconds. 0 for infinite")
+            required = false,
+            defaultValue = "60000",
+            help = "Connection TCP establishment timeout in milliseconds. 0 for infinite")
     private int connectionTimeout = 60000;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "10000",
-        help = "The AMQP0-9-1 protocol handshake timeout in milliseconds")
+            required = false,
+            defaultValue = "10000",
+            help = "The AMQP0-9-1 protocol handshake timeout in milliseconds")
     private int handshakeTimeout = 10000;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "60",
-        help = "The requested heartbeat timeout in seconds")
+    @FieldDoc(required = false, defaultValue = "60", help = "The requested heartbeat timeout in seconds")
     private int requestedHeartbeat = 60;
 
     public void validate() {

@@ -43,21 +43,26 @@ public class ProtobufNativeSchemaUtils {
         byte[] schemaDataBytes;
         try {
             Map<String, FileDescriptorProto> fileDescriptorProtoCache = new HashMap<>();
-            //recursively cache all FileDescriptorProto
+            // recursively cache all FileDescriptorProto
             serializeFileDescriptor(descriptor.getFile(), fileDescriptorProtoCache);
 
-            //extract root message path
+            // extract root message path
             String rootMessageTypeName = descriptor.getFullName();
             String rootFileDescriptorName = descriptor.getFile().getFullName();
-            //build FileDescriptorSet, this is equal to < protoc --include_imports --descriptor_set_out >
-            byte[] fileDescriptorSet = FileDescriptorSet.newBuilder().addAllFile(fileDescriptorProtoCache.values())
-                    .build().toByteArray();
+            // build FileDescriptorSet, this is equal to < protoc --include_imports --descriptor_set_out >
+            byte[] fileDescriptorSet = FileDescriptorSet.newBuilder()
+                    .addAllFile(fileDescriptorProtoCache.values())
+                    .build()
+                    .toByteArray();
 
-            //serialize to bytes
+            // serialize to bytes
             ProtobufNativeSchemaData schemaData = ProtobufNativeSchemaData.builder()
                     .fileDescriptorSet(fileDescriptorSet)
-                    .rootFileDescriptorName(rootFileDescriptorName).rootMessageTypeName(rootMessageTypeName).build();
-            schemaDataBytes = ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(schemaData);
+                    .rootFileDescriptorName(rootFileDescriptorName)
+                    .rootMessageTypeName(rootMessageTypeName)
+                    .build();
+            schemaDataBytes =
+                    ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(schemaData);
             logger.debug("descriptor '{}' serialized to '{}'.", descriptor.getFullName(), schemaDataBytes);
         } catch (Exception e) {
             e.printStackTrace();
@@ -66,17 +71,17 @@ public class ProtobufNativeSchemaUtils {
         return schemaDataBytes;
     }
 
-    private static void serializeFileDescriptor(Descriptors.FileDescriptor fileDescriptor,
-                                                Map<String, FileDescriptorProto> fileDescriptorCache) {
+    private static void serializeFileDescriptor(
+            Descriptors.FileDescriptor fileDescriptor, Map<String, FileDescriptorProto> fileDescriptorCache) {
         fileDescriptor.getDependencies().forEach(dependency -> {
-                    if (!fileDescriptorCache.containsKey(dependency.getFullName())) {
-                        serializeFileDescriptor(dependency, fileDescriptorCache);
-                    }
-                }
-        );
-        String[] unResolvedFileDescriptNames = fileDescriptor.getDependencies().stream().
-                filter(item -> !fileDescriptorCache.containsKey(item.getFullName()))
-                .map(Descriptors.FileDescriptor::getFullName).toArray(String[]::new);
+            if (!fileDescriptorCache.containsKey(dependency.getFullName())) {
+                serializeFileDescriptor(dependency, fileDescriptorCache);
+            }
+        });
+        String[] unResolvedFileDescriptNames = fileDescriptor.getDependencies().stream()
+                .filter(item -> !fileDescriptorCache.containsKey(item.getFullName()))
+                .map(Descriptors.FileDescriptor::getFullName)
+                .toArray(String[]::new);
         if (unResolvedFileDescriptNames.length == 0) {
             fileDescriptorCache.put(fileDescriptor.getFullName(), fileDescriptor.toProto());
         } else {
@@ -85,8 +90,8 @@ public class ProtobufNativeSchemaUtils {
         }
     }
 
-    private static final ObjectReader PROTOBUF_NATIVE_SCHEMADATA_READER = ObjectMapperFactory.getMapper().reader()
-            .forType(ProtobufNativeSchemaData.class);
+    private static final ObjectReader PROTOBUF_NATIVE_SCHEMADATA_READER =
+            ObjectMapperFactory.getMapper().reader().forType(ProtobufNativeSchemaData.class);
 
     public static Descriptors.Descriptor deserialize(byte[] schemaDataBytes) {
         Descriptors.Descriptor descriptor;
@@ -96,21 +101,24 @@ public class ProtobufNativeSchemaUtils {
             Map<String, FileDescriptorProto> fileDescriptorProtoCache = new HashMap<>();
             Map<String, Descriptors.FileDescriptor> fileDescriptorCache = new HashMap<>();
             FileDescriptorSet fileDescriptorSet = FileDescriptorSet.parseFrom(schemaData.getFileDescriptorSet());
-            fileDescriptorSet.getFileList().forEach(fileDescriptorProto ->
-                    fileDescriptorProtoCache.put(fileDescriptorProto.getName(), fileDescriptorProto));
+            fileDescriptorSet
+                    .getFileList()
+                    .forEach(fileDescriptorProto ->
+                            fileDescriptorProtoCache.put(fileDescriptorProto.getName(), fileDescriptorProto));
             FileDescriptorProto rootFileDescriptorProto =
                     fileDescriptorProtoCache.get(schemaData.getRootFileDescriptorName());
 
-            //recursively build FileDescriptor
+            // recursively build FileDescriptor
             deserializeFileDescriptor(rootFileDescriptorProto, fileDescriptorCache, fileDescriptorProtoCache);
-            //extract root fileDescriptor
+            // extract root fileDescriptor
             Descriptors.FileDescriptor fileDescriptor = fileDescriptorCache.get(schemaData.getRootFileDescriptorName());
-            //trim package
+            // trim package
             String[] paths = StringUtils.removeFirst(schemaData.getRootMessageTypeName(), fileDescriptor.getPackage())
-                    .replaceFirst("\\.", "").split("\\.");
-            //extract root message
+                    .replaceFirst("\\.", "")
+                    .split("\\.");
+            // extract root message
             descriptor = fileDescriptor.findMessageTypeByName(paths[0]);
-            //extract nested message
+            // extract nested message
             for (int i = 1; i < paths.length; i++) {
                 descriptor = descriptor.findNestedTypeByName(paths[i]);
             }
@@ -123,9 +131,10 @@ public class ProtobufNativeSchemaUtils {
         return descriptor;
     }
 
-    private static void deserializeFileDescriptor(FileDescriptorProto fileDescriptorProto,
-                                                  Map<String, Descriptors.FileDescriptor> fileDescriptorCache,
-                                                  Map<String, FileDescriptorProto> fileDescriptorProtoCache) {
+    private static void deserializeFileDescriptor(
+            FileDescriptorProto fileDescriptorProto,
+            Map<String, Descriptors.FileDescriptor> fileDescriptorCache,
+            Map<String, FileDescriptorProto> fileDescriptorProtoCache) {
         fileDescriptorProto.getDependencyList().forEach(dependencyFileDescriptorName -> {
             if (!fileDescriptorCache.containsKey(dependencyFileDescriptorName)) {
                 FileDescriptorProto dependencyFileDescriptor =
@@ -136,17 +145,18 @@ public class ProtobufNativeSchemaUtils {
 
         Descriptors.FileDescriptor[] dependencyFileDescriptors = fileDescriptorProto.getDependencyList().stream()
                 .map(dependency -> {
-            if (fileDescriptorCache.containsKey(dependency)) {
-                return fileDescriptorCache.get(dependency);
-            } else {
-                throw new SchemaSerializationException("'" + fileDescriptorProto.getName()
-                        + "' can't resolve  dependency '" + dependency + "'.");
-            }
-        }).toArray(Descriptors.FileDescriptor[]::new);
+                    if (fileDescriptorCache.containsKey(dependency)) {
+                        return fileDescriptorCache.get(dependency);
+                    } else {
+                        throw new SchemaSerializationException("'" + fileDescriptorProto.getName()
+                                + "' can't resolve  dependency '" + dependency + "'.");
+                    }
+                })
+                .toArray(Descriptors.FileDescriptor[]::new);
 
         try {
-            Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor
-                    .buildFrom(fileDescriptorProto, dependencyFileDescriptors);
+            Descriptors.FileDescriptor fileDescriptor =
+                    Descriptors.FileDescriptor.buildFrom(fileDescriptorProto, dependencyFileDescriptors);
             fileDescriptorCache.put(fileDescriptor.getFullName(), fileDescriptor);
         } catch (Descriptors.DescriptorValidationException e) {
             e.printStackTrace();
@@ -155,5 +165,4 @@ public class ProtobufNativeSchemaUtils {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(ProtobufNativeSchemaUtils.class);
-
 }

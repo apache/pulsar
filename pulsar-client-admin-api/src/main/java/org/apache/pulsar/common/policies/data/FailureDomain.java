@@ -26,6 +26,7 @@ public interface FailureDomain {
 
     interface Builder {
         Builder brokers(Set<String> brokers);
+
         FailureDomain build();
     }
 

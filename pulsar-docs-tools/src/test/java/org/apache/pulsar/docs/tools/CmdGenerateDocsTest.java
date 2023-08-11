@@ -29,10 +29,14 @@ public class CmdGenerateDocsTest {
 
     @Parameters(commandDescription = "Options")
     public class Arguments {
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-n", "--name"}, description = "Name")
+        @Parameter(
+                names = {"-n", "--name"},
+                description = "Name")
         private String name;
     }
 
@@ -46,7 +50,7 @@ public class CmdGenerateDocsTest {
 
             CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
             cmd.addCommand("test", new Arguments());
-            cmd.run(new String[]{"-h"});
+            cmd.run(new String[] {"-h"});
 
             String message = baoStream.toString();
             String rightMsg = "Usage: pulsar gen-doc [options]\n"

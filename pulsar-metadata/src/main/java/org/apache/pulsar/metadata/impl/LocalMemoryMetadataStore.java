@@ -68,13 +68,13 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     private final AtomicLong sequentialIdGenerator;
     private MetadataEventSynchronizer synchronizer;
 
-    private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
-            .weakValues().makeMap();
+    private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS =
+            new MapMaker().weakValues().makeMap();
     // Manage all instances to facilitate registration to the same listener
-    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
-            .weakValues().makeMap();
-    private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
-            .weakValues().makeMap();
+    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE =
+            new MapMaker().weakValues().makeMap();
+    private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP =
+            new MapMaker().weakValues().makeMap();
 
     public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
@@ -111,10 +111,9 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         synchronized (map) {
             Value v = map.get(path);
             if (v != null) {
-                return FutureUtils.value(
-                        Optional.of(
-                                new GetResult(v.data, new Stat(path, v.version, v.createdTimestamp, v.modifiedTimestamp,
-                                        v.isEphemeral(), true))));
+                return FutureUtils.value(Optional.of(new GetResult(
+                        v.data,
+                        new Stat(path, v.version, v.createdTimestamp, v.modifiedTimestamp, v.isEphemeral(), true))));
             } else {
                 return FutureUtils.value(Optional.empty());
             }
@@ -155,8 +154,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                            EnumSet<CreateOption> options) {
+    public CompletableFuture<Stat> storePut(
+            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -188,8 +187,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 } else {
                     long newVersion = existingValue != null ? existingValue.version + 1 : 0;
                     long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
-                    Value newValue = new Value(newVersion, data, createdTimestamp, now,
-                            options.contains(CreateOption.Ephemeral));
+                    Value newValue = new Value(
+                            newVersion, data, createdTimestamp, now, options.contains(CreateOption.Ephemeral));
                     map.put(path, newValue);
 
                     NotificationType type =
@@ -198,10 +197,13 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                     if (type == NotificationType.Created) {
                         notifyParentChildrenChanged(path);
                     }
-                    return FutureUtils
-                            .value(new Stat(path, newValue.version, newValue.createdTimestamp,
-                                    newValue.modifiedTimestamp,
-                                    false, true));
+                    return FutureUtils.value(new Stat(
+                            path,
+                            newValue.version,
+                            newValue.createdTimestamp,
+                            newValue.modifiedTimestamp,
+                            false,
+                            true));
                 }
             }
         }
@@ -249,8 +251,9 @@ class MemoryMetadataStoreProvider implements MetadataStoreProvider {
     }
 
     @Override
-    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
-                                boolean enableSessionWatcher) throws MetadataStoreException {
+    public MetadataStore create(
+            String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+            throws MetadataStoreException {
         return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
     }
 }

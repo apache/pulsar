@@ -176,7 +176,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      */
     ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties);
 
-
     /**
      * Sets the timeout for unacknowledged messages, truncated to the nearest millisecond. The timeout must be
      * greater than 1 second.
@@ -464,7 +463,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      */
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
 
-
     /**
      * Sets topic's auto-discovery period when using a pattern for topics consumer.
      *
@@ -477,7 +475,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit);
-
 
     /**
      * <b>Shared subscription</b>
@@ -573,7 +570,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @param interceptors the list of interceptors to intercept the consumer created by this builder.
      */
-    ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
+    ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors);
 
     /**
      * Sets dead letter policy for a consumer.
@@ -844,8 +841,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param topicName a topic name
      * @param builderConsumer a consumer to allow the configuration of the {@link TopicConsumerBuilder} instance
      */
-    ConsumerBuilder<T> topicConfiguration(String topicName,
-                                          java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
+    ConsumerBuilder<T> topicConfiguration(
+            String topicName, java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
 
     /**
      * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
@@ -861,6 +858,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param topicsPattern a regular expression to match a topic name
      * @param builderConsumer a consumer to allow the configuration of the {@link TopicConsumerBuilder} instance
      */
-    ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
-                                          java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
+    ConsumerBuilder<T> topicConfiguration(
+            Pattern topicsPattern, java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
 }

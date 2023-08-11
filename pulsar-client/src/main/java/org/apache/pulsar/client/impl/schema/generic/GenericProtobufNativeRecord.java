@@ -29,10 +29,8 @@ public class GenericProtobufNativeRecord extends VersionedGenericRecord {
     private final DynamicMessage record;
     private final Descriptors.Descriptor msgDesc;
 
-    protected GenericProtobufNativeRecord(byte[] schemaVersion,
-                                          Descriptors.Descriptor msgDesc,
-                                          List<Field> fields,
-                                          DynamicMessage record) {
+    protected GenericProtobufNativeRecord(
+            byte[] schemaVersion, Descriptors.Descriptor msgDesc, List<Field> fields, DynamicMessage record) {
         super(schemaVersion, fields);
         this.msgDesc = msgDesc;
         this.record = record;

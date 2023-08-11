@@ -18,9 +18,18 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static io.trino.spi.StandardErrorCode.NOT_FOUND;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
+import static org.mockito.Mockito.*;
+import static org.testng.Assert.*;
 import io.airlift.log.Logger;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.*;
+import java.util.*;
+import java.util.stream.Collectors;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -29,17 +38,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.core.Response;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static io.trino.spi.StandardErrorCode.NOT_FOUND;
-import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
 
 public class TestPulsarMetadata extends TestPulsarConnector {
 
@@ -50,17 +48,25 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         List<String> schemas = this.pulsarMetadata.listSchemaNames(mock(ConnectorSession.class));
 
-
         if (StringUtils.isBlank(delimiter)) {
-            String[] expectedSchemas = {NAMESPACE_NAME_1.toString(), NAMESPACE_NAME_2.toString(),
-                    NAMESPACE_NAME_3.toString(), NAMESPACE_NAME_4.toString()};
+            String[] expectedSchemas = {
+                NAMESPACE_NAME_1.toString(),
+                NAMESPACE_NAME_2.toString(),
+                NAMESPACE_NAME_3.toString(),
+                NAMESPACE_NAME_4.toString()
+            };
             assertEquals(new HashSet<>(schemas), new HashSet<>(Arrays.asList(expectedSchemas)));
         } else {
             String[] expectedSchemas = {
-                    PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(NAMESPACE_NAME_1.toString(), pulsarConnectorConfig),
-                    PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(NAMESPACE_NAME_2.toString(), pulsarConnectorConfig),
-                    PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(NAMESPACE_NAME_3.toString(), pulsarConnectorConfig),
-                    PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(NAMESPACE_NAME_4.toString(), pulsarConnectorConfig)};
+                PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(
+                        NAMESPACE_NAME_1.toString(), pulsarConnectorConfig),
+                PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(
+                        NAMESPACE_NAME_2.toString(), pulsarConnectorConfig),
+                PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(
+                        NAMESPACE_NAME_3.toString(), pulsarConnectorConfig),
+                PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded(
+                        NAMESPACE_NAME_4.toString(), pulsarConnectorConfig)
+            };
             assertEquals(new HashSet<>(schemas), new HashSet<>(Arrays.asList(expectedSchemas)));
         }
     }
@@ -70,8 +76,8 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         SchemaTableName schemaTableName = new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName());
 
-        ConnectorTableHandle connectorTableHandle
-                = this.pulsarMetadata.getTableHandle(mock(ConnectorSession.class), schemaTableName);
+        ConnectorTableHandle connectorTableHandle =
+                this.pulsarMetadata.getTableHandle(mock(ConnectorSession.class), schemaTableName);
 
         assertTrue(connectorTableHandle instanceof PulsarTableHandle);
 
@@ -87,26 +93,23 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     public void testGetTableMetadata(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         List<TopicName> allTopics = new LinkedList<>();
-        allTopics.addAll(topicNames.stream().filter(topicName -> !topicName.equals(NON_SCHEMA_TOPIC)).collect(Collectors.toList()));
+        allTopics.addAll(topicNames.stream()
+                .filter(topicName -> !topicName.equals(NON_SCHEMA_TOPIC))
+                .collect(Collectors.toList()));
         allTopics.addAll(partitionedTopicNames);
 
         for (TopicName topic : allTopics) {
             PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
-                    topic.toString(),
-                    topic.getNamespace(),
-                    topic.getLocalName(),
-                    topic.getLocalName()
-            );
+                    topic.toString(), topic.getNamespace(), topic.getLocalName(), topic.getLocalName());
 
             List<PulsarColumnHandle> fooColumnHandles = topicsToColumnHandles.get(topic);
 
-            ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                    pulsarTableHandle);
+            ConnectorTableMetadata tableMetadata =
+                    this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
 
             assertEquals(tableMetadata.getTable().getSchemaName(), topic.getNamespace());
             assertEquals(tableMetadata.getTable().getTableName(), topic.getLocalName());
-            assertEquals(tableMetadata.getColumns().size(),
-                    fooColumnHandles.size());
+            assertEquals(tableMetadata.getColumns().size(), fooColumnHandles.size());
 
             List<String> fieldNames = new LinkedList<>(fooFieldNames);
 
@@ -116,9 +119,12 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
             for (ColumnMetadata column : tableMetadata.getColumns()) {
                 if (PulsarInternalColumn.getInternalFieldsMap().containsKey(column.getName())) {
-                    assertEquals(column.getComment(),
+                    assertEquals(
+                            column.getComment(),
                             PulsarInternalColumn.getInternalFieldsMap()
-                                    .get(column.getName()).getColumnMetadata(true).getComment());
+                                    .get(column.getName())
+                                    .getColumnMetadata(true)
+                                    .getComment());
                 }
 
                 fieldNames.remove(column.getName());
@@ -132,15 +138,11 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     public void testGetTableMetadataWrongSchema(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
-                pulsarConnectorId.toString(),
-                "wrong-tenant/wrong-ns",
-                TOPIC_1.getLocalName(),
-                TOPIC_1.getLocalName()
-        );
+                pulsarConnectorId.toString(), "wrong-tenant/wrong-ns", TOPIC_1.getLocalName(), TOPIC_1.getLocalName());
 
         try {
-            ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                    pulsarTableHandle);
+            ConnectorTableMetadata tableMetadata =
+                    this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
             fail("Invalid schema should have generated an exception");
         } catch (TrinoException e) {
             assertEquals(e.getErrorCode(), NOT_FOUND.toErrorCode());
@@ -152,15 +154,11 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     public void testGetTableMetadataWrongTable(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
-                pulsarConnectorId.toString(),
-                TOPIC_1.getNamespace(),
-                "wrong-topic",
-                "wrong-topic"
-        );
+                pulsarConnectorId.toString(), TOPIC_1.getNamespace(), "wrong-topic", "wrong-topic");
 
         try {
-            ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                    pulsarTableHandle);
+            ConnectorTableMetadata tableMetadata =
+                    this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
             fail("Invalid table should have generated an exception");
         } catch (TableNotFoundException e) {
             assertEquals(e.getErrorCode(), NOT_FOUND.toErrorCode());
@@ -172,46 +170,37 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     public void testGetTableMetadataTableNoSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         ClientErrorException cee = new ClientErrorException(Response.Status.NOT_FOUND);
-        when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenThrow(
-                new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus()));
+        when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName())))
+                .thenThrow(new PulsarAdminException(
+                        cee, cee.getMessage(), cee.getResponse().getStatus()));
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
-                pulsarConnectorId.toString(),
-                TOPIC_1.getNamespace(),
-                TOPIC_1.getLocalName(),
-                TOPIC_1.getLocalName()
-        );
+                pulsarConnectorId.toString(), TOPIC_1.getNamespace(), TOPIC_1.getLocalName(), TOPIC_1.getLocalName());
 
-
-        ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                pulsarTableHandle);
-        assertEquals(tableMetadata.getColumns().size(), PulsarInternalColumn.getInternalFields().size() + 1);
+        ConnectorTableMetadata tableMetadata =
+                this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
+        assertEquals(
+                tableMetadata.getColumns().size(),
+                PulsarInternalColumn.getInternalFields().size() + 1);
     }
 
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetTableMetadataTableBlankSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        SchemaInfo badSchemaInfo = SchemaInfo.builder()
-                .schema(new byte[0])
-                .type(SchemaType.AVRO)
-                .build();
+        SchemaInfo badSchemaInfo =
+                SchemaInfo.builder().schema(new byte[0]).type(SchemaType.AVRO).build();
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenReturn(badSchemaInfo);
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
-                pulsarConnectorId.toString(),
-                TOPIC_1.getNamespace(),
-                TOPIC_1.getLocalName(),
-                TOPIC_1.getLocalName()
-        );
+                pulsarConnectorId.toString(), TOPIC_1.getNamespace(), TOPIC_1.getLocalName(), TOPIC_1.getLocalName());
 
         try {
-            ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                    pulsarTableHandle);
+            ConnectorTableMetadata tableMetadata =
+                    this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
             fail("Table without schema should have generated an exception");
         } catch (TrinoException e) {
             assertEquals(e.getErrorCode(), NOT_SUPPORTED.toErrorCode());
-            assertEquals(e.getMessage(),
-                    "Topic persistent://tenant-1/ns-1/topic-1 does not have a valid schema");
+            assertEquals(e.getMessage(), "Topic persistent://tenant-1/ns-1/topic-1 does not have a valid schema");
         }
     }
 
@@ -225,53 +214,55 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenReturn(badSchemaInfo);
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
-                pulsarConnectorId.toString(),
-                TOPIC_1.getNamespace(),
-                TOPIC_1.getLocalName(),
-                TOPIC_1.getLocalName()
-        );
+                pulsarConnectorId.toString(), TOPIC_1.getNamespace(), TOPIC_1.getLocalName(), TOPIC_1.getLocalName());
 
         try {
-            ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                    pulsarTableHandle);
+            ConnectorTableMetadata tableMetadata =
+                    this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
             fail("Table without schema should have generated an exception");
         } catch (TrinoException e) {
             assertEquals(e.getErrorCode(), NOT_SUPPORTED.toErrorCode());
-            assertEquals(e.getMessage(),
-                    "Topic persistent://tenant-1/ns-1/topic-1 does not have a valid schema");
+            assertEquals(e.getMessage(), "Topic persistent://tenant-1/ns-1/topic-1 does not have a valid schema");
         }
     }
 
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testListTable(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        assertTrue(this.pulsarMetadata.listTables(mock(ConnectorSession.class), Optional.empty()).isEmpty());
-        assertTrue(this.pulsarMetadata.listTables(mock(ConnectorSession.class), Optional.of("wrong-tenant/wrong-ns"))
+        assertTrue(this.pulsarMetadata
+                .listTables(mock(ConnectorSession.class), Optional.empty())
+                .isEmpty());
+        assertTrue(this.pulsarMetadata
+                .listTables(mock(ConnectorSession.class), Optional.of("wrong-tenant/wrong-ns"))
                 .isEmpty());
 
-        SchemaTableName[] expectedTopics1 = {new SchemaTableName(
-            TOPIC_4.getNamespace(), TOPIC_4.getLocalName()),
+        SchemaTableName[] expectedTopics1 = {
+            new SchemaTableName(TOPIC_4.getNamespace(), TOPIC_4.getLocalName()),
             new SchemaTableName(PARTITIONED_TOPIC_4.getNamespace(), PARTITIONED_TOPIC_4.getLocalName())
         };
-        assertEquals(this.pulsarMetadata.listTables(mock(ConnectorSession.class),
-                Optional.of(NAMESPACE_NAME_3.toString())), Arrays.asList(expectedTopics1));
+        assertEquals(
+                this.pulsarMetadata.listTables(mock(ConnectorSession.class), Optional.of(NAMESPACE_NAME_3.toString())),
+                Arrays.asList(expectedTopics1));
 
-        SchemaTableName[] expectedTopics2 = {new SchemaTableName(TOPIC_5.getNamespace(), TOPIC_5.getLocalName()),
-                new SchemaTableName(TOPIC_6.getNamespace(), TOPIC_6.getLocalName()),
+        SchemaTableName[] expectedTopics2 = {
+            new SchemaTableName(TOPIC_5.getNamespace(), TOPIC_5.getLocalName()),
+            new SchemaTableName(TOPIC_6.getNamespace(), TOPIC_6.getLocalName()),
             new SchemaTableName(PARTITIONED_TOPIC_5.getNamespace(), PARTITIONED_TOPIC_5.getLocalName()),
             new SchemaTableName(PARTITIONED_TOPIC_6.getNamespace(), PARTITIONED_TOPIC_6.getLocalName()),
         };
-        assertEquals(new HashSet<>(this.pulsarMetadata.listTables(mock(ConnectorSession.class),
-            Optional.of(NAMESPACE_NAME_4.toString()))), new HashSet<>(Arrays.asList(expectedTopics2)));
+        assertEquals(
+                new HashSet<>(this.pulsarMetadata.listTables(
+                        mock(ConnectorSession.class), Optional.of(NAMESPACE_NAME_4.toString()))),
+                new HashSet<>(Arrays.asList(expectedTopics2)));
     }
 
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetColumnHandles(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(pulsarConnectorId.toString(), TOPIC_1.getNamespace(),
-                TOPIC_1.getLocalName(), TOPIC_1.getLocalName());
-        Map<String, ColumnHandle> columnHandleMap
-                = new HashMap<>(this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle));
+        PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
+                pulsarConnectorId.toString(), TOPIC_1.getNamespace(), TOPIC_1.getLocalName(), TOPIC_1.getLocalName());
+        Map<String, ColumnHandle> columnHandleMap =
+                new HashMap<>(this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle));
 
         List<String> fieldNames = new LinkedList<>(fooFieldNames);
 
@@ -282,10 +273,11 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         for (String field : fieldNames) {
             assertNotNull(columnHandleMap.get(field));
             PulsarColumnHandle pulsarColumnHandle = (PulsarColumnHandle) columnHandleMap.get(field);
-            PulsarInternalColumn pulsarInternalColumn = PulsarInternalColumn.getInternalFieldsMap().get(field);
+            PulsarInternalColumn pulsarInternalColumn =
+                    PulsarInternalColumn.getInternalFieldsMap().get(field);
             if (pulsarInternalColumn != null) {
-                assertEquals(pulsarColumnHandle,
-                        pulsarInternalColumn.getColumnHandle(pulsarConnectorId.toString(), false));
+                assertEquals(
+                        pulsarColumnHandle, pulsarInternalColumn.getColumnHandle(pulsarConnectorId.toString(), false));
             } else {
                 assertEquals(pulsarColumnHandle.getConnectorId(), pulsarConnectorId.toString());
                 assertEquals(pulsarColumnHandle.getName(), field);
@@ -299,16 +291,15 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testListTableColumns(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        Map<SchemaTableName, List<ColumnMetadata>> tableColumnsMap
-                = this.pulsarMetadata.listTableColumns(mock(ConnectorSession.class),
-                new SchemaTablePrefix(TOPIC_1.getNamespace()));
+        Map<SchemaTableName, List<ColumnMetadata>> tableColumnsMap = this.pulsarMetadata.listTableColumns(
+                mock(ConnectorSession.class), new SchemaTablePrefix(TOPIC_1.getNamespace()));
 
         assertEquals(tableColumnsMap.size(), 4);
-        List<ColumnMetadata> columnMetadataList
-                = tableColumnsMap.get(new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName()));
+        List<ColumnMetadata> columnMetadataList =
+                tableColumnsMap.get(new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName()));
         assertNotNull(columnMetadataList);
-        assertEquals(columnMetadataList.size(),
-                topicsToColumnHandles.get(TOPIC_1).size());
+        assertEquals(
+                columnMetadataList.size(), topicsToColumnHandles.get(TOPIC_1).size());
 
         List<String> fieldNames = new LinkedList<>(fooFieldNames);
 
@@ -318,9 +309,12 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         for (ColumnMetadata column : columnMetadataList) {
             if (PulsarInternalColumn.getInternalFieldsMap().containsKey(column.getName())) {
-                assertEquals(column.getComment(),
+                assertEquals(
+                        column.getComment(),
                         PulsarInternalColumn.getInternalFieldsMap()
-                                .get(column.getName()).getColumnMetadata(true).getComment());
+                                .get(column.getName())
+                                .getColumnMetadata(true)
+                                .getComment());
             }
 
             fieldNames.remove(column.getName());
@@ -330,8 +324,8 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         columnMetadataList = tableColumnsMap.get(new SchemaTableName(TOPIC_2.getNamespace(), TOPIC_2.getLocalName()));
         assertNotNull(columnMetadataList);
-        assertEquals(columnMetadataList.size(),
-                topicsToColumnHandles.get(TOPIC_2).size());
+        assertEquals(
+                columnMetadataList.size(), topicsToColumnHandles.get(TOPIC_2).size());
 
         fieldNames = new LinkedList<>(fooFieldNames);
 
@@ -341,9 +335,12 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         for (ColumnMetadata column : columnMetadataList) {
             if (PulsarInternalColumn.getInternalFieldsMap().containsKey(column.getName())) {
-                assertEquals(column.getComment(),
+                assertEquals(
+                        column.getComment(),
                         PulsarInternalColumn.getInternalFieldsMap()
-                                .get(column.getName()).getColumnMetadata(true).getComment());
+                                .get(column.getName())
+                                .getColumnMetadata(true)
+                                .getComment());
             }
 
             fieldNames.remove(column.getName());
@@ -352,15 +349,14 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         assertTrue(fieldNames.isEmpty());
 
         // test table and schema
-        tableColumnsMap
-                = this.pulsarMetadata.listTableColumns(mock(ConnectorSession.class),
-                new SchemaTablePrefix(TOPIC_4.getNamespace(), TOPIC_4.getLocalName()));
+        tableColumnsMap = this.pulsarMetadata.listTableColumns(
+                mock(ConnectorSession.class), new SchemaTablePrefix(TOPIC_4.getNamespace(), TOPIC_4.getLocalName()));
 
         assertEquals(tableColumnsMap.size(), 1);
         columnMetadataList = tableColumnsMap.get(new SchemaTableName(TOPIC_4.getNamespace(), TOPIC_4.getLocalName()));
         assertNotNull(columnMetadataList);
-        assertEquals(columnMetadataList.size(),
-                topicsToColumnHandles.get(TOPIC_4).size());
+        assertEquals(
+                columnMetadataList.size(), topicsToColumnHandles.get(TOPIC_4).size());
 
         fieldNames = new LinkedList<>(fooFieldNames);
 
@@ -370,9 +366,12 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         for (ColumnMetadata column : columnMetadataList) {
             if (PulsarInternalColumn.getInternalFieldsMap().containsKey(column.getName())) {
-                assertEquals(column.getComment(),
+                assertEquals(
+                        column.getComment(),
                         PulsarInternalColumn.getInternalFieldsMap()
-                                .get(column.getName()).getColumnMetadata(true).getComment());
+                                .get(column.getName())
+                                .getColumnMetadata(true)
+                                .getComment());
             }
 
             fieldNames.remove(column.getName());
@@ -393,18 +392,14 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         // Test getTableMetadata should pass the auth check
         TopicName topic = TOPIC_1;
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
-                topic.toString(),
-                topic.getNamespace(),
-                topic.getLocalName(),
-                topic.getLocalName()
-        );
-        this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                pulsarTableHandle);
+                topic.toString(), topic.getNamespace(), topic.getLocalName(), topic.getLocalName());
+        this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
 
         // Test getColumnHandles should pass the auth check
         this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle);
 
-        doThrow(new TrinoException(PERMISSION_DENIED, "not authorized")).when(this.pulsarAuth)
+        doThrow(new TrinoException(PERMISSION_DENIED, "not authorized"))
+                .when(this.pulsarAuth)
                 .checkTopicAuth(isA(ConnectorSession.class), isA(String.class));
 
         // Test getTableHandle should fail the auth check
@@ -417,8 +412,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         // Test getTableMetadata should fail the auth check
         try {
-            this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
-                    pulsarTableHandle);
+            this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class), pulsarTableHandle);
             Assert.fail("Test getTableMetadata should fail the auth check"); // should fail
         } catch (TrinoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());

@@ -21,15 +21,12 @@ package org.apache.pulsar.common.protocol;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandProducer;
@@ -84,9 +81,7 @@ public class CommandUtilsTests {
                 .setProducerName("producer");
 
         if (key != null && value != null) {
-            cmd.addMetadata()
-                .setKey(key)
-                .setValue(value);
+            cmd.addMetadata().setKey(key).setValue(value);
         }
 
         return cmd;
@@ -101,9 +96,7 @@ public class CommandUtilsTests {
                 .setSubType(CommandSubscribe.SubType.Shared);
 
         if (key != null && value != null) {
-            cmd.addMetadata()
-                    .setKey(key)
-                    .setValue(value);
+            cmd.addMetadata().setKey(key).setValue(value);
         }
 
         return cmd;
@@ -139,14 +132,14 @@ public class CommandUtilsTests {
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
 
         BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
-                        .setBrokerTimestamp(System.currentTimeMillis())
-                        .setIndex(MOCK_BATCH_SIZE - 1);
+                .setBrokerTimestamp(System.currentTimeMillis())
+                .setIndex(MOCK_BATCH_SIZE - 1);
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
-        assertEquals(brokerMetadata.getSerializedSize() + data.length() + 6,
-                dataWithBrokerEntryMetadata.readableBytes());
+        assertEquals(
+                brokerMetadata.getSerializedSize() + data.length() + 6, dataWithBrokerEntryMetadata.readableBytes());
 
-        byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
+        byte[] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertTrue(new String(content, StandardCharsets.UTF_8).endsWith(data));
     }
@@ -162,7 +155,7 @@ public class CommandUtilsTests {
         Commands.skipBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
         assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
 
-        byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
+        byte[] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
     }
@@ -175,14 +168,13 @@ public class CommandUtilsTests {
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
-        BrokerEntryMetadata brokerMetadata =
-                Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        BrokerEntryMetadata brokerMetadata = Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
 
         assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
         assertEquals(brokerMetadata.getIndex(), MOCK_BATCH_SIZE - 1);
         assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
 
-        byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
+        byte[] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
     }
@@ -196,8 +188,7 @@ public class CommandUtilsTests {
         ByteBuf dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), MOCK_BATCH_SIZE);
         int bytesBeforePeek = dataWithBrokerEntryMetadata.readableBytes();
-        BrokerEntryMetadata brokerMetadata =
-                Commands.peekBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        BrokerEntryMetadata brokerMetadata = Commands.peekBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
 
         assertTrue(brokerMetadata.getBrokerTimestamp() <= System.currentTimeMillis());
         assertEquals(brokerMetadata.getIndex(), MOCK_BATCH_SIZE - 1);
@@ -207,14 +198,13 @@ public class CommandUtilsTests {
 
         // test parse logic after peek
 
-        BrokerEntryMetadata brokerMetadata1 =
-                Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        BrokerEntryMetadata brokerMetadata1 = Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
         assertTrue(brokerMetadata1.getBrokerTimestamp() <= System.currentTimeMillis());
 
         assertEquals(brokerMetadata1.getIndex(), MOCK_BATCH_SIZE - 1);
         assertEquals(data.length(), dataWithBrokerEntryMetadata.readableBytes());
 
-        byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
+        byte[] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
     }
@@ -223,14 +213,14 @@ public class CommandUtilsTests {
         Set<String> interceptorNames = new HashSet<>();
         interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
         interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
-        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(interceptorNames,
-                Thread.currentThread().getContextClassLoader());
+        return BrokerEntryMetadataUtils.loadBrokerEntryMetadataInterceptors(
+                interceptorNames, Thread.currentThread().getContextClassLoader());
     }
-
 
     public ByteBuf getMessage(String producerName, long seqId) {
         MessageMetadata messageMetadata = new MessageMetadata()
-                .setProducerName(producerName).setSequenceId(seqId)
+                .setProducerName(producerName)
+                .setSequenceId(seqId)
                 .setPublishTime(System.currentTimeMillis());
 
         return serializeMetadataAndPayload(

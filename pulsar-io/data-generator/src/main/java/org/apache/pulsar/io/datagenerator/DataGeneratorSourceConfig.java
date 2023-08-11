@@ -25,27 +25,24 @@ import lombok.Data;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations.PositiveNumber;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
-
 @Data
 public class DataGeneratorSourceConfig implements Serializable {
-  private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-  @FieldDoc(
-    required = true,
-    defaultValue = "50",
-    sensitive = false,
-    help = "How long to sleep between emitting messages"
-  )
-  @PositiveNumber
-  private long sleepBetweenMessages = 50;
+    @FieldDoc(
+            required = true,
+            defaultValue = "50",
+            sensitive = false,
+            help = "How long to sleep between emitting messages")
+    @PositiveNumber
+    private long sleepBetweenMessages = 50;
 
-
-  public static DataGeneratorSourceConfig loadOrGetDefault(Map<String, Object> configMap) {
-    if (configMap.isEmpty()) {
-      return new DataGeneratorSourceConfig();
-    } else {
-      ObjectMapper mapper = new ObjectMapper();
-      return mapper.convertValue(configMap, DataGeneratorSourceConfig.class);
+    public static DataGeneratorSourceConfig loadOrGetDefault(Map<String, Object> configMap) {
+        if (configMap.isEmpty()) {
+            return new DataGeneratorSourceConfig();
+        } else {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.convertValue(configMap, DataGeneratorSourceConfig.class);
+        }
     }
-  }
 }

@@ -43,12 +43,11 @@ public class PulsarProtobufNativeRowDecoder implements PulsarRowDecoder {
     private final GenericProtobufNativeSchema genericProtobufNativeSchema;
     private final Map<DecoderColumnHandle, PulsarProtobufNativeColumnDecoder> columnDecoders;
 
-    public PulsarProtobufNativeRowDecoder(GenericProtobufNativeSchema genericProtobufNativeSchema,
-                                          Set<DecoderColumnHandle> columns) {
-        this.genericProtobufNativeSchema = requireNonNull(genericProtobufNativeSchema,
-                "genericProtobufNativeSchema is null");
-        columnDecoders = columns.stream()
-                .collect(toImmutableMap(identity(), this::createColumnDecoder));
+    public PulsarProtobufNativeRowDecoder(
+            GenericProtobufNativeSchema genericProtobufNativeSchema, Set<DecoderColumnHandle> columns) {
+        this.genericProtobufNativeSchema =
+                requireNonNull(genericProtobufNativeSchema, "genericProtobufNativeSchema is null");
+        columnDecoders = columns.stream().collect(toImmutableMap(identity(), this::createColumnDecoder));
     }
 
     private PulsarProtobufNativeColumnDecoder createColumnDecoder(DecoderColumnHandle columnHandle) {
@@ -64,17 +63,16 @@ public class PulsarProtobufNativeRowDecoder implements PulsarRowDecoder {
     public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf) {
         DynamicMessage dynamicMessage;
         try {
-            GenericProtobufNativeRecord record = (GenericProtobufNativeRecord) genericProtobufNativeSchema
-                    .decode(byteBuf);
+            GenericProtobufNativeRecord record =
+                    (GenericProtobufNativeRecord) genericProtobufNativeSchema.decode(byteBuf);
             dynamicMessage = record.getProtobufRecord();
         } catch (Exception e) {
             log.error(e);
             throw new TrinoException(GENERIC_INTERNAL_ERROR, "Decoding protobuf record failed.", e);
         }
-        return Optional.of(columnDecoders.entrySet().stream()
-                .collect(toImmutableMap(
-                        Map.Entry::getKey,
-                        entry -> entry.getValue().decodeField(dynamicMessage))));
+        return Optional.of(
+                columnDecoders.entrySet().stream().collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue()
+                        .decodeField(dynamicMessage))));
     }
 
     private static final Logger log = Logger.get(PulsarProtobufNativeRowDecoder.class);

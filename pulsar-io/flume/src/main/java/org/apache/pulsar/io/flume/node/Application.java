@@ -42,8 +42,7 @@ import org.slf4j.LoggerFactory;
 
 public class Application {
 
-    private static final Logger logger = LoggerFactory
-            .getLogger(Application.class);
+    private static final Logger logger = LoggerFactory.getLogger(Application.class);
 
     public static final String CONF_MONITOR_CLASS = "flume.monitoring.type";
     public static final String CONF_MONITOR_PREFIX = "flume.monitoring.";
@@ -67,8 +66,7 @@ public class Application {
         lifecycleLock.lock();
         try {
             for (LifecycleAware component : components) {
-                supervisor.supervise(component,
-                        new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
+                supervisor.supervise(component, new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
             }
         } finally {
             lifecycleLock.unlock();
@@ -152,22 +150,20 @@ public class Application {
                 materializedConfiguration.getChannels().entrySet()) {
             try {
                 logger.info("Starting Channel " + entry.getKey());
-                supervisor.supervise(entry.getValue(),
-                        new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
+                supervisor.supervise(
+                        entry.getValue(), new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
             } catch (Exception e) {
                 logger.error("Error while starting {}", entry.getValue(), e);
             }
         }
 
-    /*
-     * Wait for all channels to start.
-     */
+        /*
+         * Wait for all channels to start.
+         */
         for (Channel ch : materializedConfiguration.getChannels().values()) {
-            while (ch.getLifecycleState() != LifecycleState.START
-                    && !supervisor.isComponentInErrorState(ch)) {
+            while (ch.getLifecycleState() != LifecycleState.START && !supervisor.isComponentInErrorState(ch)) {
                 try {
-                    logger.info("Waiting for channel: " + ch.getName()
-                            + " to start. Sleeping for 500 ms");
+                    logger.info("Waiting for channel: " + ch.getName() + " to start. Sleeping for 500 ms");
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     logger.error("Interrupted while waiting for channel to start.", e);
@@ -176,11 +172,12 @@ public class Application {
             }
         }
 
-        for (Entry<String, SinkRunner> entry : materializedConfiguration.getSinkRunners().entrySet()) {
+        for (Entry<String, SinkRunner> entry :
+                materializedConfiguration.getSinkRunners().entrySet()) {
             try {
                 logger.info("Starting Sink " + entry.getKey());
-                supervisor.supervise(entry.getValue(),
-                        new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
+                supervisor.supervise(
+                        entry.getValue(), new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
             } catch (Exception e) {
                 logger.error("Error while starting {}", entry.getValue(), e);
             }
@@ -190,8 +187,8 @@ public class Application {
                 materializedConfiguration.getSourceRunners().entrySet()) {
             try {
                 logger.info("Starting Source " + entry.getKey());
-                supervisor.supervise(entry.getValue(),
-                        new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
+                supervisor.supervise(
+                        entry.getValue(), new SupervisorPolicy.AlwaysRestartPolicy(), LifecycleState.START);
             } catch (Exception e) {
                 logger.error("Error while starting {}", entry.getValue(), e);
             }
@@ -209,29 +206,25 @@ public class Application {
                 String monitorType = systemProps.getProperty(CONF_MONITOR_CLASS);
                 Class<? extends MonitorService> klass;
                 try {
-                    //Is it a known type?
-                    klass = MonitoringType.valueOf(
-                            monitorType.toUpperCase(Locale.ENGLISH)).getMonitorClass();
+                    // Is it a known type?
+                    klass = MonitoringType.valueOf(monitorType.toUpperCase(Locale.ENGLISH))
+                            .getMonitorClass();
                 } catch (Exception e) {
-                    //Not a known type, use FQCN
+                    // Not a known type, use FQCN
                     klass = (Class<? extends MonitorService>) Class.forName(monitorType);
                 }
                 this.monitorServer = klass.getDeclaredConstructor().newInstance();
                 Context context = new Context();
                 for (String key : keys) {
                     if (key.startsWith(CONF_MONITOR_PREFIX)) {
-                        context.put(key.substring(CONF_MONITOR_PREFIX.length()),
-                                systemProps.getProperty(key));
+                        context.put(key.substring(CONF_MONITOR_PREFIX.length()), systemProps.getProperty(key));
                     }
                 }
                 monitorServer.configure(context);
                 monitorServer.start();
             }
         } catch (Exception e) {
-            logger.warn("Error starting monitoring. "
-                    + "Monitoring might not be available.", e);
+            logger.warn("Error starting monitoring. " + "Monitoring might not be available.", e);
         }
-
     }
-
 }

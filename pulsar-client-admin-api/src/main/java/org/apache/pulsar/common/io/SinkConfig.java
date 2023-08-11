@@ -43,6 +43,7 @@ public class SinkConfig {
     private String name;
     private String className;
     private String sourceSubscriptionName;
+
     @Builder.Default
     private SubscriptionInitialPosition sourceSubscriptionPosition = SubscriptionInitialPosition.Latest;
 
@@ -77,6 +78,7 @@ public class SinkConfig {
     // Deprecated since, see https://github.com/apache/pulsar/issues/15560
     @Deprecated
     private Boolean autoAck;
+
     private Long timeoutMs;
     private Long negativeAckRedeliveryDelayMs;
 

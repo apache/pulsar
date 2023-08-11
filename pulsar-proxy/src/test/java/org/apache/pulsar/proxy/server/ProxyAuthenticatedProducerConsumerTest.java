@@ -20,16 +20,13 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -62,11 +59,16 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     // Borrow certs for broker and proxy from other test
-    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
-    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
-    private final String TLS_BROKER_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cacert.pem";
-    private final String TLS_BROKER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cert.pem";
-    private final String TLS_BROKER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-key.pem";
+    private final String TLS_PROXY_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
+    private final String TLS_PROXY_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
+    private final String TLS_BROKER_TRUST_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cacert.pem";
+    private final String TLS_BROKER_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cert.pem";
+    private final String TLS_BROKER_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-key.pem";
 
     // This client cert is a superUser, so use that one
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
@@ -138,8 +140,8 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
         proxyService.start();
@@ -178,22 +180,31 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         // create a client which connects to proxy over tls and pass authData
-        @Cleanup
-        PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
+        @Cleanup PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
 
-        admin.clusters().createCluster(configClusterName, ClusterData.builder()
-                .serviceUrl(brokerUrl.toString())
-                .serviceUrlTls(brokerUrlTls.toString())
-                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
-                .build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        configClusterName,
+                        ClusterData.builder()
+                                .serviceUrl(brokerUrl.toString())
+                                .serviceUrlTls(brokerUrlTls.toString())
+                                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
-        Consumer<byte[]> consumer = proxyClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES).topic("persistent://my-property/my-ns/my-topic1")
+        Consumer<byte[]> consumer = proxyClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+        Producer<byte[]> producer = proxyClient
+                .newProducer(Schema.BYTES)
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
@@ -220,13 +231,19 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     }
 
     protected final PulsarClient createPulsarClient(Authentication auth, String lookupUrl) throws Exception {
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(TLS_BROKER_TRUST_CERT_FILE_PATH)
-                .enableTlsHostnameVerification(true).authentication(auth).build());
-        return PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTlsHostnameVerification(true).authentication(auth)
-                .enableTls(true).build();
-
+                .enableTlsHostnameVerification(true)
+                .authentication(auth)
+                .build());
+        return PulsarClient.builder()
+                .serviceUrl(lookupUrl)
+                .statsInterval(0, TimeUnit.SECONDS)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .enableTlsHostnameVerification(true)
+                .authentication(auth)
+                .enableTls(true)
+                .build();
     }
-
 }

@@ -22,12 +22,13 @@ import org.apache.pulsar.functions.proto.Function;
 
 public class FunctionMetaDataUtils {
 
-    public static boolean canChangeState(Function.FunctionMetaData functionMetaData, int instanceId,
-                                         Function.FunctionState newState) {
+    public static boolean canChangeState(
+            Function.FunctionMetaData functionMetaData, int instanceId, Function.FunctionState newState) {
         if (instanceId >= functionMetaData.getFunctionDetails().getParallelism()) {
             return false;
         }
-        if (functionMetaData.getInstanceStatesMap() == null || functionMetaData.getInstanceStatesMap().isEmpty()) {
+        if (functionMetaData.getInstanceStatesMap() == null
+                || functionMetaData.getInstanceStatesMap().isEmpty()) {
             // This means that all instances of the functions are running
             return newState == Function.FunctionState.STOPPED;
         }
@@ -39,7 +40,8 @@ public class FunctionMetaDataUtils {
             }
         } else {
             // want to change state for all instances
-            for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
+            for (Function.FunctionState state :
+                    functionMetaData.getInstanceStatesMap().values()) {
                 if (state != newState) {
                     return true;
                 }
@@ -48,11 +50,12 @@ public class FunctionMetaDataUtils {
         }
     }
 
-    public static Function.FunctionMetaData changeFunctionInstanceStatus(Function.FunctionMetaData functionMetaData,
-                                                                         Integer instanceId, boolean start) {
-        Function.FunctionMetaData.Builder builder = functionMetaData.toBuilder()
-                .setVersion(functionMetaData.getVersion() + 1);
-        if (builder.getInstanceStatesMap() == null || builder.getInstanceStatesMap().isEmpty()) {
+    public static Function.FunctionMetaData changeFunctionInstanceStatus(
+            Function.FunctionMetaData functionMetaData, Integer instanceId, boolean start) {
+        Function.FunctionMetaData.Builder builder =
+                functionMetaData.toBuilder().setVersion(functionMetaData.getVersion() + 1);
+        if (builder.getInstanceStatesMap() == null
+                || builder.getInstanceStatesMap().isEmpty()) {
             for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
                 builder.putInstanceStates(i, Function.FunctionState.RUNNING);
             }
@@ -68,14 +71,12 @@ public class FunctionMetaDataUtils {
         return builder.build();
     }
 
-    public static Function.FunctionMetaData incrMetadataVersion(Function.FunctionMetaData existingMetaData,
-                                                                Function.FunctionMetaData updatedMetaData) {
+    public static Function.FunctionMetaData incrMetadataVersion(
+            Function.FunctionMetaData existingMetaData, Function.FunctionMetaData updatedMetaData) {
         long version = 0;
         if (existingMetaData != null) {
             version = existingMetaData.getVersion() + 1;
         }
-        return updatedMetaData.toBuilder()
-                .setVersion(version)
-                .build();
+        return updatedMetaData.toBuilder().setVersion(version).build();
     }
 }

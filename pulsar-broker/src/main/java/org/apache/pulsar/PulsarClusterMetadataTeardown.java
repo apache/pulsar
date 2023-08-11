@@ -48,33 +48,46 @@ import org.slf4j.LoggerFactory;
 public class PulsarClusterMetadataTeardown {
 
     private static class Arguments {
-        @Parameter(names = { "-zk",
-                "--zookeeper"}, description = "Local ZooKeeper quorum connection string", required = true)
+        @Parameter(
+                names = {"-zk", "--zookeeper"},
+                description = "Local ZooKeeper quorum connection string",
+                required = true)
         private String zookeeper;
 
-        @Parameter(names = {
-                "--zookeeper-session-timeout-ms"
-        }, description = "Local zookeeper session timeout ms")
+        @Parameter(
+                names = {"--zookeeper-session-timeout-ms"},
+                description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = { "-c", "-cluster", "--cluster" }, description = "Cluster name")
+        @Parameter(
+                names = {"-c", "-cluster", "--cluster"},
+                description = "Cluster name")
         private String cluster;
 
-        @Parameter(names = { "-cs", "--configuration-store" }, description = "Configuration Store connection string")
+        @Parameter(
+                names = {"-cs", "--configuration-store"},
+                description = "Configuration Store connection string")
         private String configurationStore;
 
-        @Parameter(names = { "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
+        @Parameter(
+                names = {"--bookkeeper-metadata-service-uri"},
+                description = "Metadata service uri of BookKeeper")
         private String bkMetadataServiceUri;
 
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 
     public static String[] localZkNodes = {
-            "bookies", "counters", "loadbalance", "managed-ledgers", "namespace", "schemas", "stream" };
+        "bookies", "counters", "loadbalance", "managed-ledgers", "namespace", "schemas", "stream"
+    };
 
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
@@ -98,7 +111,8 @@ public class PulsarClusterMetadataTeardown {
         }
 
         @Cleanup
-        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.zookeeper,
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(
+                arguments.zookeeper,
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
@@ -123,21 +137,25 @@ public class PulsarClusterMetadataTeardown {
         if (arguments.configurationStore != null && arguments.cluster != null) {
             // Should it be done by REST API before broker is down?
             @Cleanup
-            MetadataStore configMetadataStore = MetadataStoreFactory.create(arguments.configurationStore,
-                    MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
-                            .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
-            deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster).join();
+            MetadataStore configMetadataStore = MetadataStoreFactory.create(
+                    arguments.configurationStore,
+                    MetadataStoreConfig.builder()
+                            .sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
+                            .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                            .build());
+            deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster)
+                    .join();
         }
 
         log.info("Cluster metadata for '{}' teardown.", arguments.cluster);
     }
 
     private static CompletableFuture<Void> deleteRecursively(MetadataStore metadataStore, String path) {
-        return metadataStore.getChildren(path)
-                .thenCompose(children -> FutureUtil.waitForAll(
-                        children.stream()
-                                .map(child -> deleteRecursively(metadataStore, path + "/" + child))
-                                .collect(Collectors.toList())))
+        return metadataStore
+                .getChildren(path)
+                .thenCompose(children -> FutureUtil.waitForAll(children.stream()
+                        .map(child -> deleteRecursively(metadataStore, path + "/" + child))
+                        .collect(Collectors.toList())))
                 .thenCompose(__ -> metadataStore.exists(path))
                 .thenCompose(exists -> {
                     if (exists) {
@@ -188,8 +206,13 @@ public class PulsarClusterMetadataTeardown {
                 metadataStore.getChildren(namespaceRoot).join().forEach(topic -> {
                     final String topicRoot = namespaceRoot + "/" + topic;
                     try {
-                        SchemaLocator.parseFrom(metadataStore.get(topicRoot).join().get().getValue())
-                                .getIndexList().stream()
+                        SchemaLocator.parseFrom(metadataStore
+                                        .get(topicRoot)
+                                        .join()
+                                        .get()
+                                        .getValue())
+                                .getIndexList()
+                                .stream()
                                 .map(indexEntry -> indexEntry.getPosition().getLedgerId())
                                 .forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
                     } catch (InvalidProtocolBufferException e) {

@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
 public class TestProtocolHandlers extends PulsarTestSuite {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestProtocolHandlers.class);
@@ -54,8 +53,8 @@ public class TestProtocolHandlers extends PulsarTestSuite {
         int mappedPort = broker.getMappedPort(PORT);
         LOG.debug("Sending data to {}:{}", host, mappedPort);
         try (Socket client = new Socket(host, mappedPort);
-             OutputStream out = client.getOutputStream();
-             InputStream in = client.getInputStream()) {
+                OutputStream out = client.getOutputStream();
+                InputStream in = client.getInputStream()) {
             LOG.debug("Connection established");
             out.write(data.getBytes());
             LOG.debug("Data sent");
@@ -63,7 +62,4 @@ public class TestProtocolHandlers extends PulsarTestSuite {
             Assert.assertEquals(new String(response), data);
         }
     }
-
-
-
 }

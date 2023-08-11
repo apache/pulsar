@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,10 +57,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     @DataProvider(name = "subscriptionTypes")
     public static Object[] subscriptionTypes() {
         return new Object[] {
-                SubscriptionType.Exclusive,
-                SubscriptionType.Failover,
-                SubscriptionType.Shared,
-                SubscriptionType.Key_Shared
+            SubscriptionType.Exclusive, SubscriptionType.Failover, SubscriptionType.Shared, SubscriptionType.Key_Shared
         };
     }
 
@@ -69,8 +65,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     protected void setup() throws Exception {
         conf.setBrokerEntryMetadataInterceptors(Sets.newTreeSet(
                 "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
-                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
-                ));
+                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"));
         conf.setExposingBrokerEntryMetadataToClientEnabled(true);
         baseSetup();
     }
@@ -86,12 +81,11 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         final int messages = 10;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionType(subType)
                 .subscriptionName("my-sub")
@@ -104,8 +98,9 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         int receives = 0;
         for (int i = 0; i < messages; i++) {
             Message<byte[]> received = consumer.receive();
-            ++ receives;
-            Assert.assertEquals(i, Integer.valueOf(new String(received.getValue())).intValue());
+            ++receives;
+            Assert.assertEquals(
+                    i, Integer.valueOf(new String(received.getValue())).intValue());
         }
 
         Assert.assertEquals(messages, receives);
@@ -115,13 +110,11 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testPeekMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         long sendTime = System.currentTimeMillis();
         producer.newMessage()
@@ -148,13 +141,11 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testGetMessageById() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         long sendTime = System.currentTimeMillis();
         MessageIdImpl messageId = (MessageIdImpl) producer.newMessage()
@@ -164,8 +155,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .send();
 
         admin.topics().createSubscription(topic, subscription, MessageId.earliest);
-        MessageImpl message = (MessageImpl) admin.topics()
-                .getMessageById(topic, messageId.getLedgerId(), messageId.getEntryId());
+        MessageImpl message =
+                (MessageImpl) admin.topics().getMessageById(topic, messageId.getLedgerId(), messageId.getEntryId());
         Assert.assertEquals(message.getData(), "hello".getBytes());
         Assert.assertEquals(message.getEventTime(), eventTime);
         Assert.assertEquals(message.getDeliverAtTime(), deliverAtTime);
@@ -176,18 +167,15 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
-
     @Test(timeOut = 20000)
     public void testExamineMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         long sendTime = System.currentTimeMillis();
         producer.newMessage()
@@ -197,8 +185,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .send();
 
         admin.topics().createSubscription(topic, subscription, MessageId.earliest);
-        MessageImpl message =
-                (MessageImpl) admin.topics().examineMessage(topic, "earliest", 1);
+        MessageImpl message = (MessageImpl) admin.topics().examineMessage(topic, "earliest", 1);
         Assert.assertEquals(message.getData(), "hello".getBytes());
         Assert.assertEquals(message.getEventTime(), eventTime);
         Assert.assertEquals(message.getDeliverAtTime(), deliverAtTime);
@@ -213,14 +200,15 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     public void testBatchMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final int msgNum = 2;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
-                 // make sure 2 messages in one batch, because if only one message in batch,
-                 // producer will not send batched messages
+                // make sure 2 messages in one batch, because if only one message in batch,
+                // producer will not send batched messages
                 .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(msgNum)
                 .batchingMaxBytes(Integer.MAX_VALUE)
@@ -232,9 +220,9 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> messageIdsFuture = new ArrayList<>(msgNum);
         for (int i = 0; i < msgNum; ++i) {
             CompletableFuture<MessageId> messageId = producer.newMessage()
-                .eventTime(eventTime)
-                .value(("hello" + i).getBytes())
-                .sendAsync();
+                    .eventTime(eventTime)
+                    .value(("hello" + i).getBytes())
+                    .sendAsync();
             messageIdsFuture.add(messageId);
         }
         FutureUtil.waitForAll(messageIdsFuture);
@@ -293,13 +281,12 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         final String subscription = "my-sub";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         producer.newMessage().value("hello".getBytes()).send();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName(subscription)
@@ -312,12 +299,11 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         final String subscription = "my-sub";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topic).enableBatching(false).create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName(subscription)
@@ -332,8 +318,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
         for (int i = 0; i < messages; i++) {
             Message<byte[]> received = consumer.receive();
-            Assert.assertTrue(
-                    received.hasBrokerPublishTime() && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
+            Assert.assertTrue(received.hasBrokerPublishTime()
+                    && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
             Assert.assertTrue(received.hasIndex() && received.getIndex().orElse(-1L) == i);
         }
 
@@ -347,13 +333,15 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         final String subscription = "my-sub";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
                 .create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName(subscription)
@@ -375,8 +363,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
         for (int i = 0; i < numOfMessages; i++) {
             Message<byte[]> received = consumer.receive();
-            Assert.assertTrue(
-                    received.hasBrokerPublishTime() && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
+            Assert.assertTrue(received.hasBrokerPublishTime()
+                    && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
             Assert.assertTrue(received.hasIndex() && received.getIndex().orElse(-1L) == i);
         }
 
@@ -391,16 +379,17 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
         admin.topics().createNonPartitionedTopic(topic);
         admin.lookups().lookupTopic(topic);
-        final ManagedLedgerImpl managedLedger = pulsar.getBrokerService().getTopicIfExists(topic).get()
+        final ManagedLedgerImpl managedLedger = pulsar.getBrokerService()
+                .getTopicIfExists(topic)
+                .get()
                 .map(topicObject -> (ManagedLedgerImpl) ((PersistentTopic) topicObject).getManagedLedger())
                 .orElse(null);
         Assert.assertNotNull(managedLedger);
         final ManagedCursor cursor = managedLedger.openCursor("cursor"); // prevent ledgers being removed
 
         @Cleanup
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+        final Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         for (int i = 0; i < messages; i++) {
             producer.send("msg-" + i);
         }
@@ -411,7 +400,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         managedLedger.getConfig().setMaxEntriesPerLedger(1);
         managedLedger.rollCurrentLedgerIfFull();
 
-        Awaitility.await().atMost(Duration.ofSeconds(3))
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(3))
                 .until(() -> managedLedger.getLedgersInfo().size() > 1);
 
         final List<LedgerInfo> ledgerInfoList = managedLedger.getLedgersInfoAsList();

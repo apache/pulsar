@@ -82,30 +82,35 @@ public abstract class RestClient implements Closeable {
 
         // idle+expired connection evictor thread
         this.executorService = Executors.newSingleThreadScheduledExecutor();
-        this.executorService.scheduleAtFixedRate(() -> {
+        this.executorService.scheduleAtFixedRate(
+                () -> {
                     configCallback.connectionManager.closeIdleConnections(
                             config.getConnectionIdleTimeoutInMs(), TimeUnit.MILLISECONDS);
                 },
                 config.getConnectionIdleTimeoutInMs(),
                 config.getConnectionIdleTimeoutInMs(),
-                TimeUnit.MILLISECONDS
-        );
+                TimeUnit.MILLISECONDS);
     }
 
     public abstract boolean indexExists(String index) throws IOException;
+
     public abstract boolean createIndex(String index) throws IOException;
+
     public abstract boolean deleteIndex(String index) throws IOException;
 
     public abstract boolean indexDocument(String index, String documentId, String documentSource) throws IOException;
+
     public abstract boolean deleteDocument(String index, String documentId) throws IOException;
 
     public abstract long totalHits(String index) throws IOException;
+
     public abstract long totalHits(String index, String query) throws IOException;
 
     public abstract BulkProcessor getBulkProcessor();
 
-    public class ConfigCallback implements RestClientBuilder.HttpClientConfigCallback,
-            org.opensearch.client.RestClientBuilder.HttpClientConfigCallback {
+    public class ConfigCallback
+            implements RestClientBuilder.HttpClientConfigCallback,
+                    org.opensearch.client.RestClientBuilder.HttpClientConfigCallback {
         final NHttpClientConnectionManager connectionManager;
         final CredentialsProvider credentialsProvider;
         final List<Header> defaultHeaders;
@@ -159,11 +164,10 @@ public abstract class RestClient implements Closeable {
                     }
                     Registry<SchemeIOSessionStrategy> registry = RegistryBuilder.<SchemeIOSessionStrategy>create()
                             .register("http", NoopIOSessionStrategy.INSTANCE)
-                            .register("https", new SSLIOSessionStrategy(
-                                    buildSslContext(config),
-                                    protocols,
-                                    cipherSuites,
-                                    hostnameVerifier))
+                            .register(
+                                    "https",
+                                    new SSLIOSessionStrategy(
+                                            buildSslContext(config), protocols, cipherSuites, hostnameVerifier))
                             .build();
                     connManager = new PoolingNHttpClientConnectionManager(ioReactor, registry);
                 } else {
@@ -175,9 +179,9 @@ public abstract class RestClient implements Closeable {
             }
         }
 
-        private SSLContext buildSslContext(ElasticSearchConfig config) throws NoSuchAlgorithmException,
-                KeyManagementException, CertificateException, KeyStoreException,
-                IOException, UnrecoverableKeyException {
+        private SSLContext buildSslContext(ElasticSearchConfig config)
+                throws NoSuchAlgorithmException, KeyManagementException, CertificateException, KeyStoreException,
+                        IOException, UnrecoverableKeyException {
             ElasticSearchSslConfig sslConfig = config.getSsl();
             SSLContextBuilder sslContextBuilder = SSLContexts.custom();
             if (!Strings.isNullOrEmpty(sslConfig.getProvider())) {
@@ -188,7 +192,8 @@ public abstract class RestClient implements Closeable {
             }
             if (!Strings.isNullOrEmpty(sslConfig.getTruststorePath())
                     && !Strings.isNullOrEmpty(sslConfig.getTruststorePassword())) {
-                sslContextBuilder.loadTrustMaterial(new File(sslConfig.getTruststorePath()),
+                sslContextBuilder.loadTrustMaterial(
+                        new File(sslConfig.getTruststorePath()),
                         sslConfig.getTruststorePassword().toCharArray());
             }
             if (sslConfig.isDisableCertificateValidation()) {
@@ -197,7 +202,8 @@ public abstract class RestClient implements Closeable {
             }
             if (!Strings.isNullOrEmpty(sslConfig.getKeystorePath())
                     && !Strings.isNullOrEmpty(sslConfig.getKeystorePassword())) {
-                sslContextBuilder.loadKeyMaterial(new File(sslConfig.getKeystorePath()),
+                sslContextBuilder.loadKeyMaterial(
+                        new File(sslConfig.getKeystorePath()),
                         sslConfig.getKeystorePassword().toCharArray(),
                         sslConfig.getKeystorePassword().toCharArray());
             }
@@ -209,8 +215,8 @@ public abstract class RestClient implements Closeable {
                 return null;
             }
             CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            credentialsProvider.setCredentials(AuthScope.ANY,
-                    new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
+            credentialsProvider.setCredentials(
+                    AuthScope.ANY, new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
             return credentialsProvider;
         }
 
@@ -232,15 +238,16 @@ public abstract class RestClient implements Closeable {
 
     protected HttpHost[] getHttpHosts() {
         final String url = config.getElasticSearchUrl();
-        return Arrays.stream(url.split(",")).map(host -> {
-            try {
-                URL hostUrl = new URL(host);
-                return new HttpHost(hostUrl.getHost(), hostUrl.getPort(),
-                        hostUrl.getProtocol());
-            } catch (MalformedURLException e) {
-                throw new RuntimeException("Invalid elasticSearch url :" + host);
-            }
-        }).toArray(HttpHost[]::new);
+        return Arrays.stream(url.split(","))
+                .map(host -> {
+                    try {
+                        URL hostUrl = new URL(host);
+                        return new HttpHost(hostUrl.getHost(), hostUrl.getPort(), hostUrl.getProtocol());
+                    } catch (MalformedURLException e) {
+                        throw new RuntimeException("Invalid elasticSearch url :" + host);
+                    }
+                })
+                .toArray(HttpHost[]::new);
     }
 
     protected abstract void closeClient();

@@ -56,7 +56,6 @@ import org.asynchttpclient.Request;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.asynchttpclient.netty.ssl.JsseSslEngineFactory;
 
-
 @Slf4j
 public class HttpClient implements Closeable {
 
@@ -81,11 +80,11 @@ public class HttpClient implements Closeable {
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
-            public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
-                                     HttpRequest request, HttpResponse response) {
+            public boolean keepAlive(
+                    InetSocketAddress remoteAddress, Request ahcRequest, HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
                 return (response.status().code() / 100 != 5)
-                       && super.keepAlive(remoteAddress, ahcRequest, request, response);
+                        && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
 
@@ -96,8 +95,11 @@ public class HttpClient implements Closeable {
 
                 if (conf.isUseKeyStoreTls()) {
                     SSLContext sslCtx = null;
-                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() :
-                            new KeyStoreParams(conf.getTlsKeyStoreType(), conf.getTlsKeyStorePath(),
+                    KeyStoreParams params = authData.hasDataForTls()
+                            ? authData.getTlsKeyStoreParams()
+                            : new KeyStoreParams(
+                                    conf.getTlsKeyStoreType(),
+                                    conf.getTlsKeyStorePath(),
                                     conf.getTlsKeyStorePassword());
 
                     sslCtx = KeyStoreSSLContext.createClientSslContext(
@@ -122,14 +124,22 @@ public class HttpClient implements Closeable {
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
                         sslCtx = authData.getTlsTrustStoreStream() == null
-                                ? SecurityUtility.createNettySslContextForClient(sslProvider,
-                                conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey(), conf.getTlsCiphers(), conf.getTlsProtocols())
-                                : SecurityUtility.createNettySslContextForClient(sslProvider,
-                                conf.isTlsAllowInsecureConnection(),
-                                authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey(), conf.getTlsCiphers(), conf.getTlsProtocols());
+                                ? SecurityUtility.createNettySslContextForClient(
+                                        sslProvider,
+                                        conf.isTlsAllowInsecureConnection(),
+                                        conf.getTlsTrustCertsFilePath(),
+                                        authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey(),
+                                        conf.getTlsCiphers(),
+                                        conf.getTlsProtocols())
+                                : SecurityUtility.createNettySslContextForClient(
+                                        sslProvider,
+                                        conf.isTlsAllowInsecureConnection(),
+                                        authData.getTlsTrustStoreStream(),
+                                        authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey(),
+                                        conf.getTlsCiphers(),
+                                        conf.getTlsProtocols());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 sslProvider,
@@ -142,8 +152,8 @@ public class HttpClient implements Closeable {
                     }
                     confBuilder.setSslContext(sslCtx);
                     if (!conf.isTlsHostnameVerificationEnable()) {
-                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
-                                .resolveHostUri().getHost()));
+                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(
+                                serviceNameResolver.resolveHostUri().getHost()));
                     }
                 }
 
@@ -187,7 +197,7 @@ public class HttpClient implements Closeable {
             String remoteHostName = hostUri.getHost();
             AuthenticationDataProvider authData = authentication.getAuthData(remoteHostName);
 
-            CompletableFuture<Map<String, String>>  authFuture = new CompletableFuture<>();
+            CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
 
             // bring a authenticationStage for sasl auth.
             if (authData.hasDataForHttp()) {
@@ -199,15 +209,16 @@ public class HttpClient implements Closeable {
             // auth complete, do real request
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to perform http request at authentication stage: {}",
-                        requestUrl, ex.getMessage());
+                    log.warn(
+                            "[{}] Failed to perform http request at authentication stage: {}",
+                            requestUrl,
+                            ex.getMessage());
                     future.completeExceptionally(new PulsarClientException(ex));
                     return;
                 }
 
                 // auth complete, use a new builder
-                BoundRequestBuilder builder = httpClient.prepareGet(requestUrl)
-                    .setHeader("Accept", "application/json");
+                BoundRequestBuilder builder = httpClient.prepareGet(requestUrl).setHeader("Accept", "application/json");
 
                 if (authData.hasDataForHttp()) {
                     Set<Entry<String, String>> headers;
@@ -244,8 +255,9 @@ public class HttpClient implements Closeable {
                     }
 
                     try {
-                        T data = ObjectMapperFactory.getMapper().reader().readValue(
-                                response2.getResponseBodyAsBytes(), clazz);
+                        T data = ObjectMapperFactory.getMapper()
+                                .reader()
+                                .readValue(response2.getResponseBodyAsBytes(), clazz);
                         future.complete(data);
                     } catch (Exception e) {
                         log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());

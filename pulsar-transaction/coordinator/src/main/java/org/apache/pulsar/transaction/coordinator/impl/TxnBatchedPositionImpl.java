@@ -37,13 +37,13 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     @Getter
     private final int batchIndex;
 
-    public TxnBatchedPositionImpl(long ledgerId, long entryId, int batchSize, int batchIndex){
+    public TxnBatchedPositionImpl(long ledgerId, long entryId, int batchSize, int batchIndex) {
         super(ledgerId, entryId);
         this.batchIndex = batchIndex;
         this.batchSize = batchSize;
     }
 
-    public TxnBatchedPositionImpl(Position position, int batchSize, int batchIndex){
+    public TxnBatchedPositionImpl(Position position, int batchSize, int batchIndex) {
         this(position.getLedgerId(), position.getEntryId(), batchSize, batchIndex);
     }
 
@@ -58,7 +58,6 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     @Override
     public boolean equals(Object o) {
         return super.equals(o);
-
     }
 
     /**
@@ -89,8 +88,8 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     /**
      * Build the attribute ackSet to that {@link #batchIndex} is false and others is true.
      */
-    public void setAckSetByIndex(){
-        if (batchSize == 1){
+    public void setAckSetByIndex() {
+        if (batchSize == 1) {
             return;
         }
         BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();

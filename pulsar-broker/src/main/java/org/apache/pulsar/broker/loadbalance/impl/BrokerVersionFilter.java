@@ -71,23 +71,26 @@ public class BrokerVersionFilter implements BrokerFilter {
 
             String brokerVersion = data.getLocalData().getBrokerVersionString();
             if (null == brokerVersion || brokerVersion.length() == 0) {
-                LOG.warn("No version string in load report for broker [{}]; disabling PreferLaterVersions feature",
+                LOG.warn(
+                        "No version string in load report for broker [{}]; disabling PreferLaterVersions feature",
                         broker);
                 // trigger the ModularLoadManager to reset all the brokers to the original set
-                throw new BrokerFilterBadVersionException("No version string in load report for broker \""
-                        + broker + "\"");
+                throw new BrokerFilterBadVersionException(
+                        "No version string in load report for broker \"" + broker + "\"");
             }
 
             Version brokerVersionVersion = null;
             try {
                 brokerVersionVersion = Version.valueOf(brokerVersion);
             } catch (Exception x) {
-                LOG.warn("Invalid version string in load report for broker [{}]: [{}];"
+                LOG.warn(
+                        "Invalid version string in load report for broker [{}]: [{}];"
                                 + " disabling PreferLaterVersions feature",
-                        broker, brokerVersion);
+                        broker,
+                        brokerVersion);
                 // trigger the ModularLoadManager to reset all the brokers to the original set
-                throw new BrokerFilterBadVersionException("Invalid version string in load report for broker \""
-                        + broker + "\": \"" + brokerVersion + "\")");
+                throw new BrokerFilterBadVersionException("Invalid version string in load report for broker \"" + broker
+                        + "\": \"" + brokerVersion + "\")");
             }
 
             if (null == latestVersion) {
@@ -145,8 +148,11 @@ public class BrokerVersionFilter implements BrokerFilter {
                 LOG.debug("Broker [{}] is running the latest version ([{}])", broker, brokerVersion);
                 ++numBrokersLatestVersion;
             } else {
-                LOG.info("Broker [{}] is running an older version ([{}]); latest version is [{}]",
-                        broker, brokerVersion, latestVersion);
+                LOG.info(
+                        "Broker [{}] is running an older version ([{}]); latest version is [{}]",
+                        broker,
+                        brokerVersion,
+                        latestVersion);
                 ++numBrokersOlderVersion;
                 brokerIterator.remove();
             }

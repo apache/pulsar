@@ -44,5 +44,4 @@ public class TestNoStrictCacheSizeAllocator {
         noStrictCacheSizeAllocator.release(100);
         Assert.assertEquals(noStrictCacheSizeAllocator.getAvailableCacheSize(), 1000);
     }
-
 }

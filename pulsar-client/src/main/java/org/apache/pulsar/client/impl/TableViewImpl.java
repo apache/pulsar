@@ -91,12 +91,13 @@ public class TableViewImpl<T> implements TableView<T> {
 
     CompletableFuture<TableView<T>> start() {
         return reader.thenCompose((reader) -> {
-            if (!isPersistentTopic) {
-                readTailMessages(reader);
-                return CompletableFuture.completedFuture(reader);
-            }
-            return this.readAllExistingMessages(reader);
-        }).thenApply(__ -> this);
+                    if (!isPersistentTopic) {
+                        readTailMessages(reader);
+                        return CompletableFuture.completedFuture(reader);
+                    }
+                    return this.readAllExistingMessages(reader);
+                })
+                .thenApply(__ -> this);
     }
 
     @Override
@@ -116,12 +117,12 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public T get(String key) {
-       return data.get(key);
+        return data.get(key);
     }
 
     @Override
     public Set<Map.Entry<String, T>> entrySet() {
-       return immutableData.entrySet();
+        return immutableData.entrySet();
     }
 
     @Override
@@ -184,10 +185,7 @@ public class TableViewImpl<T> implements TableView<T> {
                 String key = msg.getKey();
                 T cur = msg.size() > 0 ? msg.getValue() : null;
                 if (log.isDebugEnabled()) {
-                    log.debug("Applying message from topic {}. key={} value={}",
-                            conf.getTopicName(),
-                            key,
-                            cur);
+                    log.debug("Applying message from topic {}. key={} value={}", conf.getTopicName(), key, cur);
                 }
 
                 boolean update = true;
@@ -195,7 +193,8 @@ public class TableViewImpl<T> implements TableView<T> {
                     T prev = data.get(key);
                     update = !compactionStrategy.shouldKeepLeft(prev, cur);
                     if (!update) {
-                        log.info("Skipped the message from topic {}. key={} value={} prev={}",
+                        log.info(
+                                "Skipped the message from topic {}. key={} value={} prev={}",
                                 conf.getTopicName(),
                                 key,
                                 cur,
@@ -239,39 +238,42 @@ public class TableViewImpl<T> implements TableView<T> {
         return future;
     }
 
-    private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
-                                         AtomicLong messagesRead) {
-        reader.hasMessageAvailableAsync()
-                .thenAccept(hasMessage -> {
-                   if (hasMessage) {
-                       reader.readNextAsync()
-                               .thenAccept(msg -> {
-                                  messagesRead.incrementAndGet();
-                                  handleMessage(msg);
-                                  readAllExistingMessages(reader, future, startTime, messagesRead);
-                               }).exceptionally(ex -> {
-                                   if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
-                                       log.error("Reader {} was closed while reading existing messages.",
-                                               reader.getTopic(), ex);
-                                   } else {
-                                       log.warn("Reader {} was interrupted while reading existing messages. ",
-                                               reader.getTopic(), ex);
-                                   }
-                                   future.completeExceptionally(ex);
-                                   return null;
-                               });
-                   } else {
-                       // Reached the end
-                       long endTime = System.nanoTime();
-                       long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                       log.info("Started table view for topic {} - Replayed {} messages in {} seconds",
-                               reader.getTopic(),
-                               messagesRead,
-                               durationMillis / 1000.0);
-                       future.complete(reader);
-                       readTailMessages(reader);
-                   }
-                });
+    private void readAllExistingMessages(
+            Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime, AtomicLong messagesRead) {
+        reader.hasMessageAvailableAsync().thenAccept(hasMessage -> {
+            if (hasMessage) {
+                reader.readNextAsync()
+                        .thenAccept(msg -> {
+                            messagesRead.incrementAndGet();
+                            handleMessage(msg);
+                            readAllExistingMessages(reader, future, startTime, messagesRead);
+                        })
+                        .exceptionally(ex -> {
+                            if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                                log.error(
+                                        "Reader {} was closed while reading existing messages.", reader.getTopic(), ex);
+                            } else {
+                                log.warn(
+                                        "Reader {} was interrupted while reading existing messages. ",
+                                        reader.getTopic(),
+                                        ex);
+                            }
+                            future.completeExceptionally(ex);
+                            return null;
+                        });
+            } else {
+                // Reached the end
+                long endTime = System.nanoTime();
+                long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                log.info(
+                        "Started table view for topic {} - Replayed {} messages in {} seconds",
+                        reader.getTopic(),
+                        messagesRead,
+                        durationMillis / 1000.0);
+                future.complete(reader);
+                readTailMessages(reader);
+            }
+        });
     }
 
     private void readTailMessages(Reader<T> reader) {
@@ -279,13 +281,15 @@ public class TableViewImpl<T> implements TableView<T> {
                 .thenAccept(msg -> {
                     handleMessage(msg);
                     readTailMessages(reader);
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
-                        log.error("Reader {} was closed while reading tail messages.",
-                                reader.getTopic(), ex);
+                        log.error("Reader {} was closed while reading tail messages.", reader.getTopic(), ex);
                     } else {
-                        log.warn("Reader {} was interrupted while reading tail messages. "
-                                        + "Retrying..", reader.getTopic(), ex);
+                        log.warn(
+                                "Reader {} was interrupted while reading tail messages. " + "Retrying..",
+                                reader.getTopic(),
+                                ex);
                         readTailMessages(reader);
                     }
                     return null;

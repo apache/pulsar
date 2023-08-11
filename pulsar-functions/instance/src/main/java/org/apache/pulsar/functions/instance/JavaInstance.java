@@ -49,12 +49,14 @@ public class JavaInstance implements AutoCloseable {
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
+
     private Function function;
     private java.util.function.Function javaUtilFunction;
 
     // for Async function max out standing items
     private final InstanceConfig instanceConfig;
     private final ExecutorService executor;
+
     @Getter
     private final LinkedBlockingQueue<AsyncFuncRequest> pendingAsyncRequests;
 
@@ -75,14 +77,14 @@ public class JavaInstance implements AutoCloseable {
 
     @VisibleForTesting
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
-        return handleMessage(record, input, (rec, result) -> {
-        }, cause -> {
-        });
+        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
     }
 
-    public JavaExecutionResult handleMessage(Record<?> record, Object input,
-                                             JavaInstanceRunnable.AsyncResultConsumer asyncResultConsumer,
-                                             Consumer<Throwable> asyncFailureHandler) {
+    public JavaExecutionResult handleMessage(
+            Record<?> record,
+            Object input,
+            JavaInstanceRunnable.AsyncResultConsumer asyncResultConsumer,
+            Consumer<Throwable> asyncFailureHandler) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
@@ -104,19 +106,20 @@ public class JavaInstance implements AutoCloseable {
 
         if (output instanceof CompletableFuture) {
             // Function is in format: Function<I, CompletableFuture<O>>
-            AsyncFuncRequest request = new AsyncFuncRequest(
-                record, (CompletableFuture) output
-            );
+            AsyncFuncRequest request = new AsyncFuncRequest(record, (CompletableFuture) output);
             try {
                 pendingAsyncRequests.put(request);
-                ((CompletableFuture) output).whenCompleteAsync((res, cause) -> {
-                    try {
-                        processAsyncResults(asyncResultConsumer);
-                    } catch (Throwable innerException) {
-                        // the thread used for processing async results failed
-                        asyncFailureHandler.accept(innerException);
-                    }
-                }, executor);
+                ((CompletableFuture) output)
+                        .whenCompleteAsync(
+                                (res, cause) -> {
+                                    try {
+                                        processAsyncResults(asyncResultConsumer);
+                                    } catch (Throwable innerException) {
+                                        // the thread used for processing async results failed
+                                        asyncFailureHandler.accept(innerException);
+                                    }
+                                },
+                                executor);
                 return null;
             } catch (InterruptedException ie) {
                 log.warn("Exception while put Async requests", ie);
@@ -154,7 +157,6 @@ public class JavaInstance implements AutoCloseable {
             // peek the next result
             asyncResult = pendingAsyncRequests.peek();
         }
-
     }
 
     public void initialize() throws Exception {

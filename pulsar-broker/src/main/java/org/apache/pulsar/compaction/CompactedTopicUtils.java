@@ -39,11 +39,15 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class CompactedTopicUtils {
 
     @Beta
-    public static void asyncReadCompactedEntries(TopicCompactionService topicCompactionService,
-                                                 ManagedCursor cursor, int numberOfEntriesToRead,
-                                                 long bytesToRead, boolean readFromEarliest,
-                                                 AsyncCallbacks.ReadEntriesCallback callback,
-                                                 boolean wait, @Nullable Consumer consumer) {
+    public static void asyncReadCompactedEntries(
+            TopicCompactionService topicCompactionService,
+            ManagedCursor cursor,
+            int numberOfEntriesToRead,
+            long bytesToRead,
+            boolean readFromEarliest,
+            AsyncCallbacks.ReadEntriesCallback callback,
+            boolean wait,
+            @Nullable Consumer consumer) {
         Objects.requireNonNull(topicCompactionService);
         Objects.requireNonNull(cursor);
         checkArgument(numberOfEntriesToRead > 0);
@@ -62,46 +66,52 @@ public class CompactedTopicUtils {
 
         CompletableFuture<Position> lastCompactedPositionFuture = topicCompactionService.getLastCompactedPosition();
 
-        lastCompactedPositionFuture.thenCompose(lastCompactedPosition -> {
-            if (lastCompactedPosition == null
-                    || readPosition.compareTo(
-                    lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId()) > 0) {
-                if (wait) {
-                    cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, bytesToRead, callback, readEntriesCtx,
-                        PositionImpl.LATEST);
-                } else {
-                    cursor.asyncReadEntries(numberOfEntriesToRead, bytesToRead, callback, readEntriesCtx,
-                        PositionImpl.LATEST);
-                }
-                return CompletableFuture.completedFuture(null);
-            }
-
-            return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
-                    .thenAccept(entries -> {
-                        if (CollectionUtils.isEmpty(entries)) {
-                            Position seekToPosition = lastCompactedPosition.getNext();
-                            if (readPosition.compareTo(seekToPosition.getLedgerId(), seekToPosition.getEntryId()) > 0) {
-                                seekToPosition = readPosition;
-                            }
-                            cursor.seek(seekToPosition);
-                            callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
-                            return;
+        lastCompactedPositionFuture
+                .thenCompose(lastCompactedPosition -> {
+                    if (lastCompactedPosition == null
+                            || readPosition.compareTo(
+                                            lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId())
+                                    > 0) {
+                        if (wait) {
+                            cursor.asyncReadEntriesOrWait(
+                                    numberOfEntriesToRead, bytesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
+                        } else {
+                            cursor.asyncReadEntries(
+                                    numberOfEntriesToRead, bytesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
                         }
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-                        Entry lastEntry = entries.get(entries.size() - 1);
-                        cursor.seek(lastEntry.getPosition().getNext(), true);
-                        callback.readEntriesComplete(entries, readEntriesCtx);
-                    });
-        }).exceptionally((exception) -> {
-            exception = FutureUtil.unwrapCompletionException(exception);
-            ManagedLedgerException managedLedgerException;
-            if (exception instanceof ManagedLedgerException) {
-                managedLedgerException = (ManagedLedgerException) exception;
-            } else {
-                managedLedgerException = new ManagedLedgerException(exception);
-            }
-            callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
-            return null;
-        });
+                    return topicCompactionService
+                            .readCompactedEntries(readPosition, numberOfEntriesToRead)
+                            .thenAccept(entries -> {
+                                if (CollectionUtils.isEmpty(entries)) {
+                                    Position seekToPosition = lastCompactedPosition.getNext();
+                                    if (readPosition.compareTo(
+                                                    seekToPosition.getLedgerId(), seekToPosition.getEntryId())
+                                            > 0) {
+                                        seekToPosition = readPosition;
+                                    }
+                                    cursor.seek(seekToPosition);
+                                    callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+                                    return;
+                                }
+
+                                Entry lastEntry = entries.get(entries.size() - 1);
+                                cursor.seek(lastEntry.getPosition().getNext(), true);
+                                callback.readEntriesComplete(entries, readEntriesCtx);
+                            });
+                })
+                .exceptionally((exception) -> {
+                    exception = FutureUtil.unwrapCompletionException(exception);
+                    ManagedLedgerException managedLedgerException;
+                    if (exception instanceof ManagedLedgerException) {
+                        managedLedgerException = (ManagedLedgerException) exception;
+                    } else {
+                        managedLedgerException = new ManagedLedgerException(exception);
+                    }
+                    callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
+                    return null;
+                });
     }
 }

@@ -43,8 +43,8 @@ public class InMemoryPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                       List<MutablePair<PositionImpl, Integer>> positions) {
+    public CompletableFuture<Void> appendIndividualAck(
+            TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -62,5 +62,4 @@ public class InMemoryPendingAckStore implements PendingAckStore {
     public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
         return CompletableFuture.completedFuture(null);
     }
-
 }

@@ -18,26 +18,28 @@
  */
 package org.apache.pulsar.broker.service.utils;
 
+import com.google.common.collect.Queues;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.util.Queue;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
-import org.apache.pulsar.common.protocol.PulsarDecoder;
-import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSend;
@@ -46,12 +48,8 @@ import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
-
-import com.google.common.collect.Queues;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 
 public class ClientChannelHelper {
     private final EmbeddedChannel channel;
@@ -71,8 +69,7 @@ public class ClientChannelHelper {
     private final PulsarDecoder decoder = new PulsarDecoder() {
 
         @Override
-        protected void messageReceived() {
-        }
+        protected void messageReceived() {}
 
         @Override
         protected void handleConnect(CommandConnect connect) {
@@ -208,5 +205,4 @@ public class ClientChannelHelper {
             queue.offer(new CommandEndTxnOnSubscriptionResponse().copyFrom(commandEndTxnOnSubscriptionResponse));
         }
     };
-
 }

@@ -42,11 +42,12 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
+
     @SuppressWarnings("unused")
     private volatile int messageFindInProgress = FALSE;
+
     private static final AtomicIntegerFieldUpdater<PersistentMessageFinder> messageFindInProgressUpdater =
-            AtomicIntegerFieldUpdater
-                    .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
+            AtomicIntegerFieldUpdater.newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
 
     public PersistentMessageFinder(String topicName, ManagedCursor cursor) {
         this.topicName = topicName;
@@ -61,25 +62,37 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
 
-            cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
-                try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                    return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
-                } catch (Exception e) {
-                    log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
-                } finally {
-                    entry.release();
-                }
-                return false;
-            }, this, callback, true);
+            cursor.asyncFindNewestMatching(
+                    ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries,
+                    entry -> {
+                        try {
+                            long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                            return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
+                        } catch (Exception e) {
+                            log.error(
+                                    "[{}][{}] Error deserializing message for message position find",
+                                    topicName,
+                                    subName,
+                                    e);
+                        } finally {
+                            entry.release();
+                        }
+                        return false;
+                    },
+                    this,
+                    callback,
+                    true);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,
+                log.debug(
+                        "[{}][{}] Ignore message position find scheduled task, last find is still running",
+                        topicName,
                         subName);
             }
             callback.findEntryFailed(
                     new ManagedLedgerException.ConcurrentFindCursorPositionException("last find is still running"),
-                    Optional.empty(), null);
+                    Optional.empty(),
+                    null);
         }
     }
 
@@ -90,7 +103,11 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         checkArgument(ctx instanceof AsyncCallbacks.FindEntryCallback);
         AsyncCallbacks.FindEntryCallback callback = (AsyncCallbacks.FindEntryCallback) ctx;
         if (position != null) {
-            log.info("[{}][{}] Found position {} closest to provided timestamp {}", topicName, subName, position,
+            log.info(
+                    "[{}][{}] Found position {} closest to provided timestamp {}",
+                    topicName,
+                    subName,
+                    position,
                     timestamp);
         } else {
             if (log.isDebugEnabled()) {
@@ -106,8 +123,12 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         checkArgument(ctx instanceof AsyncCallbacks.FindEntryCallback);
         AsyncCallbacks.FindEntryCallback callback = (AsyncCallbacks.FindEntryCallback) ctx;
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] message position find operation failed for provided timestamp {}", topicName, subName,
-                    timestamp, exception);
+            log.debug(
+                    "[{}][{}] message position find operation failed for provided timestamp {}",
+                    topicName,
+                    subName,
+                    timestamp,
+                    exception);
         }
         messageFindInProgress = FALSE;
         callback.findEntryFailed(exception, failedReadPosition, null);

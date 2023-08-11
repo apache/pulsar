@@ -85,24 +85,33 @@ public interface TopicPoliciesService {
      * @param isGlobal is global policies
      * @return CompletableFuture&lt;Optional&lt;TopicPolicies&gt;&gt;
      */
-    default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
-              final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
+    default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(
+            TopicName topicName,
+            final Backoff backoff,
+            ScheduledExecutorService scheduledExecutorService,
+            boolean isGlobal) {
         CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
-        Backoff usedBackoff = backoff == null ? new BackoffBuilder()
-                .setInitialTime(500, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
-                .setMax(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
-                .create() : backoff;
+        Backoff usedBackoff = backoff == null
+                ? new BackoffBuilder()
+                        .setInitialTime(500, TimeUnit.MILLISECONDS)
+                        .setMandatoryStop(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                        .setMax(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                        .create()
+                : backoff;
         try {
-            RetryUtil.retryAsynchronously(() -> {
-                CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
-                try {
-                    future.complete(Optional.ofNullable(getTopicPolicies(topicName, isGlobal)));
-                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
-                    future.completeExceptionally(exception);
-                }
-                return future;
-            }, usedBackoff, scheduledExecutorService, response);
+            RetryUtil.retryAsynchronously(
+                    () -> {
+                        CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
+                        try {
+                            future.complete(Optional.ofNullable(getTopicPolicies(topicName, isGlobal)));
+                        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
+                            future.completeExceptionally(exception);
+                        }
+                        return future;
+                    },
+                    usedBackoff,
+                    scheduledExecutorService,
+                    response);
         } catch (Exception e) {
             response.completeExceptionally(e);
         }
@@ -174,29 +183,29 @@ public interface TopicPoliciesService {
 
         @Override
         public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
-            //No-op
+            // No-op
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
-            //No-op
+            // No-op
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public void start() {
-            //No-op
+            // No-op
         }
 
         @Override
         public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-            //No-op
+            // No-op
         }
 
         @Override
         public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-            //No-op
+            // No-op
         }
     }
 }

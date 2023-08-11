@@ -69,5 +69,4 @@ public class PulsarServiceUnit extends ServiceUnit {
     public void setResourceDescription(ResourceDescription rd) {
         this.resrcRequired = rd;
     }
-
 }

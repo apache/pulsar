@@ -43,11 +43,11 @@ public abstract class BlobStoreTestBase {
             //        props.setProperty("S3ID", "AXXXXXXQ");
             //        props.setProperty("S3Key", "HXXXXXß");
             context = ContextBuilder.newBuilder("aws-s3")
-                .credentials(System.getProperty("S3ID"), System.getProperty("S3Key"))
-                .build(BlobStoreContext.class);
+                    .credentials(System.getProperty("S3ID"), System.getProperty("S3Key"))
+                    .build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
             // To use this, ~/.aws must be configured with credentials and a default region
-            //s3client = AmazonS3ClientBuilder.standard().build();
+            // s3client = AmazonS3ClientBuilder.standard().build();
         } else if (Boolean.parseBoolean(System.getProperty("testRealGCS", "false"))) {
             log.info("TestReal GCS, bucket: {}", BUCKET);
             // To use this, must config credentials using "client_email" as GCSID and "private_key" as GCSKey.
@@ -55,8 +55,8 @@ public abstract class BlobStoreTestBase {
             //        props.setProperty("GCSID", "5XXXXXXXXXX6-compute@developer.gserviceaccount.com");
             //        props.setProperty("GCSKey", "XXXXXX");
             context = ContextBuilder.newBuilder("google-cloud-storage")
-                .credentials(System.getProperty("GCSID"), System.getProperty("GCSKey"))
-                .build(BlobStoreContext.class);
+                    .credentials(System.getProperty("GCSID"), System.getProperty("GCSKey"))
+                    .build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
         } else {
             log.info("Test Transient, bucket: {}", BUCKET);
@@ -69,9 +69,9 @@ public abstract class BlobStoreTestBase {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-        if (blobStore != null &&
-            (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) &&
-             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
+        if (blobStore != null
+                && (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))
+                        && !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }
 
@@ -79,5 +79,4 @@ public abstract class BlobStoreTestBase {
             context.close();
         }
     }
-
 }

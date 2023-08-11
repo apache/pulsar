@@ -31,6 +31,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 @Slf4j
 public class BouncyCastleLoader implements BCLoader {
     public static Provider provider;
+
     static {
         if (Security.getProvider(BC) == null) {
             Security.addProvider(new BouncyCastleProvider());

@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Producer;
@@ -29,13 +34,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
 public class NamespaceOwnershipListenerTests extends BrokerTestBase {
@@ -86,9 +84,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
 
         final String topic = "persistent://" + namespace + "/os-0";
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         producer.close();
 
@@ -111,7 +107,9 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         final String topicName = "persistent://" + namespace + "/os";
         admin.topics().createPartitionedTopic(topicName, 6);
 
-        List<String> partitions = pulsar.getNamespaceService().getAllPartitions(NamespaceName.get(namespace)).get();
+        List<String> partitions = pulsar.getNamespaceService()
+                .getAllPartitions(NamespaceName.get(namespace))
+                .get();
 
         Assert.assertEquals(partitions.size(), 6);
 
@@ -124,8 +122,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
     }
 
     @Test
-    public void testNamespaceBundleLookupOnwershipListener() throws Exception,
-            PulsarClientException {
+    public void testNamespaceBundleLookupOnwershipListener() throws Exception, PulsarClientException {
         final CountDownLatch countDownLatch = new CountDownLatch(2);
         final AtomicInteger onLoad = new AtomicInteger(0);
         final AtomicInteger unLoad = new AtomicInteger(0);
@@ -155,9 +152,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
 
         final String topic = "persistent://" + namespace + "/os-0";
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         producer.close();
 

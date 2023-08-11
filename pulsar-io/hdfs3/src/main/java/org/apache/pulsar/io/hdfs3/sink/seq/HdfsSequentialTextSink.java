@@ -41,12 +41,10 @@ public class HdfsSequentialTextSink extends HdfsAbstractSequenceFileSink<Long, S
 
     @Override
     public Writer getWriter() throws IOException {
-       counter = new AtomicLong(0);
+        counter = new AtomicLong(0);
 
-       return SequenceFile
-                .createWriter(
-                   getConfiguration(),
-                   getOptions().toArray(new Option[getOptions().size()]));
+        return SequenceFile.createWriter(
+                getConfiguration(), getOptions().toArray(new Option[getOptions().size()]));
     }
 
     @Override
@@ -59,12 +57,12 @@ public class HdfsSequentialTextSink extends HdfsAbstractSequenceFileSink<Long, S
 
     @Override
     public KeyValue<Long, String> extractKeyValue(Record<String> record) {
-       Long sequence = record.getRecordSequence().orElseGet(() -> counter.incrementAndGet());
-       return new KeyValue<>(sequence, record.getValue());
+        Long sequence = record.getRecordSequence().orElseGet(() -> counter.incrementAndGet());
+        return new KeyValue<>(sequence, record.getValue());
     }
 
     @Override
     public KeyValue<LongWritable, Text> convert(KeyValue<Long, String> kv) {
-       return new KeyValue<>(new LongWritable(kv.getKey()), new Text(kv.getValue()));
+        return new KeyValue<>(new LongWritable(kv.getKey()), new Text(kv.getValue()));
     }
 }

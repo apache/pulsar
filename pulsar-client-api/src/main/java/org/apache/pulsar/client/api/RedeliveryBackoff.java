@@ -32,7 +32,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface RedeliveryBackoff extends Serializable  {
+public interface RedeliveryBackoff extends Serializable {
     /**
      * @param redeliveryCount indicates the number of times the message was redelivered
      */

@@ -80,11 +80,12 @@ public class MessageImpl<T> implements Message<T> {
     private BrokerEntryMetadata brokerEntryMetadata;
 
     private boolean poolMessage;
+
     @Getter
     private long consumerEpoch;
     // Constructor for out-going message
-    public static <T> MessageImpl<T> create(MessageMetadata msgMetadata, ByteBuffer payload, Schema<T> schema,
-            String topic) {
+    public static <T> MessageImpl<T> create(
+            MessageMetadata msgMetadata, ByteBuffer payload, Schema<T> schema, String topic) {
         @SuppressWarnings("unchecked")
         MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
         msg.msgMetadata.clear();
@@ -101,84 +102,233 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     // Constructor for incoming message
-    MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
-                ByteBuf payload, ClientCnx cnx, Schema<T> schema) {
+    MessageImpl(
+            String topic,
+            MessageIdImpl messageId,
+            MessageMetadata msgMetadata,
+            ByteBuf payload,
+            ClientCnx cnx,
+            Schema<T> schema) {
         this(topic, messageId, msgMetadata, payload, Optional.empty(), cnx, schema);
     }
 
-    MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
-                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
+    MessageImpl(
+            String topic,
+            MessageIdImpl messageId,
+            MessageMetadata msgMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema) {
         this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false, DEFAULT_CONSUMER_EPOCH);
     }
 
-    MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
-                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-                boolean pooledMessage, long consumerEpoch) {
+    MessageImpl(
+            String topic,
+            MessageIdImpl messageId,
+            MessageMetadata msgMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema,
+            int redeliveryCount,
+            boolean pooledMessage,
+            long consumerEpoch) {
         this.msgMetadata = new MessageMetadata();
-        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx,
-                schema, redeliveryCount, pooledMessage, consumerEpoch);
+        init(
+                this,
+                topic,
+                messageId,
+                msgMetadata,
+                payload,
+                encryptionCtx,
+                cnx,
+                schema,
+                redeliveryCount,
+                pooledMessage,
+                consumerEpoch);
     }
 
-    public static <T> MessageImpl<T> create(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
-            ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
-            int redeliveryCount, boolean pooledMessage, long consumerEpoch) {
+    public static <T> MessageImpl<T> create(
+            String topic,
+            MessageIdImpl messageId,
+            MessageMetadata msgMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema,
+            int redeliveryCount,
+            boolean pooledMessage,
+            long consumerEpoch) {
         if (pooledMessage) {
             @SuppressWarnings("unchecked")
             MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
-            init(msg, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount,
-                    pooledMessage, consumerEpoch);
+            init(
+                    msg,
+                    topic,
+                    messageId,
+                    msgMetadata,
+                    payload,
+                    encryptionCtx,
+                    cnx,
+                    schema,
+                    redeliveryCount,
+                    pooledMessage,
+                    consumerEpoch);
             return msg;
         } else {
-            return new MessageImpl<>(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema,
-                    redeliveryCount, pooledMessage, consumerEpoch);
+            return new MessageImpl<>(
+                    topic,
+                    messageId,
+                    msgMetadata,
+                    payload,
+                    encryptionCtx,
+                    cnx,
+                    schema,
+                    redeliveryCount,
+                    pooledMessage,
+                    consumerEpoch);
         }
     }
 
-    MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
-            SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
-            ClientCnx cnx, Schema<T> schema, long consumerEpoch) {
-        this(topic, batchMessageIdImpl, msgMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema, 0,
-                false, consumerEpoch);
+    MessageImpl(
+            String topic,
+            BatchMessageIdImpl batchMessageIdImpl,
+            MessageMetadata msgMetadata,
+            SingleMessageMetadata singleMessageMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema,
+            long consumerEpoch) {
+        this(
+                topic,
+                batchMessageIdImpl,
+                msgMetadata,
+                singleMessageMetadata,
+                payload,
+                encryptionCtx,
+                cnx,
+                schema,
+                0,
+                false,
+                consumerEpoch);
     }
 
-    MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata batchMetadata,
-            SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
-            ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-                boolean keepMessageInDirectMemory, long consumerEpoch) {
+    MessageImpl(
+            String topic,
+            BatchMessageIdImpl batchMessageIdImpl,
+            MessageMetadata batchMetadata,
+            SingleMessageMetadata singleMessageMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema,
+            int redeliveryCount,
+            boolean keepMessageInDirectMemory,
+            long consumerEpoch) {
         this.msgMetadata = new MessageMetadata();
-        init(this, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx,
-                cnx, schema, redeliveryCount, keepMessageInDirectMemory, consumerEpoch);
-
+        init(
+                this,
+                topic,
+                batchMessageIdImpl,
+                batchMetadata,
+                singleMessageMetadata,
+                payload,
+                encryptionCtx,
+                cnx,
+                schema,
+                redeliveryCount,
+                keepMessageInDirectMemory,
+                consumerEpoch);
     }
 
-    public static <T> MessageImpl<T> create(String topic, BatchMessageIdImpl batchMessageIdImpl,
-            MessageMetadata batchMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
-            Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-            boolean pooledMessage, long consumerEpoch) {
+    public static <T> MessageImpl<T> create(
+            String topic,
+            BatchMessageIdImpl batchMessageIdImpl,
+            MessageMetadata batchMetadata,
+            SingleMessageMetadata singleMessageMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema,
+            int redeliveryCount,
+            boolean pooledMessage,
+            long consumerEpoch) {
         if (pooledMessage) {
             @SuppressWarnings("unchecked")
             MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
-            init(msg, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx, cnx,
-                    schema, redeliveryCount, pooledMessage, consumerEpoch);
+            init(
+                    msg,
+                    topic,
+                    batchMessageIdImpl,
+                    batchMetadata,
+                    singleMessageMetadata,
+                    payload,
+                    encryptionCtx,
+                    cnx,
+                    schema,
+                    redeliveryCount,
+                    pooledMessage,
+                    consumerEpoch);
             return msg;
         } else {
-            return new MessageImpl<>(topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload,
-                    encryptionCtx, cnx, schema, redeliveryCount, pooledMessage, consumerEpoch);
+            return new MessageImpl<>(
+                    topic,
+                    batchMessageIdImpl,
+                    batchMetadata,
+                    singleMessageMetadata,
+                    payload,
+                    encryptionCtx,
+                    cnx,
+                    schema,
+                    redeliveryCount,
+                    pooledMessage,
+                    consumerEpoch);
         }
     }
 
-    static <T> void init(MessageImpl<T> msg, String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
-            ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
-            int redeliveryCount, boolean poolMessage, long consumerEpoch) {
-        init(msg, topic, null /* batchMessageIdImpl */, msgMetadata, null /* singleMessageMetadata */, payload,
-                encryptionCtx, cnx, schema, redeliveryCount, poolMessage, consumerEpoch);
+    static <T> void init(
+            MessageImpl<T> msg,
+            String topic,
+            MessageIdImpl messageId,
+            MessageMetadata msgMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema,
+            int redeliveryCount,
+            boolean poolMessage,
+            long consumerEpoch) {
+        init(
+                msg,
+                topic,
+                null /* batchMessageIdImpl */,
+                msgMetadata,
+                null /* singleMessageMetadata */,
+                payload,
+                encryptionCtx,
+                cnx,
+                schema,
+                redeliveryCount,
+                poolMessage,
+                consumerEpoch);
         msg.messageId = messageId;
     }
 
-    private static <T> void init(MessageImpl<T> msg, String topic, BatchMessageIdImpl batchMessageIdImpl,
-            MessageMetadata msgMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
-            Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-            boolean poolMessage, long consumerEpoch) {
+    private static <T> void init(
+            MessageImpl<T> msg,
+            String topic,
+            BatchMessageIdImpl batchMessageIdImpl,
+            MessageMetadata msgMetadata,
+            SingleMessageMetadata singleMessageMetadata,
+            ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx,
+            Schema<T> schema,
+            int redeliveryCount,
+            boolean poolMessage,
+            long consumerEpoch) {
         msg.msgMetadata.clear();
         msg.msgMetadata.copyFrom(msgMetadata);
         msg.messageId = batchMessageIdImpl;
@@ -207,7 +357,8 @@ public class MessageImpl<T> implements Message<T> {
                 msg.properties = Collections.emptyMap();
             }
             if (singleMessageMetadata.hasPartitionKey()) {
-                msg.msgMetadata.setPartitionKeyB64Encoded(singleMessageMetadata.isPartitionKeyB64Encoded())
+                msg.msgMetadata
+                        .setPartitionKeyB64Encoded(singleMessageMetadata.isPartitionKeyB64Encoded())
                         .setPartitionKey(singleMessageMetadata.getPartitionKey());
             } else if (msg.msgMetadata.hasPartitionKey()) {
                 msg.msgMetadata.clearPartitionKey();
@@ -236,20 +387,30 @@ public class MessageImpl<T> implements Message<T> {
                 msg.msgMetadata.setNullPartitionKey(singleMessageMetadata.isNullPartitionKey());
             }
         } else if (msgMetadata.getPropertiesCount() > 0) {
-            msg.properties = Collections.unmodifiableMap(msgMetadata.getPropertiesList().stream().collect(
-                    Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (oldValue, newValue) -> newValue)));
+            msg.properties = Collections.unmodifiableMap(msgMetadata.getPropertiesList().stream()
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (oldValue, newValue) -> newValue)));
         } else {
             msg.properties = Collections.emptyMap();
         }
     }
 
-    public MessageImpl(String topic, String msgId, Map<String, String> properties,
-            byte[] payload, Schema<T> schema, MessageMetadata msgMetadata) {
+    public MessageImpl(
+            String topic,
+            String msgId,
+            Map<String, String> properties,
+            byte[] payload,
+            Schema<T> schema,
+            MessageMetadata msgMetadata) {
         this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema, msgMetadata);
     }
 
-    public MessageImpl(String topic, String msgId, Map<String, String> properties,
-                       ByteBuf payload, Schema<T> schema, MessageMetadata msgMetadata) {
+    public MessageImpl(
+            String topic,
+            String msgId,
+            Map<String, String> properties,
+            ByteBuf payload,
+            Schema<T> schema,
+            MessageMetadata msgMetadata) {
         String[] data = msgId.split(":");
         long ledgerId = Long.parseLong(data[0]);
         long entryId = Long.parseLong(data[1]);
@@ -345,10 +506,13 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean isExpired(int messageTTLInSeconds) {
-        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp()
-                ? (System.currentTimeMillis() > getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
-                : (System.currentTimeMillis()
-                > brokerEntryMetadata.getBrokerTimestamp() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds)));
+        return messageTTLInSeconds != 0
+                && (brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp()
+                        ? (System.currentTimeMillis()
+                                > getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
+                        : (System.currentTimeMillis()
+                                > brokerEntryMetadata.getBrokerTimestamp()
+                                        + TimeUnit.SECONDS.toMillis(messageTTLInSeconds)));
     }
 
     @Override
@@ -394,11 +558,9 @@ public class MessageImpl<T> implements Message<T> {
             return Optional.of(schema);
         }
         if (schema instanceof AutoConsumeSchema) {
-            return Optional.of(((AutoConsumeSchema) schema)
-                    .atSchemaVersion(schemaVersion));
+            return Optional.of(((AutoConsumeSchema) schema).atSchemaVersion(schemaVersion));
         } else if (schema instanceof AbstractSchema) {
-            return Optional.of(((AbstractSchema<?>) schema)
-                    .atSchemaVersion(schemaVersion));
+            return Optional.of(((AbstractSchema<?>) schema).atSchemaVersion(schemaVersion));
         } else {
             return Optional.of(schema);
         }
@@ -472,7 +634,6 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-
     private KeyValueSchemaImpl getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
             return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
@@ -520,8 +681,12 @@ public class MessageImpl<T> implements Message<T> {
             org.apache.pulsar.common.schema.KeyValue keyValue =
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
-                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(
+                        keyValue,
+                        ((AutoConsumeSchema) schema)
+                                .getSchemaInfo(schemaVersion)
+                                .getType(),
+                        schemaVersion);
             } else {
                 return (T) keyValue;
             }
@@ -536,8 +701,12 @@ public class MessageImpl<T> implements Message<T> {
             org.apache.pulsar.common.schema.KeyValue keyValue =
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
-                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(
+                        keyValue,
+                        ((AutoConsumeSchema) schema)
+                                .getSchemaInfo(getSchemaVersion())
+                                .getType(),
+                        null);
             } else {
                 return (T) keyValue;
             }
@@ -575,9 +744,9 @@ public class MessageImpl<T> implements Message<T> {
     public synchronized Map<String, String> getProperties() {
         if (this.properties == null) {
             if (msgMetadata.getPropertiesCount() > 0) {
-                  this.properties = Collections.unmodifiableMap(msgMetadata.getPropertiesList().stream()
-                           .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
-                                   (oldValue, newValue) -> newValue)));
+                this.properties = Collections.unmodifiableMap(msgMetadata.getPropertiesList().stream()
+                        .collect(Collectors.toMap(
+                                KeyValue::getKey, KeyValue::getValue, (oldValue, newValue) -> newValue)));
 
             } else {
                 this.properties = Collections.emptyMap();
@@ -792,6 +961,8 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     enum SchemaState {
-        None, Ready, Broken
+        None,
+        Ready,
+        Broken
     }
 }

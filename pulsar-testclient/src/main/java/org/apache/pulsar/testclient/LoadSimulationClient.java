@@ -95,8 +95,9 @@ public class LoadSimulationClient {
         final String topic;
         final Map<Integer, byte[]> payloadCache;
 
-        public TradeUnit(final TradeConfiguration tradeConf, final PulsarClient client,
-                final Map<Integer, byte[]> payloadCache) throws Exception {
+        public TradeUnit(
+                final TradeConfiguration tradeConf, final PulsarClient client, final Map<Integer, byte[]> payloadCache)
+                throws Exception {
             consumerFuture = client.newConsumer()
                     .topic(tradeConf.topic)
                     .subscriptionName("Subscriber-" + tradeConf.topic)
@@ -127,9 +128,9 @@ public class LoadSimulationClient {
             while (true) {
                 try {
                     return client.newProducer()
-                                .topic(topic)
-                                .sendTimeout(0, TimeUnit.SECONDS)
-                                .create();
+                            .topic(topic)
+                            .sendTimeout(0, TimeUnit.SECONDS)
+                            .create();
 
                 } catch (Exception e) {
                     Thread.sleep(10000);
@@ -172,13 +173,22 @@ public class LoadSimulationClient {
     // JCommander arguments for starting a LoadSimulationClient.
     @Parameters(commandDescription = "Simulate client load by maintaining producers and consumers for topics.")
     private static class MainArguments {
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Help message",
+                help = true)
         boolean help;
 
-        @Parameter(names = { "--port" }, description = "Port to listen on for controller", required = true)
+        @Parameter(
+                names = {"--port"},
+                description = "Port to listen on for controller",
+                required = true)
         public int port;
 
-        @Parameter(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
+        @Parameter(
+                names = {"--service-url"},
+                description = "Pulsar Service URL",
+                required = true)
         public String serviceURL;
     }
 
@@ -229,75 +239,75 @@ public class LoadSimulationClient {
         final TradeConfiguration tradeConf = new TradeConfiguration();
         tradeConf.command = command;
         switch (command) {
-        case CHANGE_COMMAND:
-            // Change the topic's settings if it exists.
-            decodeProducerOptions(tradeConf, inputStream);
-            if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
-                topicsToTradeUnits.get(tradeConf.topic).change(tradeConf);
-            }
-            break;
-        case STOP_COMMAND:
-            // Stop the topic if it exists.
-            tradeConf.topic = inputStream.readUTF();
-            if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
-                topicsToTradeUnits.get(tradeConf.topic).stop.set(true);
-            }
-            break;
-        case TRADE_COMMAND:
-            // Create the topic. It is assumed that the topic does not already exist.
-            decodeProducerOptions(tradeConf, inputStream);
-            final TradeUnit tradeUnit = new TradeUnit(tradeConf, client, payloadCache);
-            topicsToTradeUnits.put(tradeConf.topic, tradeUnit);
-            executor.submit(() -> {
-                try {
-                    final String topic = tradeConf.topic;
-                    final String namespace = topic.substring("persistent://".length(), topic.lastIndexOf('/'));
+            case CHANGE_COMMAND:
+                // Change the topic's settings if it exists.
+                decodeProducerOptions(tradeConf, inputStream);
+                if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
+                    topicsToTradeUnits.get(tradeConf.topic).change(tradeConf);
+                }
+                break;
+            case STOP_COMMAND:
+                // Stop the topic if it exists.
+                tradeConf.topic = inputStream.readUTF();
+                if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
+                    topicsToTradeUnits.get(tradeConf.topic).stop.set(true);
+                }
+                break;
+            case TRADE_COMMAND:
+                // Create the topic. It is assumed that the topic does not already exist.
+                decodeProducerOptions(tradeConf, inputStream);
+                final TradeUnit tradeUnit = new TradeUnit(tradeConf, client, payloadCache);
+                topicsToTradeUnits.put(tradeConf.topic, tradeUnit);
+                executor.submit(() -> {
                     try {
-                        admin.namespaces().createNamespace(namespace);
-                    } catch (PulsarAdminException.ConflictException e) {
-                        // Ignore, already created namespace.
+                        final String topic = tradeConf.topic;
+                        final String namespace = topic.substring("persistent://".length(), topic.lastIndexOf('/'));
+                        try {
+                            admin.namespaces().createNamespace(namespace);
+                        } catch (PulsarAdminException.ConflictException e) {
+                            // Ignore, already created namespace.
+                        }
+                        tradeUnit.start();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
                     }
-                    tradeUnit.start();
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+                });
+                break;
+            case CHANGE_GROUP_COMMAND:
+                // Change the settings of all topics belonging to a group.
+                decodeGroupOptions(tradeConf, inputStream);
+                tradeConf.size = inputStream.readInt();
+                tradeConf.rate = inputStream.readDouble();
+                // See if a topic belongs to this tenant and group using this regex.
+                final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+                for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
+                    final String topic = entry.getKey();
+                    final TradeUnit unit = entry.getValue();
+                    if (topic.matches(groupRegex)) {
+                        unit.change(tradeConf);
+                    }
                 }
-            });
-            break;
-        case CHANGE_GROUP_COMMAND:
-            // Change the settings of all topics belonging to a group.
-            decodeGroupOptions(tradeConf, inputStream);
-            tradeConf.size = inputStream.readInt();
-            tradeConf.rate = inputStream.readDouble();
-            // See if a topic belongs to this tenant and group using this regex.
-            final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
-            for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String topic = entry.getKey();
-                final TradeUnit unit = entry.getValue();
-                if (topic.matches(groupRegex)) {
-                    unit.change(tradeConf);
+                break;
+            case STOP_GROUP_COMMAND:
+                // Stop all topics belonging to a group.
+                decodeGroupOptions(tradeConf, inputStream);
+                // See if a topic belongs to this tenant and group using this regex.
+                final String regex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+                for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
+                    final String topic = entry.getKey();
+                    final TradeUnit unit = entry.getValue();
+                    if (topic.matches(regex)) {
+                        unit.stop.set(true);
+                    }
                 }
-            }
-            break;
-        case STOP_GROUP_COMMAND:
-            // Stop all topics belonging to a group.
-            decodeGroupOptions(tradeConf, inputStream);
-            // See if a topic belongs to this tenant and group using this regex.
-            final String regex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
-            for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String topic = entry.getKey();
-                final TradeUnit unit = entry.getValue();
-                if (topic.matches(regex)) {
-                    unit.stop.set(true);
-                }
-            }
-            break;
-        case FIND_COMMAND:
-            // Write a single boolean indicating if the topic was found.
-            outputStream.writeBoolean(topicsToTradeUnits.containsKey(inputStream.readUTF()));
-            outputStream.flush();
-            break;
-        default:
-            throw new IllegalArgumentException("Unrecognized command code received: " + command);
+                break;
+            case FIND_COMMAND:
+                // Write a single boolean indicating if the topic was found.
+                outputStream.writeBoolean(topicsToTradeUnits.containsKey(inputStream.readUTF()));
+                outputStream.flush();
+                break;
+            default:
+                throw new IllegalArgumentException("Unrecognized command code received: " + command);
         }
     }
 
@@ -314,16 +324,14 @@ public class LoadSimulationClient {
         payloadCache = new ConcurrentHashMap<>();
         topicsToTradeUnits = new ConcurrentHashMap<>();
 
-        admin = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.serviceURL)
-                    .build();
+        admin = PulsarAdmin.builder().serviceHttpUrl(arguments.serviceURL).build();
         client = PulsarClient.builder()
-                    .memoryLimit(0, SizeUnit.BYTES)
-                    .serviceUrl(arguments.serviceURL)
-                    .connectionsPerBroker(4)
-                    .ioThreads(Runtime.getRuntime().availableProcessors())
-                    .statsInterval(0, TimeUnit.SECONDS)
-                    .build();
+                .memoryLimit(0, SizeUnit.BYTES)
+                .serviceUrl(arguments.serviceURL)
+                .connectionsPerBroker(4)
+                .ioThreads(Runtime.getRuntime().availableProcessors())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
         port = arguments.port;
         executor = Executors.newCachedThreadPool(new DefaultThreadFactory("test-client"));
     }

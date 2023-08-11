@@ -71,29 +71,33 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     private final LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers;
 
-    PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
-            Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
+    PersistentStickyKeyDispatcherMultipleConsumers(
+            PersistentTopic topic,
+            ManagedCursor cursor,
+            Subscription subscription,
+            ServiceConfiguration conf,
+            KeySharedMeta ksm) {
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
         this.keySharedMode = ksm.getKeySharedMode();
         switch (this.keySharedMode) {
-        case AUTO_SPLIT:
-            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
-                selector = new ConsistentHashingStickyKeyConsumerSelector(
-                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
-            } else {
-                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-            }
-            break;
+            case AUTO_SPLIT:
+                if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
+                    selector = new ConsistentHashingStickyKeyConsumerSelector(
+                            conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+                } else {
+                    selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+                }
+                break;
 
-        case STICKY:
-            this.selector = new HashRangeExclusiveStickyKeyConsumerSelector();
-            break;
+            case STICKY:
+                this.selector = new HashRangeExclusiveStickyKeyConsumerSelector();
+                break;
 
-        default:
-            throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
+            default:
+                throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
     }
 
@@ -109,8 +113,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
-        return super.addConsumer(consumer).thenCompose(__ ->
-                selector.addConsumer(consumer).handle((result, ex) -> {
+        return super.addConsumer(consumer)
+                .thenCompose(__ -> selector.addConsumer(consumer).handle((result, ex) -> {
                     if (ex != null) {
                         synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
                             consumerSet.removeAll(consumer);
@@ -119,21 +123,21 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         throw FutureUtil.wrapToCompletionException(ex);
                     }
                     return result;
-                })
-        ).thenRun(() -> {
-            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                PositionImpl readPositionWhenJoining = (PositionImpl) cursor.getReadPosition();
-                consumer.setReadPositionWhenJoining(readPositionWhenJoining);
-                // If this was the 1st consumer, or if all the messages are already acked, then we
-                // don't need to do anything special
-                if (!allowOutOfOrderDelivery
-                        && recentlyJoinedConsumers != null
-                        && consumerList.size() > 1
-                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
-                    recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
-                }
-            }
-        });
+                }))
+                .thenRun(() -> {
+                    synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                        PositionImpl readPositionWhenJoining = (PositionImpl) cursor.getReadPosition();
+                        consumer.setReadPositionWhenJoining(readPositionWhenJoining);
+                        // If this was the 1st consumer, or if all the messages are already acked, then we
+                        // don't need to do anything special
+                        if (!allowOutOfOrderDelivery
+                                && recentlyJoinedConsumers != null
+                                && consumerList.size() > 1
+                                && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
+                            recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
+                        }
+                    }
+                });
     }
 
     @Override
@@ -202,9 +206,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     // replay read, that containing "relayPosition", by calling readMoreEntries.
                     if (replayPosition.compareTo(minReplayedPosition) < 0) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, "
+                            log.debug(
+                                    "[{}] Position {} (<{}) is inserted for relay during current {} read, "
                                             + "discard this read and retry with readMoreEntries.",
-                                    name, replayPosition, minReplayedPosition, readType);
+                                    name,
+                                    replayPosition,
+                                    minReplayedPosition,
+                                    readType);
                         }
                         if (readType == ReadType.Normal) {
                             entries.forEach(entry -> {
@@ -230,7 +238,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer c = selector.select(stickyKeyHash);
             if (c != null) {
                 groupedEntries.computeIfAbsent(c, k -> new ArrayList<>()).add(entry);
-                consumerStickyKeyHashesMap.computeIfAbsent(c, k -> new HashSet<>()).add(stickyKeyHash);
+                consumerStickyKeyHashesMap
+                        .computeIfAbsent(c, k -> new HashSet<>())
+                        .add(stickyKeyHash);
             } else {
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 entry.release();
@@ -256,11 +266,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 availablePermits = Math.min(availablePermits, remainUnAckedMessages);
             }
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
-            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
-                    readType, consumerStickyKeyHashesMap.get(consumer));
+            int messagesForC = getRestrictedMaxEntriesForConsumer(
+                    consumer, entriesWithSameKey, maxMessagesForC, readType, consumerStickyKeyHashesMap.get(consumer));
             if (log.isDebugEnabled()) {
-                log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer.consumerName(), messagesForC, readType);
+                log.debug(
+                        "[{}] select consumer {} with messages num {}, read type is {}",
+                        name,
+                        consumer.consumerName(),
+                        messagesForC,
+                        readType);
             }
 
             if (messagesForC < entriesWithSameKeyCount) {
@@ -287,20 +301,31 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
-                totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
-                        batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+                totalEntries += filterEntriesForConsumer(
+                        entriesWithSameKey,
+                        batchSizes,
+                        sendMessageInfo,
+                        batchIndexesAcks,
+                        cursor,
+                        readType == ReadType.Replay,
+                        consumer);
 
-                consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
-                        sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                        getRedeliveryTracker()).addListener(future -> {
-                    if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
-                        readMoreEntries();
-                    }
-                });
+                consumer.sendMessages(
+                                entriesWithSameKey,
+                                batchSizes,
+                                batchIndexesAcks,
+                                sendMessageInfo.getTotalMessages(),
+                                sendMessageInfo.getTotalBytes(),
+                                sendMessageInfo.getTotalChunkedMessages(),
+                                getRedeliveryTracker())
+                        .addListener(future -> {
+                            if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
+                                readMoreEntries();
+                            }
+                        });
 
-                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                        -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(
+                        this, -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             } else {
@@ -326,18 +351,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // position.
             isDispatcherStuckOnReplays = true;
             return true;
-        }  else if (currentThreadKeyNumber == 0) {
+        } else if (currentThreadKeyNumber == 0) {
             return true;
         }
         return false;
     }
 
-    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries, int maxMessages,
-            ReadType readType, Set<Integer> stickyKeyHashes) {
+    private int getRestrictedMaxEntriesForConsumer(
+            Consumer consumer, List<Entry> entries, int maxMessages, ReadType readType, Set<Integer> stickyKeyHashes) {
         if (maxMessages == 0) {
             return 0;
         }
-        if (readType == ReadType.Normal && stickyKeyHashes != null
+        if (readType == ReadType.Normal
+                && stickyKeyHashes != null
                 && redeliveryMessages.containsStickyKeyHashes(stickyKeyHashes)) {
             // If redeliveryMessages contains messages that correspond to the same hash as the messages
             // that the dispatcher is trying to send, do not send those messages for order guarantee
@@ -369,7 +395,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // But the message [2,3] should not dispatch to consumer2.
 
         if (readType == ReadType.Replay) {
-            PositionImpl minReadPositionForRecentJoinedConsumer = recentlyJoinedConsumers.values().iterator().next();
+            PositionImpl minReadPositionForRecentJoinedConsumer =
+                    recentlyJoinedConsumers.values().iterator().next();
             if (minReadPositionForRecentJoinedConsumer != null
                     && minReadPositionForRecentJoinedConsumer.compareTo(maxReadPosition) < 0) {
                 maxReadPosition = minReadPositionForRecentJoinedConsumer;
@@ -394,7 +421,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // from the delete operation that was completed
         topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
+                if (recentlyJoinedConsumers != null
+                        && !recentlyJoinedConsumers.isEmpty()
                         && removeConsumersFromRecentJoinedConsumers()) {
                     // After we process acks, we need to check whether the mark-delete position was advanced and we
                     // can finally read more messages. It's safe to call readMoreEntries() multiple times.
@@ -405,7 +433,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
-        Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
+        Iterator<Map.Entry<Consumer, PositionImpl>> itr =
+                recentlyJoinedConsumers.entrySet().iterator();
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
         PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
         if (mdp != null) {
@@ -469,5 +498,4 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
-
 }

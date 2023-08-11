@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -44,9 +43,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConnectionHandlerTest extends ProducerConsumerBase {
 
-    private static final Backoff BACKOFF = new BackoffBuilder().setInitialTime(1, TimeUnit.MILLISECONDS)
+    private static final Backoff BACKOFF = new BackoffBuilder()
+            .setInitialTime(1, TimeUnit.MILLISECONDS)
             .setMandatoryStop(1, TimeUnit.SECONDS)
-            .setMax(3, TimeUnit.SECONDS).create();
+            .setMax(3, TimeUnit.SECONDS)
+            .create();
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
     @BeforeClass(alwaysRun = true)
@@ -69,8 +70,7 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
             final CompletableFuture<Integer> future = new CompletableFuture<>();
             final int index = i;
             final ConnectionHandler handler = new ConnectionHandler(
-                    new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF,
-                    cnx -> {
+                    new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF, cnx -> {
                         future.complete(index);
                         return CompletableFuture.completedFuture(null);
                     });
@@ -83,8 +83,7 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
     public void testConcurrentGrabCnx() {
         final AtomicInteger cnt = new AtomicInteger(0);
         final ConnectionHandler handler = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF,
-                cnx -> {
+                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF, cnx -> {
                     cnt.incrementAndGet();
                     return CompletableFuture.completedFuture(null);
                 });
@@ -93,7 +92,8 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
             handler.grabCnx();
         }
         Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> cnt.get() > 0);
-        Assert.assertThrows(ConditionTimeoutException.class,
+        Assert.assertThrows(
+                ConditionTimeoutException.class,
                 () -> Awaitility.await().atMost(Duration.ofMillis(500)).until(() -> cnt.get() == numGrab));
         Assert.assertEquals(cnt.get(), 1);
     }
@@ -103,7 +103,8 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
         // 1. connectionOpened completes with null
         final AtomicBoolean duringConnect = spy(new AtomicBoolean());
         final ConnectionHandler handler1 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF,
+                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"),
+                BACKOFF,
                 cnx -> CompletableFuture.completedFuture(null));
         FieldUtils.writeField(handler1, "duringConnect", duringConnect, true);
         handler1.grabCnx();
@@ -113,7 +114,8 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
 
         // 2. connectionFailed is called
         final ConnectionHandler handler2 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, null), new MockedBackoff(),
+                new MockedHandlerState((PulsarClientImpl) pulsarClient, null),
+                new MockedBackoff(),
                 cnx -> CompletableFuture.completedFuture(null));
         FieldUtils.writeField(handler2, "duringConnect", duringConnect, true);
         handler2.grabCnx();
@@ -123,7 +125,8 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
 
         // 3. connectionOpened completes exceptionally
         final ConnectionHandler handler3 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), new MockedBackoff(),
+                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"),
+                new MockedBackoff(),
                 cnx -> FutureUtil.failedFuture(new RuntimeException("fail")));
         FieldUtils.writeField(handler3, "duringConnect", duringConnect, true);
         handler3.grabCnx();

@@ -75,16 +75,19 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
 
         if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {
-            config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
+            config.setAuthenticationProviders(
+                    Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
         } else {
-            config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockUnauthenticationProvider"));
+            config.setAuthenticationProviders(
+                    Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockUnauthenticationProvider"));
         }
         if (methodName.equals("anonymousSocketTest")) {
             config.setAnonymousUserRole("anonymousUser");
         }
 
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal))
+                .when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
@@ -109,13 +112,14 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
             proxyServer.stop();
         }
         log.info("Finished Cleaning Up Test setup");
-
     }
 
     private void socketTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic1";
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
-        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:"
+                + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
+        final String producerUri =
+                "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/producer/persistent/" + topic;
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
@@ -164,8 +168,10 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
     @Test(timeOut = 10000)
     public void statsTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic2";
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
-        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:"
+                + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
+        final String producerUri =
+                "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/producer/persistent/" + topic;
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
@@ -174,9 +180,9 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         WebSocketClient produceClient = new WebSocketClient();
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
-        final String baseUrl = "http://localhost:" + proxyServer.getListenPortHTTP().get() + "/admin/proxy-stats/";
-        @Cleanup
-        Client client = ClientBuilder.newClient();
+        final String baseUrl =
+                "http://localhost:" + proxyServer.getListenPortHTTP().get() + "/admin/proxy-stats/";
+        @Cleanup Client client = ClientBuilder.newClient();
 
         try {
             consumeClient.start();

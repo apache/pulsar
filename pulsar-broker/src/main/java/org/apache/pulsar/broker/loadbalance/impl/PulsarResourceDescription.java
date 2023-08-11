@@ -59,7 +59,6 @@ public class PulsarResourceDescription extends ResourceDescription {
         return 1;
     }
 
-
     private boolean exactlyEquals(Map<String, ResourceUsage> o) {
         if (this.resourceUsageByName.size() != o.size()) {
             return false;
@@ -67,7 +66,6 @@ public class PulsarResourceDescription extends ResourceDescription {
         return this.resourceUsageByName.entrySet().stream()
                 .allMatch(e -> e.getValue().equals(o.get(e.getKey())));
     }
-
 
     @Override
     public void removeUsage(ResourceDescription rd) {

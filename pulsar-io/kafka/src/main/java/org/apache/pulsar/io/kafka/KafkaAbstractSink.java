@@ -50,8 +50,8 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> sourceRecord) {
         KeyValue<K, V> keyValue = extractKeyValue(sourceRecord);
-        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(),
-                keyValue.getValue());
+        ProducerRecord<K, V> record =
+                new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(), keyValue.getValue());
         if (log.isDebugEnabled()) {
             log.debug("Record sending to kafka, record={}.", record);
         }
@@ -84,12 +84,11 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
         Objects.requireNonNull(kafkaSinkConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
         Objects.requireNonNull(kafkaSinkConfig.getAcks(), "Kafka acks mode is not set");
         if (kafkaSinkConfig.getBatchSize() <= 0) {
-            throw new IllegalArgumentException("Invalid Kafka Producer batchSize : "
-                + kafkaSinkConfig.getBatchSize());
+            throw new IllegalArgumentException("Invalid Kafka Producer batchSize : " + kafkaSinkConfig.getBatchSize());
         }
         if (kafkaSinkConfig.getMaxRequestSize() <= 0) {
-            throw new IllegalArgumentException("Invalid Kafka Producer maxRequestSize : "
-                + kafkaSinkConfig.getMaxRequestSize());
+            throw new IllegalArgumentException(
+                    "Invalid Kafka Producer maxRequestSize : " + kafkaSinkConfig.getMaxRequestSize());
         }
         if (kafkaSinkConfig.getProducerConfigProperties() != null) {
             props.putAll(kafkaSinkConfig.getProducerConfigProperties());
@@ -109,7 +108,8 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
             props.put(SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, kafkaSinkConfig.getSslEnabledProtocols());
         }
         if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslEndpointIdentificationAlgorithm())) {
-            props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
+            props.put(
+                    SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
                     kafkaSinkConfig.getSslEndpointIdentificationAlgorithm());
         }
         if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslTruststoreLocation())) {

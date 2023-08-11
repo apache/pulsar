@@ -38,11 +38,10 @@ import org.apache.pulsar.io.core.annotations.IOType;
  * A Simple hbase sink, which interprets input Record in generic record.
  */
 @Connector(
-    name = "hbase",
-    type = IOType.SINK,
-    help = "The HbaseGenericRecordSink is used for moving messages from Pulsar to Hbase.",
-    configClass = HbaseSinkConfig.class
-)
+        name = "hbase",
+        type = IOType.SINK,
+        help = "The HbaseGenericRecordSink is used for moving messages from Pulsar to Hbase.",
+        configClass = HbaseSinkConfig.class)
 @Slf4j
 public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
     @Override
@@ -62,8 +61,7 @@ public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
             for (String qualifierName : qualifierNames) {
                 Object qualifierValue = record.getField(qualifierName);
                 if (null != qualifierValue) {
-                    put.addColumn(familyValueBytes, getBytes(qualifierName),
-                      getBytes(qualifierValue));
+                    put.addColumn(familyValueBytes, getBytes(qualifierName), getBytes(qualifierValue));
                 }
             }
             if (CollectionUtils.isNotEmpty(put.getFamilyCellMap().values())) {
@@ -72,7 +70,7 @@ public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
         }
     }
 
-    private byte[] getBytes(Object value) throws Exception{
+    private byte[] getBytes(Object value) throws Exception {
         if (value instanceof Integer) {
             return IntSchema.of().encode((Integer) value);
         } else if (value instanceof Long) {

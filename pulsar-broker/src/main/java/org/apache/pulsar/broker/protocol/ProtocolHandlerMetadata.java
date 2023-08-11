@@ -38,5 +38,4 @@ class ProtocolHandlerMetadata {
      * The path to the handler package.
      */
     private Path archivePath;
-
 }

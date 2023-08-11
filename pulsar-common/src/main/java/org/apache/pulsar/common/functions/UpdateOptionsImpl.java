@@ -30,8 +30,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @ApiModel(value = "UpdateOptions", description = "Options while updating the sink")
 public class UpdateOptionsImpl implements UpdateOptions {
-    @ApiModelProperty(
-            value = "Whether or not to update the auth data",
-            name = "update-auth-data")
+    @ApiModelProperty(value = "Whether or not to update the auth data", name = "update-auth-data")
     private boolean updateAuthData = false;
 }

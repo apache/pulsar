@@ -55,5 +55,4 @@ public abstract class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase
     protected final void cleanup() throws Exception {
         tearDownCluster();
     }
-
 }

@@ -52,5 +52,4 @@ public interface CustomCommand {
      * @throws Exception
      */
     boolean execute(Map<String, Object> parameters, CommandExecutionContext context) throws Exception;
-
 }

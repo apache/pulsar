@@ -48,8 +48,7 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
         try {
             this.schemaVersion = schemaVersion;
             this.descriptor = descriptor;
-            this.fields = descriptor.getFields()
-                    .stream()
+            this.fields = descriptor.getFields().stream()
                     .map(f -> new Field(f.getName(), f.getIndex()))
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -61,11 +60,11 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
     @Override
     public GenericProtobufNativeRecord read(byte[] bytes, int offset, int length) {
         try {
-            if (!(bytes.length == length && offset == 0)) { //skip unnecessary bytes copy
+            if (!(bytes.length == length && offset == 0)) { // skip unnecessary bytes copy
                 bytes = Arrays.copyOfRange(bytes, offset, offset + length);
             }
-            return new GenericProtobufNativeRecord(schemaVersion, descriptor, fields,
-                    DynamicMessage.parseFrom(descriptor, bytes));
+            return new GenericProtobufNativeRecord(
+                    schemaVersion, descriptor, fields, DynamicMessage.parseFrom(descriptor, bytes));
         } catch (InvalidProtocolBufferException e) {
             throw new SchemaSerializationException(e);
         }
@@ -74,8 +73,8 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
     @Override
     public GenericProtobufNativeRecord read(InputStream inputStream) {
         try {
-            return new GenericProtobufNativeRecord(schemaVersion, descriptor, fields,
-                    DynamicMessage.parseFrom(descriptor, inputStream));
+            return new GenericProtobufNativeRecord(
+                    schemaVersion, descriptor, fields, DynamicMessage.parseFrom(descriptor, inputStream));
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }

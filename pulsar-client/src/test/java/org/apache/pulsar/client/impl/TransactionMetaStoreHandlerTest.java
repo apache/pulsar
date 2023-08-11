@@ -26,7 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.channel.Channel;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -38,11 +37,10 @@ public class TransactionMetaStoreHandlerTest {
 
     @Test
     public void testStateChangeFailure() throws Exception {
-        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
-                .serviceUrl("pulsar://localhost:6650").build();
+        final PulsarClientImpl client = (PulsarClientImpl)
+                PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         final CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
-                0L, client, "topic", connectFuture);
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(0L, client, "topic", connectFuture);
         final ClientCnx cnx = mock(ClientCnx.class);
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(19);
         final CompletableFuture<ProducerResponse> responseFuture = CompletableFuture.completedFuture(null);

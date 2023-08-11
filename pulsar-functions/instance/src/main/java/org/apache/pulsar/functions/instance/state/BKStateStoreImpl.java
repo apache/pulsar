@@ -43,8 +43,7 @@ public class BKStateStoreImpl implements DefaultStateStore {
     private final String fqsn;
     private final Table<ByteBuf, ByteBuf> table;
 
-    public BKStateStoreImpl(String tenant, String namespace, String name,
-                            Table<ByteBuf, ByteBuf> table) {
+    public BKStateStoreImpl(String tenant, String namespace, String name, Table<ByteBuf, ByteBuf> table) {
         this.tenant = tenant;
         this.namespace = namespace;
         this.name = name;
@@ -73,8 +72,7 @@ public class BKStateStoreImpl implements DefaultStateStore {
     }
 
     @Override
-    public void init(StateStoreContext ctx) {
-    }
+    public void init(StateStoreContext ctx) {}
 
     @Override
     public void close() {
@@ -84,9 +82,7 @@ public class BKStateStoreImpl implements DefaultStateStore {
     @Override
     public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
         // TODO: this can be optimized with a batch operation.
-        return table.increment(
-            Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-            amount);
+        return table.increment(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), amount);
     }
 
     @Override
@@ -120,13 +116,9 @@ public class BKStateStoreImpl implements DefaultStateStore {
             // to create a ByteBuffer to store to the state store
             // the position of the buffer will be at the end and nothing will be written to table service
             value.position(0);
-            return table.put(
-                    Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-                    Unpooled.wrappedBuffer(value));
+            return table.put(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), Unpooled.wrappedBuffer(value));
         } else {
-            return table.put(
-                    Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-                    null);
+            return table.put(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), null);
         }
     }
 
@@ -141,10 +133,8 @@ public class BKStateStoreImpl implements DefaultStateStore {
 
     @Override
     public CompletableFuture<Void> deleteAsync(String key) {
-        return table.delete(
-                Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-                Options.delete()
-        ).thenApply(ignored -> null);
+        return table.delete(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), Options.delete())
+                .thenApply(ignored -> null);
     }
 
     @Override
@@ -158,28 +148,26 @@ public class BKStateStoreImpl implements DefaultStateStore {
 
     @Override
     public CompletableFuture<ByteBuffer> getAsync(String key) {
-        return table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
-                data -> {
-                    try {
-                        if (data != null) {
-                            ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
-                            data.readBytes(result);
-                            // Set position to off the buffer to the beginning, since the position after the
-                            // read is going to be end of the buffer
-                            // If we do not rewind to the beginning here, users will have to explicitly do
-                            // this in their function code
-                            // in order to use any of the ByteBuffer operations
-                            result.position(0);
-                            return result;
-                        }
-                        return null;
-                    } finally {
-                        if (data != null) {
-                            ReferenceCountUtil.safeRelease(data);
-                        }
-                    }
+        return table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(data -> {
+            try {
+                if (data != null) {
+                    ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
+                    data.readBytes(result);
+                    // Set position to off the buffer to the beginning, since the position after the
+                    // read is going to be end of the buffer
+                    // If we do not rewind to the beginning here, users will have to explicitly do
+                    // this in their function code
+                    // in order to use any of the ByteBuffer operations
+                    result.position(0);
+                    return result;
                 }
-        );
+                return null;
+            } finally {
+                if (data != null) {
+                    ReferenceCountUtil.safeRelease(data);
+                }
+            }
+        });
     }
 
     @Override

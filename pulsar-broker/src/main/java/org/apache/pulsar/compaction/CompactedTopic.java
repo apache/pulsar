@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.service.Consumer;
 
 public interface CompactedTopic {
     CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId);
+
     CompletableFuture<Void> deleteCompactedLedger(long compactedLedgerId);
 
     /**
@@ -37,11 +38,14 @@ public interface CompactedTopic {
      * int, long, boolean, ReadEntriesCallback, boolean, Consumer)} instead.
      */
     @Deprecated
-    void asyncReadEntriesOrWait(ManagedCursor cursor,
-                                int numberOfEntriesToRead,
-                                boolean isFirstRead,
-                                ReadEntriesCallback callback,
-                                Consumer consumer);
+    void asyncReadEntriesOrWait(
+            ManagedCursor cursor,
+            int numberOfEntriesToRead,
+            boolean isFirstRead,
+            ReadEntriesCallback callback,
+            Consumer consumer);
+
     CompletableFuture<Entry> readLastEntryOfCompactedLedger();
+
     Optional<Position> getCompactionHorizon();
 }

@@ -69,9 +69,7 @@ public interface TopicCompactionStrategy<T> {
      */
     boolean shouldKeepLeft(T prev, T cur);
 
-    default void handleSkippedMessage(String key, T cur) {
-    }
-
+    default void handleSkippedMessage(String key, T cur) {}
 
     static TopicCompactionStrategy load(String tag, String topicCompactionStrategyClassName) {
         if (topicCompactionStrategyClassName == null) {
@@ -80,7 +78,8 @@ public interface TopicCompactionStrategy<T> {
 
         try {
             Class<?> clazz = Class.forName(topicCompactionStrategyClassName);
-            TopicCompactionStrategy instance = (TopicCompactionStrategy) clazz.getDeclaredConstructor().newInstance();
+            TopicCompactionStrategy instance =
+                    (TopicCompactionStrategy) clazz.getDeclaredConstructor().newInstance();
             INSTANCES.put(tag, instance);
             return instance;
         } catch (Exception e) {

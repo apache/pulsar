@@ -90,8 +90,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public SinkStatus getSinkStatus(
-            String tenant, String namespace, String sinkName) throws PulsarAdminException {
+    public SinkStatus getSinkStatus(String tenant, String namespace, String sinkName) throws PulsarAdminException {
         return sync(() -> getSinkStatusAsync(tenant, namespace, sinkName));
     }
 
@@ -119,7 +118,11 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         if (!validateSinkName(tenant, namespace, sinkName, future)) {
             return future;
         }
-        WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(id)).path("status");
+        WebTarget path = sink.path(tenant)
+                .path(namespace)
+                .path(sinkName)
+                .path(Integer.toString(id))
+                .path("status");
         return asyncGetRequest(path, SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class);
     }
 
@@ -135,24 +138,26 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             return future;
         }
         try {
-            RequestBuilder builder =
-                    post(sink.path(sinkConfig.getTenant())
-                            .path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", objectWriter()
-                            .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder = post(sink.path(sinkConfig.getTenant())
+                            .path(sinkConfig.getNamespace())
+                            .path(sinkConfig.getName())
+                            .getUri()
+                            .toASCIIString())
+                    .addBodyPart(new StringPart(
+                            "sinkConfig", objectWriter().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
+            asyncHttpClient
+                    .executeRequest(addAuthHeaders(sink, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                            future.completeExceptionally(
-                                    getApiException(Response
-                                            .status(response.getStatusCode())
-                                            .entity(response.getResponseBody()).build()));
+                            future.completeExceptionally(getApiException(Response.status(response.getStatusCode())
+                                    .entity(response.getResponseBody())
+                                    .build()));
                         } else {
                             future.complete(null);
                         }
@@ -176,15 +181,15 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     public CompletableFuture<Void> createSinkWithUrlAsync(SinkConfig sinkConfig, String pkgUrl) {
         final FormDataMultiPart mp = new FormDataMultiPart();
         mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-        mp.bodyPart(new FormDataBodyPart("sinkConfig",
-                new Gson().toJson(sinkConfig),
-                MediaType.APPLICATION_JSON_TYPE));
+        mp.bodyPart(new FormDataBodyPart("sinkConfig", new Gson().toJson(sinkConfig), MediaType.APPLICATION_JSON_TYPE));
         CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(),
-                sinkConfig.getName(), validationFuture)) {
+        if (!validateSinkName(
+                sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), validationFuture)) {
             return validationFuture;
         }
-        WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName());
+        WebTarget path = sink.path(sinkConfig.getTenant())
+                .path(sinkConfig.getNamespace())
+                .path(sinkConfig.getName());
         return asyncPostRequest(path, Entity.entity(mp, MediaType.MULTIPART_FORM_DATA));
     }
 
@@ -217,30 +222,32 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             return future;
         }
         try {
-            RequestBuilder builder =
-                    put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
-                            .path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", objectWriter()
-                            .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder = put(sink.path(sinkConfig.getTenant())
+                            .path(sinkConfig.getNamespace())
+                            .path(sinkConfig.getName())
+                            .getUri()
+                            .toASCIIString())
+                    .addBodyPart(new StringPart(
+                            "sinkConfig", objectWriter().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
-                builder.addBodyPart(new StringPart("updateOptions",
-                        objectWriter().writeValueAsString(options), MediaType.APPLICATION_JSON));
+                builder.addBodyPart(new StringPart(
+                        "updateOptions", objectWriter().writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
+            asyncHttpClient
+                    .executeRequest(addAuthHeaders(sink, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                            future.completeExceptionally(
-                                    getApiException(Response
-                                            .status(response.getStatusCode())
-                                            .entity(response.getResponseBody()).build()));
+                            future.completeExceptionally(getApiException(Response.status(response.getStatusCode())
+                                    .entity(response.getResponseBody())
+                                    .build()));
                         } else {
                             future.complete(null);
                         }
@@ -257,7 +264,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public void updateSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException {
-       updateSink(sinkConfig, fileName, null);
+        updateSink(sinkConfig, fileName, null);
     }
 
     @Override
@@ -281,18 +288,15 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-            mp.bodyPart(new FormDataBodyPart(
-                    "sinkConfig",
-                    new Gson().toJson(sinkConfig),
-                    MediaType.APPLICATION_JSON_TYPE));
+            mp.bodyPart(
+                    new FormDataBodyPart("sinkConfig", new Gson().toJson(sinkConfig), MediaType.APPLICATION_JSON_TYPE));
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
-                        "updateOptions",
-                        objectWriter().writeValueAsString(options),
-                        MediaType.APPLICATION_JSON_TYPE));
+                        "updateOptions", objectWriter().writeValueAsString(options), MediaType.APPLICATION_JSON_TYPE));
             }
-            WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
+            WebTarget path = sink.path(sinkConfig.getTenant())
+                    .path(sinkConfig.getNamespace())
                     .path(sinkConfig.getName());
             return asyncPutRequest(path, Entity.entity(mp, MediaType.MULTIPART_FORM_DATA));
         } catch (Exception e) {
@@ -324,7 +328,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         if (!validateSinkName(tenant, namespace, functionName, validationFuture)) {
             return validationFuture;
         }
-        WebTarget path = sink.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
+        WebTarget path = sink.path(tenant)
+                .path(namespace)
+                .path(functionName)
+                .path(Integer.toString(instanceId))
                 .path("restart");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -345,8 +352,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public void stopSink(String tenant, String namespace, String sinkName, int instanceId)
-            throws PulsarAdminException {
+    public void stopSink(String tenant, String namespace, String sinkName, int instanceId) throws PulsarAdminException {
         sync(() -> stopSinkAsync(tenant, namespace, sinkName, instanceId));
     }
 
@@ -356,7 +362,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         if (!validateSinkName(tenant, namespace, sinkName, validationFuture)) {
             return validationFuture;
         }
-        WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
+        WebTarget path = sink.path(tenant)
+                .path(namespace)
+                .path(sinkName)
+                .path(Integer.toString(instanceId))
                 .path("stop");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -388,7 +397,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         if (!validateSinkName(tenant, namespace, sinkName, validationFuture)) {
             return validationFuture;
         }
-        WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
+        WebTarget path = sink.path(tenant)
+                .path(namespace)
+                .path(sinkName)
+                .path(Integer.toString(instanceId))
                 .path("start");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -442,8 +454,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         return true;
     }
 
-    private static boolean validateSinkName(String tenant, String namespace,
-                                          String sinkName, CompletableFuture<?> future) {
+    private static boolean validateSinkName(
+            String tenant, String namespace, String sinkName, CompletableFuture<?> future) {
         if (!validateNamespace(tenant, namespace, future)) {
             return false;
         }
@@ -453,5 +465,4 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         }
         return true;
     }
-
 }

@@ -52,6 +52,7 @@ public class PulsarStats implements Closeable {
 
     @Getter
     private BrokerStats brokerStats;
+
     private NamespaceStats nsStats;
 
     private final ClusterReplicationMetrics clusterReplicationMetrics;
@@ -73,18 +74,18 @@ public class PulsarStats implements Closeable {
 
         this.nsStats = new NamespaceStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
         this.brokerStats = new BrokerStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
-        this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
+        this.clusterReplicationMetrics = new ClusterReplicationMetrics(
+                pulsar.getConfiguration().getClusterName(),
                 pulsar.getConfiguration().isReplicationMetricsEnabled());
         this.bundleStats = new ConcurrentHashMap<>();
         this.tempMetricsCollection = new ArrayList<>();
         this.metricsCollection = new ArrayList<>();
-        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
-                pulsar.getAdvertisedAddress());
+        this.brokerOperabilityMetrics =
+                new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(), pulsar.getAdvertisedAddress());
         this.tempNonPersistentTopics = new ArrayList<>();
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
         this.updatedAt = 0;
-
     }
 
     @Override
@@ -128,8 +129,8 @@ public class PulsarStats implements Closeable {
                     nsStats.reset();
 
                     bundles.forEach((bundle, topics) -> {
-                        NamespaceBundleStats currentBundleStats = bundleStats.computeIfAbsent(bundle,
-                                k -> new NamespaceBundleStats());
+                        NamespaceBundleStats currentBundleStats =
+                                bundleStats.computeIfAbsent(bundle, k -> new NamespaceBundleStats());
                         currentBundleStats.reset();
                         currentBundleStats.topics = topics.size();
                         brokerStats.topics += topics.size();
@@ -142,11 +143,16 @@ public class PulsarStats implements Closeable {
                         topics.forEach((name, topic) -> {
                             if (topic instanceof PersistentTopic) {
                                 try {
-                                    topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
-                                            clusterReplicationMetrics, namespaceName, exposePublisherStats);
+                                    topic.updateRates(
+                                            nsStats,
+                                            currentBundleStats,
+                                            topicStatsStream,
+                                            clusterReplicationMetrics,
+                                            namespaceName,
+                                            exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}",
-                                            name, e.getMessage(), e);
+                                    log.error(
+                                            "Failed to generate topic stats for topic {}: {}", name, e.getMessage(), e);
                                 }
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
@@ -157,7 +163,9 @@ public class PulsarStats implements Closeable {
                             } else if (topic instanceof NonPersistentTopic) {
                                 tempNonPersistentTopics.add((NonPersistentTopic) topic);
                             } else {
-                                log.warn("Unsupported type of topic {}", topic.getClass().getName());
+                                log.warn(
+                                        "Unsupported type of topic {}",
+                                        topic.getClass().getName());
                             }
                         });
                         // end persistent topics section
@@ -168,11 +176,19 @@ public class PulsarStats implements Closeable {
                             topicStatsStream.startObject("non-persistent");
                             tempNonPersistentTopics.forEach(topic -> {
                                 try {
-                                    topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
-                                            clusterReplicationMetrics, namespaceName, exposePublisherStats);
+                                    topic.updateRates(
+                                            nsStats,
+                                            currentBundleStats,
+                                            topicStatsStream,
+                                            clusterReplicationMetrics,
+                                            namespaceName,
+                                            exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}",
-                                            topic.getName(), e.getMessage(), e);
+                                    log.error(
+                                            "Failed to generate topic stats for topic {}: {}",
+                                            topic.getName(),
+                                            e.getMessage(),
+                                            e);
                                 }
                             });
                             // end non-persistent topics section
@@ -199,7 +215,10 @@ public class PulsarStats implements Closeable {
                     // Update metricsCollection with namespace stats
                     tempMetricsCollection.add(nsStats.add(namespaceName));
                 } catch (Exception e) {
-                    log.error("Failed to generate namespace stats for namespace {}: {}", namespaceName, e.getMessage(),
+                    log.error(
+                            "Failed to generate namespace stats for namespace {}: {}",
+                            namespaceName,
+                            e.getMessage(),
                             e);
                 }
             });

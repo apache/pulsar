@@ -51,12 +51,20 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
-        admin.clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        testCluster,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testCluster));
         admin.topics().createPartitionedTopic(testTopic, 2);
-        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "dummy-topic").create();
+        Producer producer = pulsarClient
+                .newProducer()
+                .topic(testTenant + "/" + testNamespace + "/" + "dummy-topic")
+                .create();
         producer.close();
         waitForZooKeeperWatchers();
     }
@@ -69,7 +77,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "isV1")
     public Object[][] isV1() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test
@@ -99,7 +107,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            admin.topics().setMessageTTL(testTopic, (int)2147483650L);
+            admin.topics().setMessageTTL(testTopic, (int) 2147483650L);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), HttpStatus.PRECONDITION_FAILED_412);
@@ -147,86 +155,117 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testDifferentLevelPolicyPriority() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
-                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        (int) persistentTopic
+                                .getHierarchyTopicPolicies()
+                                .getMessageTTLInSeconds()
+                                .get(),
+                        3600));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
-                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 10));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        (int) persistentTopic
+                                .getHierarchyTopicPolicies()
+                                .getMessageTTLInSeconds()
+                                .get(),
+                        10));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
-                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        (int) persistentTopic
+                                .getHierarchyTopicPolicies()
+                                .getMessageTTLInSeconds()
+                                .get(),
+                        0));
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
-                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        (int) persistentTopic
+                                .getHierarchyTopicPolicies()
+                                .getMessageTTLInSeconds()
+                                .get(),
+                        3600));
     }
 
     @Test(dataProvider = "isV1")
     public void testNamespaceTTL(boolean isV1) throws Exception {
-        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1"+isV1;
+        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1" + isV1;
         admin.namespaces().createNamespace(myNamespace, Set.of(testCluster));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
     }
 
     @Test(timeOut = 20000)
     public void testDifferentLevelPolicyApplied() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-        //namespace-level default value is null
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        // namespace-level default value is null
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
-        //topic-level default value is null
+        // topic-level default value is null
         Integer topicMessageTTL = admin.topics().getMessageTTL(topicName);
         Assert.assertNull(topicMessageTTL);
-        //use broker-level by default
+        // use broker-level by default
         int topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 3600);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
         topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 10);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
         topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 0);
 
         admin.topics().setMessageTTL(topicName, 20);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertNotNull(admin.topics().getMessageTTL(topicName)));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertNotNull(admin.topics().getMessageTTL(topicName)));
         topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 20);
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
         admin.topics().removeMessageTTL(topicName);
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertEquals(admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
-                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        (int) persistentTopic
+                                .getHierarchyTopicPolicies()
+                                .getMessageTTLInSeconds()
+                                .get(),
+                        3600));
     }
-
 }

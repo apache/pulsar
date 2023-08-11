@@ -33,9 +33,10 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("ByteBuffer")
-            .type(SchemaType.BYTES)
-            .schema(new byte[0]).build();
+                .name("ByteBuffer")
+                .type(SchemaType.BYTES)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new ByteBufferSchema();
     }
 

@@ -38,7 +38,8 @@ public class KeyStoreTlsTest {
 
     @Test(timeOut = 300000)
     public void testValidate() throws Exception {
-        KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.SERVER,
+        KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(
+                KeyStoreSSLContext.Mode.SERVER,
                 null,
                 KEYSTORE_TYPE,
                 BROKER_KEYSTORE_FILE_PATH,
@@ -52,7 +53,8 @@ public class KeyStoreTlsTest {
                 null);
         serverSSLContext.createSSLContext();
 
-        KeyStoreSSLContext clientSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.CLIENT,
+        KeyStoreSSLContext clientSSLContext = new KeyStoreSSLContext(
+                KeyStoreSSLContext.Mode.CLIENT,
                 null,
                 KEYSTORE_TYPE,
                 CLIENT_KEYSTORE_FILE_PATH,
@@ -72,7 +74,8 @@ public class KeyStoreTlsTest {
 
     @Test(timeOut = 300000)
     public void testValidateKeyStoreNoPwd() throws Exception {
-        KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.SERVER,
+        KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(
+                KeyStoreSSLContext.Mode.SERVER,
                 null,
                 KEYSTORE_TYPE,
                 BROKER_KEYSTORE_FILE_PATH,
@@ -86,7 +89,8 @@ public class KeyStoreTlsTest {
                 null);
         serverSSLContext.createSSLContext();
 
-        KeyStoreSSLContext clientSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.CLIENT,
+        KeyStoreSSLContext clientSSLContext = new KeyStoreSSLContext(
+                KeyStoreSSLContext.Mode.CLIENT,
                 null,
                 KEYSTORE_TYPE,
                 CLIENT_KEYSTORE_FILE_PATH,

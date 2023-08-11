@@ -72,8 +72,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         WorkerService expectedWorkerService = mock(WorkerService.class);
         @Cleanup
-        PulsarService pulsarService = spy(new PulsarService(configuration, new WorkerConfig(),
-                Optional.of(expectedWorkerService), (exitCode) -> {}));
+        PulsarService pulsarService = spy(new PulsarService(
+                configuration, new WorkerConfig(), Optional.of(expectedWorkerService), (exitCode) -> {}));
 
         WorkerService actualWorkerService = pulsarService.getWorkerService();
         assertSame(expectedWorkerService, actualWorkerService);
@@ -179,10 +179,19 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(conf, pulsar.getConfiguration());
         assertEquals(conf.getBrokerServicePortTls(), pulsar.getBrokerListenPortTls());
         assertEquals(conf.getBrokerServicePort(), pulsar.getBrokerListenPort());
-        assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
-        assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
-        assertEquals(pulsar.getWebServiceAddress(), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
-        assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
+        assertEquals(
+                pulsar.getBrokerServiceUrlTls(),
+                "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
+        assertEquals(
+                pulsar.getBrokerServiceUrl(),
+                "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
+        assertEquals(
+                pulsar.getWebServiceAddress(),
+                "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
+        assertEquals(
+                pulsar.getWebServiceAddressTls(),
+                "https://localhost:"
+                        + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
     @Test

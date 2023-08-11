@@ -43,7 +43,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Slf4j
 public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> implements KeyValueSchema<K, V> {
 
-
     private final Schema<K> keySchema;
 
     private final Schema<V> valueSchema;
@@ -70,20 +69,17 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         }
     }
 
-
     public static <K, V> Schema<KeyValue<K, V>> of(Schema<K> keySchema, Schema<V> valueSchema) {
         return new KeyValueSchemaImpl<>(keySchema, valueSchema, KeyValueEncodingType.INLINE);
     }
 
-    public static <K, V> Schema<KeyValue<K, V>> of(Schema<K> keySchema,
-                                                   Schema<V> valueSchema,
-                                                   KeyValueEncodingType keyValueEncodingType) {
+    public static <K, V> Schema<KeyValue<K, V>> of(
+            Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType) {
         return new KeyValueSchemaImpl<>(keySchema, valueSchema, keyValueEncodingType);
     }
 
-    private static final Schema<KeyValue<byte[], byte[]>> KV_BYTES = new KeyValueSchemaImpl<>(
-        BytesSchema.of(),
-        BytesSchema.of());
+    private static final Schema<KeyValue<byte[], byte[]>> KV_BYTES =
+            new KeyValueSchemaImpl<>(BytesSchema.of(), BytesSchema.of());
 
     public static Schema<KeyValue<byte[], byte[]>> kvBytes() {
         return KV_BYTES;
@@ -94,14 +90,11 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         return keySchema.supportSchemaVersioning() || valueSchema.supportSchemaVersioning();
     }
 
-    private KeyValueSchemaImpl(Schema<K> keySchema,
-                               Schema<V> valueSchema) {
+    private KeyValueSchemaImpl(Schema<K> keySchema, Schema<V> valueSchema) {
         this(keySchema, valueSchema, KeyValueEncodingType.INLINE);
     }
 
-    private KeyValueSchemaImpl(Schema<K> keySchema,
-                               Schema<V> valueSchema,
-                               KeyValueEncodingType keyValueEncodingType) {
+    private KeyValueSchemaImpl(Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType) {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
         this.keyValueEncodingType = keyValueEncodingType;
@@ -134,12 +127,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
     public byte[] encode(KeyValue<K, V> message) {
         if (keyValueEncodingType != null && keyValueEncodingType == KeyValueEncodingType.INLINE) {
-            return KeyValue.encode(
-                message.getKey(),
-                keySchema,
-                message.getValue(),
-                valueSchema
-            );
+            return KeyValue.encode(message.getKey(), keySchema, message.getValue(), valueSchema);
         } else {
             if (message.getValue() == null) {
                 return null;
@@ -210,12 +198,12 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     }
 
     @Override
-    public void configureSchemaInfo(String topicName,
-                                    String componentName,
-                                    SchemaInfo schemaInfo) {
+    public void configureSchemaInfo(String topicName, String componentName, SchemaInfo schemaInfo) {
         if (schemaInfo == null) {
-            log.info("KeyValueSchema starting from null SchemaInfo. "
-                    + "This means that the topic {} still has not a schema", topicName);
+            log.info(
+                    "KeyValueSchema starting from null SchemaInfo. "
+                            + "This means that the topic {} still has not a schema",
+                    topicName);
             return;
         }
         KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
@@ -224,8 +212,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         configureKeyValueSchemaInfo();
 
         if (null == this.schemaInfo) {
-            throw new RuntimeException(
-                "No key schema info or value schema info : key = " + keySchema.getSchemaInfo()
+            throw new RuntimeException("No key schema info or value schema info : key = " + keySchema.getSchemaInfo()
                     + ", value = " + valueSchema.getSchemaInfo());
         }
     }
@@ -236,9 +223,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     }
 
     private void buildKeyValueSchemaInfo() {
-        this.schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
-                keySchema, valueSchema, keyValueEncodingType
-        );
+        this.schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo(keySchema, valueSchema, keyValueEncodingType);
     }
 
     private void configureKeyValueSchemaInfo() {
@@ -250,14 +235,15 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
             @Override
             public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                    .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
+                return schemaInfoProvider
+                        .getSchemaByVersion(schemaVersion)
+                        .thenApply(si ->
+                                KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
             }
 
             @Override
             public CompletableFuture<SchemaInfo> getLatestSchema() {
-                return CompletableFuture.completedFuture(
-                    ((AbstractStructSchema<K>) keySchema).schemaInfo);
+                return CompletableFuture.completedFuture(((AbstractStructSchema<K>) keySchema).schemaInfo);
             }
 
             @Override
@@ -269,14 +255,15 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         this.valueSchema.setSchemaInfoProvider(new SchemaInfoProvider() {
             @Override
             public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                    .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
+                return schemaInfoProvider
+                        .getSchemaByVersion(schemaVersion)
+                        .thenApply(si ->
+                                KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
             }
 
             @Override
             public CompletableFuture<SchemaInfo> getLatestSchema() {
-                return CompletableFuture.completedFuture(
-                    ((AbstractStructSchema<V>) valueSchema).schemaInfo);
+                return CompletableFuture.completedFuture(((AbstractStructSchema<V>) valueSchema).schemaInfo);
             }
 
             @Override
@@ -300,8 +287,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
                 return internalAtSchemaVersion(null);
             }
             return schemaMap.computeIfAbsent(
-                    BytesSchemaVersion.of(schemaVersion),
-                    __ -> internalAtSchemaVersion(schemaVersion));
+                    BytesSchemaVersion.of(schemaVersion), __ -> internalAtSchemaVersion(schemaVersion));
         }
     }
 
@@ -371,7 +357,9 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         } else {
             SchemaInfo schemaInfo;
             try {
-                schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion.bytes()).get();
+                schemaInfo = schemaInfoProvider
+                        .getSchemaByVersion(schemaVersion.bytes())
+                        .get();
                 if (schemaInfo == null) {
                     // schemaless topic
                     schemaInfo = BytesSchema.of().getSchemaInfo();
@@ -384,9 +372,11 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
                 log.error("Can't get last schema for topic {} using KeyValueSchemaImpl", topicName);
                 throw new SchemaSerializationException(e.getCause());
             }
-            log.info("Configure schema {} for topic {} : {}",
-                    schemaVersion, topicName, schemaInfo.getSchemaDefinition());
+            log.info(
+                    "Configure schema {} for topic {} : {}",
+                    schemaVersion,
+                    topicName,
+                    schemaInfo.getSchemaDefinition());
         }
-
     }
 }

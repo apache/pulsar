@@ -107,15 +107,16 @@ public class LoadBalancerTest {
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
-        ZkUtils.createFullPathOptimistic(bkEnsemble.getZkClient(),
+        ZkUtils.createFullPathOptimistic(
+                bkEnsemble.getZkClient(),
                 SimpleLoadManagerImpl.LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
-                "{\"loadBalancerStrategy\":\"leastLoadedServer\"}".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                "{\"loadBalancerStrategy\":\"leastLoadedServer\"}".getBytes(),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
         final String localhost = "localhost";
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-
 
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerServicePort(Optional.of(brokerNativeBrokerPorts[i]));
@@ -130,7 +131,7 @@ public class LoadBalancerTest {
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-            config.setAdvertisedAddress(localhost+i);
+            config.setAdvertisedAddress(localhost + i);
             config.setLoadBalancerEnabled(false);
 
             pulsarServices[i] = new PulsarService(config);
@@ -139,8 +140,11 @@ public class LoadBalancerTest {
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            lookupAddresses[i] = pulsarServices[i].getAdvertisedAddress() + ":" + pulsarServices[i].getListenPortHTTP().get();
-            pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
+            lookupAddresses[i] = pulsarServices[i].getAdvertisedAddress() + ":"
+                    + pulsarServices[i].getListenPortHTTP().get();
+            pulsarAdmins[i] = PulsarAdmin.builder()
+                    .serviceHttpUrl(brokerUrls[i].toString())
+                    .build();
         }
 
         createNamespacePolicies(pulsarServices[0]);
@@ -165,21 +169,23 @@ public class LoadBalancerTest {
 
     private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader) {
         Awaitility.await()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .atMost(MAX_RETRIES, TimeUnit.SECONDS)
-            .until(() -> {
-                boolean settled = true;
-                // Check if the all active pulsar see a new leader.
-                for (PulsarService pulsar : activePulsars) {
-                    Optional<LeaderBroker> leader = pulsar.getLeaderElectionService().readCurrentLeader().join();
-                    // Check leader a pulsar see is not empty and not the old leader.
-                    if (!leader.isPresent() || leader.get().equals(oldLeader)) {
-                        settled = false;
-                        break;
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(MAX_RETRIES, TimeUnit.SECONDS)
+                .until(() -> {
+                    boolean settled = true;
+                    // Check if the all active pulsar see a new leader.
+                    for (PulsarService pulsar : activePulsars) {
+                        Optional<LeaderBroker> leader = pulsar.getLeaderElectionService()
+                                .readCurrentLeader()
+                                .join();
+                        // Check leader a pulsar see is not empty and not the old leader.
+                        if (!leader.isPresent() || leader.get().equals(oldLeader)) {
+                            settled = false;
+                            break;
+                        }
                     }
-                }
-                return settled;
-            });
+                    return settled;
+                });
     }
 
     /*
@@ -191,21 +197,29 @@ public class LoadBalancerTest {
     @Test
     public void testLoadReportsWrittenOnMetadataStore() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
-            String path = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
-                    lookupAddresses[i]);
-            byte[] loadReportData = pulsarServices[i].getLocalMetadataStore().get(path).join().get().getValue();
+            String path = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT, lookupAddresses[i]);
+            byte[] loadReportData = pulsarServices[i]
+                    .getLocalMetadataStore()
+                    .get(path)
+                    .join()
+                    .get()
+                    .getValue();
             assertTrue(loadReportData.length > 0);
             log.info("LoadReport {}, {}", lookupAddresses[i], new String(loadReportData));
 
-            LoadReport loadReport = ObjectMapperFactory.getMapper().reader().readValue(loadReportData, LoadReport.class);
+            LoadReport loadReport =
+                    ObjectMapperFactory.getMapper().reader().readValue(loadReportData, LoadReport.class);
             assertEquals(loadReport.getName(), lookupAddresses[i]);
 
             // Check Initial Ranking is populated in both the brokers
-            Field ranking = ((SimpleLoadManagerImpl) pulsarServices[i].getLoadManager().get()).getClass()
+            Field ranking = ((SimpleLoadManagerImpl)
+                            pulsarServices[i].getLoadManager().get())
+                    .getClass()
                     .getDeclaredField("sortedRankings");
             ranking.setAccessible(true);
-            AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
-                    .get(pulsarServices[i].getLoadManager().get());
+            AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking =
+                    (AtomicReference<Map<Long, Set<ResourceUnit>>>)
+                            ranking.get(pulsarServices[i].getLoadManager().get());
             printSortedRanking(sortedRanking);
 
             // all brokers have same rank to it would be 0 --> set-of-all-the-brokers
@@ -215,8 +229,11 @@ public class LoadBalancerTest {
             }
             assertEquals(brokerCount, BROKER_COUNT);
             TopicName topicName = TopicName.get("persistent://pulsar/use/primary-ns/test-topic");
-            ResourceUnit found = pulsarServices[i].getLoadManager().get()
-                    .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(topicName)).get();
+            ResourceUnit found = pulsarServices[i]
+                    .getLoadManager()
+                    .get()
+                    .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(topicName))
+                    .get();
             assertNotNull(found);
         }
     }
@@ -250,8 +267,11 @@ public class LoadBalancerTest {
         Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             TopicName topicName = TopicName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
-            ResourceUnit found = pulsarServices[0].getLoadManager().get()
-                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(topicName)).get();
+            ResourceUnit found = pulsarServices[0]
+                    .getLoadManager()
+                    .get()
+                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(topicName))
+                    .get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -266,27 +286,32 @@ public class LoadBalancerTest {
 
         // assert each broker received ownership of fair amount of namespaces 90%+
         for (Map.Entry<String, Integer> broker : namespaceOwner.entrySet()) {
-            log.info("Count of bundles assigned: {}, {} -- lower-bound: {} - upper-bound: {} ",
-                    broker.getKey(), broker.getValue(), lowerBound, upperBound);
+            log.info(
+                    "Count of bundles assigned: {}, {} -- lower-bound: {} - upper-bound: {} ",
+                    broker.getKey(),
+                    broker.getValue(),
+                    lowerBound,
+                    upperBound);
             assertTrue(broker.getValue() >= lowerBound && broker.getValue() <= upperBound);
         }
     }
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    private void updateLastReport(LoadManager lm, LoadReport lr){
+    private void updateLastReport(LoadManager lm, LoadReport lr) {
         ResourceLock<LoadReport> lock = (ResourceLock<LoadReport>) FieldUtils.readField(lm, "brokerLock", true);
         lock.updateValue(lr).join();
     }
 
     private AtomicReference<Map<Long, Set<ResourceUnit>>> getSortedRanking(PulsarService pulsar)
             throws NoSuchFieldException, IllegalAccessException {
-        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()
+        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get())
+                .getClass()
                 .getDeclaredField("sortedRankings");
         ranking.setAccessible(true);
         @SuppressWarnings("unchecked")
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
-                .get(pulsar.getLoadManager().get());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>)
+                ranking.get(pulsar.getLoadManager().get());
         return sortedRanking;
     }
 
@@ -358,7 +383,11 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(87);
-            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
+            pulsarServices[i]
+                    .getBrokerService()
+                    .getBundlesQuotas()
+                    .setDefaultResourceQuota(defaultQuota)
+                    .join();
 
             LoadReport lr = new LoadReport();
             lr.setName(lookupAddresses[i]);
@@ -394,12 +423,15 @@ public class LoadBalancerTest {
         // check owner of new destinations and verify that the distribution is roughly
         // consistent (variation < 10%) with the broker capacity:
         int totalNamespaces = 250;
-        int[] expectedAssignments = new int[] { 17, 34, 51, 68, 85 };
+        int[] expectedAssignments = new int[] {17, 34, 51, 68, 85};
         Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             TopicName topicName = TopicName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
-            ResourceUnit found = pulsarServices[0].getLoadManager().get()
-                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(topicName)).get();
+            ResourceUnit found = pulsarServices[0]
+                    .getLoadManager()
+                    .get()
+                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(topicName))
+                    .get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -417,7 +449,8 @@ public class LoadBalancerTest {
 
             long expectedValue = expectedAssignments[i];
             double variation = Math.abs(actualValue - expectedValue) * 100.0 / expectedValue;
-            log.info("Topic assignment - {}, actual: {}, expected baseline: {}, variation: {}/%",
+            log.info(
+                    "Topic assignment - {}, actual: {}, expected baseline: {}, variation: {}/%",
                     lookupAddresses[i], actualValue, expectedValue, String.format("%.2f", variation));
             assertTrue(variation < expectedMaxVariation);
         }
@@ -425,11 +458,13 @@ public class LoadBalancerTest {
 
     private AtomicReference<Map<String, ResourceQuota>> getRealtimeResourceQuota(PulsarService pulsar)
             throws NoSuchFieldException, IllegalAccessException {
-        Field quotasField = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()
+        Field quotasField = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get())
+                .getClass()
                 .getDeclaredField("realtimeResourceQuotas");
         quotasField.setAccessible(true);
-        AtomicReference<Map<String, ResourceQuota>> realtimeResourceQuotas = (AtomicReference<Map<String, ResourceQuota>>) quotasField
-                .get(pulsar.getLoadManager().get());
+        AtomicReference<Map<String, ResourceQuota>> realtimeResourceQuotas =
+                (AtomicReference<Map<String, ResourceQuota>>)
+                        quotasField.get(pulsar.getLoadManager().get());
         return realtimeResourceQuotas;
     }
 
@@ -471,8 +506,13 @@ public class LoadBalancerTest {
         }
     }
 
-    private void verifyBundleResourceQuota(ResourceQuota quota, double expMsgRateIn, double expMsgRateOut,
-            double expBandwidthIn, double expBandwidthOut, double expMemory) {
+    private void verifyBundleResourceQuota(
+            ResourceQuota quota,
+            double expMsgRateIn,
+            double expMsgRateOut,
+            double expBandwidthIn,
+            double expBandwidthOut,
+            double expMemory) {
         assertTrue(Math.abs(quota.getMsgRateIn() - expMsgRateIn) < 1);
         assertTrue(Math.abs(quota.getMsgRateOut() - expMsgRateOut) < 1);
         assertTrue(Math.abs(quota.getBandwidthIn() - expBandwidthIn) < 1);
@@ -493,7 +533,11 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(75);
-            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
+            pulsarServices[i]
+                    .getBrokerService()
+                    .getBundlesQuotas()
+                    .setDefaultResourceQuota(defaultQuota)
+                    .join();
         }
 
         // publish the initial load reports and wait for quotas be updated
@@ -506,14 +550,20 @@ public class LoadBalancerTest {
 
         // print & verify resource quotas
         for (int i = 0; i < BROKER_COUNT; i++) {
-            Map<String, ResourceQuota> quotas = getRealtimeResourceQuota(pulsarServices[i]).get();
+            Map<String, ResourceQuota> quotas =
+                    getRealtimeResourceQuota(pulsarServices[i]).get();
             printResourceQuotas(quotas);
-            verifyBundleResourceQuota(quotas.get("pulsar/use/primary-ns-0-0/0x00000000_0xffffffff"), 19.0, 58.0,
-                    19791.0, 58958.0, 74.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/use/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0,
-                    20000.0, 60000.0, 100.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/use/primary-ns-4-4/0x00000000_0xffffffff"), 40.0, 120.0,
-                    40000.0, 120000.0, 150.0);
+            verifyBundleResourceQuota(
+                    quotas.get("pulsar/use/primary-ns-0-0/0x00000000_0xffffffff"), 19.0, 58.0, 19791.0, 58958.0, 74.0);
+            verifyBundleResourceQuota(
+                    quotas.get("pulsar/use/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0, 20000.0, 60000.0, 100.0);
+            verifyBundleResourceQuota(
+                    quotas.get("pulsar/use/primary-ns-4-4/0x00000000_0xffffffff"),
+                    40.0,
+                    120.0,
+                    40000.0,
+                    120000.0,
+                    150.0);
         }
 
         // publish test report for 24 hours later and wait for quotas be updated
@@ -522,19 +572,31 @@ public class LoadBalancerTest {
 
         // print & verify resource quotas
         for (int i = 0; i < BROKER_COUNT; i++) {
-            Map<String, ResourceQuota> quotas = getRealtimeResourceQuota(pulsarServices[i]).get();
+            Map<String, ResourceQuota> quotas =
+                    getRealtimeResourceQuota(pulsarServices[i]).get();
             printResourceQuotas(quotas);
-            verifyBundleResourceQuota(quotas.get("pulsar/use/primary-ns-0-0/0x00000000_0xffffffff"), 5.0, 6.0, 10203.0,
-                    11019.0, 50.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/use/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0,
-                    20000.0, 60000.0, 100.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/use/primary-ns-4-4/0x00000000_0xffffffff"), 40.0, 120.0,
-                    40000.0, 120000.0, 150.0);
+            verifyBundleResourceQuota(
+                    quotas.get("pulsar/use/primary-ns-0-0/0x00000000_0xffffffff"), 5.0, 6.0, 10203.0, 11019.0, 50.0);
+            verifyBundleResourceQuota(
+                    quotas.get("pulsar/use/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0, 20000.0, 60000.0, 100.0);
+            verifyBundleResourceQuota(
+                    quotas.get("pulsar/use/primary-ns-4-4/0x00000000_0xffffffff"),
+                    40.0,
+                    120.0,
+                    40000.0,
+                    120000.0,
+                    150.0);
         }
     }
 
-    private NamespaceBundleStats newBundleStats(long topics, int producers, int consumers, double msgRateIn,
-            double msgRateOut, double throughputIn, double throughputOut) {
+    private NamespaceBundleStats newBundleStats(
+            long topics,
+            int producers,
+            int consumers,
+            double msgRateIn,
+            double msgRateOut,
+            double throughputIn,
+            double throughputOut) {
         NamespaceBundleStats stats = new NamespaceBundleStats();
         stats.topics = topics;
         stats.producerCount = producers;
@@ -570,7 +632,6 @@ public class LoadBalancerTest {
         Policies policies = new Policies();
         policies.bundles = getBundles(numBundles);
         pulsar.getPulsarResources().getNamespaceResources().createPolicies(NamespaceName.get(namespace), policies);
-
     }
 
     /**
@@ -582,7 +643,8 @@ public class LoadBalancerTest {
         long maxTopics = pulsarServices[0].getConfiguration().getLoadBalancerNamespaceBundleMaxTopics();
         int maxSessions = pulsarServices[0].getConfiguration().getLoadBalancerNamespaceBundleMaxSessions();
         long maxMsgRate = pulsarServices[0].getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate();
-        long maxBandwidth = pulsarServices[0].getConfiguration().getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * 1048576L;
+        long maxBandwidth =
+                pulsarServices[0].getConfiguration().getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * 1048576L;
         pulsarServices[0].getConfiguration().setLoadBalancerAutoBundleSplitEnabled(true);
 
         // create namespaces
@@ -607,27 +669,28 @@ public class LoadBalancerTest {
         lr.setSystemResourceUsage(new SystemResourceUsage());
 
         Map<String, NamespaceBundleStats> bundleStats = new HashMap<String, NamespaceBundleStats>();
-        bundleStats.put("pulsar/use/primary-ns-01/0x00000000_0x80000000",
-                newBundleStats(maxTopics + 1, 0, 0, 0, 0, 0, 0));
-        bundleStats.put("pulsar/use/primary-ns-02/0x00000000_0x80000000",
-                newBundleStats(2, maxSessions + 1, 0, 0, 0, 0, 0));
-        bundleStats.put("pulsar/use/primary-ns-03/0x00000000_0x80000000",
-                newBundleStats(2, 0, maxSessions + 1, 0, 0, 0, 0));
-        bundleStats.put("pulsar/use/primary-ns-04/0x00000000_0x80000000",
-                newBundleStats(2, 0, 0, maxMsgRate + 1, 0, 0, 0));
-        bundleStats.put("pulsar/use/primary-ns-05/0x00000000_0x80000000",
-                newBundleStats(2, 0, 0, 0, maxMsgRate + 1, 0, 0));
-        bundleStats.put("pulsar/use/primary-ns-06/0x00000000_0x80000000",
-                newBundleStats(2, 0, 0, 0, 0, maxBandwidth + 1, 0));
-        bundleStats.put("pulsar/use/primary-ns-07/0x00000000_0x80000000",
-                newBundleStats(2, 0, 0, 0, 0, 0, maxBandwidth + 1));
+        bundleStats.put(
+                "pulsar/use/primary-ns-01/0x00000000_0x80000000", newBundleStats(maxTopics + 1, 0, 0, 0, 0, 0, 0));
+        bundleStats.put(
+                "pulsar/use/primary-ns-02/0x00000000_0x80000000", newBundleStats(2, maxSessions + 1, 0, 0, 0, 0, 0));
+        bundleStats.put(
+                "pulsar/use/primary-ns-03/0x00000000_0x80000000", newBundleStats(2, 0, maxSessions + 1, 0, 0, 0, 0));
+        bundleStats.put(
+                "pulsar/use/primary-ns-04/0x00000000_0x80000000", newBundleStats(2, 0, 0, maxMsgRate + 1, 0, 0, 0));
+        bundleStats.put(
+                "pulsar/use/primary-ns-05/0x00000000_0x80000000", newBundleStats(2, 0, 0, 0, maxMsgRate + 1, 0, 0));
+        bundleStats.put(
+                "pulsar/use/primary-ns-06/0x00000000_0x80000000", newBundleStats(2, 0, 0, 0, 0, maxBandwidth + 1, 0));
+        bundleStats.put(
+                "pulsar/use/primary-ns-07/0x00000000_0x80000000", newBundleStats(2, 0, 0, 0, 0, 0, maxBandwidth + 1));
 
-        bundleStats.put("pulsar/use/primary-ns-08/0x00000000_0x80000000",
+        bundleStats.put(
+                "pulsar/use/primary-ns-08/0x00000000_0x80000000",
                 newBundleStats(maxTopics - 1, maxSessions - 1, 1, maxMsgRate - 1, 1, maxBandwidth - 1, 1));
-        bundleStats.put("pulsar/use/primary-ns-09/0x00000000_0x80000000",
-                newBundleStats(1, 0, 0, 0, 0, 0, maxBandwidth + 1));
-        bundleStats.put("pulsar/use/primary-ns-10/0x00000000_0x02000000",
-                newBundleStats(maxTopics + 1, 0, 0, 0, 0, 0, 0));
+        bundleStats.put(
+                "pulsar/use/primary-ns-09/0x00000000_0x80000000", newBundleStats(1, 0, 0, 0, 0, 0, maxBandwidth + 1));
+        bundleStats.put(
+                "pulsar/use/primary-ns-10/0x00000000_0x02000000", newBundleStats(maxTopics + 1, 0, 0, 0, 0, 0, 0));
         lr.setBundleStats(bundleStats);
 
         FieldUtils.writeField(pulsarServices[0].getLoadManager().get(), "lastLoadReport", lr, true);
@@ -637,33 +700,44 @@ public class LoadBalancerTest {
         Thread.sleep(5000);
         pulsarServices[0].getLoadManager().get().doNamespaceBundleSplit();
 
-        boolean isAutoUnooadSplitBundleEnabled = pulsarServices[0].getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
+        boolean isAutoUnooadSplitBundleEnabled =
+                pulsarServices[0].getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         // verify bundles are split
-        verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-01", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-02", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-03", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-04", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-05", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-06", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-07", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-08", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-09", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
-        verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-10", "0x00000000_0x02000000",
-                isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, times(1))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-01", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, times(1))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-02", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, times(1))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-03", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, times(1))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-04", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, times(1))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-05", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, times(1))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-06", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, times(1))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-07", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, never())
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-08", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, never())
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-09", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
+        verify(namespaceAdmin, never())
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-10", "0x00000000_0x02000000", isAutoUnooadSplitBundleEnabled, null);
         // disable max session
-        bundleStats.put("pulsar/use/primary-ns-03/0x00000000_0x80000000",
-                newBundleStats(2, -1, 0, 0, 0, 0, 0));
-        verify(namespaceAdmin, times(0)).splitNamespaceBundle("pulsar/use/primary-ns-12", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled, null);
+        bundleStats.put("pulsar/use/primary-ns-03/0x00000000_0x80000000", newBundleStats(2, -1, 0, 0, 0, 0, 0));
+        verify(namespaceAdmin, times(0))
+                .splitNamespaceBundle(
+                        "pulsar/use/primary-ns-12", "0x00000000_0x80000000", isAutoUnooadSplitBundleEnabled, null);
     }
 
     /*
@@ -698,14 +772,23 @@ public class LoadBalancerTest {
             // Make sure all brokers see the same leader
             log.info("Old leader is : {}", oldLeader.getServiceUrl());
             for (PulsarService pulsar : activePulsar) {
-                log.info("Current leader for {} is : {}", pulsar.getWebServiceAddress(), pulsar.getLeaderElectionService().getCurrentLeader());
-                assertEquals(pulsar.getLeaderElectionService().readCurrentLeader().join(), Optional.of(oldLeader));
+                log.info(
+                        "Current leader for {} is : {}",
+                        pulsar.getWebServiceAddress(),
+                        pulsar.getLeaderElectionService().getCurrentLeader());
+                assertEquals(
+                        pulsar.getLeaderElectionService().readCurrentLeader().join(), Optional.of(oldLeader));
             }
 
             // Do leader election by killing the leader broker
             leaderPulsar.close();
             loopUntilLeaderChangesForAllBroker(followerPulsar, oldLeader);
-            LeaderBroker newLeader = followerPulsar.get(0).getLeaderElectionService().readCurrentLeader().join().get();
+            LeaderBroker newLeader = followerPulsar
+                    .get(0)
+                    .getLeaderElectionService()
+                    .readCurrentLeader()
+                    .join()
+                    .get();
             log.info("New leader is : {}", newLeader.getServiceUrl());
             Assert.assertNotEquals(newLeader, oldLeader);
         }
@@ -766,12 +849,16 @@ public class LoadBalancerTest {
         policies.setPolicy("otherBrokerPolicy", policyData);
 
         try {
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().createIsolationData("use",
-                    policies.getPolicies());
+            pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getIsolationPolicies()
+                    .createIsolationData("use", policies.getPolicies());
         } catch (BadVersionException e) {
             // isolation policy already exist
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().setIsolationData("use",
-                    data -> policies.getPolicies());
+            pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getIsolationPolicies()
+                    .setIsolationData("use", data -> policies.getPolicies());
         }
     }
 
@@ -781,8 +868,8 @@ public class LoadBalancerTest {
      * Memory = 16GB cpu = 100 percent bandwidthIn = 1Gbps bandwidthOut = 1Gbps threads = 100
      */
 
-    private PulsarResourceDescription createResourceDescription(long memoryInMB, long cpuPercentage,
-            long bandwidthInMbps, long bandwidthOutInMbps, long threads) {
+    private PulsarResourceDescription createResourceDescription(
+            long memoryInMB, long cpuPercentage, long bandwidthInMbps, long bandwidthOutInMbps, long threads) {
         long KB = 1024;
         long MB = 1024 * KB;
         long GB = 1024 * MB;
@@ -793,5 +880,4 @@ public class LoadBalancerTest {
         rd.put("bandwidthOut", new ResourceUsage(bandwidthOutInMbps * MB, GB));
         return rd;
     }
-
 }

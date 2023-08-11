@@ -27,9 +27,9 @@ import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 public class ConfigHelper {
     private ConfigHelper() {}
 
-
     public static Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap(ServiceConfiguration configuration) {
-        return Map.of(BacklogQuota.BacklogQuotaType.destination_storage,
+        return Map.of(
+                BacklogQuota.BacklogQuotaType.destination_storage,
                 sizeBacklogQuota(configuration),
                 BacklogQuota.BacklogQuotaType.message_age,
                 timeBacklogQuota(configuration));
@@ -79,8 +79,6 @@ public class ConfigHelper {
     public static SubscribeRate subscribeRate(ServiceConfiguration configuration) {
         return new SubscribeRate(
                 configuration.getSubscribeThrottlingRatePerConsumer(),
-                configuration.getSubscribeRatePeriodPerConsumerInSecond()
-        );
+                configuration.getSubscribeRatePeriodPerConsumerInSecond());
     }
-
 }

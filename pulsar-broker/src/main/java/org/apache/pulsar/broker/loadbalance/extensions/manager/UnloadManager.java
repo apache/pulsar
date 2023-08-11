@@ -57,33 +57,36 @@ public class UnloadManager implements StateChangeListener {
         });
     }
 
-    public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
-                                             String bundle,
-                                             UnloadDecision decision,
-                                             long timeout,
-                                             TimeUnit timeoutUnit) {
+    public CompletableFuture<Void> waitAsync(
+            CompletableFuture<Void> eventPubFuture,
+            String bundle,
+            UnloadDecision decision,
+            long timeout,
+            TimeUnit timeoutUnit) {
 
-        return eventPubFuture.thenCompose(__ -> inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Handle unload bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
-            }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
-                if (ex != null) {
-                    inFlightUnloadRequest.remove(bundle);
-                    log.warn("Failed to wait unload for serviceUnit: {}", bundle, ex);
-                }
-            });
-            return future;
-        })).whenComplete((__, ex) -> {
-            if (ex != null) {
-                counter.update(Failure, Unknown);
-                log.warn("Failed to unload bundle: {}", bundle, ex);
-                return;
-            }
-            log.info("Complete unload bundle: {}", bundle);
-            counter.update(decision);
-        });
+        return eventPubFuture
+                .thenCompose(__ -> inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Handle unload bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
+                    }
+                    CompletableFuture<Void> future = new CompletableFuture<>();
+                    future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
+                        if (ex != null) {
+                            inFlightUnloadRequest.remove(bundle);
+                            log.warn("Failed to wait unload for serviceUnit: {}", bundle, ex);
+                        }
+                    });
+                    return future;
+                }))
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        counter.update(Failure, Unknown);
+                        log.warn("Failed to unload bundle: {}", bundle, ex);
+                        return;
+                    }
+                    log.info("Complete unload bundle: {}", bundle);
+                    counter.update(decision);
+                });
     }
 
     @Override

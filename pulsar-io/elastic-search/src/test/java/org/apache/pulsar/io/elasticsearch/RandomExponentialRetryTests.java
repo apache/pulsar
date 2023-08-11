@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class RandomExponentialRetryTests {
 
@@ -62,16 +60,16 @@ public class RandomExponentialRetryTests {
     public void callWithNoRetries() throws Exception {
         MockTime mockTime = new MockTime();
         RandomExponentialRetry backoffRetry = new RandomExponentialRetry();
-        assertEquals(0, (int)backoffRetry.retry( () -> testFunction(0), 3, 100, "NoRetries", mockTime));
+        assertEquals(0, (int) backoffRetry.retry(() -> testFunction(0), 3, 100, "NoRetries", mockTime));
         assertEquals(0L, mockTime.totalMs.get());
         assertEquals(0L, mockTime.sleeps.size());
     }
 
-    @Test(expectedExceptions = { IOException.class })
+    @Test(expectedExceptions = {IOException.class})
     public void callWithExhaustedRetries() throws Exception {
         MockTime mockTime = new MockTime();
         RandomExponentialRetry backoffRetry = new RandomExponentialRetry();
-        assertEquals(4, (int)backoffRetry.retry( () -> testFunction(4), 3, 100, "ExhautstedRetries", mockTime));
+        assertEquals(4, (int) backoffRetry.retry(() -> testFunction(4), 3, 100, "ExhautstedRetries", mockTime));
     }
 
     @Test
@@ -79,17 +77,18 @@ public class RandomExponentialRetryTests {
         int N = 10;
         MockTime mockTime = new MockTime();
         RandomExponentialRetry backoffRetry = new RandomExponentialRetry();
-        assertEquals(N, (int)backoffRetry.retry( () -> testFunction(N), N+1, 100, "SomeRetries", mockTime));
+        assertEquals(N, (int) backoffRetry.retry(() -> testFunction(N), N + 1, 100, "SomeRetries", mockTime));
         assertEquals(N, mockTime.sleeps.size());
-        for(int i = 0; i < N; i++) {
-            assertTrue(mockTime.sleeps.get(i) <=  backoffRetry.waitInMs(i, 100));
+        for (int i = 0; i < N; i++) {
+            assertTrue(mockTime.sleeps.get(i) <= backoffRetry.waitInMs(i, 100));
         }
-        System.out.println("sleeps="+mockTime.sleeps);
+        System.out.println("sleeps=" + mockTime.sleeps);
     }
 
     static class MockTime extends RandomExponentialRetry.Time {
         public final AtomicLong totalMs = new AtomicLong(0L);
         public final List<Long> sleeps = new ArrayList<>();
+
         public void sleep(long ms) {
             totalMs.addAndGet(ms);
             sleeps.add(ms);

@@ -132,5 +132,4 @@ public class ProducerStatsDisabled implements ProducerStatsRecorder {
     public int getPendingQueueSize() {
         return 0;
     }
-
 }

@@ -27,8 +27,7 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testArray() {
-        @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(4);
+        @Cleanup SegmentedLongArray a = new SegmentedLongArray(4);
         assertEquals(a.getCapacity(), 4);
         assertEquals(a.bytesCapacity(), 4 * 8);
         assertEquals(a.getInitialCapacity(), 4);
@@ -69,8 +68,7 @@ public class SegmentedLongArrayTest {
     public void testLargeArray() {
         long initialCap = 3 * 1024 * 1024;
 
-        @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(initialCap);
+        @Cleanup SegmentedLongArray a = new SegmentedLongArray(initialCap);
         assertEquals(a.getCapacity(), initialCap);
         assertEquals(a.bytesCapacity(), initialCap * 8);
         assertEquals(a.getInitialCapacity(), initialCap);

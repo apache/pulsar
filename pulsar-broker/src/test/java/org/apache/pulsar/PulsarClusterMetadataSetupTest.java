@@ -34,10 +34,9 @@ public class PulsarClusterMetadataSetupTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass =
-                    Class.forName("org.apache.pulsar.PulsarClusterMetadataSetup$Arguments");
+            Class argumentsClass = Class.forName("org.apache.pulsar.PulsarClusterMetadataSetup$Arguments");
 
-            PulsarClusterMetadataSetup.main(new String[]{"-cs", "cs", "-uw", "uw", "-zk", "zk", "-c", "c", "-g"});
+            PulsarClusterMetadataSetup.main(new String[] {"-cs", "cs", "-uw", "uw", "-zk", "zk", "-c", "c", "-g"});
 
             String message = baoStream.toString();
 

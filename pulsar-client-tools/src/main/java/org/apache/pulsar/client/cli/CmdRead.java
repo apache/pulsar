@@ -60,48 +60,67 @@ public class CmdRead extends AbstractCmdConsume {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions = new ArrayList<String>();
 
-    @Parameter(names = { "-m", "--start-message-id" },
+    @Parameter(
+            names = {"-m", "--start-message-id"},
             description = "Initial reader position, it can be 'latest', 'earliest' or '<ledgerId>:<entryId>'")
     private String startMessageId = "latest";
 
-    @Parameter(names = { "-i", "--start-message-id-inclusive" },
+    @Parameter(
+            names = {"-i", "--start-message-id-inclusive"},
             description = "Whether to include the position specified by -m option.")
     private boolean startMessageIdInclusive = false;
 
-    @Parameter(names = { "-n",
-            "--num-messages" }, description = "Number of messages to read, 0 means to read forever.")
+    @Parameter(
+            names = {"-n", "--num-messages"},
+            description = "Number of messages to read, 0 means to read forever.")
     private int numMessagesToRead = 1;
 
-    @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
+    @Parameter(
+            names = {"--hex"},
+            description = "Display binary messages in hex.")
     private boolean displayHex = false;
 
-    @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
+    @Parameter(
+            names = {"--hide-content"},
+            description = "Do not write the message to console.")
     private boolean hideContent = false;
 
-    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to read, "
-            + "value 0 means to read messages as fast as possible.")
+    @Parameter(
+            names = {"-r", "--rate"},
+            description =
+                    "Rate (in msg/sec) at which to read, " + "value 0 means to read messages as fast as possible.")
     private double readRate = 0;
 
-    @Parameter(names = {"-q", "--queue-size"}, description = "Reader receiver queue size.")
+    @Parameter(
+            names = {"-q", "--queue-size"},
+            description = "Reader receiver queue size.")
     private int receiverQueueSize = 0;
 
-    @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+    @Parameter(
+            names = {"-mc", "--max_chunked_msg"},
+            description = "Max pending chunk messages")
     private int maxPendingChunkedMessage = 0;
 
-    @Parameter(names = { "-ac",
-            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+    @Parameter(
+            names = {"-ac", "--auto_ack_chunk_q_full"},
+            description = "Auto ack for oldest message on queue is full")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    @Parameter(names = { "-ekv",
-            "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
+    @Parameter(
+            names = {"-ekv", "--encryption-key-value"},
+            description = "The URI of private key to decrypt payload, for example "
                     + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
 
-    @Parameter(names = { "-st", "--schema-type"},
+    @Parameter(
+            names = {"-st", "--schema-type"},
             description = "Set a schema type on the reader, it can be 'bytes' or 'auto_consume'")
     private String schemaType = "bytes";
 
-    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
+    @Parameter(
+            names = {"-pm", "--pool-messages"},
+            description = "Use the pooled message",
+            arity = 1)
     private boolean poolMessages = true;
 
     public CmdRead() {
@@ -135,7 +154,7 @@ public class CmdRead extends AbstractCmdConsume {
         int numMessagesRead = 0;
         int returnCode = 0;
 
-        try (PulsarClient client = clientBuilder.build()){
+        try (PulsarClient client = clientBuilder.build()) {
             ReaderBuilder<?> builder;
 
             Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
@@ -200,23 +219,31 @@ public class CmdRead extends AbstractCmdConsume {
         }
 
         return returnCode;
-
     }
 
     @SuppressWarnings("deprecation")
     @VisibleForTesting
     public String getWebSocketReadUri(String topic) {
-        String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
-                serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
+        String serviceURLWithoutTrailingSlash =
+                serviceURL.substring(0, serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
 
         TopicName topicName = TopicName.get(topic);
         String wsTopic;
         if (topicName.isV2()) {
-            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getNamespacePortion(), topicName.getLocalName());
+            wsTopic = String.format(
+                    "%s/%s/%s/%s",
+                    topicName.getDomain(),
+                    topicName.getTenant(),
+                    topicName.getNamespacePortion(),
+                    topicName.getLocalName());
         } else {
-            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
+            wsTopic = String.format(
+                    "%s/%s/%s/%s/%s",
+                    topicName.getDomain(),
+                    topicName.getTenant(),
+                    topicName.getCluster(),
+                    topicName.getNamespacePortion(),
+                    topicName.getLocalName());
         }
 
         String msgIdQueryParam;
@@ -283,7 +310,8 @@ public class CmdRead extends AbstractCmdConsume {
                     LOG.debug("No message to read after waiting for 5 seconds.");
                 } else {
                     try {
-                        String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
+                        String output = interpretByteArray(
+                                displayHex, Base64.getDecoder().decode(msg));
                         System.out.println(output); // print decode
                     } catch (Exception e) {
                         System.out.println(msg);
@@ -320,5 +348,4 @@ public class CmdRead extends AbstractCmdConsume {
         }
         return msgId;
     }
-
 }

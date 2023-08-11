@@ -43,5 +43,4 @@ public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
 
         return partitionIndex;
     }
-
 }

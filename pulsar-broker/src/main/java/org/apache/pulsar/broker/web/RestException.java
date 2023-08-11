@@ -32,6 +32,7 @@ import org.apache.pulsar.common.policies.data.ErrorData;
  */
 public class RestException extends WebApplicationException {
     private Throwable cause = null;
+
     static String getExceptionData(Throwable t) {
         StringWriter writer = new StringWriter();
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
@@ -48,11 +49,12 @@ public class RestException extends WebApplicationException {
     }
 
     public RestException(int code, String message) {
-        super(message, Response
-                .status(code, message)
-                .entity(new ErrorData(message))
-                .type(MediaType.APPLICATION_JSON)
-                .build());
+        super(
+                message,
+                Response.status(code, message)
+                        .entity(new ErrorData(message))
+                        .type(MediaType.APPLICATION_JSON)
+                        .build());
     }
 
     public RestException(Throwable t) {
@@ -77,11 +79,10 @@ public class RestException extends WebApplicationException {
         if (t instanceof WebApplicationException e) {
             return e.getResponse();
         } else {
-            return Response
-                .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), t.getMessage())
-                .entity(new ErrorData(getExceptionData(t)))
-                .type(MediaType.APPLICATION_JSON)
-                .build();
+            return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), t.getMessage())
+                    .entity(new ErrorData(getExceptionData(t)))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
         }
     }
 }

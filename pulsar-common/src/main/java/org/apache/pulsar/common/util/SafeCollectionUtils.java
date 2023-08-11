@@ -29,11 +29,14 @@ import java.util.stream.Collectors;
 public class SafeCollectionUtils {
 
     public static List<Long> longArrayToList(long[] array) {
-        return array == null || array.length == 0 ? Collections.emptyList()
-            : Arrays.stream(array).boxed().collect(Collectors.toList());
+        return array == null || array.length == 0
+                ? Collections.emptyList()
+                : Arrays.stream(array).boxed().collect(Collectors.toList());
     }
 
     public static long[] longListToArray(List<Long> list) {
-        return list == null || list.size() == 0 ? new long[0] : list.stream().mapToLong(l->l).toArray();
+        return list == null || list.size() == 0
+                ? new long[0]
+                : list.stream().mapToLong(l -> l).toArray();
     }
 }

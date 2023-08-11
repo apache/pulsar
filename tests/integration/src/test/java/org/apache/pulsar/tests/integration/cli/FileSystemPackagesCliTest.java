@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
@@ -27,13 +32,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 public class FileSystemPackagesCliTest extends TestRetrySupport {
 
@@ -63,7 +61,8 @@ public class FileSystemPackagesCliTest extends TestRetrySupport {
     private Map<String, String> getPackagesManagementServiceEnvs() {
         Map<String, String> envs = new HashMap<>();
         envs.put("enablePackagesManagement", "true");
-        envs.put("packagesManagementStorageProvider",
+        envs.put(
+                "packagesManagementStorageProvider",
                 "org.apache.pulsar.packages.management.storage.filesystem.FileSystemPackagesStorageProvider");
         return envs;
     }
@@ -73,44 +72,64 @@ public class FileSystemPackagesCliTest extends TestRetrySupport {
         BrokerContainer container = pulsarCluster.getBroker(0);
 
         String testPackageName = "function://public/default/test@v1";
-        String[] uploadCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "upload", "--description",
-                "a test package", "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName};
+        String[] uploadCmd = new String[] {
+            PulsarCluster.ADMIN_SCRIPT,
+            "packages",
+            "upload",
+            "--description",
+            "a test package",
+            "--path",
+            PulsarCluster.ADMIN_SCRIPT,
+            testPackageName
+        };
         ContainerExecResult result = container.execCmd(uploadCmd);
         assertEquals(result.getExitCode(), 0);
 
         String downloadFile = "tmp-file-" + RandomStringUtils.randomAlphabetic(8);
-        String[] downloadCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "download",
-                "--path", downloadFile, testPackageName};
+        String[] downloadCmd = new String[] {
+            PulsarCluster.ADMIN_SCRIPT, "packages", "download", "--path", downloadFile, testPackageName
+        };
         result = container.execCmd(downloadCmd);
         assertEquals(result.getExitCode(), 0);
 
-        String[] diffCmd = new String[]{"diff", PulsarCluster.ADMIN_SCRIPT, downloadFile};
+        String[] diffCmd = new String[] {"diff", PulsarCluster.ADMIN_SCRIPT, downloadFile};
         result = container.execCmd(diffCmd);
         assertEquals(result.getExitCode(), 0);
 
-        String[] getMetadataCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "get-metadata", testPackageName};
+        String[] getMetadataCmd =
+                new String[] {PulsarCluster.ADMIN_SCRIPT, "packages", "get-metadata", testPackageName};
         result = container.execCmd(getMetadataCmd);
         assertEquals(result.getExitCode(), 0);
         assertFalse(result.getStdout().isEmpty());
         assertTrue(result.getStdout().contains("a test package"));
 
-        String[] listCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "list", "--type", "function",
-                "public/default"};
+        String[] listCmd =
+                new String[] {PulsarCluster.ADMIN_SCRIPT, "packages", "list", "--type", "function", "public/default"};
         result = container.execCmd(listCmd);
         assertEquals(result.getExitCode(), 0);
         assertFalse(result.getStdout().isEmpty());
         assertTrue(result.getStdout().contains("test"));
 
-        String[] listVersionsCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "list-versions",
-                "function://public/default/test"};
+        String[] listVersionsCmd =
+                new String[] {PulsarCluster.ADMIN_SCRIPT, "packages", "list-versions", "function://public/default/test"
+                };
         result = container.execCmd(listVersionsCmd);
         assertEquals(result.getExitCode(), 0);
         assertFalse(result.getStdout().isEmpty());
         assertTrue(result.getStdout().contains("v1"));
 
         String contact = "test@apache.org";
-        String[] updateMetadataCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "update-metadata",
-                "--description", "a test package", "--contact", contact, "-PpropertyA=A", testPackageName};
+        String[] updateMetadataCmd = new String[] {
+            PulsarCluster.ADMIN_SCRIPT,
+            "packages",
+            "update-metadata",
+            "--description",
+            "a test package",
+            "--contact",
+            contact,
+            "-PpropertyA=A",
+            testPackageName
+        };
         result = container.execCmd(updateMetadataCmd);
         assertEquals(result.getExitCode(), 0);
 
@@ -121,7 +140,7 @@ public class FileSystemPackagesCliTest extends TestRetrySupport {
         assertTrue(result.getStdout().contains(contact));
         assertTrue(result.getStdout().contains("propertyA"));
 
-        String[] deleteCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "delete", testPackageName};
+        String[] deleteCmd = new String[] {PulsarCluster.ADMIN_SCRIPT, "packages", "delete", testPackageName};
         result = container.execCmd(deleteCmd);
         assertEquals(result.getExitCode(), 0);
 

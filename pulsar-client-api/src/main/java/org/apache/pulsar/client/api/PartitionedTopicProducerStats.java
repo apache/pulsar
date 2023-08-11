@@ -36,5 +36,4 @@ public interface PartitionedTopicProducerStats extends ProducerStats {
      * @return stats for each partition if topic is partitioned topic
      */
     Map<String, ProducerStats> getPartitionStats();
-
 }

@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.io.elasticsearch.opensearch;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchClient;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchSslConfig;
@@ -27,21 +33,14 @@ import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
 /*https://opensearch.org/docs/latest/opensearch/install/docker-security/*/
 public class OpenSearchClientSslTests extends ElasticSearchTestBase {
 
-    final static String INDEX = "myindex";
+    static final String INDEX = "myindex";
 
-    final static String sslResourceDir = MountableFile.forClasspathResource("ssl").getFilesystemPath();
-    final static  String configDir = "/usr/share/opensearch/config";
+    static final String sslResourceDir =
+            MountableFile.forClasspathResource("ssl").getFilesystemPath();
+    static final String configDir = "/usr/share/opensearch/config";
 
     public OpenSearchClientSslTests() {
         super(OPENSEARCH);
@@ -68,8 +67,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
         try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withEnv(sslEnv())
-                .waitingFor(Wait.forLogMessage(".*Node started.*", 1)
-                        .withStartupTimeout(Duration.ofMinutes(2)))) {
+                .waitingFor(Wait.forLogMessage(".*Node started.*", 1).withStartupTimeout(Duration.ofMinutes(2)))) {
             container.start();
 
             ElasticSearchConfig config = new ElasticSearchConfig()
@@ -92,8 +90,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withEnv(sslEnv())
                 .withEnv("plugins.security.ssl.transport.enforce_hostname_verification", "true")
-                .waitingFor(Wait.forLogMessage(".*Node started.*", 1)
-                        .withStartupTimeout(Duration.ofMinutes(2)))) {
+                .waitingFor(Wait.forLogMessage(".*Node started.*", 1).withStartupTimeout(Duration.ofMinutes(2)))) {
             container.start();
 
             ElasticSearchConfig config = new ElasticSearchConfig()
@@ -114,11 +111,10 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
 
     @Test
     public void testSslWithClientAuth() throws IOException {
-        try(ElasticsearchContainer container = createElasticsearchContainer()
+        try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withEnv(sslEnv())
-                .waitingFor(Wait.forLogMessage(".*Node started.*", 1)
-                        .withStartupTimeout(Duration.ofMinutes(3)))) {
+                .waitingFor(Wait.forLogMessage(".*Node started.*", 1).withStartupTimeout(Duration.ofMinutes(3)))) {
             container.start();
 
             ElasticSearchConfig config = new ElasticSearchConfig()
@@ -138,12 +134,10 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
         }
     }
 
-
     public void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));
         assertTrue(client.createIndexIfNeeded("mynewindex"));
         assertTrue(client.indexExists("mynewindex"));
         assertFalse(client.createIndexIfNeeded("mynewindex"));
     }
-
 }

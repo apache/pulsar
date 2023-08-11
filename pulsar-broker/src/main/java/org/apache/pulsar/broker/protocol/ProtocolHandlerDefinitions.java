@@ -31,5 +31,4 @@ import lombok.experimental.Accessors;
 class ProtocolHandlerDefinitions {
 
     private final Map<String, ProtocolHandlerMetadata> handlers = new TreeMap<>();
-
 }

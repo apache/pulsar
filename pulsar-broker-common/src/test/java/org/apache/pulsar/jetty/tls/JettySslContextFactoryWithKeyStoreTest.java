@@ -49,25 +49,34 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class JettySslContextFactoryWithKeyStoreTest {
-    final static String brokerKeyStorePath =
-            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
-    final static String brokerTrustStorePath =
-            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
-    final static String clientKeyStorePath =
-            Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
-    final static String clientTrustStorePath =
-            Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
-    final static String keyStoreType = "JKS";
-    final static String keyStorePassword = "111111";
+    static final String brokerKeyStorePath = Resources.getResource("certificate-authority/jks/broker.keystore.jks")
+            .getPath();
+    static final String brokerTrustStorePath = Resources.getResource("certificate-authority/jks/broker.truststore.jks")
+            .getPath();
+    static final String clientKeyStorePath = Resources.getResource("certificate-authority/jks/client.keystore.jks")
+            .getPath();
+    static final String clientTrustStorePath = Resources.getResource("certificate-authority/jks/client.truststore.jks")
+            .getPath();
+    static final String keyStoreType = "JKS";
+    static final String keyStorePassword = "111111";
 
     @Test
     public void testJettyTlsServerTls() throws Exception {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
-                keyStoreType, brokerKeyStorePath, keyStorePassword, false, keyStoreType,
-                clientTrustStorePath, keyStorePassword, true, null,
-                null, 600);
+        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(
+                null,
+                keyStoreType,
+                brokerKeyStorePath,
+                keyStorePassword,
+                false,
+                keyStoreType,
+                clientTrustStorePath,
+                keyStorePassword,
+                true,
+                null,
+                null,
+                600);
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
         connector.setPort(0);
@@ -77,8 +86,8 @@ public class JettySslContextFactoryWithKeyStoreTest {
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
-        registryBuilder.register("https",
-                new SSLConnectionSocketFactory(getClientSslContext(), new NoopHostnameVerifier()));
+        registryBuilder.register(
+                "https", new SSLConnectionSocketFactory(getClientSslContext(), new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -93,14 +102,23 @@ public class JettySslContextFactoryWithKeyStoreTest {
         Configurator.setRootLevel(Level.INFO);
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
-                keyStoreType, brokerKeyStorePath, keyStorePassword, false, keyStoreType, clientTrustStorePath,
-                keyStorePassword, true, null,
+        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(
+                null,
+                keyStoreType,
+                brokerKeyStorePath,
+                keyStorePassword,
+                false,
+                keyStoreType,
+                clientTrustStorePath,
+                keyStorePassword,
+                true,
+                null,
                 new HashSet<String>() {
                     {
                         this.add("TLSv1.3");
                     }
-                }, 600);
+                },
+                600);
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
         connector.setPort(0);
@@ -110,8 +128,10 @@ public class JettySslContextFactoryWithKeyStoreTest {
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
-        registryBuilder.register("https", new SSLConnectionSocketFactory(getClientSslContext(),
-                new String[]{"TLSv1.2"}, null, new NoopHostnameVerifier()));
+        registryBuilder.register(
+                "https",
+                new SSLConnectionSocketFactory(
+                        getClientSslContext(), new String[] {"TLSv1.2"}, null, new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -125,9 +145,17 @@ public class JettySslContextFactoryWithKeyStoreTest {
     public void testJettyTlsServerInvalidCipher() throws Exception {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
-                keyStoreType, brokerKeyStorePath, keyStorePassword, false, keyStoreType, clientTrustStorePath,
-                keyStorePassword, true, new HashSet<String>() {
+        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(
+                null,
+                keyStoreType,
+                brokerKeyStorePath,
+                keyStorePassword,
+                false,
+                keyStoreType,
+                clientTrustStorePath,
+                keyStorePassword,
+                true,
+                new HashSet<String>() {
                     {
                         this.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
                     }
@@ -136,7 +164,8 @@ public class JettySslContextFactoryWithKeyStoreTest {
                     {
                         this.add("TLSv1.2");
                     }
-                }, 600);
+                },
+                600);
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
         connector.setPort(0);
@@ -146,9 +175,13 @@ public class JettySslContextFactoryWithKeyStoreTest {
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
-        registryBuilder.register("https", new SSLConnectionSocketFactory(getClientSslContext(),
-                new String[]{"TLSv1.2"}, new String[]{"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
-                new NoopHostnameVerifier()));
+        registryBuilder.register(
+                "https",
+                new SSLConnectionSocketFactory(
+                        getClientSslContext(),
+                        new String[] {"TLSv1.2"},
+                        new String[] {"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+                        new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -162,8 +195,8 @@ public class JettySslContextFactoryWithKeyStoreTest {
         return getSslContext(clientKeyStorePath, keyStorePassword, brokerTrustStorePath, keyStorePassword);
     }
 
-    private static SSLContext getSslContext(String keyStorePath, String keyStorePassword,
-                                            String trustStorePath, String trustStorePassword) {
+    private static SSLContext getSslContext(
+            String keyStorePath, String keyStorePassword, String trustStorePath, String trustStorePassword) {
         try {
             SSLContext sslContext = SSLContext.getInstance("TLS");
             // key store

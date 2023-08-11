@@ -77,8 +77,7 @@ public class TxnID implements Serializable {
     public boolean equals(Object obj) {
         if (obj instanceof TxnID) {
             TxnID other = (TxnID) obj;
-            return mostSigBits == other.mostSigBits
-                    && leastSigBits == other.leastSigBits;
+            return mostSigBits == other.mostSigBits && leastSigBits == other.leastSigBits;
         }
 
         return false;

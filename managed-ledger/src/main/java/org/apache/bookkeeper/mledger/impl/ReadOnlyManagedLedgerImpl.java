@@ -39,8 +39,12 @@ import org.apache.pulsar.metadata.api.Stat;
 @Slf4j
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
-    public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
+    public ReadOnlyManagedLedgerImpl(
+            ManagedLedgerFactoryImpl factory,
+            BookKeeper bookKeeper,
+            MetaStore store,
+            ManagedLedgerConfig config,
+            OrderedScheduler scheduledExecutor,
             String name) {
         super(factory, bookKeeper, store, config, scheduledExecutor, name);
     }
@@ -63,35 +67,55 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                     long lastLedgerId = ledgers.lastKey();
 
                     // Fetch last add confirmed for last ledger
-                    bookKeeper.newOpenLedgerOp().withRecovery(false).withLedgerId(lastLedgerId)
-                            .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute()
+                    bookKeeper
+                            .newOpenLedgerOp()
+                            .withRecovery(false)
+                            .withLedgerId(lastLedgerId)
+                            .withDigestType(config.getDigestType())
+                            .withPassword(config.getPassword())
+                            .execute()
                             .thenAccept(readHandle -> {
-                                readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
-                                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
-                                            .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
-                                            .setTimestamp(clock.millis()).build();
-                                    ledgers.put(lastLedgerId, info);
+                                readHandle
+                                        .readLastAddConfirmedAsync()
+                                        .thenAccept(lastAddConfirmed -> {
+                                            LedgerInfo info = LedgerInfo.newBuilder()
+                                                    .setLedgerId(lastLedgerId)
+                                                    .setEntries(lastAddConfirmed + 1)
+                                                    .setSize(readHandle.getLength())
+                                                    .setTimestamp(clock.millis())
+                                                    .build();
+                                            ledgers.put(lastLedgerId, info);
 
-                                    future.complete(null);
-                                }).exceptionally(ex -> {
-                                    if (ex instanceof CompletionException
-                                            && ex.getCause() instanceof IllegalArgumentException) {
-                                        // The last ledger was empty, so we cannot read the last add confirmed.
-                                        LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
-                                                .setEntries(0).setSize(0).setTimestamp(clock.millis()).build();
-                                        ledgers.put(lastLedgerId, info);
-                                        future.complete(null);
-                                    } else {
-                                        future.completeExceptionally(new ManagedLedgerException(ex));
-                                    }
-                                    return null;
-                                });
-                            }).exceptionally(ex -> {
+                                            future.complete(null);
+                                        })
+                                        .exceptionally(ex -> {
+                                            if (ex instanceof CompletionException
+                                                    && ex.getCause() instanceof IllegalArgumentException) {
+                                                // The last ledger was empty, so we cannot read the last add confirmed.
+                                                LedgerInfo info = LedgerInfo.newBuilder()
+                                                        .setLedgerId(lastLedgerId)
+                                                        .setEntries(0)
+                                                        .setSize(0)
+                                                        .setTimestamp(clock.millis())
+                                                        .build();
+                                                ledgers.put(lastLedgerId, info);
+                                                future.complete(null);
+                                            } else {
+                                                future.completeExceptionally(new ManagedLedgerException(ex));
+                                            }
+                                            return null;
+                                        });
+                            })
+                            .exceptionally(ex -> {
                                 if (ex instanceof CompletionException
                                         && ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
                                     // The last ledger was empty, so we cannot read the last add confirmed.
-                                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId).setEntries(0)
-                                            .setSize(0).setTimestamp(clock.millis()).build();
+                                    LedgerInfo info = LedgerInfo.newBuilder()
+                                            .setLedgerId(lastLedgerId)
+                                            .setEntries(0)
+                                            .setSize(0)
+                                            .setTimestamp(clock.millis())
+                                            .build();
                                     ledgers.put(lastLedgerId, info);
                                     future.complete(null);
                                 } else {
@@ -123,7 +147,8 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             lastConfirmedEntry = PositionImpl.EARLIEST;
         } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
             // Last ledger has some of the entries
-            lastConfirmedEntry = new PositionImpl(ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
+            lastConfirmedEntry = new PositionImpl(
+                    ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
         } else {
             // Last ledger is empty. If there is a previous ledger, position on the last entry of that ledger
             if (ledgers.size() > 1) {
@@ -140,14 +165,17 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     @Override
     public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
-            this.getLedgerHandle(position.getLedgerId())
-                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
-                    .exceptionally((ex) -> {
-                        log.error("[{}] Error opening ledger for reading at position {} - {}", this.name, position,
-                                ex.getMessage());
-                        callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
-                        return null;
-                    });
+        this.getLedgerHandle(position.getLedgerId())
+                .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
+                .exceptionally((ex) -> {
+                    log.error(
+                            "[{}] Error opening ledger for reading at position {} - {}",
+                            this.name,
+                            position,
+                            ex.getMessage());
+                    callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
+                    return null;
+                });
     }
 
     @Override

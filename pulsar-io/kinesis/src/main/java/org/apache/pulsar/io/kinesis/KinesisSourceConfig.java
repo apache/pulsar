@@ -46,96 +46,86 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "LATEST",
-        help = "Used to specify the position in the stream where the connector should start from.\n"
-                + "  #\n"
-                + "  # The available options are: \n"
-                + "  #\n"
-                + "  # - AT_TIMESTAMP \n"
-                + "  #\n"
-                + "  #   Start from the record at or after the specified timestamp. \n"
-                + "  #\n"
-                + "  # - LATEST \n"
-                + "  #\n"
-                + "  #   Start after the most recent data record (fetch new data). \n"
-                + "  #\n"
-                + "  # - TRIM_HORIZON \n"
-                + "  #\n"
-                + "  #   Start from the oldest available data record. \n"
-    )
+            required = false,
+            defaultValue = "LATEST",
+            help = "Used to specify the position in the stream where the connector should start from.\n"
+                    + "  #\n"
+                    + "  # The available options are: \n"
+                    + "  #\n"
+                    + "  # - AT_TIMESTAMP \n"
+                    + "  #\n"
+                    + "  #   Start from the record at or after the specified timestamp. \n"
+                    + "  #\n"
+                    + "  # - LATEST \n"
+                    + "  #\n"
+                    + "  #   Start after the most recent data record (fetch new data). \n"
+                    + "  #\n"
+                    + "  # - TRIM_HORIZON \n"
+                    + "  #\n"
+                    + "  #   Start from the oldest available data record. \n")
     private InitialPositionInStream initialPositionInStream = InitialPositionInStream.LATEST;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "If the initalPositionInStream is set to 'AT_TIMESTAMP', then this "
-                + " property specifies the point in time to start consumption."
-    )
+            required = false,
+            defaultValue = "",
+            help = "If the initalPositionInStream is set to 'AT_TIMESTAMP', then this "
+                    + " property specifies the point in time to start consumption.")
     private Date startAtTime;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "Apache Pulsar IO Connector",
-        help = "Name of the Amazon Kinesis application. By default the application name is included "
-                + "in the user agent string used to make AWS requests. This can assist with troubleshooting "
-                + "(e.g. distinguish requests made by separate connectors instances)."
-    )
+            required = false,
+            defaultValue = "Apache Pulsar IO Connector",
+            help = "Name of the Amazon Kinesis application. By default the application name is included "
+                    + "in the user agent string used to make AWS requests. This can assist with troubleshooting "
+                    + "(e.g. distinguish requests made by separate connectors instances).")
     private String applicationName = "pulsar-kinesis";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "60000",
-        help = "The frequency of the Kinesis stream checkpointing (in milliseconds)"
-    )
+            required = false,
+            defaultValue = "60000",
+            help = "The frequency of the Kinesis stream checkpointing (in milliseconds)")
     private long checkpointInterval = 60000L;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "3000",
-        help = "The amount of time to delay between requests when the connector encounters a Throttling"
-                + "exception from AWS Kinesis (in milliseconds)"
-    )
+            required = false,
+            defaultValue = "3000",
+            help = "The amount of time to delay between requests when the connector encounters a Throttling"
+                    + "exception from AWS Kinesis (in milliseconds)")
     private long backoffTime = 3000L;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "3",
-        help = "The number of re-attempts to make when the connector encounters an "
-                + "exception while trying to set a checkpoint"
-    )
+            required = false,
+            defaultValue = "3",
+            help = "The number of re-attempts to make when the connector encounters an "
+                    + "exception while trying to set a checkpoint")
     private int numRetries = 3;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "1000",
-        help = "The maximum number of AWS Records that can be buffered inside the connector. "
-                + "Once this is reached, the connector will not consume any more messages from "
-                + "Kinesis until some of the messages in the queue have been successfully consumed."
-    )
+            required = false,
+            defaultValue = "1000",
+            help = "The maximum number of AWS Records that can be buffered inside the connector. "
+                    + "Once this is reached, the connector will not consume any more messages from "
+                    + "Kinesis until some of the messages in the queue have been successfully consumed.")
     private int receiveQueueSize = 1000;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "Dynamo end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
-    )
+            required = false,
+            defaultValue = "",
+            help = "Dynamo end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html")
     private String dynamoEndpoint = "";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "Cloudwatch end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
-    )
+            required = false,
+            defaultValue = "",
+            help =
+                    "Cloudwatch end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html")
     private String cloudwatchEndpoint = "";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "true",
-        help = "When true, uses Kinesis enhanced fan-out, when false, uses polling"
-    )
+            required = false,
+            defaultValue = "true",
+            help = "When true, uses Kinesis enhanced fan-out, when false, uses polling")
     private boolean useEnhancedFanOut = true;
-
 
     public static KinesisSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

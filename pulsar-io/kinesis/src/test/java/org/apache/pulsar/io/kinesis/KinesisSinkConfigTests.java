@@ -20,12 +20,10 @@ package org.apache.pulsar.io.kinesis;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
@@ -43,15 +41,14 @@ public class KinesisSinkConfigTests {
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
         assertEquals(config.getAwsKinesisStreamName(), "my-stream");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         assertEquals(config.getMessageFormat(), MessageFormat.ONLY_RAW_PAYLOAD);
         assertEquals(true, config.isRetainOrdering());
     }
 
     @Test
     public final void loadFromMapTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
@@ -64,13 +61,12 @@ public class KinesisSinkConfigTests {
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
         assertEquals(config.getAwsKinesisStreamName(), "my-stream");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
     }
 
     @Test
     public final void loadFromMapCredentialFromSecretTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
@@ -84,8 +80,7 @@ public class KinesisSinkConfigTests {
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
         assertEquals(config.getAwsKinesisStreamName(), "my-stream");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
     }
 
     private File getFile(String name) {

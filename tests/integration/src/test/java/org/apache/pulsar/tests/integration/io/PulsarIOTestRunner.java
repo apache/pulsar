@@ -21,7 +21,9 @@ package org.apache.pulsar.tests.integration.io;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.failsafe.RetryPolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -31,10 +33,6 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.RetryPolicy;
-
 @Slf4j
 public abstract class PulsarIOTestRunner {
     static final long MB = 1048576L;
@@ -42,7 +40,7 @@ public abstract class PulsarIOTestRunner {
     final Duration ONE_MINUTE = Duration.ofMinutes(1);
     final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-	protected final RetryPolicy<Void> statusRetryPolicy = new RetryPolicy<Void>()
+    protected final RetryPolicy<Void> statusRetryPolicy = new RetryPolicy<Void>()
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));
@@ -51,11 +49,11 @@ public abstract class PulsarIOTestRunner {
     protected String functionRuntimeType;
 
     protected PulsarIOTestRunner(PulsarCluster cluster, String functionRuntimeType) {
-      this.pulsarCluster = cluster;
-      this.functionRuntimeType = functionRuntimeType;
+        this.pulsarCluster = cluster;
+        this.functionRuntimeType = functionRuntimeType;
     }
 
-	protected Schema<?> getSchema(boolean jsonWithEnvelope) {
+    protected Schema<?> getSchema(boolean jsonWithEnvelope) {
         if (jsonWithEnvelope) {
             return KeyValueSchemaImpl.kvBytes();
         } else {
@@ -64,25 +62,22 @@ public abstract class PulsarIOTestRunner {
     }
 
     @SuppressWarnings("try")
-    protected <T> void ensureSubscriptionCreated(String inputTopicName,
-                                                      String subscriptionName,
-                                                      Schema<T> inputTopicSchema)
-            throws Exception {
+    protected <T> void ensureSubscriptionCreated(
+            String inputTopicName, String subscriptionName, Schema<T> inputTopicSchema) throws Exception {
         // ensure the function subscription exists before we start producing messages
         try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build()) {
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build()) {
             try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
-                .topic(inputTopicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(subscriptionName)
-                .subscribe()) {
-            }
+                    .topic(inputTopicName)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subscriptionName)
+                    .subscribe()) {}
         }
     }
 
-    protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
-                                                              int numMessages, SinkTester<?> tester) throws Exception {
+    protected Map<String, String> produceMessagesToInputTopic(
+            String inputTopicName, int numMessages, SinkTester<?> tester) throws Exception {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()

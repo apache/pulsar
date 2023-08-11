@@ -67,5 +67,4 @@ public class AuthenticationBasic implements Authentication, EncodedAuthenticatio
     public void start() throws PulsarClientException {
         // noop
     }
-
 }

@@ -57,8 +57,8 @@ public abstract class SolrAbstractSink<T> implements Sink<T> {
         try {
             solrMode = SolrMode.valueOf(solrSinkConfig.getSolrMode().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Illegal Solr mode, valid values are: "
-                + Arrays.asList(SolrMode.values()));
+            throw new IllegalArgumentException(
+                    "Illegal Solr mode, valid values are: " + Arrays.asList(SolrMode.values()));
         }
 
         client = getClient(solrMode, solrSinkConfig.getSolrUrl());
@@ -71,10 +71,7 @@ public abstract class SolrAbstractSink<T> implements Sink<T> {
             updateRequest.setCommitWithin(solrSinkConfig.getSolrCommitWithinMs());
         }
         if (enableBasicAuth) {
-            updateRequest.setBasicAuthCredentials(
-                solrSinkConfig.getUsername(),
-                solrSinkConfig.getPassword()
-            );
+            updateRequest.setBasicAuthCredentials(solrSinkConfig.getUsername(), solrSinkConfig.getPassword());
         }
 
         SolrInputDocument document = convert(record);

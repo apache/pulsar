@@ -56,35 +56,35 @@ public class AuthorizationServiceTest {
      */
     @DataProvider(name = "roles")
     public Object[][] encryptionProvider() {
-        return new Object[][]{
-                // Schema: role, originalRole, whether authorization should pass
+        return new Object[][] {
+            // Schema: role, originalRole, whether authorization should pass
 
-                // Client conditions where original role isn't passed or is blank
-                {"pass.client", null, Boolean.TRUE},
-                {"pass.client", " ", Boolean.TRUE},
-                {"fail.client", null, Boolean.FALSE},
-                {"fail.client", " ", Boolean.FALSE},
+            // Client conditions where original role isn't passed or is blank
+            {"pass.client", null, Boolean.TRUE},
+            {"pass.client", " ", Boolean.TRUE},
+            {"fail.client", null, Boolean.FALSE},
+            {"fail.client", " ", Boolean.FALSE},
 
-                // Proxy conditions where original role isn't passed or is blank
-                {"pass.proxy", null, Boolean.FALSE},
-                {"pass.proxy", " ", Boolean.FALSE},
-                {"fail.proxy", null, Boolean.FALSE},
-                {"fail.proxy", " ", Boolean.FALSE},
+            // Proxy conditions where original role isn't passed or is blank
+            {"pass.proxy", null, Boolean.FALSE},
+            {"pass.proxy", " ", Boolean.FALSE},
+            {"fail.proxy", null, Boolean.FALSE},
+            {"fail.proxy", " ", Boolean.FALSE},
 
-                // Normal proxy and client conditions
-                {"pass.proxy", "pass.client", Boolean.TRUE},
-                {"pass.proxy", "fail.client", Boolean.FALSE},
-                {"fail.proxy", "pass.client", Boolean.FALSE},
-                {"fail.proxy", "fail.client", Boolean.FALSE},
+            // Normal proxy and client conditions
+            {"pass.proxy", "pass.client", Boolean.TRUE},
+            {"pass.proxy", "fail.client", Boolean.FALSE},
+            {"fail.proxy", "pass.client", Boolean.FALSE},
+            {"fail.proxy", "fail.client", Boolean.FALSE},
 
-                // Not proxy with original principal
-                {"pass.not-proxy", "pass.client", Boolean.FALSE}, // non proxy role can't pass original role
-                {"pass.not-proxy", "fail.client", Boolean.FALSE},
-                {"fail.not-proxy", "pass.client", Boolean.FALSE},
-                {"fail.not-proxy", "fail.client", Boolean.FALSE},
+            // Not proxy with original principal
+            {"pass.not-proxy", "pass.client", Boolean.FALSE}, // non proxy role can't pass original role
+            {"pass.not-proxy", "fail.client", Boolean.FALSE},
+            {"fail.not-proxy", "pass.client", Boolean.FALSE},
+            {"fail.not-proxy", "fail.client", Boolean.FALSE},
 
-                // Covers an unlikely scenario, but valid in the context of this test
-                {null, "pass.proxy", Boolean.FALSE},
+            // Covers an unlikely scenario, but valid in the context of this test
+            {null, "pass.proxy", Boolean.FALSE},
         };
     }
 
@@ -98,38 +98,50 @@ public class AuthorizationServiceTest {
 
     @Test(dataProvider = "roles")
     public void testAllowTenantOperationAsync(String role, String originalRole, boolean shouldPass) throws Exception {
-        boolean isAuthorized = authorizationService.allowTenantOperationAsync("tenant",
-                TenantOperation.DELETE_NAMESPACE, originalRole, role, null).get();
+        boolean isAuthorized = authorizationService
+                .allowTenantOperationAsync("tenant", TenantOperation.DELETE_NAMESPACE, originalRole, role, null)
+                .get();
         checkResult(shouldPass, isAuthorized);
     }
 
     @Test(dataProvider = "roles")
     public void testNamespaceOperationAsync(String role, String originalRole, boolean shouldPass) throws Exception {
-        boolean isAuthorized = authorizationService.allowNamespaceOperationAsync(NamespaceName.get("public/default"),
-                NamespaceOperation.PACKAGES, originalRole, role, null).get();
+        boolean isAuthorized = authorizationService
+                .allowNamespaceOperationAsync(
+                        NamespaceName.get("public/default"), NamespaceOperation.PACKAGES, originalRole, role, null)
+                .get();
         checkResult(shouldPass, isAuthorized);
     }
 
     @Test(dataProvider = "roles")
     public void testTopicOperationAsync(String role, String originalRole, boolean shouldPass) throws Exception {
-        boolean isAuthorized = authorizationService.allowTopicOperationAsync(TopicName.get("topic"),
-                TopicOperation.PRODUCE, originalRole, role, null).get();
+        boolean isAuthorized = authorizationService
+                .allowTopicOperationAsync(TopicName.get("topic"), TopicOperation.PRODUCE, originalRole, role, null)
+                .get();
         checkResult(shouldPass, isAuthorized);
     }
 
     @Test(dataProvider = "roles")
     public void testNamespacePolicyOperationAsync(String role, String originalRole, boolean shouldPass)
             throws Exception {
-        boolean isAuthorized = authorizationService.allowNamespacePolicyOperationAsync(
-                NamespaceName.get("public/default"), PolicyName.ALL, PolicyOperation.READ, originalRole, role, null)
+        boolean isAuthorized = authorizationService
+                .allowNamespacePolicyOperationAsync(
+                        NamespaceName.get("public/default"),
+                        PolicyName.ALL,
+                        PolicyOperation.READ,
+                        originalRole,
+                        role,
+                        null)
                 .get();
         checkResult(shouldPass, isAuthorized);
     }
 
     @Test(dataProvider = "roles")
     public void testTopicPolicyOperationAsync(String role, String originalRole, boolean shouldPass) throws Exception {
-        boolean isAuthorized = authorizationService.allowTopicPolicyOperationAsync(TopicName.get("topic"),
-                PolicyName.ALL, PolicyOperation.READ, originalRole, role, null).get();
+        boolean isAuthorized = authorizationService
+                .allowTopicPolicyOperationAsync(
+                        TopicName.get("topic"), PolicyName.ALL, PolicyOperation.READ, originalRole, role, null)
+                .get();
         checkResult(shouldPass, isAuthorized);
     }
 }

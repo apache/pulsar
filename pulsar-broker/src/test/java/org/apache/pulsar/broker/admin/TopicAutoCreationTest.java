@@ -76,9 +76,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         final String topic = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-"
                 + UUID.randomUUID().toString();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         List<String> partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
         List<String> topics = admin.topics().getList(namespaceName);
@@ -92,12 +90,9 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
 
         admin.topics().deletePartitionedTopic(topic);
 
-
         final String partition = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-partition-0";
 
-        producer = pulsarClient.newProducer()
-                .topic(partition)
-                .create();
+        producer = pulsarClient.newProducer().topic(partition).create();
 
         partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
         topics = admin.topics().getList(namespaceName);
@@ -107,20 +102,16 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-
     @Test
-    public void testPartitionedTopicAutoCreationForbiddenDuringNamespaceDeletion()
-            throws Exception {
+    public void testPartitionedTopicAutoCreationForbiddenDuringNamespaceDeletion() throws Exception {
         final String namespaceName = "my-property/my-ns";
         final String topic = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-"
                 + UUID.randomUUID().toString();
 
-        pulsar.getPulsarResources().getNamespaceResources()
-                .setPolicies(NamespaceName.get(namespaceName), old -> {
+        pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(namespaceName), old -> {
             old.deleted = true;
             return old;
         });
-
 
         LookupService original = ((PulsarClientImpl) pulsarClient).getLookup();
         try {
@@ -128,17 +119,19 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             // we want to skip the "lookup" phase, because it is blocked by the HTTP API
             LookupService mockLookup = mock(LookupService.class);
             ((PulsarClientImpl) pulsarClient).setLookup(mockLookup);
-            when(mockLookup.getPartitionedTopicMetadata(any())).thenAnswer(
-                    i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
+            when(mockLookup.getPartitionedTopicMetadata(any()))
+                    .thenAnswer(i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
             when(mockLookup.getBroker(any())).thenAnswer(i -> {
-                InetSocketAddress brokerAddress =
-                        new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
+                InetSocketAddress brokerAddress = new InetSocketAddress(
+                        pulsar.getAdvertisedAddress(),
+                        pulsar.getBrokerListenPort().get());
                 return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
             });
 
             // Creating a producer and creating a Consumer may trigger automatic topic
             // creation, let's try to create a Producer and a Consumer
-            try (Producer<byte[]> ignored = pulsarClient.newProducer()
+            try (Producer<byte[]> ignored = pulsarClient
+                    .newProducer()
                     .sendTimeout(1, TimeUnit.SECONDS)
                     .topic(topic)
                     .create()) {
@@ -148,7 +141,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                 assertTrue(expected.getMessage().contains(String.format(msg, topic)));
             }
 
-            try (Consumer<byte[]> ignored = pulsarClient.newConsumer()
+            try (Consumer<byte[]> ignored = pulsarClient
+                    .newConsumer()
                     .topic(topic)
                     .subscriptionName("test")
                     .subscribe()) {
@@ -158,28 +152,25 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                 assertTrue(expected.getMessage().contains(String.format(msg, topic)));
             }
 
-
             // verify that the topic does not exist
-            pulsar.getPulsarResources().getNamespaceResources()
-                    .setPolicies(NamespaceName.get(namespaceName), old -> {
-                        old.deleted = false;
-                        return old;
-                    });
+            pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(namespaceName), old -> {
+                old.deleted = false;
+                return old;
+            });
 
             admin.topics().getList(namespaceName).isEmpty();
 
             // create now the topic using auto creation
             ((PulsarClientImpl) pulsarClient).setLookup(original);
-            try (Consumer<byte[]> ignored = pulsarClient.newConsumer()
+            try (Consumer<byte[]> ignored = pulsarClient
+                    .newConsumer()
                     .topic(topic)
                     .subscriptionName("test")
-                    .subscribe()) {
-            }
+                    .subscribe()) {}
 
             admin.topics().getList(namespaceName).contains(topic);
         } finally {
             ((PulsarClientImpl) pulsarClient).setLookup(original);
         }
-
     }
 }

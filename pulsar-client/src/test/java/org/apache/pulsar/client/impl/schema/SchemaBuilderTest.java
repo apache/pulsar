@@ -42,14 +42,19 @@ public class SchemaBuilderTest {
     private static class AllOptionalFields {
         @Nullable
         private Integer intField;
+
         @Nullable
         private Long longField;
+
         @Nullable
         private String stringField;
+
         @Nullable
         private Boolean boolField;
+
         @Nullable
         private Float floatField;
+
         @Nullable
         private Double doubleField;
     }
@@ -86,32 +91,22 @@ public class SchemaBuilderTest {
     @Test
     public void testAllOptionalFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllOptionalFields");
-        recordSchemaBuilder.field("boolField")
-                .type(SchemaType.BOOLEAN).optional();
-        recordSchemaBuilder.field("doubleField")
-                .type(SchemaType.DOUBLE).optional();
-        recordSchemaBuilder.field("floatField")
-                .type(SchemaType.FLOAT).optional();
-        recordSchemaBuilder.field("intField")
-            .type(SchemaType.INT32).optional();
-        recordSchemaBuilder.field("longField")
-            .type(SchemaType.INT64).optional();
-        recordSchemaBuilder.field("stringField")
-            .type(SchemaType.STRING).optional();
-        SchemaInfo schemaInfo = recordSchemaBuilder.build(
-            SchemaType.AVRO
-        );
+                SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllOptionalFields");
+        recordSchemaBuilder.field("boolField").type(SchemaType.BOOLEAN).optional();
+        recordSchemaBuilder.field("doubleField").type(SchemaType.DOUBLE).optional();
+        recordSchemaBuilder.field("floatField").type(SchemaType.FLOAT).optional();
+        recordSchemaBuilder.field("intField").type(SchemaType.INT32).optional();
+        recordSchemaBuilder.field("longField").type(SchemaType.INT64).optional();
+        recordSchemaBuilder.field("stringField").type(SchemaType.STRING).optional();
+        SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
 
         Schema<AllOptionalFields> pojoSchema = Schema.AVRO(AllOptionalFields.class);
         SchemaInfo pojoSchemaInfo = pojoSchema.getSchemaInfo();
 
-        org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(
-            new String(schemaInfo.getSchema(), UTF_8)
-        );
-        org.apache.avro.Schema avroPojoSchema = new org.apache.avro.Schema.Parser().parse(
-            new String(pojoSchemaInfo.getSchema(), UTF_8)
-        );
+        org.apache.avro.Schema avroSchema =
+                new org.apache.avro.Schema.Parser().parse(new String(schemaInfo.getSchema(), UTF_8));
+        org.apache.avro.Schema avroPojoSchema =
+                new org.apache.avro.Schema.Parser().parse(new String(pojoSchemaInfo.getSchema(), UTF_8));
 
         assertEquals(avroPojoSchema, avroSchema);
     }
@@ -119,30 +114,21 @@ public class SchemaBuilderTest {
     @Test
     public void testAllPrimitiveFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
-        recordSchemaBuilder.field("boolField")
-                .type(SchemaType.BOOLEAN);
-        recordSchemaBuilder.field("doubleField")
-                .type(SchemaType.DOUBLE);
-        recordSchemaBuilder.field("floatField")
-                .type(SchemaType.FLOAT);
-        recordSchemaBuilder.field("intField")
-            .type(SchemaType.INT32);
-        recordSchemaBuilder.field("longField")
-            .type(SchemaType.INT64);
-        SchemaInfo schemaInfo = recordSchemaBuilder.build(
-            SchemaType.AVRO
-        );
+                SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
+        recordSchemaBuilder.field("boolField").type(SchemaType.BOOLEAN);
+        recordSchemaBuilder.field("doubleField").type(SchemaType.DOUBLE);
+        recordSchemaBuilder.field("floatField").type(SchemaType.FLOAT);
+        recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+        recordSchemaBuilder.field("longField").type(SchemaType.INT64);
+        SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
 
         Schema<AllPrimitiveFields> pojoSchema = Schema.AVRO(AllPrimitiveFields.class);
         SchemaInfo pojoSchemaInfo = pojoSchema.getSchemaInfo();
 
-        org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(
-            new String(schemaInfo.getSchema(), UTF_8)
-        );
-        org.apache.avro.Schema avroPojoSchema = new org.apache.avro.Schema.Parser().parse(
-            new String(pojoSchemaInfo.getSchema(), UTF_8)
-        );
+        org.apache.avro.Schema avroSchema =
+                new org.apache.avro.Schema.Parser().parse(new String(schemaInfo.getSchema(), UTF_8));
+        org.apache.avro.Schema avroPojoSchema =
+                new org.apache.avro.Schema.Parser().parse(new String(pojoSchemaInfo.getSchema(), UTF_8));
 
         assertEquals(avroPojoSchema, avroSchema);
     }
@@ -150,28 +136,21 @@ public class SchemaBuilderTest {
     @Test
     public void testGenericRecordBuilderByFieldName() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
-        recordSchemaBuilder.field("intField")
-            .type(SchemaType.INT32);
-        recordSchemaBuilder.field("longField")
-            .type(SchemaType.INT64);
-        recordSchemaBuilder.field("boolField")
-            .type(SchemaType.BOOLEAN);
-        recordSchemaBuilder.field("floatField")
-            .type(SchemaType.FLOAT);
-        recordSchemaBuilder.field("doubleField")
-            .type(SchemaType.DOUBLE);
-        SchemaInfo schemaInfo = recordSchemaBuilder.build(
-            SchemaType.AVRO
-        );
+                SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
+        recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+        recordSchemaBuilder.field("longField").type(SchemaType.INT64);
+        recordSchemaBuilder.field("boolField").type(SchemaType.BOOLEAN);
+        recordSchemaBuilder.field("floatField").type(SchemaType.FLOAT);
+        recordSchemaBuilder.field("doubleField").type(SchemaType.DOUBLE);
+        SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
         GenericSchema schema = Schema.generic(schemaInfo);
         GenericRecord record = schema.newRecordBuilder()
-            .set("intField", 32)
-            .set("longField", 1234L)
-            .set("boolField", true)
-            .set("floatField", 0.7f)
-            .set("doubleField", 1.34d)
-            .build();
+                .set("intField", 32)
+                .set("longField", 1234L)
+                .set("boolField", true)
+                .set("floatField", 0.7f)
+                .set("doubleField", 1.34d)
+                .build();
 
         byte[] serializedData = schema.encode(record);
 
@@ -191,28 +170,21 @@ public class SchemaBuilderTest {
     @Test
     public void testGenericRecordBuilderByIndex() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
-        recordSchemaBuilder.field("intField")
-            .type(SchemaType.INT32);
-        recordSchemaBuilder.field("longField")
-            .type(SchemaType.INT64);
-        recordSchemaBuilder.field("boolField")
-            .type(SchemaType.BOOLEAN);
-        recordSchemaBuilder.field("floatField")
-            .type(SchemaType.FLOAT);
-        recordSchemaBuilder.field("doubleField")
-            .type(SchemaType.DOUBLE);
-        SchemaInfo schemaInfo = recordSchemaBuilder.build(
-            SchemaType.AVRO
-        );
+                SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
+        recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+        recordSchemaBuilder.field("longField").type(SchemaType.INT64);
+        recordSchemaBuilder.field("boolField").type(SchemaType.BOOLEAN);
+        recordSchemaBuilder.field("floatField").type(SchemaType.FLOAT);
+        recordSchemaBuilder.field("doubleField").type(SchemaType.DOUBLE);
+        SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
         GenericSchema<GenericRecord> schema = Schema.generic(schemaInfo);
         GenericRecord record = schema.newRecordBuilder()
-            .set(schema.getFields().get(0), 32)
-            .set(schema.getFields().get(1), 1234L)
-            .set(schema.getFields().get(2), true)
-            .set(schema.getFields().get(3), 0.7f)
-            .set(schema.getFields().get(4), 1.34d)
-            .build();
+                .set(schema.getFields().get(0), 32)
+                .set(schema.getFields().get(1), 1234L)
+                .set(schema.getFields().get(2), true)
+                .set(schema.getFields().get(3), 0.7f)
+                .set(schema.getFields().get(4), 1.34d)
+                .build();
         byte[] serializedData = schema.encode(record);
 
         // create a POJO schema to deserialize the serialized data
@@ -236,10 +208,8 @@ public class SchemaBuilderTest {
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
         people1SchemaBuilder.field("name").type(SchemaType.STRING);
 
-
         SchemaInfo people1SchemaInfo = people1SchemaBuilder.build(SchemaType.AVRO);
         GenericSchema people1Schema = Schema.generic(people1SchemaInfo);
-
 
         GenericRecordBuilder people1RecordBuilder = people1Schema.newRecordBuilder();
         people1RecordBuilder.set("age", 20);
@@ -265,7 +235,6 @@ public class SchemaBuilderTest {
         peopleSchemaBuilder.field("people1", people1Schema).type(SchemaType.AVRO);
         peopleSchemaBuilder.field("people2", people2Schema).type(SchemaType.AVRO);
         peopleSchemaBuilder.field("name").type(SchemaType.STRING);
-
 
         SchemaInfo schemaInfo = peopleSchemaBuilder.build(SchemaType.AVRO);
 
@@ -282,19 +251,20 @@ public class SchemaBuilderTest {
 
         assertEquals(people.getFields(), peopleRecord.getFields());
         assertEquals((people.getField("name")), peopleRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
-                people1GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("height"),
+        assertEquals(
+                ((GenericRecord) people.getField("people1")).getField("age"), people1GenericRecord.getField("age"));
+        assertEquals(
+                ((GenericRecord) people.getField("people1")).getField("height"),
                 people1GenericRecord.getField("height"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
-                people1GenericRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
-                people2GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
+        assertEquals(
+                ((GenericRecord) people.getField("people1")).getField("name"), people1GenericRecord.getField("name"));
+        assertEquals(
+                ((GenericRecord) people.getField("people2")).getField("age"), people2GenericRecord.getField("age"));
+        assertEquals(
+                ((GenericRecord) people.getField("people2")).getField("height"),
                 people2GenericRecord.getField("height"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
-                people2GenericRecord.getField("name"));
-
+        assertEquals(
+                ((GenericRecord) people.getField("people2")).getField("name"), people2GenericRecord.getField("name"));
     }
 
     @Test
@@ -304,10 +274,8 @@ public class SchemaBuilderTest {
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
         people1SchemaBuilder.field("name").type(SchemaType.STRING);
 
-
         SchemaInfo people1SchemaInfo = people1SchemaBuilder.build(SchemaType.AVRO);
         GenericSchema people1Schema = Schema.generic(people1SchemaInfo);
-
 
         GenericRecordBuilder people1RecordBuilder = people1Schema.newRecordBuilder();
         people1RecordBuilder.set("age", 20);
@@ -334,7 +302,6 @@ public class SchemaBuilderTest {
         peopleSchemaBuilder.field("people2", people2Schema).type(SchemaType.AVRO);
         peopleSchemaBuilder.field("name").type(SchemaType.STRING);
 
-
         SchemaInfo schemaInfo = peopleSchemaBuilder.build(SchemaType.AVRO);
 
         GenericSchema peopleSchema = Schema.generic(schemaInfo);
@@ -346,8 +313,10 @@ public class SchemaBuilderTest {
 
         byte[] peopleEncode = peopleSchema.encode(peopleRecord);
 
-        Schema<People> peopleDecodeSchema = Schema.AVRO(
-                SchemaDefinition.<People>builder().withPojo(People.class).withAlwaysAllowNull(false).build());
+        Schema<People> peopleDecodeSchema = Schema.AVRO(SchemaDefinition.<People>builder()
+                .withPojo(People.class)
+                .withAlwaysAllowNull(false)
+                .build());
 
         injectWriterSchema(peopleDecodeSchema, peopleSchema);
 
@@ -360,7 +329,6 @@ public class SchemaBuilderTest {
         assertEquals(people.getPeople2().age, people2GenericRecord.getField("age"));
         assertEquals(people.getPeople2().height, people2GenericRecord.getField("height"));
         assertEquals(people.getPeople2().name, people2GenericRecord.getField("name"));
-
     }
 
     @Test
@@ -370,10 +338,8 @@ public class SchemaBuilderTest {
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
         people1SchemaBuilder.field("name").type(SchemaType.STRING);
 
-
         SchemaInfo people1SchemaInfo = people1SchemaBuilder.build(SchemaType.AVRO);
         GenericSchema<GenericRecord> people1Schema = Schema.generic(people1SchemaInfo);
-
 
         GenericRecordBuilder people1RecordBuilder = people1Schema.newRecordBuilder();
         people1RecordBuilder.set(people1Schema.getFields().get(0), 20);
@@ -399,7 +365,6 @@ public class SchemaBuilderTest {
         peopleSchemaBuilder.field("people1", people1Schema).type(SchemaType.AVRO);
         peopleSchemaBuilder.field("people2", people2Schema).type(SchemaType.AVRO);
         peopleSchemaBuilder.field("name").type(SchemaType.STRING);
-
 
         SchemaInfo schemaInfo = peopleSchemaBuilder.build(SchemaType.AVRO);
 
@@ -416,19 +381,20 @@ public class SchemaBuilderTest {
 
         assertEquals(people.getFields(), peopleRecord.getFields());
         assertEquals((people.getField("name")), peopleRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("age"),
-                people1GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("height"),
+        assertEquals(
+                ((GenericRecord) people.getField("people1")).getField("age"), people1GenericRecord.getField("age"));
+        assertEquals(
+                ((GenericRecord) people.getField("people1")).getField("height"),
                 people1GenericRecord.getField("height"));
-        assertEquals(((GenericRecord)people.getField("people1")).getField("name"),
-                people1GenericRecord.getField("name"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("age"),
-                people2GenericRecord.getField("age"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("height"),
+        assertEquals(
+                ((GenericRecord) people.getField("people1")).getField("name"), people1GenericRecord.getField("name"));
+        assertEquals(
+                ((GenericRecord) people.getField("people2")).getField("age"), people2GenericRecord.getField("age"));
+        assertEquals(
+                ((GenericRecord) people.getField("people2")).getField("height"),
                 people2GenericRecord.getField("height"));
-        assertEquals(((GenericRecord)people.getField("people2")).getField("name"),
-                people2GenericRecord.getField("name"));
-
+        assertEquals(
+                ((GenericRecord) people.getField("people2")).getField("name"), people2GenericRecord.getField("name"));
     }
 
     @Test
@@ -438,10 +404,8 @@ public class SchemaBuilderTest {
         people1SchemaBuilder.field("height").type(SchemaType.INT32);
         people1SchemaBuilder.field("name").type(SchemaType.STRING);
 
-
         SchemaInfo people1SchemaInfo = people1SchemaBuilder.build(SchemaType.AVRO);
         GenericSchema<GenericRecord> people1Schema = Schema.generic(people1SchemaInfo);
-
 
         GenericRecordBuilder people1RecordBuilder = people1Schema.newRecordBuilder();
         people1RecordBuilder.set(people1Schema.getFields().get(0), 20);
@@ -468,7 +432,6 @@ public class SchemaBuilderTest {
         peopleSchemaBuilder.field("people2", people2Schema).type(SchemaType.AVRO);
         peopleSchemaBuilder.field("name").type(SchemaType.STRING);
 
-
         SchemaInfo schemaInfo = peopleSchemaBuilder.build(SchemaType.AVRO);
 
         GenericSchema<GenericRecord> peopleSchema = Schema.generic(schemaInfo);
@@ -480,8 +443,10 @@ public class SchemaBuilderTest {
 
         byte[] peopleEncode = peopleSchema.encode(peopleRecord);
 
-        Schema<People> peopleDecodeSchema = Schema.AVRO(
-                SchemaDefinition.<People>builder().withPojo(People.class).withAlwaysAllowNull(false).build());
+        Schema<People> peopleDecodeSchema = Schema.AVRO(SchemaDefinition.<People>builder()
+                .withPojo(People.class)
+                .withAlwaysAllowNull(false)
+                .build());
 
         injectWriterSchema(peopleDecodeSchema, peopleSchema);
 
@@ -506,10 +471,9 @@ public class SchemaBuilderTest {
     private static final void injectWriterSchema(Schema decoder, Schema writer) {
         AvroSchema<?> avroSchema = (AvroSchema<?>) decoder;
         avroSchema.setReader(new MultiVersionAvroReader<>(
-                AvroSchema.of(SchemaDefinition.
-                        builder()
-                        .withJsonDef(writer.getSchemaInfo().getSchemaDefinition())
-                        .build())
+                AvroSchema.of(SchemaDefinition.builder()
+                                .withJsonDef(writer.getSchemaInfo().getSchemaDefinition())
+                                .build())
                         .getAvroSchema(),
                 Thread.currentThread().getContextClassLoader(),
                 false));

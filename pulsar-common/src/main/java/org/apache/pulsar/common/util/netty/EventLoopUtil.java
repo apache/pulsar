@@ -73,8 +73,8 @@ public class EventLoopUtil {
 
                 // With low latency setting, put the Netty event loop on busy-wait loop to reduce cost of
                 // context switches
-                EpollEventLoopGroup eventLoopGroup = new EpollEventLoopGroup(nThreads, threadFactory,
-                        () -> (selectSupplier, hasTasks) -> SelectStrategy.BUSY_WAIT);
+                EpollEventLoopGroup eventLoopGroup = new EpollEventLoopGroup(
+                        nThreads, threadFactory, () -> (selectSupplier, hasTasks) -> SelectStrategy.BUSY_WAIT);
 
                 // Enable CPU affinity on IO threads
                 for (int i = 0; i < nThreads; i++) {
@@ -82,8 +82,11 @@ public class EventLoopUtil {
                         try {
                             CpuAffinity.acquireCore();
                         } catch (Throwable t) {
-                            log.warn("Failed to acquire CPU core for thread {} {}", Thread.currentThread().getName(),
-                                    t.getMessage(), t);
+                            log.warn(
+                                    "Failed to acquire CPU core for thread {} {}",
+                                    Thread.currentThread().getName(),
+                                    t.getMessage(),
+                                    t);
                         }
                     });
                 }

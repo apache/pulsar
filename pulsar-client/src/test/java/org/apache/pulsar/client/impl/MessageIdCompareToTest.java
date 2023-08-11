@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +31,7 @@ import org.testng.annotations.Test;
 /**
  * Test compareTo method in MessageIdImpl and BatchMessageIdImpl
  */
-public class MessageIdCompareToTest  {
+public class MessageIdCompareToTest {
 
     @Test
     public void testEqual() {
@@ -146,15 +145,12 @@ public class MessageIdCompareToTest  {
     @Test
     public void testMessageIdImplCompareToTopicMessageId() {
         MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
-        TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            new BatchMessageIdImpl(123L, 345L, 566, 789));
-        TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            new BatchMessageIdImpl(123L, 345L, 567, 789));
-        TopicMessageIdImpl topicMessageId3 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            new BatchMessageIdImpl(messageIdImpl));
+        TopicMessageIdImpl topicMessageId1 =
+                new TopicMessageIdImpl("test-topic-partition-0", new BatchMessageIdImpl(123L, 345L, 566, 789));
+        TopicMessageIdImpl topicMessageId2 =
+                new TopicMessageIdImpl("test-topic-partition-0", new BatchMessageIdImpl(123L, 345L, 567, 789));
+        TopicMessageIdImpl topicMessageId3 =
+                new TopicMessageIdImpl("test-topic-partition-0", new BatchMessageIdImpl(messageIdImpl));
         assertTrue(messageIdImpl.compareTo(topicMessageId1) > 0, "Expected to be greater than");
         assertTrue(messageIdImpl.compareTo(topicMessageId2) < 0, "Expected to be less than");
         assertEquals(messageIdImpl.compareTo(topicMessageId3), 0, "Expected to be equal");
@@ -168,12 +164,10 @@ public class MessageIdCompareToTest  {
         BatchMessageIdImpl messageIdImpl1 = new BatchMessageIdImpl(123L, 345L, 567, 789);
         BatchMessageIdImpl messageIdImpl2 = new BatchMessageIdImpl(123L, 345L, 567, 0);
         BatchMessageIdImpl messageIdImpl3 = new BatchMessageIdImpl(123L, 345L, 567, -1);
-        TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            new MessageIdImpl(123L, 345L, 566));
-        TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            new MessageIdImpl(123L, 345L, 567));
+        TopicMessageIdImpl topicMessageId1 =
+                new TopicMessageIdImpl("test-topic-partition-0", new MessageIdImpl(123L, 345L, 566));
+        TopicMessageIdImpl topicMessageId2 =
+                new TopicMessageIdImpl("test-topic-partition-0", new MessageIdImpl(123L, 345L, 567));
         assertTrue(messageIdImpl1.compareTo(topicMessageId1) > 0, "Expected to be greater than");
         assertTrue(messageIdImpl1.compareTo(topicMessageId2) > 0, "Expected to be greater than");
         assertTrue(messageIdImpl2.compareTo(topicMessageId2) > 0, "Expected to be greater than");

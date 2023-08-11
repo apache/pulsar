@@ -20,9 +20,7 @@ package org.apache.pulsar.broker.zookeeper;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -52,27 +50,32 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
      */
     @Test
     public void testSessionExpired() throws Exception {
-        admin.clusters().createCluster("my-cluster", ClusterData.builder()
-                .serviceUrl("http://test-url").build());
+        admin.clusters()
+                .createCluster(
+                        "my-cluster",
+                        ClusterData.builder().serviceUrl("http://test-url").build());
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
         mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
-                return op == MockZooKeeper.Op.CREATE
-                    && path.equals("/admin/clusters/my-cluster-2");
-            });
+            return op == MockZooKeeper.Op.CREATE && path.equals("/admin/clusters/my-cluster-2");
+        });
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
         try {
-            admin.clusters().createCluster("my-cluster-2", ClusterData.builder()
-                    .serviceUrl("http://test-url").build());
+            admin.clusters()
+                    .createCluster(
+                            "my-cluster-2",
+                            ClusterData.builder().serviceUrl("http://test-url").build());
             fail("Should have failed, because global zk is down");
         } catch (PulsarAdminException e) {
             // Ok
         }
 
-        admin.clusters().createCluster("cluster-2", ClusterData.builder()
-                .serviceUrl("http://test-url").build());
+        admin.clusters()
+                .createCluster(
+                        "cluster-2",
+                        ClusterData.builder().serviceUrl("http://test-url").build());
     }
 }

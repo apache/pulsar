@@ -52,22 +52,30 @@ import org.slf4j.LoggerFactory;
 public class CompactorTool {
 
     private static class Arguments {
-        @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
+        @Parameter(
+                names = {"-c", "--broker-conf"},
+                description = "Configuration file for Broker")
         private String brokerConfigFile = "conf/broker.conf";
 
-        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
+        @Parameter(
+                names = {"-t", "--topic"},
+                description = "Topic to compact",
+                required = true)
         private String topic;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 
     public static PulsarClient createClient(ServiceConfiguration brokerConfig) throws PulsarClientException {
-        ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES);
+        ClientBuilder clientBuilder = PulsarClient.builder().memoryLimit(0, SizeUnit.BYTES);
 
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
@@ -75,17 +83,20 @@ public class CompactorTool {
         clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(brokerConfig.getProperties(), "brokerClient_"));
 
         if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
-            clientBuilder.authentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
+            clientBuilder.authentication(
+                    brokerConfig.getBrokerClientAuthenticationPlugin(),
                     brokerConfig.getBrokerClientAuthenticationParameters());
         }
 
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
-            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
+            clientBuilder
+                    .serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
                     .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
-                clientBuilder.useKeyStoreTls(true)
+                clientBuilder
+                        .useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
                         .tlsKeyStorePath(brokerConfig.getBrokerClientTlsKeyStore())
                         .tlsKeyStorePassword(brokerConfig.getBrokerClientTlsKeyStorePassword())
@@ -93,7 +104,8 @@ public class CompactorTool {
                         .tlsTrustStorePath(brokerConfig.getBrokerClientTlsTrustStore())
                         .tlsTrustStorePassword(brokerConfig.getBrokerClientTlsTrustStorePassword());
             } else {
-                clientBuilder.tlsTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath())
+                clientBuilder
+                        .tlsTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath())
                         .tlsKeyFilePath(brokerConfig.getBrokerClientKeyFilePath())
                         .tlsCertificateFilePath(brokerConfig.getBrokerClientCertificateFilePath());
             }
@@ -130,44 +142,46 @@ public class CompactorTool {
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
         }
 
-        final String filepath = Path.of(arguments.brokerConfigFile).toAbsolutePath().normalize().toString();
+        final String filepath =
+                Path.of(arguments.brokerConfigFile).toAbsolutePath().normalize().toString();
         log.info(String.format("read configuration file %s", filepath));
         final ServiceConfiguration brokerConfig =
                 PulsarConfigurationLoader.create(filepath, ServiceConfiguration.class);
 
-
         if (isBlank(brokerConfig.getMetadataStoreUrl())) {
-            final String message = String.format("""
+            final String message = String.format(
+                    """
                     Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file
                     or specify configuration file path from command line.
                     now configuration file path is=[%s]
-                    """, filepath);
+                    """,
+                    filepath);
             throw new IllegalArgumentException(message);
         }
 
         @Cleanup(value = "shutdownNow")
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                .setNameFormat("compaction-%d")
+                .setDaemon(true)
+                .build());
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(brokerConfig.getMetadataStoreUrl(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                brokerConfig.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) brokerConfig.getMetadataStoreSessionTimeoutMillis())
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .build());
 
-        @Cleanup
-        BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
+        @Cleanup BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
 
         @Cleanup(value = "shutdownGracefully")
-        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false,
-                new DefaultThreadFactory("compactor-io"));
+        EventLoopGroup eventLoopGroup =
+                EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("compactor-io"));
 
-        @Cleanup
-        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
+        @Cleanup BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
 
-        @Cleanup
-        PulsarClient pulsar = createClient(brokerConfig);
+        @Cleanup PulsarClient pulsar = createClient(brokerConfig);
 
         Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
         long ledgerId = compactor.compact(arguments.topic).get();

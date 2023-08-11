@@ -150,56 +150,109 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
-    @Parameter(names = "--functionConfig", description = "The json representation of FunctionConfig",
-            hidden = true, converter = FunctionConfigConverter.class)
+    @Parameter(
+            names = "--functionConfig",
+            description = "The json representation of FunctionConfig",
+            hidden = true,
+            converter = FunctionConfigConverter.class)
     protected FunctionConfig functionConfig;
-    @Parameter(names = "--sourceConfig", description = "The json representation of SourceConfig",
-            hidden = true, converter = SourceConfigConverter.class)
+
+    @Parameter(
+            names = "--sourceConfig",
+            description = "The json representation of SourceConfig",
+            hidden = true,
+            converter = SourceConfigConverter.class)
     protected SourceConfig sourceConfig;
-    @Parameter(names = "--sinkConfig", description = "The json representation of SinkConfig",
-            hidden = true, converter = SinkConfigConverter.class)
+
+    @Parameter(
+            names = "--sinkConfig",
+            description = "The json representation of SinkConfig",
+            hidden = true,
+            converter = SinkConfigConverter.class)
     protected SinkConfig sinkConfig;
-    @Parameter(names = "--stateStorageImplClass", description = "The implemenatation class "
-            + "state storage service (by default Apache BookKeeper)", hidden = true, required = false)
+
+    @Parameter(
+            names = "--stateStorageImplClass",
+            description = "The implemenatation class " + "state storage service (by default Apache BookKeeper)",
+            hidden = true,
+            required = false)
     protected String stateStorageImplClass;
-    @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service "
-            + "(by default Apache BookKeeper)", hidden = true)
+
+    @Parameter(
+            names = "--stateStorageServiceUrl",
+            description = "The URL for the state storage service " + "(by default Apache BookKeeper)",
+            hidden = true)
     protected String stateStorageServiceUrl;
+
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
     protected String brokerServiceUrl;
+
     @Parameter(names = "--webServiceUrl", description = "The URL for the Pulsar web service", hidden = true)
     protected String webServiceUrl = null;
-    @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which "
-            + "function-process can connect to broker", hidden = true)
+
+    @Parameter(
+            names = "--clientAuthPlugin",
+            description = "Client authentication plugin using which " + "function-process can connect to broker",
+            hidden = true)
     protected String clientAuthPlugin;
+
     @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
     protected String clientAuthParams;
+
     @Parameter(names = "--useTls", description = "Use tls connection\n", hidden = true, arity = 1)
     protected boolean useTls;
-    @Parameter(names = "--tlsAllowInsecureConnection", description = "Allow insecure tls connection\n",
-            hidden = true, arity = 1)
+
+    @Parameter(
+            names = "--tlsAllowInsecureConnection",
+            description = "Allow insecure tls connection\n",
+            hidden = true,
+            arity = 1)
     protected boolean tlsAllowInsecureConnection;
-    @Parameter(names = "--tlsHostNameVerificationEnabled", description = "Enable hostname verification", hidden = true
-            , arity = 1)
+
+    @Parameter(
+            names = "--tlsHostNameVerificationEnabled",
+            description = "Enable hostname verification",
+            hidden = true,
+            arity = 1)
     protected boolean tlsHostNameVerificationEnabled;
+
     @Parameter(names = "--tlsTrustCertFilePath", description = "tls trust cert file path", hidden = true)
     protected String tlsTrustCertFilePath;
+
     @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
     protected int instanceIdOffset = 0;
-    @Parameter(names = "--runtime", description = "Function runtime to use (Thread/Process)", hidden = true,
+
+    @Parameter(
+            names = "--runtime",
+            description = "Function runtime to use (Thread/Process)",
+            hidden = true,
             converter = RuntimeConverter.class)
     protected RuntimeEnv runtimeEnv;
-    @Parameter(names = "--secretsProviderClassName",
-            description = "Whats the classname of secrets provider", hidden = true)
+
+    @Parameter(
+            names = "--secretsProviderClassName",
+            description = "Whats the classname of secrets provider",
+            hidden = true)
     protected String secretsProviderClassName;
-    @Parameter(names = "--secretsProviderConfig",
-            description = "Whats the config for the secrets provider", hidden = true)
+
+    @Parameter(
+            names = "--secretsProviderConfig",
+            description = "Whats the config for the secrets provider",
+            hidden = true)
     protected String secretsProviderConfig;
-    @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server. When running "
-            + "instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
+
+    @Parameter(
+            names = "--metricsPortStart",
+            description = "The starting port range for metrics server. When running "
+                    + "instances as threads, one metrics server is used to host the stats for all instances.",
+            hidden = true)
     protected Integer metricsPortStart;
-    @Parameter(names = "--exitOnError", description = "The starting port range for metrics server. When running "
-            + "instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
+
+    @Parameter(
+            names = "--exitOnError",
+            description = "The starting port range for metrics server. When running "
+                    + "instances as threads, one metrics server is used to host the stats for all instances.",
+            hidden = true)
     protected boolean exitOnError;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
@@ -221,14 +274,28 @@ public class LocalRunner implements AutoCloseable {
     }
 
     @Builder
-    public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig,
-                       String stateStorageImplClass, String stateStorageServiceUrl, String brokerServiceUrl,
-                       String clientAuthPlugin, String clientAuthParams,
-                       boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
-                       String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
-                       String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory,
-                       String connectorsDirectory, String functionsDirectory, Integer metricsPortStart,
-                       boolean exitOnError) {
+    public LocalRunner(
+            FunctionConfig functionConfig,
+            SourceConfig sourceConfig,
+            SinkConfig sinkConfig,
+            String stateStorageImplClass,
+            String stateStorageServiceUrl,
+            String brokerServiceUrl,
+            String clientAuthPlugin,
+            String clientAuthParams,
+            boolean useTls,
+            boolean tlsAllowInsecureConnection,
+            boolean tlsHostNameVerificationEnabled,
+            String tlsTrustCertFilePath,
+            int instanceIdOffset,
+            RuntimeEnv runtimeEnv,
+            String secretsProviderClassName,
+            String secretsProviderConfig,
+            String narExtractionDirectory,
+            String connectorsDirectory,
+            String functionsDirectory,
+            Integer metricsPortStart,
+            boolean exitOnError) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -355,11 +422,12 @@ public class LocalRunner implements AutoCloseable {
                 parallelism = functionConfig.getParallelism();
                 if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                     userCodeFile = functionConfig.getJar();
-                    userCodeClassLoader = extractClassLoader(
-                        userCodeFile, ComponentType.FUNCTION, functionConfig.getClassName());
+                    userCodeClassLoader =
+                            extractClassLoader(userCodeFile, ComponentType.FUNCTION, functionConfig.getClassName());
                     functionDetails = FunctionConfigUtils.convert(
-                        functionConfig,
-                        FunctionConfigUtils.validateJavaFunction(functionConfig, getCurrentOrUserCodeClassLoader()));
+                            functionConfig,
+                            FunctionConfigUtils.validateJavaFunction(
+                                    functionConfig, getCurrentOrUserCodeClassLoader()));
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
                     userCodeFile = functionConfig.getGo();
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
@@ -375,51 +443,58 @@ public class LocalRunner implements AutoCloseable {
                 inferMissingArguments(sourceConfig);
                 userCodeFile = sourceConfig.getArchive();
                 parallelism = sourceConfig.getParallelism();
-                userCodeClassLoader = extractClassLoader(
-                    userCodeFile, ComponentType.SOURCE, sourceConfig.getClassName());
+                userCodeClassLoader =
+                        extractClassLoader(userCodeFile, ComponentType.SOURCE, sourceConfig.getClassName());
                 functionDetails = SourceConfigUtils.convert(
-                    sourceConfig,
-                    SourceConfigUtils.validateAndExtractDetails(sourceConfig, getCurrentOrUserCodeClassLoader(), true));
+                        sourceConfig,
+                        SourceConfigUtils.validateAndExtractDetails(
+                                sourceConfig, getCurrentOrUserCodeClassLoader(), true));
             } else if (sinkConfig != null) {
                 inferMissingArguments(sinkConfig);
                 userCodeFile = sinkConfig.getArchive();
                 transformFunctionFile = sinkConfig.getTransformFunction();
                 parallelism = sinkConfig.getParallelism();
-                userCodeClassLoader = extractClassLoader(
-                    userCodeFile, ComponentType.SINK, sinkConfig.getClassName());
+                userCodeClassLoader = extractClassLoader(userCodeFile, ComponentType.SINK, sinkConfig.getClassName());
                 if (isNotEmpty(sinkConfig.getTransformFunction())) {
                     transformFunctionCodeClassLoader = extractClassLoader(
-                        sinkConfig.getTransformFunction(),
-                        ComponentType.FUNCTION,
-                        sinkConfig.getTransformFunctionClassName());
+                            sinkConfig.getTransformFunction(),
+                            ComponentType.FUNCTION,
+                            sinkConfig.getTransformFunctionClassName());
                 }
 
                 ClassLoader functionClassLoader = null;
                 if (transformFunctionCodeClassLoader != null) {
                     functionClassLoader = transformFunctionCodeClassLoader.getClassLoader() == null
-                        ? Thread.currentThread().getContextClassLoader()
-                        : transformFunctionCodeClassLoader.getClassLoader();
+                            ? Thread.currentThread().getContextClassLoader()
+                            : transformFunctionCodeClassLoader.getClassLoader();
                 }
 
                 functionDetails = SinkConfigUtils.convert(
-                    sinkConfig,
-                    SinkConfigUtils.validateAndExtractDetails(sinkConfig, getCurrentOrUserCodeClassLoader(),
-                        functionClassLoader, true));
+                        sinkConfig,
+                        SinkConfigUtils.validateAndExtractDetails(
+                                sinkConfig, getCurrentOrUserCodeClassLoader(), functionClassLoader, true));
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");
             }
 
             if (System.getProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY) == null) {
-                System.setProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY,
-                        LocalRunner.class.getProtectionDomain().getCodeSource().getLocation().getFile());
+                System.setProperty(
+                        FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY,
+                        LocalRunner.class
+                                .getProtectionDomain()
+                                .getCodeSource()
+                                .getLocation()
+                                .getFile());
             }
 
-            AuthenticationConfig authConfig = AuthenticationConfig.builder().clientAuthenticationPlugin
-                    (clientAuthPlugin)
-                    .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+            AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                    .clientAuthenticationPlugin(clientAuthPlugin)
+                    .clientAuthenticationParameters(clientAuthParams)
+                    .useTls(useTls)
                     .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
                     .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
-                    .tlsTrustCertsFilePath(tlsTrustCertFilePath).build();
+                    .tlsTrustCertsFilePath(tlsTrustCertFilePath)
+                    .build();
 
             String serviceUrl = DEFAULT_SERVICE_URL;
             if (brokerServiceUrl != null) {
@@ -429,15 +504,30 @@ public class LocalRunner implements AutoCloseable {
                 webServiceUrl = DEFAULT_WEB_SERVICE_URL;
             }
 
-            if ((sourceConfig != null || sinkConfig != null
-                    || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA)
+            if ((sourceConfig != null
+                            || sinkConfig != null
+                            || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA)
                     && (runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
                 // By default run java functions as threads
-                startThreadedMode(functionDetails, parallelism, instanceIdOffset, serviceUrl,
-                        stateStorageServiceUrl, authConfig, userCodeFile, transformFunctionFile);
+                startThreadedMode(
+                        functionDetails,
+                        parallelism,
+                        instanceIdOffset,
+                        serviceUrl,
+                        stateStorageServiceUrl,
+                        authConfig,
+                        userCodeFile,
+                        transformFunctionFile);
             } else {
-                startProcessMode(functionDetails, parallelism, instanceIdOffset, serviceUrl,
-                        stateStorageServiceUrl, authConfig, userCodeFile, transformFunctionFile);
+                startProcessMode(
+                        functionDetails,
+                        parallelism,
+                        instanceIdOffset,
+                        serviceUrl,
+                        stateStorageServiceUrl,
+                        authConfig,
+                        userCodeFile,
+                        transformFunctionFile);
             }
             local.addAll(spawners);
         }
@@ -446,7 +536,9 @@ public class LocalRunner implements AutoCloseable {
             if (exitOnError) {
                 for (RuntimeSpawner spawner : local) {
                     spawner.join();
-                    log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
+                    log.info(
+                            "RuntimeSpawner quit because of",
+                            spawner.getRuntime().getDeathException());
                 }
                 close();
             } else {
@@ -461,12 +553,12 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader getCurrentOrUserCodeClassLoader() {
         return userCodeClassLoader == null || userCodeClassLoader.getClassLoader() == null
-            ? Thread.currentThread().getContextClassLoader()
-            : userCodeClassLoader.getClassLoader();
+                ? Thread.currentThread().getContextClassLoader()
+                : userCodeClassLoader.getClassLoader();
     }
 
     private UserCodeClassLoader extractClassLoader(String userCodeFile, ComponentType componentType, String className)
-        throws IOException, URISyntaxException {
+            throws IOException, URISyntaxException {
         ClassLoader classLoader = userCodeFile != null ? isBuiltIn(userCodeFile, componentType) : null;
         boolean classLoaderCreated = false;
         if (classLoader == null) {
@@ -520,10 +612,16 @@ public class LocalRunner implements AutoCloseable {
         return new UserCodeClassLoader(classLoader, classLoaderCreated);
     }
 
-    private void startProcessMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-                                           int parallelism, int instanceIdOffset, String serviceUrl,
-                                           String stateStorageServiceUrl, AuthenticationConfig authConfig,
-                                           String userCodeFile, String transformFunctionFile) throws Exception {
+    private void startProcessMode(
+            org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+            int parallelism,
+            int instanceIdOffset,
+            String serviceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String userCodeFile,
+            String transformFunctionFile)
+            throws Exception {
         SecretsProviderConfigurator secretsProviderConfigurator = getSecretsProviderConfigurator();
         runtimeFactory = new ProcessRuntimeFactory(
                 serviceUrl,
@@ -536,7 +634,9 @@ public class LocalRunner implements AutoCloseable {
                 null, /* extra dependencies dir */
                 narExtractionDirectory, /* nar extraction dir */
                 secretsProviderConfigurator,
-                false, Optional.empty(), Optional.empty());
+                false,
+                Optional.empty(),
+                Optional.empty());
 
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
@@ -561,8 +661,8 @@ public class LocalRunner implements AutoCloseable {
             if (functionConfig != null) {
                 instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
                 if (functionConfig.getExposePulsarAdminClientEnabled() != null) {
-                    instanceConfig
-                            .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
+                    instanceConfig.setExposePulsarAdminClientEnabled(
+                            functionConfig.getExposePulsarAdminClientEnabled());
                 }
             }
 
@@ -578,35 +678,44 @@ public class LocalRunner implements AutoCloseable {
             runtimeSpawner.start();
         }
         Timer statusCheckTimer = new Timer();
-        statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
-                int index = 0;
-                for (RuntimeSpawner spawner : spawners) {
-                    futures[index] = spawner.getFunctionStatusAsJson(index);
-                    index++;
-                }
-                try {
-                    CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
-                    for (index = 0; index < futures.length; ++index) {
-                        String json = futures[index].get();
-                        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                        log.info(gson.toJson(JsonParser.parseString(json)));
+        statusCheckTimer.scheduleAtFixedRate(
+                new TimerTask() {
+                    @Override
+                    public void run() {
+                        CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
+                        int index = 0;
+                        for (RuntimeSpawner spawner : spawners) {
+                            futures[index] = spawner.getFunctionStatusAsJson(index);
+                            index++;
+                        }
+                        try {
+                            CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
+                            for (index = 0; index < futures.length; ++index) {
+                                String json = futures[index].get();
+                                Gson gson =
+                                        new GsonBuilder().setPrettyPrinting().create();
+                                log.info(gson.toJson(JsonParser.parseString(json)));
+                            }
+                        } catch (TimeoutException | InterruptedException | ExecutionException e) {
+                            log.error("Could not get status from all local instances");
+                        }
                     }
-                } catch (TimeoutException | InterruptedException | ExecutionException e) {
-                    log.error("Could not get status from all local instances");
-                }
-            }
-        }, 30000, 30000);
+                },
+                30000,
+                30000);
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread(statusCheckTimer::cancel));
     }
 
-
-    private void startThreadedMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-                                           int parallelism, int instanceIdOffset, String serviceUrl,
-                                           String stateStorageServiceUrl, AuthenticationConfig authConfig,
-                                           String userCodeFile, String transformFunctionFile) throws Exception {
+    private void startThreadedMode(
+            org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+            int parallelism,
+            int instanceIdOffset,
+            String serviceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String userCodeFile,
+            String transformFunctionFile)
+            throws Exception {
 
         if (metricsPortStart != null) {
             if (metricsPortStart < 0 || metricsPortStart > 65535) {
@@ -616,8 +725,8 @@ public class LocalRunner implements AutoCloseable {
 
         SecretsProvider secretsProvider;
         if (secretsProviderClassName != null) {
-            secretsProvider = (SecretsProvider) Reflections
-                    .createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+            secretsProvider = (SecretsProvider)
+                    Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
             Map<String, String> config = null;
             if (secretsProviderConfig != null) {
                 config = (Map<String, String>) new Gson().fromJson(secretsProviderConfig, Map.class);
@@ -640,15 +749,18 @@ public class LocalRunner implements AutoCloseable {
             if (userCodeClassLoader != null && userCodeClassLoader.getClassLoader() != null) {
                 Thread.currentThread().setContextClassLoader(userCodeClassLoader.getClassLoader());
             }
-            runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
+            runtimeFactory = new ThreadRuntimeFactory(
+                    "LocalRunnerThreadGroup",
                     serviceUrl,
                     stateStorageImplClass,
                     stateStorageServiceUrl,
                     authConfig,
                     secretsProvider,
-                    collectorRegistry, narExtractionDirectory,
+                    collectorRegistry,
+                    narExtractionDirectory,
                     null,
-                    exposePulsarAdminClientEnabled, webServiceUrl);
+                    exposePulsarAdminClientEnabled,
+                    webServiceUrl);
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
@@ -668,8 +780,8 @@ public class LocalRunner implements AutoCloseable {
             if (functionConfig != null) {
                 instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
                 if (functionConfig.getExposePulsarAdminClientEnabled() != null) {
-                    instanceConfig
-                            .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
+                    instanceConfig.setExposePulsarAdminClientEnabled(
+                            functionConfig.getExposePulsarAdminClientEnabled());
                 }
             }
 
@@ -691,8 +803,7 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
-    private ClassLoader isBuiltIn(String component, ComponentType componentType)
-        throws IOException {
+    private ClassLoader isBuiltIn(String component, ComponentType componentType) throws IOException {
         switch (componentType) {
             case FUNCTION:
                 return isBuiltInFunction(component);

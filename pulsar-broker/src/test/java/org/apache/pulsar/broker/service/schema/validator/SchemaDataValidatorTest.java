@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.schema.validator;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
@@ -40,66 +39,53 @@ public class SchemaDataValidatorTest {
     @DataProvider(name = "primitiveSchemas")
     public static Object[][] primitiveSchemas() {
         return new Object[][] {
-            { SchemaType.STRING },
-            { SchemaType.BOOLEAN },
-            { SchemaType.INT8 },
-            { SchemaType.INT16 },
-            { SchemaType.INT32 },
-            { SchemaType.INT64 },
-            { SchemaType.FLOAT },
-            { SchemaType.DOUBLE },
-            { SchemaType.DATE },
-            { SchemaType.TIME },
-            { SchemaType.TIMESTAMP },
-            { SchemaType.INSTANT },
-            { SchemaType.LOCAL_DATE },
-            { SchemaType.LOCAL_TIME },
-            { SchemaType.LOCAL_DATE_TIME },
+            {SchemaType.STRING},
+            {SchemaType.BOOLEAN},
+            {SchemaType.INT8},
+            {SchemaType.INT16},
+            {SchemaType.INT32},
+            {SchemaType.INT64},
+            {SchemaType.FLOAT},
+            {SchemaType.DOUBLE},
+            {SchemaType.DATE},
+            {SchemaType.TIME},
+            {SchemaType.TIMESTAMP},
+            {SchemaType.INSTANT},
+            {SchemaType.LOCAL_DATE},
+            {SchemaType.LOCAL_TIME},
+            {SchemaType.LOCAL_DATE_TIME},
         };
     }
 
     @DataProvider(name = "clientSchemas")
     public static Object[][] clientSchemas() {
         return new Object[][] {
-            { SchemaType.AUTO_CONSUME },
-            { SchemaType.AUTO_PUBLISH },
-            { SchemaType.AUTO },
+            {SchemaType.AUTO_CONSUME}, {SchemaType.AUTO_PUBLISH}, {SchemaType.AUTO},
         };
     }
 
     @DataProvider(name = "structSchemas")
     public static Object[][] structSchemas() {
         return new Object[][] {
-            { SchemaType.AVRO },
-            { SchemaType.JSON },
-            { SchemaType.PROTOBUF },
+            {SchemaType.AVRO}, {SchemaType.JSON}, {SchemaType.PROTOBUF},
         };
     }
 
     @Test(dataProvider = "primitiveSchemas")
     public void testPrimitiveValidatorSuccess(SchemaType type) throws Exception {
-        SchemaData data = SchemaData.builder()
-            .type(type)
-            .data(new byte[0])
-            .build();
+        SchemaData data = SchemaData.builder().type(type).data(new byte[0]).build();
         SchemaDataValidator.validateSchemaData(data);
     }
 
     @Test(dataProvider = "primitiveSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testPrimitiveValidatorInvalid(SchemaType type) throws Exception {
-        SchemaData data = SchemaData.builder()
-            .type(type)
-            .data(new byte[10])
-            .build();
+        SchemaData data = SchemaData.builder().type(type).data(new byte[10]).build();
         SchemaDataValidator.validateSchemaData(data);
     }
 
     @Test(dataProvider = "clientSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testValidateClientSchemas(SchemaType type) throws Exception {
-        SchemaData data = SchemaData.builder()
-            .type(type)
-            .data(new byte[0])
-            .build();
+        SchemaData data = SchemaData.builder().type(type).data(new byte[0]).build();
         SchemaDataValidator.validateSchemaData(data);
     }
 
@@ -107,18 +93,18 @@ public class SchemaDataValidatorTest {
     public void testStructValidatorSuccess(SchemaType type) throws Exception {
         Schema<Foo> schema = Schema.AVRO(Foo.class);
         SchemaData data = SchemaData.builder()
-            .type(type)
-            .data(schema.getSchemaInfo().getSchema())
-            .build();
+                .type(type)
+                .data(schema.getSchemaInfo().getSchema())
+                .build();
         SchemaDataValidator.validateSchemaData(data);
     }
 
     @Test(dataProvider = "structSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testStructValidatorInvalid(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
-            .type(type)
-            .data("bad-schema".getBytes(UTF_8))
-            .build();
+                .type(type)
+                .data("bad-schema".getBytes(UTF_8))
+                .build();
         SchemaDataValidator.validateSchemaData(data);
     }
 
@@ -126,13 +112,9 @@ public class SchemaDataValidatorTest {
     public void testJsonSchemaTypeWithJsonSchemaData() throws Exception {
         ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
         SchemaData data = SchemaData.builder()
-            .type(SchemaType.JSON)
-            .data(
-                mapper.writeValueAsBytes(
-                    new JsonSchemaGenerator(mapper)
-                    .generateSchema(Foo.class)))
-            .build();
+                .type(SchemaType.JSON)
+                .data(mapper.writeValueAsBytes(new JsonSchemaGenerator(mapper).generateSchema(Foo.class)))
+                .build();
         SchemaDataValidator.validateSchemaData(data);
     }
-
 }

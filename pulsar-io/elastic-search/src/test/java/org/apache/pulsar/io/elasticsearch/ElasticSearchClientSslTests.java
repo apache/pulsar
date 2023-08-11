@@ -18,24 +18,23 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.io.IOException;
+import java.time.Duration;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.time.Duration;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
 public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase {
 
-    final static String INDEX = "myindex";
+    static final String INDEX = "myindex";
 
-    final static String sslResourceDir = MountableFile.forClasspathResource("ssl").getFilesystemPath();
-    final static  String configDir = "/usr/share/elasticsearch/config";
+    static final String sslResourceDir =
+            MountableFile.forClasspathResource("ssl").getFilesystemPath();
+    static final String configDir = "/usr/share/elasticsearch/config";
 
     public ElasticSearchClientSslTests(String elasticImageName) {
         super(elasticImageName);
@@ -114,7 +113,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
 
     @Test
     public void testSslWithClientAuth() throws IOException {
-        try(ElasticsearchContainer container = createElasticsearchContainer()
+        try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
@@ -175,15 +174,13 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
                     .setIndexName(INDEX)
                     .setUsername("elastic")
                     .setPassword("elastic")
-                    .setSsl(new ElasticSearchSslConfig()
-                            .setEnabled(true)
-                            .setDisableCertificateValidation(true));
+                    .setSsl(new ElasticSearchSslConfig().setEnabled(true).setDisableCertificateValidation(true));
             testClientWithConfig(config);
         }
     }
 
     private void testClientWithConfig(ElasticSearchConfig config) throws IOException {
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config); ) {
             testIndexExists(client);
         }
     }
@@ -194,5 +191,4 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
         assertTrue(client.indexExists("mynewindex"));
         assertFalse(client.createIndexIfNeeded("mynewindex"));
     }
-
 }

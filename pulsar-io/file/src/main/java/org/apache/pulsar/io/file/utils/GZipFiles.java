@@ -45,8 +45,8 @@ public class GZipFiles {
         try (InputStream input = new FileInputStream(f)) {
             PushbackInputStream pb = new PushbackInputStream(input, 2);
             byte[] signature = new byte[2];
-            int len = pb.read(signature); //read the signature
-            pb.unread(signature, 0, len); //push back the signature to the stream
+            int len = pb.read(signature); // read the signature
+            pb.unread(signature, 0, len); // push back the signature to the stream
             // check if matches standard gzip magic number
             return (signature[0] == (byte) 0x1f && signature[1] == (byte) 0x8b);
         } catch (final Exception e) {
@@ -63,26 +63,26 @@ public class GZipFiles {
      * @return stream with lines.
      */
     public static Stream<String> lines(Path path) {
-      GZIPInputStream gzipStream = null;
+        GZIPInputStream gzipStream = null;
 
-      try {
-        gzipStream = new GZIPInputStream(Files.newInputStream(path));
-      } catch (IOException e) {
-        closeSafely(gzipStream);
-        throw new UncheckedIOException(e);
-      }
+        try {
+            gzipStream = new GZIPInputStream(Files.newInputStream(path));
+        } catch (IOException e) {
+            closeSafely(gzipStream);
+            throw new UncheckedIOException(e);
+        }
 
-      BufferedReader reader = new BufferedReader(new InputStreamReader(gzipStream));
-      return reader.lines().onClose(() -> closeSafely(reader));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(gzipStream));
+        return reader.lines().onClose(() -> closeSafely(reader));
     }
 
     private static void closeSafely(Closeable closeable) {
-      if (closeable != null) {
-        try {
-          closeable.close();
-        } catch (IOException e) {
-          // Ignore
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (IOException e) {
+                // Ignore
+            }
         }
-      }
     }
 }

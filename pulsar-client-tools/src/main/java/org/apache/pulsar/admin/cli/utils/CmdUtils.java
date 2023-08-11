@@ -33,7 +33,8 @@ public class CmdUtils {
             if (ex instanceof UnrecognizedPropertyException) {
                 UnrecognizedPropertyException unrecognizedPropertyException = (UnrecognizedPropertyException) ex;
 
-                String exceptionMessage = String.format("Failed to parse config file %s. "
+                String exceptionMessage = String.format(
+                        "Failed to parse config file %s. "
                                 + "Invalid field '%s' on line: %d column: %d. Valid fields are %s",
                         file,
                         unrecognizedPropertyException.getPath().get(0).getFieldName(),
@@ -44,7 +45,8 @@ public class CmdUtils {
             } else if (ex instanceof InvalidFormatException) {
 
                 InvalidFormatException invalidFormatException = (InvalidFormatException) ex;
-                String exceptionMessage = String.format("Failed to parse config file %s. %s on line: %d column: %d",
+                String exceptionMessage = String.format(
+                        "Failed to parse config file %s. %s on line: %d column: %d",
                         file,
                         invalidFormatException.getOriginalMessage(),
                         invalidFormatException.getLocation().getLineNr(),

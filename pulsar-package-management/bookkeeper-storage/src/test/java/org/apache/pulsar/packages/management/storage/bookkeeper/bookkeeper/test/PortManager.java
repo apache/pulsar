@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.packages.management.storage.bookkeeper.bookkeeper.test;
 
-import lombok.Cleanup;
-
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Inet4Address;
@@ -31,6 +29,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import lombok.Cleanup;
 
 /**
  * Port manager allows a base port to be specified on the commandline. Tests will then use ports, counting up from this
@@ -38,8 +37,8 @@ import java.nio.file.StandardOpenOption;
  */
 public class PortManager {
 
-    private static final String lockFilename = System.getProperty("test.lockFilename",
-            "/tmp/pulsar-test-port-manager.lock");
+    private static final String lockFilename =
+            System.getProperty("test.lockFilename", "/tmp/pulsar-test-port-manager.lock");
     private static final int basePort = Integer.parseInt(System.getProperty("test.basePort", "15000"));
 
     private static final int maxPort = 32000;
@@ -49,18 +48,15 @@ public class PortManager {
      *
      * Keeps track of assigned ports and avoid race condition between different processes
      */
-    public synchronized static int nextFreePort() {
+    public static synchronized int nextFreePort() {
         Path path = Paths.get(lockFilename);
 
         try {
             @Cleanup
-            FileChannel fileChannel = FileChannel.open(path,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.READ);
+            FileChannel fileChannel = FileChannel.open(
+                    path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.READ);
 
-            @Cleanup
-            FileLock lock = fileChannel.lock();
+            @Cleanup FileLock lock = fileChannel.lock();
 
             ByteBuffer buffer = ByteBuffer.allocate(32);
             int len = fileChannel.read(buffer, 0L);
@@ -91,7 +87,7 @@ public class PortManager {
 
     private static final int MAX_PORT_CONFLICTS = 10;
 
-    private synchronized static int probeFreePort(int port) {
+    private static synchronized int probeFreePort(int port) {
         int exceptionCount = 0;
         while (true) {
             if (port == maxPort) {

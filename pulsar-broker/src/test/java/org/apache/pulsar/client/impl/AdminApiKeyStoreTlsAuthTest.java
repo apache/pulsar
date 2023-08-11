@@ -134,8 +134,10 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
-            .register(JacksonConfigurator.class).register(JacksonFeature.class);
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
+                .withConfig(httpConfig)
+                .register(JacksonConfigurator.class)
+                .register(JacksonFeature.class);
 
         SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
                 KEYSTORE_TYPE,
@@ -169,10 +171,13 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("foobar"),
-                                                        Set.of("test")));
+            admin.clusters()
+                    .createCluster(
+                            "test",
+                            ClusterData.builder()
+                                    .serviceUrl(brokerUrl.toString())
+                                    .build());
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
             Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
         }
     }
@@ -180,10 +185,13 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of(""),
-                                                        Set.of("test")));
+            admin.clusters()
+                    .createCluster(
+                            "test",
+                            ClusterData.builder()
+                                    .serviceUrl(brokerUrl.toString())
+                                    .build());
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of(""), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
             Assert.assertTrue(admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1"));
         }
@@ -192,18 +200,23 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("proxy", "user1"),
-                                                        Set.of("test")));
+            admin.clusters()
+                    .createCluster(
+                            "test",
+                            ClusterData.builder()
+                                    .serviceUrl(brokerUrl.toString())
+                                    .build());
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("proxy", "user1"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient();
-        Assert.assertEquals(Set.of("tenant1/ns1"),
-                            root.path("/admin/v2/namespaces").path("tenant1")
-                            .request(MediaType.APPLICATION_JSON)
-                            .header("X-Original-Principal", "user1")
-                            .get(new GenericType<List<String>>() {}));
+        Assert.assertEquals(
+                Set.of("tenant1/ns1"),
+                root.path("/admin/v2/namespaces")
+                        .path("tenant1")
+                        .request(MediaType.APPLICATION_JSON)
+                        .header("X-Original-Principal", "user1")
+                        .get(new GenericType<List<String>>() {}));
     }
 
     @Test
@@ -211,10 +224,13 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-            admin.tenants().createTenant("tenant1",
-                    new TenantInfoImpl(Set.of("foobar"),
-                            Set.of("test")));
+            admin.clusters()
+                    .createCluster(
+                            "test",
+                            ClusterData.builder()
+                                    .serviceUrl(brokerUrl.toString())
+                                    .build());
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
             Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
 
             admin.namespaces().createNamespace("tenant1/ns1");
@@ -233,12 +249,12 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
     @DataProvider
     public Object[] keyStoreTlsTransportWithAuth() {
-        return new Object[]{
-                // Verify JKS TLS transport encryption with TLS authentication
-                tlsAuth,
-                null,
-                // Verify JKS TLS transport encryption with token authentication
-                tokenAuth,
+        return new Object[] {
+            // Verify JKS TLS transport encryption with TLS authentication
+            tlsAuth,
+            null,
+            // Verify JKS TLS transport encryption with token authentication
+            tokenAuth,
         };
     }
 
@@ -256,9 +272,10 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
                 .allowTlsInsecureConnection(false)
                 .build();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("tenant1",
-                new TenantInfoImpl(Set.of("foobar"),
-                        Set.of("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
     }
 }

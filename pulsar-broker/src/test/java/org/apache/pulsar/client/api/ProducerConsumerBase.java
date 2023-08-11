@@ -19,11 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
 import java.util.Random;
 import java.util.Set;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -40,23 +38,32 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     }
 
     protected void producerBaseSetup() throws Exception {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
 
         // so that clients can test short names
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants()
+                .createTenant(
+                        "public", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
         admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
     }
 
-    protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
-            T expectedMessage) {
+    protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage, T expectedMessage) {
         // Make sure that messages are received in order
-        Assert.assertEquals(receivedMessage, expectedMessage,
+        Assert.assertEquals(
+                receivedMessage,
+                expectedMessage,
                 "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
 
         // Make sure that there are no duplicates
@@ -68,5 +75,4 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String newTopicName() {
         return "my-property/my-ns/topic-" + Long.toHexString(random.nextLong());
     }
-
 }

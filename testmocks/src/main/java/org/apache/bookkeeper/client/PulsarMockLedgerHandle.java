@@ -60,14 +60,20 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     final byte[] passwd;
     final ReadHandle readHandle;
     long lastEntry = -1;
+
     @VisibleForTesting
     @Getter
     boolean fenced = false;
 
-    public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
-                           DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
-              digest, passwd, WriteFlag.NONE);
+    public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd)
+            throws GeneralSecurityException {
+        super(
+                bk.getClientCtx(),
+                id,
+                new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
+                digest,
+                passwd,
+                WriteFlag.NONE);
         this.bk = bk;
         this.id = id;
         this.digest = digest;
@@ -78,44 +84,53 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public void asyncClose(CloseCallback cb, Object ctx) {
-        bk.getProgrammedFailure().thenComposeAsync((res) -> {
-            fenced = true;
+        bk.getProgrammedFailure()
+                .thenComposeAsync(
+                        (res) -> {
+                            fenced = true;
 
-            Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
-            Versioned<LedgerMetadata> newMetadata = new Versioned<>(
-                    LedgerMetadataBuilder.from(current.getValue())
-                            .withClosedState().withLastEntryId(getLastAddConfirmed())
-                            .withLength(getLength()).build(),
-                    new LongVersion(((LongVersion) current.getVersion()).getLongVersion() + 1));
-            setLedgerMetadata(current, newMetadata);
-            return FutureUtils.value(null);
-        }, bk.executor).whenCompleteAsync((res, exception) -> {
-            if (exception != null) {
-                cb.closeComplete(PulsarMockBookKeeper.getExceptionCode(exception), null, ctx);
-            } else {
-                cb.closeComplete(BKException.Code.OK, this, ctx);
-            }
-        }, bk.executor);
+                            Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
+                            Versioned<LedgerMetadata> newMetadata = new Versioned<>(
+                                    LedgerMetadataBuilder.from(current.getValue())
+                                            .withClosedState()
+                                            .withLastEntryId(getLastAddConfirmed())
+                                            .withLength(getLength())
+                                            .build(),
+                                    new LongVersion(((LongVersion) current.getVersion()).getLongVersion() + 1));
+                            setLedgerMetadata(current, newMetadata);
+                            return FutureUtils.value(null);
+                        },
+                        bk.executor)
+                .whenCompleteAsync(
+                        (res, exception) -> {
+                            if (exception != null) {
+                                cb.closeComplete(PulsarMockBookKeeper.getExceptionCode(exception), null, ctx);
+                            } else {
+                                cb.closeComplete(BKException.Code.OK, this, ctx);
+                            }
+                        },
+                        bk.executor);
     }
 
     @Override
     public void asyncReadEntries(final long firstEntry, final long lastEntry, final ReadCallback cb, final Object ctx) {
-        bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
-                final Queue<LedgerEntry> seq = new ArrayDeque<LedgerEntry>();
-                long entryId = firstEntry;
-                while (entryId <= lastEntry && entryId < entries.size()) {
-                    seq.add(new LedgerEntry(entries.get((int) entryId++).duplicate()));
-                }
+        bk.getProgrammedFailure()
+                .thenComposeAsync((res) -> {
+                    log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
+                    final Queue<LedgerEntry> seq = new ArrayDeque<LedgerEntry>();
+                    long entryId = firstEntry;
+                    while (entryId <= lastEntry && entryId < entries.size()) {
+                        seq.add(new LedgerEntry(entries.get((int) entryId++).duplicate()));
+                    }
 
-                log.debug("Entries read: {}", seq);
+                    log.debug("Entries read: {}", seq);
 
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                }
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                    }
 
-                Enumeration<LedgerEntry> entries = new Enumeration<LedgerEntry>() {
+                    Enumeration<LedgerEntry> entries = new Enumeration<LedgerEntry>() {
                         @Override
                         public boolean hasMoreElements() {
                             return !seq.isEmpty();
@@ -126,15 +141,21 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                             return seq.remove();
                         }
                     };
-                return FutureUtils.value(entries);
-            }).whenCompleteAsync((res, exception) -> {
-                    if (exception != null) {
-                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception),
-                                PulsarMockLedgerHandle.this, null, ctx);
-                    } else {
-                        cb.readComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, res, ctx);
-                    }
-                }, bk.executor);
+                    return FutureUtils.value(entries);
+                })
+                .whenCompleteAsync(
+                        (res, exception) -> {
+                            if (exception != null) {
+                                cb.readComplete(
+                                        PulsarMockBookKeeper.getExceptionCode(exception),
+                                        PulsarMockLedgerHandle.this,
+                                        null,
+                                        ctx);
+                            } else {
+                                cb.readComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, res, ctx);
+                            }
+                        },
+                        bk.executor);
     }
 
     @Override
@@ -161,45 +182,53 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     }
 
     @Override
-    public void asyncAddEntry(final byte[] data, final int offset, final int length, final AddCallback cb,
-            final Object ctx) {
+    public void asyncAddEntry(
+            final byte[] data, final int offset, final int length, final AddCallback cb, final Object ctx) {
         asyncAddEntry(Unpooled.wrappedBuffer(data, offset, length), cb, ctx);
     }
 
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
-        bk.getAddEntryFailure().thenComposeAsync((res) -> {
-                Long delayMillis = bk.addEntryDelaysMillis.poll();
-                if (delayMillis == null) {
-                    delayMillis = 1L;
-                }
+        bk.getAddEntryFailure()
+                .thenComposeAsync(
+                        (res) -> {
+                            Long delayMillis = bk.addEntryDelaysMillis.poll();
+                            if (delayMillis == null) {
+                                delayMillis = 1L;
+                            }
 
-                try {
-                    Thread.sleep(delayMillis);
-                } catch (InterruptedException e) {
-                }
+                            try {
+                                Thread.sleep(delayMillis);
+                            } catch (InterruptedException e) {
+                            }
 
-                if (fenced) {
-                    return FutureUtils.exception(new BKException.BKLedgerFencedException());
-                } else {
-                    lastEntry = entries.size();
-                    byte[] storedData = new byte[data.readableBytes()];
-                    data.readBytes(storedData);
-                    entries.add(LedgerEntryImpl.create(ledgerId, lastEntry,
-                                                       storedData.length, Unpooled.wrappedBuffer(storedData)));
-                    return FutureUtils.value(lastEntry);
-                }
-
-            }, bk.executor).whenCompleteAsync((entryId, exception) -> {
-                    data.release();
-                    if (exception != null) {
-                        fenced = true;
-                        cb.addComplete(PulsarMockBookKeeper.getExceptionCode(exception),
-                                       PulsarMockLedgerHandle.this, LedgerHandle.INVALID_ENTRY_ID, ctx);
-                    } else {
-                        cb.addComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, entryId, ctx);
-                    }
-                }, bk.executor);
+                            if (fenced) {
+                                return FutureUtils.exception(new BKException.BKLedgerFencedException());
+                            } else {
+                                lastEntry = entries.size();
+                                byte[] storedData = new byte[data.readableBytes()];
+                                data.readBytes(storedData);
+                                entries.add(LedgerEntryImpl.create(
+                                        ledgerId, lastEntry, storedData.length, Unpooled.wrappedBuffer(storedData)));
+                                return FutureUtils.value(lastEntry);
+                            }
+                        },
+                        bk.executor)
+                .whenCompleteAsync(
+                        (entryId, exception) -> {
+                            data.release();
+                            if (exception != null) {
+                                fenced = true;
+                                cb.addComplete(
+                                        PulsarMockBookKeeper.getExceptionCode(exception),
+                                        PulsarMockLedgerHandle.this,
+                                        LedgerHandle.INVALID_ENTRY_ID,
+                                        ctx);
+                            } else {
+                                cb.addComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, entryId, ctx);
+                            }
+                        },
+                        bk.executor);
     }
 
     @Override
@@ -225,7 +254,6 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
         return length;
     }
-
 
     // ReadHandle interface
     @Override
@@ -254,22 +282,20 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     }
 
     @Override
-    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId,
-                                                                                      long timeOutInMillis,
-                                                                                      boolean parallel) {
+    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
+            long entryId, long timeOutInMillis, boolean parallel) {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
     private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
         List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
         return LedgerMetadataBuilder.create()
-            .withDigestType(digest.toApiDigestType())
-            .withPassword(passwd)
-            .withId(id)
-            .newEnsembleEntry(0L, ensemble)
-            .build();
+                .withDigestType(digest.toApiDigestType())
+                .withPassword(passwd)
+                .withId(id)
+                .newEnsembleEntry(0L, ensemble)
+                .build();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarMockLedgerHandle.class);
-
 }

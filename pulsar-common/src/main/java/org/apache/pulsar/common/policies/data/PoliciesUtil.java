@@ -34,10 +34,7 @@ public class PoliciesUtil {
         List<String> boundaries = new ArrayList<>();
         boundaries.add(FIRST_BOUNDARY);
         boundaries.add(LAST_BOUNDARY);
-        return BundlesData.builder()
-                .numBundles(1)
-                .boundaries(boundaries)
-                .build();
+        return BundlesData.builder().numBundles(1).boundaries(boundaries).build();
     }
 
     public static void setStorageQuota(Policies polices, BacklogQuota quota) {
@@ -51,7 +48,8 @@ public class PoliciesUtil {
 
     public static BundlesData getBundles(int numBundles) {
         if (numBundles <= 0) {
-            throw new RestException(Response.Status.BAD_REQUEST,
+            throw new RestException(
+                    Response.Status.BAD_REQUEST,
                     "Invalid number of bundles. Number of bundles has to be in the range of (0, 2^32].");
         }
         Long maxVal = MAX_BUNDLES;

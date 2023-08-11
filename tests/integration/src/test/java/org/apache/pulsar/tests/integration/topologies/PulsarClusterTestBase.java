@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import static java.util.stream.Collectors.joining;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.testng.annotations.DataProvider;
-
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
@@ -52,37 +50,31 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     @DataProvider(name = "ServiceUrlAndTopics")
     public Object[][] serviceUrlAndTopics() {
         return new Object[][] {
-                // plain text, persistent topic
-                {
-                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
-                        true,
-                },
-                // plain text, non-persistent topic
-                {
-                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
-                        false
-                }
+            // plain text, persistent topic
+            {
+                stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()), true,
+            },
+            // plain text, non-persistent topic
+            {stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()), false}
         };
     }
 
     @DataProvider(name = "ServiceUrls")
     public Object[][] serviceUrls() {
         return new Object[][] {
-                // plain text
-                {
-                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl())
-                }
+            // plain text
+            {stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl())}
         };
     }
 
     @DataProvider(name = "ServiceAndAdminUrls")
     public Object[][] serviceAndAdminUrls() {
         return new Object[][] {
-                // plain text
-                {
-                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
-                        stringSupplier(() -> getPulsarCluster().getHttpServiceUrl())
-                }
+            // plain text
+            {
+                stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
+                stringSupplier(() -> getPulsarCluster().getHttpServiceUrl())
+            }
         };
     }
 
@@ -117,8 +109,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     }
 
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
-            String clusterName,
-            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+            String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         return specBuilder;
     }
 
@@ -128,8 +119,11 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     protected void setupCluster(PulsarClusterSpec spec) throws Exception {
         incrementSetupNumber();
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info(
+                "Setting up cluster {} with {} bookies, {} brokers",
+                spec.clusterName(),
+                spec.numBookies(),
+                spec.numBrokers());
 
         pulsarCluster = PulsarCluster.forSpec(spec);
 
@@ -137,7 +131,9 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
         pulsarCluster.start();
 
-        pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
 
         log.info("Cluster {} is setup", spec.clusterName());
     }

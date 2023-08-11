@@ -50,8 +50,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     private T[] data;
 
     @SuppressWarnings("rawtypes")
-    private static final AtomicIntegerFieldUpdater<GrowableArrayBlockingQueue> SIZE_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(GrowableArrayBlockingQueue.class, "size");
+    private static final AtomicIntegerFieldUpdater<GrowableArrayBlockingQueue> SIZE_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(GrowableArrayBlockingQueue.class, "size");
+
     private volatile int size = 0;
 
     private volatile boolean terminated = false;
@@ -137,7 +138,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         boolean wasEmpty = false;
 
         try {
-            if (terminated){
+            if (terminated) {
                 if (itemAfterTerminatedHandler != null) {
                     itemAfterTerminatedHandler.accept(e);
                 }

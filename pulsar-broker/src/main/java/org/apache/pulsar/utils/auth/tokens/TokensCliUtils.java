@@ -51,22 +51,27 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 public class TokensCliUtils {
 
     public static class Arguments {
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
     }
 
     @Parameters(commandDescription = "Create a new secret key")
     public static class CommandCreateSecretKey {
-        @Parameter(names = {"-a",
-                "--signature-algorithm"}, description = "The signature algorithm for the new secret key.")
+        @Parameter(
+                names = {"-a", "--signature-algorithm"},
+                description = "The signature algorithm for the new secret key.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.HS256;
 
-        @Parameter(names = {"-o",
-                "--output"}, description = "Write the secret key to a file instead of stdout")
+        @Parameter(
+                names = {"-o", "--output"},
+                description = "Write the secret key to a file instead of stdout")
         String outputFile;
 
-        @Parameter(names = {
-                "-b", "--base64"}, description = "Encode the key in base64")
+        @Parameter(
+                names = {"-b", "--base64"},
+                description = "Encode the key in base64")
         boolean base64 = false;
 
         public void run() throws IOException {
@@ -87,15 +92,21 @@ public class TokensCliUtils {
 
     @Parameters(commandDescription = "Create a new or pair of keys public/private")
     public static class CommandCreateKeyPair {
-        @Parameter(names = {"-a",
-                "--signature-algorithm"}, description = "The signature algorithm for the new key pair.")
+        @Parameter(
+                names = {"-a", "--signature-algorithm"},
+                description = "The signature algorithm for the new key pair.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
-        @Parameter(names = {
-                "--output-private-key"}, description = "File where to write the private key", required = true)
+        @Parameter(
+                names = {"--output-private-key"},
+                description = "File where to write the private key",
+                required = true)
         String privateKeyFile;
-        @Parameter(names = {
-                "--output-public-key"}, description = "File where to write the public key", required = true)
+
+        @Parameter(
+                names = {"--output-public-key"},
+                description = "File where to write the public key",
+                required = true)
         String publicKeyFile;
 
         public void run() throws IOException {
@@ -108,39 +119,39 @@ public class TokensCliUtils {
 
     @Parameters(commandDescription = "Create a new token")
     public static class CommandCreateToken {
-        @Parameter(names = {"-a",
-                "--signature-algorithm"}, description = "The signature algorithm for the new key pair.")
+        @Parameter(
+                names = {"-a", "--signature-algorithm"},
+                description = "The signature algorithm for the new key pair.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
-        @Parameter(names = {"-s",
-                "--subject"},
-                description = "Specify the 'subject' or 'principal' associate with this token", required = true)
+        @Parameter(
+                names = {"-s", "--subject"},
+                description = "Specify the 'subject' or 'principal' associate with this token",
+                required = true)
         private String subject;
 
-        @Parameter(names = {"-e",
-                "--expiry-time"},
-                description = "Relative expiry time for the token (eg: 1h, 3d, 10y)."
-                        + " (m=minutes) Default: no expiration")
+        @Parameter(
+                names = {"-e", "--expiry-time"},
+                description =
+                        "Relative expiry time for the token (eg: 1h, 3d, 10y)." + " (m=minutes) Default: no expiration")
         private String expiryTime;
 
-        @Parameter(names = {"-sk",
-                "--secret-key"},
+        @Parameter(
+                names = {"-sk", "--secret-key"},
                 description = "Pass the secret key for signing the token. This can either be: data:, file:, etc..")
         private String secretKey;
 
-        @Parameter(names = {"-pk",
-                "--private-key"},
+        @Parameter(
+                names = {"-pk", "--private-key"},
                 description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
         private String privateKey;
 
         public void run() throws Exception {
             if (secretKey == null && privateKey == null) {
-                System.err.println(
-                        "Either --secret-key or --private-key needs to be passed for signing a token");
+                System.err.println("Either --secret-key or --private-key needs to be passed for signing a token");
                 System.exit(1);
             } else if (secretKey != null && privateKey != null) {
-                System.err.println(
-                        "Only one of --secret-key and --private-key needs to be passed for signing a token");
+                System.err.println("Only one of --secret-key and --private-key needs to be passed for signing a token");
                 System.exit(1);
             }
 
@@ -158,8 +169,8 @@ public class TokensCliUtils {
             if (expiryTime != null) {
                 long relativeTimeMillis;
                 try {
-                    relativeTimeMillis = TimeUnit.SECONDS.toMillis(
-                            RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
+                    relativeTimeMillis =
+                            TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
                 } catch (IllegalArgumentException exception) {
                     throw new ParameterException(exception.getMessage());
                 }
@@ -177,12 +188,14 @@ public class TokensCliUtils {
         @Parameter(description = "The token string", arity = 1)
         private java.util.List<String> args;
 
-        @Parameter(names = {"-i",
-                "--stdin"}, description = "Read token from standard input")
+        @Parameter(
+                names = {"-i", "--stdin"},
+                description = "Read token from standard input")
         private Boolean stdin = false;
 
-        @Parameter(names = {"-f",
-                "--token-file"}, description = "Read token from a file")
+        @Parameter(
+                names = {"-f", "--token-file"},
+                description = "Read token from a file")
         private String tokenFile;
 
         public void run() throws Exception {
@@ -190,17 +203,15 @@ public class TokensCliUtils {
             if (args != null) {
                 token = args.get(0);
             } else if (stdin) {
-                @Cleanup
-                BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
+                @Cleanup BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
                 token = r.readLine();
             } else if (tokenFile != null) {
                 token = new String(Files.readAllBytes(Paths.get(tokenFile)), StandardCharsets.UTF_8);
             } else if (System.getenv("TOKEN") != null) {
                 token = System.getenv("TOKEN");
             } else {
-                System.err.println(
-                        "Token needs to be either passed as an argument or through `--stdin`,"
-                                + " `--token-file` or by the `TOKEN` environment variable");
+                System.err.println("Token needs to be either passed as an argument or through `--stdin`,"
+                        + " `--token-file` or by the `TOKEN` environment variable");
                 System.exit(1);
                 return;
             }
@@ -215,39 +226,40 @@ public class TokensCliUtils {
     @Parameters(commandDescription = "Validate a token against a key")
     public static class CommandValidateToken {
 
-        @Parameter(names = {"-a",
-                "--signature-algorithm"}, description = "The signature algorithm for the key pair if using public key.")
+        @Parameter(
+                names = {"-a", "--signature-algorithm"},
+                description = "The signature algorithm for the key pair if using public key.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
         @Parameter(description = "The token string", arity = 1)
         private java.util.List<String> args;
 
-        @Parameter(names = {"-i",
-                "--stdin"}, description = "Read token from standard input")
+        @Parameter(
+                names = {"-i", "--stdin"},
+                description = "Read token from standard input")
         private Boolean stdin = false;
 
-        @Parameter(names = {"-f",
-                "--token-file"}, description = "Read token from a file")
+        @Parameter(
+                names = {"-f", "--token-file"},
+                description = "Read token from a file")
         private String tokenFile;
 
-        @Parameter(names = {"-sk",
-                "--secret-key"},
+        @Parameter(
+                names = {"-sk", "--secret-key"},
                 description = "Pass the secret key for validating the token. This can either be: data:, file:, etc..")
         private String secretKey;
 
-        @Parameter(names = {"-pk",
-                "--public-key"},
+        @Parameter(
+                names = {"-pk", "--public-key"},
                 description = "Pass the public key for validating the token. This can either be: data:, file:, etc..")
         private String publicKey;
 
         public void run() throws Exception {
             if (secretKey == null && publicKey == null) {
-                System.err.println(
-                        "Either --secret-key or --public-key needs to be passed for signing a token");
+                System.err.println("Either --secret-key or --public-key needs to be passed for signing a token");
                 System.exit(1);
             } else if (secretKey != null && publicKey != null) {
-                System.err.println(
-                        "Only one of --secret-key and --public-key needs to be passed for signing a token");
+                System.err.println("Only one of --secret-key and --public-key needs to be passed for signing a token");
                 System.exit(1);
             }
 
@@ -255,17 +267,15 @@ public class TokensCliUtils {
             if (args != null) {
                 token = args.get(0);
             } else if (stdin) {
-                @Cleanup
-                BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
+                @Cleanup BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
                 token = r.readLine();
             } else if (tokenFile != null) {
                 token = new String(Files.readAllBytes(Paths.get(tokenFile)), StandardCharsets.UTF_8);
             } else if (System.getenv("TOKEN") != null) {
                 token = System.getenv("TOKEN");
             } else {
-                System.err.println(
-                        "Token needs to be either passed as an argument or through `--stdin`,"
-                                + " `--token-file` or by the `TOKEN` environment variable");
+                System.err.println("Token needs to be either passed as an argument or through `--stdin`,"
+                        + " `--token-file` or by the `TOKEN` environment variable");
                 System.exit(1);
                 return;
             }
@@ -282,10 +292,8 @@ public class TokensCliUtils {
 
             // Validate the token
             @SuppressWarnings("unchecked")
-            Jwt<?, Claims> jwt = Jwts.parserBuilder()
-                    .setSigningKey(validationKey)
-                    .build()
-                    .parse(token);
+            Jwt<?, Claims> jwt =
+                    Jwts.parserBuilder().setSigningKey(validationKey).build().parse(token);
 
             System.out.println(jwt.getBody());
         }

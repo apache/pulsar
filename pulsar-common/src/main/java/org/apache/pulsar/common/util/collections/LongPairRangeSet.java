@@ -36,7 +36,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
     /**
      * Adds the specified range (range that contains all values strictly greater than {@code
-    * lower} and less than or equal to {@code upper}.) to this {@code RangeSet} (optional operation). That is, for equal
+     * lower} and less than or equal to {@code upper}.) to this {@code RangeSet} (optional operation). That is, for equal
      * range sets a and b, the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which
      * both {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
      *
@@ -181,8 +181,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * (upperKey, upperValue) in close bound in Range
      */
     interface RawRangeProcessor {
-        boolean processRawRange(long lowerKey, long lowerValue,
-                                long upperKey, long upperValue);
+        boolean processRawRange(long lowerKey, long lowerValue, long upperKey, long upperValue);
     }
 
     /**
@@ -193,6 +192,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
         @SuppressWarnings("checkstyle:ConstantName")
         public static final LongPair earliest = new LongPair(-1, -1);
+
         @SuppressWarnings("checkstyle:ConstantName")
         public static final LongPair latest = new LongPair(Integer.MAX_VALUE, Integer.MAX_VALUE);
 
@@ -318,13 +318,12 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
             for (Range<T> range : asRanges()) {
                 LongPair lowerEndpoint = this.rangeEndPointConsumer.apply(range.lowerEndpoint());
                 LongPair upperEndpoint = this.rangeEndPointConsumer.apply(range.upperEndpoint());
-                if (!action.processRawRange(lowerEndpoint.key, lowerEndpoint.value,
-                        upperEndpoint.key, upperEndpoint.value)) {
+                if (!action.processRawRange(
+                        lowerEndpoint.key, lowerEndpoint.value, upperEndpoint.key, upperEndpoint.value)) {
                     break;
                 }
             }
         }
-
 
         @Override
         public boolean contains(long key, long value) {

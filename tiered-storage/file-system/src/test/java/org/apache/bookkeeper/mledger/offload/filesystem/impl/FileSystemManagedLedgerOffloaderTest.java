@@ -18,7 +18,14 @@
  */
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -35,15 +42,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private final PulsarMockBookKeeper bk;
@@ -53,7 +51,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private LedgerHandle lh;
     private ReadHandle toWrite;
     private final int numberOfEntries = 601;
-    private  Map<String, String> map = new HashMap<>();
+    private Map<String, String> map = new HashMap<>();
 
     public FileSystemManagedLedgerOffloaderTest() throws Exception {
         this.bk = new PulsarMockBookKeeper(scheduler);
@@ -63,20 +61,24 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
     private ReadHandle buildReadHandle() throws Exception {
 
-        lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+        lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
 
         int i = 0;
         int blocksWritten = 1;
         while (blocksWritten <= numberOfEntries) {
-            byte[] entry = ("foobar"+i).getBytes();
+            byte[] entry = ("foobar" + i).getBytes();
             blocksWritten++;
             lh.addEntry(entry);
             i++;
         }
         lh.close();
 
-        return bk.newOpenLedgerOp().withLedgerId(lh.getId())
-                .withPassword("foobar".getBytes()).withDigestType(DigestType.CRC32).execute().get();
+        return bk.newOpenLedgerOp()
+                .withLedgerId(lh.getId())
+                .withPassword("foobar".getBytes())
+                .withDigestType(DigestType.CRC32)
+                .execute()
+                .get();
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -93,10 +95,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-        LedgerEntries toWriteEntries = toWrite.read(0,numberOfEntries - 1);
+        LedgerEntries toWriteEntries = toWrite.read(0, numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -106,10 +108,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
         toTestEntries = toTest.read(1, numberOfEntries - 1);
-        toWriteEntries = toWrite.read(1,numberOfEntries - 1);
+        toWriteEntries = toWrite.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -160,7 +162,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     }
 
     private String createStoragePath(String managedLedgerName) {
-        return basePath == null ? managedLedgerName + "/" : basePath + "/" +  managedLedgerName + "/";
+        return basePath == null ? managedLedgerName + "/" : basePath + "/" + managedLedgerName + "/";
     }
 
     private String createIndexFilePath(String storagePath, long ledgerId, UUID uuid) {

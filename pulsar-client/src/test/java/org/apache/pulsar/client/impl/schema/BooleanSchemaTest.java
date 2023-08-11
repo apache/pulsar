@@ -28,12 +28,8 @@ public class BooleanSchemaTest {
     @Test
     public void testSchemaEncode() {
         BooleanSchema schema = BooleanSchema.of();
-        byte[] expectedTrue = new byte[] {
-                1
-        };
-        byte[] expectedFalse = new byte[] {
-                0
-        };
+        byte[] expectedTrue = new byte[] {1};
+        byte[] expectedFalse = new byte[] {0};
         Assert.assertEquals(expectedTrue, schema.encode(true));
         Assert.assertEquals(expectedFalse, schema.encode(false));
     }
@@ -47,12 +43,8 @@ public class BooleanSchemaTest {
 
     @Test
     public void testSchemaDecode() {
-        byte[] trueBytes = new byte[] {
-                1
-        };
-        byte[] falseBytes = new byte[] {
-                0
-        };
+        byte[] trueBytes = new byte[] {1};
+        byte[] falseBytes = new byte[] {0};
         BooleanSchema schema = BooleanSchema.of();
         Assert.assertEquals(new Boolean(true), schema.decode(trueBytes));
         Assert.assertEquals(new Boolean(false), schema.decode(falseBytes));
@@ -74,5 +66,4 @@ public class BooleanSchemaTest {
         Assert.assertNull(BooleanSchema.of().decode(byteBuf));
         Assert.assertNull(BooleanSchema.of().decode(bytes));
     }
-
 }

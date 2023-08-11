@@ -63,10 +63,6 @@ public class ProtobufNativeRecordBuilderImpl implements GenericRecordBuilder {
     @Override
     public GenericRecord build() {
         return new GenericProtobufNativeRecord(
-                null,
-                genericSchema.getProtobufNativeSchema(),
-                genericSchema.getFields(),
-                builder.build()
-        );
+                null, genericSchema.getProtobufNativeSchema(), genericSchema.getFields(), builder.build());
     }
 }

@@ -67,101 +67,123 @@ public class PulsarClusterMetadataSetup {
     private static final int DEFAULT_BUNDLE_NUMBER = 16;
 
     private static class Arguments {
-        @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
+        @Parameter(
+                names = {"-c", "--cluster"},
+                description = "Cluster name",
+                required = true)
         private String cluster;
 
-        @Parameter(names = {"-bn",
-                "--default-namespace-bundle-number"},
+        @Parameter(
+                names = {"-bn", "--default-namespace-bundle-number"},
                 description = "The bundle numbers for the default namespaces(public/default), default is 16",
                 required = false)
         private int numberOfDefaultNamespaceBundles;
 
-        @Parameter(names = { "-uw",
-                "--web-service-url" }, description = "Web-service URL for new cluster", required = true)
+        @Parameter(
+                names = {"-uw", "--web-service-url"},
+                description = "Web-service URL for new cluster",
+                required = true)
         private String clusterWebServiceUrl;
 
-        @Parameter(names = {"-tw",
-                "--web-service-url-tls"},
-                description = "Web-service URL for new cluster with TLS encryption", required = false)
+        @Parameter(
+                names = {"-tw", "--web-service-url-tls"},
+                description = "Web-service URL for new cluster with TLS encryption",
+                required = false)
         private String clusterWebServiceUrlTls;
 
-        @Parameter(names = { "-ub",
-                "--broker-service-url" }, description = "Broker-service URL for new cluster", required = false)
+        @Parameter(
+                names = {"-ub", "--broker-service-url"},
+                description = "Broker-service URL for new cluster",
+                required = false)
         private String clusterBrokerServiceUrl;
 
-        @Parameter(names = {"-tb",
-                "--broker-service-url-tls"},
-                description = "Broker-service URL for new cluster with TLS encryption", required = false)
+        @Parameter(
+                names = {"-tb", "--broker-service-url-tls"},
+                description = "Broker-service URL for new cluster with TLS encryption",
+                required = false)
         private String clusterBrokerServiceUrlTls;
 
-        @Parameter(names = { "-zk",
-                "--zookeeper" }, description = "Local ZooKeeper quorum connection string",
+        @Parameter(
+                names = {"-zk", "--zookeeper"},
+                description = "Local ZooKeeper quorum connection string",
                 required = false,
-                hidden = true
-                )
+                hidden = true)
         private String zookeeper;
 
-        @Parameter(names = { "-md",
-                "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181", required = false)
+        @Parameter(
+                names = {"-md", "--metadata-store"},
+                description = "Metadata Store service url. eg: zk:my-zk:2181",
+                required = false)
         private String metadataStoreUrl;
 
-        @Parameter(names = {
-            "--zookeeper-session-timeout-ms"
-        }, description = "Local zookeeper session timeout ms")
+        @Parameter(
+                names = {"--zookeeper-session-timeout-ms"},
+                description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = {"-gzk",
-                "--global-zookeeper"},
-                description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
+        @Parameter(
+                names = {"-gzk", "--global-zookeeper"},
+                description = "Global ZooKeeper quorum connection string",
+                required = false,
+                hidden = true)
         private String globalZookeeper;
 
-        @Parameter(names = {"-cs",
-                "--configuration-store"}, description = "Configuration Store connection string", hidden = true)
+        @Parameter(
+                names = {"-cs", "--configuration-store"},
+                description = "Configuration Store connection string",
+                hidden = true)
         private String configurationStore;
 
-        @Parameter(names = {"-cms",
-                "--configuration-metadata-store"}, description = "Configuration Metadata Store connection string",
+        @Parameter(
+                names = {"-cms", "--configuration-metadata-store"},
+                description = "Configuration Metadata Store connection string",
                 hidden = false)
         private String configurationMetadataStore;
 
-        @Parameter(names = {
-            "--initial-num-stream-storage-containers"
-        }, description = "Num storage containers of BookKeeper stream storage")
+        @Parameter(
+                names = {"--initial-num-stream-storage-containers"},
+                description = "Num storage containers of BookKeeper stream storage")
         private int numStreamStorageContainers = 16;
 
-        @Parameter(names = {
-                "--initial-num-transaction-coordinators"
-        }, description = "Num transaction coordinators will assigned in cluster")
+        @Parameter(
+                names = {"--initial-num-transaction-coordinators"},
+                description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
 
-        @Parameter(names = {
-                "--existing-bk-metadata-service-uri"},
+        @Parameter(
+                names = {"--existing-bk-metadata-service-uri"},
                 description = "The metadata service URI of the existing BookKeeper cluster that you want to use")
         private String existingBkMetadataServiceUri;
 
         // Hide and marked as deprecated this flag because we use the new name '--existing-bk-metadata-service-uri' to
         // pass the service url. For compatibility of the command, we should keep both to avoid the exceptions.
         @Deprecated
-        @Parameter(names = {
-            "--bookkeeper-metadata-service-uri"},
-            description = "The metadata service URI of the existing BookKeeper cluster that you want to use",
-            hidden = true)
+        @Parameter(
+                names = {"--bookkeeper-metadata-service-uri"},
+                description = "The metadata service URI of the existing BookKeeper cluster that you want to use",
+                hidden = true)
         private String bookieMetadataServiceUri;
 
-        @Parameter(names = { "-pp",
-                "--proxy-protocol" },
+        @Parameter(
+                names = {"-pp", "--proxy-protocol"},
                 description = "Proxy protocol to select type of routing at proxy. Possible Values: [SNI]",
                 required = false)
         private ProxyProtocol clusterProxyProtocol;
 
-        @Parameter(names = { "-pu",
-                "--proxy-url" }, description = "Proxy-server URL to which to connect.", required = false)
+        @Parameter(
+                names = {"-pu", "--proxy-url"},
+                description = "Proxy-server URL to which to connect.",
+                required = false)
         private String clusterProxyUrl;
 
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 
@@ -182,13 +204,8 @@ public class PulsarClusterMetadataSetup {
 
     private static void initialDlogNamespaceMetadata(String configurationStore, String bkMetadataServiceUri)
             throws IOException {
-        InternalConfigurationData internalConf = new InternalConfigurationData(
-                configurationStore,
-                configurationStore,
-                null,
-                bkMetadataServiceUri,
-                null
-        );
+        InternalConfigurationData internalConf =
+                new InternalConfigurationData(configurationStore, configurationStore, null, bkMetadataServiceUri, null);
         WorkerUtils.initializeDlogNamespace(internalConf);
     }
 
@@ -222,7 +239,8 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
-        if (arguments.configurationMetadataStore == null && arguments.configurationStore == null
+        if (arguments.configurationMetadataStore == null
+                && arguments.configurationStore == null
                 && arguments.globalZookeeper == null) {
             System.err.println(
                     "Configuration metadata store address argument is required (--configuration-metadata-store)");
@@ -230,8 +248,8 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
-        if (arguments.configurationMetadataStore != null && (arguments.configurationStore != null
-                || arguments.globalZookeeper != null)) {
+        if (arguments.configurationMetadataStore != null
+                && (arguments.configurationStore != null || arguments.globalZookeeper != null)) {
             System.err.println("Configuration metadata store argument (--configuration-metadata-store) "
                     + "supersedes the deprecated (--global-zookeeper and --configuration-store) argument");
             jcommander.usage();
@@ -239,8 +257,8 @@ public class PulsarClusterMetadataSetup {
         }
 
         if (arguments.configurationMetadataStore == null) {
-            arguments.configurationMetadataStore = arguments.configurationStore == null ? arguments.globalZookeeper :
-                    arguments.configurationStore;
+            arguments.configurationMetadataStore =
+                    arguments.configurationStore == null ? arguments.globalZookeeper : arguments.configurationStore;
         }
 
         if (arguments.metadataStoreUrl == null) {
@@ -251,9 +269,9 @@ public class PulsarClusterMetadataSetup {
             System.err.println("Number of transaction coordinators must greater than 0");
             System.exit(1);
         }
-        int bundleNumberForDefaultNamespace =
-                arguments.numberOfDefaultNamespaceBundles > 0 ? arguments.numberOfDefaultNamespaceBundles
-                        : DEFAULT_BUNDLE_NUMBER;
+        int bundleNumberForDefaultNamespace = arguments.numberOfDefaultNamespaceBundles > 0
+                ? arguments.numberOfDefaultNamespaceBundles
+                : DEFAULT_BUNDLE_NUMBER;
         try {
             initializeCluster(arguments, bundleNumberForDefaultNamespace);
         } catch (Exception e) {
@@ -265,16 +283,19 @@ public class PulsarClusterMetadataSetup {
     }
 
     private static void initializeCluster(Arguments arguments, int bundleNumberForDefaultNamespace) throws Exception {
-        log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
-                arguments.metadataStoreUrl, arguments.configurationMetadataStore);
+        log.info(
+                "Setting up cluster {} with metadata-store={} configuration-metadata-store={}",
+                arguments.cluster,
+                arguments.metadataStoreUrl,
+                arguments.configurationMetadataStore);
 
         MetadataStoreExtended localStore =
                 initLocalMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
-        MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
-                arguments.zkSessionTimeoutMillis);
+        MetadataStoreExtended configStore =
+                initConfigMetadataStore(arguments.configurationMetadataStore, arguments.zkSessionTimeoutMillis);
 
-        final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
-                .removeIdentifierFromMetadataURL(arguments.metadataStoreUrl);
+        final String metadataStoreUrlNoIdentifer =
+                MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL(arguments.metadataStoreUrl);
         // Format BookKeeper ledger storage metadata
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             ServerConfiguration bkConf = new ServerConfiguration();
@@ -282,8 +303,10 @@ public class PulsarClusterMetadataSetup {
             bkConf.setMetadataServiceUri("metadata-store:" + arguments.metadataStoreUrl);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             // only format if /ledgers doesn't exist
-            if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get()
-                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+            if (!localStore
+                            .exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH)
+                            .get()
+                    && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
         }
@@ -340,15 +363,18 @@ public class PulsarClusterMetadataSetup {
         createTenantIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(), arguments.cluster);
 
         // Create default namespace
-        createNamespaceIfAbsent(resources, NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
-                arguments.cluster, bundleNumberForDefaultNamespace);
+        createNamespaceIfAbsent(
+                resources,
+                NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
+                arguments.cluster,
+                bundleNumberForDefaultNamespace);
 
         // Create system namespace
         createNamespaceIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
 
         // Create transaction coordinator assign partitioned topic
-        createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                arguments.numTransactionCoordinators);
+        createPartitionedTopic(
+                configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, arguments.numTransactionCoordinators);
 
         localStore.close();
         configStore.close();
@@ -356,8 +382,8 @@ public class PulsarClusterMetadataSetup {
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
 
-    static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster) throws IOException,
-            InterruptedException, ExecutionException {
+    static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster)
+            throws IOException, InterruptedException, ExecutionException {
 
         TenantResources tenantResources = resources.getTenantResources();
 
@@ -366,15 +392,18 @@ public class PulsarClusterMetadataSetup {
             tenantResources.createTenant(tenant, publicTenant);
         } else {
             // Update existing public tenant with new cluster
-            tenantResources.updateTenantAsync(tenant, ti -> {
-                ti.getAllowedClusters().add(cluster);
-                return ti;
-            }).get();
+            tenantResources
+                    .updateTenantAsync(tenant, ti -> {
+                        ti.getAllowedClusters().add(cluster);
+                        return ti;
+                    })
+                    .get();
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
-            String cluster, int bundleNumber) throws IOException {
+    static void createNamespaceIfAbsent(
+            PulsarResources resources, NamespaceName namespaceName, String cluster, int bundleNumber)
+            throws IOException {
         NamespaceResources namespaceResources = resources.getNamespaceResources();
 
         if (!namespaceResources.namespaceExists(namespaceName)) {
@@ -387,7 +416,8 @@ public class PulsarClusterMetadataSetup {
             log.info("Namespace {} already exists.", namespaceName);
             var replicaClusterFound = false;
             var policiesOptional = namespaceResources.getPolicies(namespaceName);
-            if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
+            if (policiesOptional.isPresent()
+                    && policiesOptional.get().replication_clusters.contains(cluster)) {
                 replicaClusterFound = true;
             }
             if (!replicaClusterFound) {
@@ -395,14 +425,13 @@ public class PulsarClusterMetadataSetup {
                     policies.replication_clusters.add(cluster);
                     return policies;
                 });
-                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
-                        namespaceName, cluster);
+                log.info("Updated namespace:{} policies. Added the replication cluster:{}", namespaceName, cluster);
             }
         }
     }
 
-    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
-                                               String cluster) throws IOException {
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName, String cluster)
+            throws IOException {
         createNamespaceIfAbsent(resources, namespaceName, cluster, DEFAULT_BUNDLE_NUMBER);
     }
 
@@ -412,8 +441,9 @@ public class PulsarClusterMetadataSetup {
         NamespaceResources.PartitionedTopicResources partitionedTopicResources =
                 resources.getNamespaceResources().getPartitionedTopicResources();
 
-        Optional<PartitionedTopicMetadata> getResult =
-                partitionedTopicResources.getPartitionedTopicMetadataAsync(topicName).get();
+        Optional<PartitionedTopicMetadata> getResult = partitionedTopicResources
+                .getPartitionedTopicMetadataAsync(topicName)
+                .get();
         if (!getResult.isPresent()) {
             partitionedTopicResources.createPartitionedTopic(topicName, new PartitionedTopicMetadata(numPartitions));
         } else {
@@ -421,17 +451,20 @@ public class PulsarClusterMetadataSetup {
 
             // Only update metadata if the partitions should be modified
             if (existsMeta.partitions < numPartitions) {
-                partitionedTopicResources.updatePartitionedTopicAsync(topicName,
-                        __ -> new PartitionedTopicMetadata(numPartitions)).get();
+                partitionedTopicResources
+                        .updatePartitionedTopicAsync(topicName, __ -> new PartitionedTopicMetadata(numPartitions))
+                        .get();
             }
         }
     }
 
     public static MetadataStoreExtended initLocalMetadataStore(String connection, int sessionTimeout) throws Exception {
-        MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeout)
-                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
-                .build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                connection,
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(sessionTimeout)
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .build());
         if (store instanceof MetadataStoreLifecycle) {
             ((MetadataStoreLifecycle) store).initializeCluster().get();
         }
@@ -440,10 +473,12 @@ public class PulsarClusterMetadataSetup {
 
     public static MetadataStoreExtended initConfigMetadataStore(String connection, int sessionTimeout)
             throws Exception {
-        MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeout)
-                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                .build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                connection,
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(sessionTimeout)
+                        .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                        .build());
         if (store instanceof MetadataStoreLifecycle) {
             ((MetadataStoreLifecycle) store).initializeCluster().get();
         }

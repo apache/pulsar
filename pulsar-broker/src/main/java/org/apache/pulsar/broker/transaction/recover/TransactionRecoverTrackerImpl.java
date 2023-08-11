@@ -31,7 +31,6 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
-
 /**
  * The transaction recover tracker implementation {@link TransactionRecoverTracker}.
  */
@@ -76,8 +75,10 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
      */
     private final Set<Long> abortingTransactions;
 
-    public TransactionRecoverTrackerImpl(TransactionMetadataStoreService transactionMetadataStoreService,
-                                  TransactionTimeoutTracker timeoutTracker, long tcId) {
+    public TransactionRecoverTrackerImpl(
+            TransactionMetadataStoreService transactionMetadataStoreService,
+            TransactionTimeoutTracker timeoutTracker,
+            long tcId) {
         this.tcId = tcId;
         this.transactionMetadataStoreService = transactionMetadataStoreService;
         this.openTransactions = new HashMap<>();
@@ -122,12 +123,10 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
 
     @Override
     public void handleCommittingAndAbortingTransaction() {
-        committingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE,
-                        false));
+        committingTransactions.forEach(
+                k -> transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE, false));
 
-        abortingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE,
-                        false));
+        abortingTransactions.forEach(
+                k -> transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE, false));
     }
 }

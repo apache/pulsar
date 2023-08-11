@@ -37,11 +37,12 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     public NamespaceBundle(NamespaceName nsname, Range<Long> keyRange, NamespaceBundleFactory factory) {
         this.nsname = Objects.requireNonNull(nsname);
         this.keyRange = Objects.requireNonNull(keyRange);
-        checkArgument(this.keyRange.lowerBoundType().equals(BoundType.CLOSED),
+        checkArgument(
+                this.keyRange.lowerBoundType().equals(BoundType.CLOSED),
                 "Invalid hash range. Lower Endpoint has to be inclusive");
         checkArgument(
                 (this.keyRange.upperEndpoint().equals(NamespaceBundles.FULL_UPPER_BOUND)
-                        && this.keyRange.upperBoundType().equals(BoundType.CLOSED))
+                                && this.keyRange.upperBoundType().equals(BoundType.CLOSED))
                         || (!this.keyRange.upperEndpoint().equals(NamespaceBundles.FULL_UPPER_BOUND)
                                 && this.keyRange.upperBoundType().equals(BoundType.OPEN)),
                 "Invalid hash range. Upper Endpoint should be exclusive unless it is 0xffffffff");
@@ -78,7 +79,8 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
              * not connected at all, which is a OK case for our comparison. <code>checkState</code> here is to ensure
              * that the two ranges we are comparing don't have overlaps.
              */
-            checkState(this.keyRange.intersection(other.keyRange).isEmpty(),
+            checkState(
+                    this.keyRange.intersection(other.keyRange).isEmpty(),
                     "Can't compare two key ranges with non-empty intersection set");
         } catch (IllegalArgumentException iae) {
             // OK if two ranges are not connected at all
@@ -93,9 +95,12 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
 
     @Override
     public int hashCode() {
-        return Objects.hash(nsname,
-                keyRange.lowerEndpoint(), keyRange.lowerBoundType(),
-                keyRange.upperEndpoint(), keyRange.upperBoundType());
+        return Objects.hash(
+                nsname,
+                keyRange.lowerEndpoint(),
+                keyRange.lowerBoundType(),
+                keyRange.upperEndpoint(),
+                keyRange.upperBoundType());
     }
 
     @Override

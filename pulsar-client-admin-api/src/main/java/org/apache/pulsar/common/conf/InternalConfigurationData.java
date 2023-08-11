@@ -29,23 +29,27 @@ public class InternalConfigurationData {
 
     @Deprecated
     private String zookeeperServers;
+
     @Deprecated
     private String configurationStoreServers;
+
     private String metadataStoreUrl;
     private String configurationMetadataStoreUrl;
+
     @Deprecated
     private String ledgersRootPath;
+
     private String bookkeeperMetadataServiceUri;
     private String stateStorageServiceUrl;
 
-    public InternalConfigurationData() {
-    }
+    public InternalConfigurationData() {}
 
-    public InternalConfigurationData(String zookeeperServers,
-                                     String configurationMetadataStoreUrl,
-                                     String ledgersRootPath,
-                                     String bookkeeperMetadataServiceUri,
-                                     String stateStorageServiceUrl) {
+    public InternalConfigurationData(
+            String zookeeperServers,
+            String configurationMetadataStoreUrl,
+            String ledgersRootPath,
+            String bookkeeperMetadataServiceUri,
+            String stateStorageServiceUrl) {
         this.metadataStoreUrl = zookeeperServers;
         this.zookeeperServers = zookeeperServers;
         this.configurationMetadataStoreUrl = configurationMetadataStoreUrl;
@@ -112,19 +116,19 @@ public class InternalConfigurationData {
         }
         InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(metadataStoreUrl, other.metadataStoreUrl)
-            && Objects.equals(configurationMetadataStoreUrl, other.configurationMetadataStoreUrl)
-            && Objects.equals(ledgersRootPath, other.ledgersRootPath)
-            && Objects.equals(bookkeeperMetadataServiceUri, other.bookkeeperMetadataServiceUri)
-            && Objects.equals(stateStorageServiceUrl, other.stateStorageServiceUrl);
+                && Objects.equals(configurationMetadataStoreUrl, other.configurationMetadataStoreUrl)
+                && Objects.equals(ledgersRootPath, other.ledgersRootPath)
+                && Objects.equals(bookkeeperMetadataServiceUri, other.bookkeeperMetadataServiceUri)
+                && Objects.equals(stateStorageServiceUrl, other.stateStorageServiceUrl);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(metadataStoreUrl,
+        return Objects.hash(
+                metadataStoreUrl,
                 configurationMetadataStoreUrl,
                 ledgersRootPath,
                 bookkeeperMetadataServiceUri,
                 stateStorageServiceUrl);
     }
-
 }

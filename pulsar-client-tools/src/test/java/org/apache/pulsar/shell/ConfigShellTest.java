@@ -56,8 +56,9 @@ public class ConfigShellTest {
         doNothing().when(pulsarShell).reload(any());
         final Path tempJson = Files.createTempFile("pulsar-shell", ".json");
 
-        when(pulsarShell.getConfigStore()).thenReturn(
-                new FileConfigStore(tempJson.toFile(),
+        when(pulsarShell.getConfigStore())
+                .thenReturn(new FileConfigStore(
+                        tempJson.toFile(),
                         new ConfigStore.ConfigEntry(ConfigStore.DEFAULT_CONFIG, "#comment\ndefault-config=true")));
         configShell = new ConfigShell(pulsarShell, ConfigStore.DEFAULT_CONFIG);
         configShell.setupState(new Properties());
@@ -88,25 +89,27 @@ public class ConfigShellTest {
 
     @Test
     public void testDefault() throws Exception {
-        assertTrue(runCommand(new String[]{"list"}));
+        assertTrue(runCommand(new String[] {"list"}));
         assertEquals(output, Arrays.asList("default (*)"));
         output.clear();
-        assertTrue(runCommand(new String[]{"view", "default"}));
+        assertTrue(runCommand(new String[] {"view", "default"}));
         assertEquals(output.get(0), "default-config=true\n");
         output.clear();
 
         final Path newClientConf = Files.createTempFile("client", ".conf");
-        assertFalse(runCommand(new String[]{"create", "default",
-                "--file", newClientConf.toFile().getAbsolutePath()}));
+        assertFalse(runCommand(new String[] {
+            "create", "default", "--file", newClientConf.toFile().getAbsolutePath()
+        }));
         assertEquals(output, Arrays.asList("Config 'default' already exists."));
         output.clear();
 
-        assertFalse(runCommand(new String[]{"update", "default",
-                "--file", newClientConf.toFile().getAbsolutePath()}));
+        assertFalse(runCommand(new String[] {
+            "update", "default", "--file", newClientConf.toFile().getAbsolutePath()
+        }));
         assertEquals(output, Arrays.asList("'default' can't be updated."));
         output.clear();
 
-        assertFalse(runCommand(new String[]{"delete", "default"}));
+        assertFalse(runCommand(new String[] {"delete", "default"}));
         assertEquals(output, Arrays.asList("'default' can't be deleted."));
     }
 
@@ -114,45 +117,49 @@ public class ConfigShellTest {
     public void test() throws Exception {
         final Path newClientConf = Files.createTempFile("client", ".conf");
 
-        final byte[] content = ("webServiceUrl=http://localhost:8081/\n" +
-                "brokerServiceUrl=pulsar://localhost:6651/\n").getBytes(StandardCharsets.UTF_8);
+        final byte[] content = ("webServiceUrl=http://localhost:8081/\n"
+                        + "brokerServiceUrl=pulsar://localhost:6651/\n")
+                .getBytes(StandardCharsets.UTF_8);
         Files.write(newClientConf, content);
-        assertTrue(runCommand(new String[]{"create", "myclient",
-                "--file", newClientConf.toFile().getAbsolutePath()}));
+        assertTrue(runCommand(new String[] {
+            "create", "myclient", "--file", newClientConf.toFile().getAbsolutePath()
+        }));
         assertTrue(output.isEmpty());
         output.clear();
 
         assertNull(pulsarShell.getConfigStore().getLastUsed());
 
-        assertTrue(runCommand(new String[]{"use", "myclient"}));
+        assertTrue(runCommand(new String[] {"use", "myclient"}));
         assertTrue(output.isEmpty());
         output.clear();
-        assertEquals(pulsarShell.getConfigStore().getLastUsed(), pulsarShell.getConfigStore()
-                .getConfig("myclient"));
+        assertEquals(
+                pulsarShell.getConfigStore().getLastUsed(),
+                pulsarShell.getConfigStore().getConfig("myclient"));
 
         verify(pulsarShell).reload(any());
 
-        assertTrue(runCommand(new String[]{"list"}));
+        assertTrue(runCommand(new String[] {"list"}));
         assertEquals(output, Arrays.asList("default", "myclient (*)"));
         output.clear();
 
-        assertFalse(runCommand(new String[]{"delete", "myclient"}));
+        assertFalse(runCommand(new String[] {"delete", "myclient"}));
         assertEquals(output, Arrays.asList("'myclient' is currently used and it can't be deleted."));
         output.clear();
 
-        assertTrue(runCommand(new String[]{"update", "myclient",
-                "--file", newClientConf.toFile().getAbsolutePath()}));
+        assertTrue(runCommand(new String[] {
+            "update", "myclient", "--file", newClientConf.toFile().getAbsolutePath()
+        }));
         assertTrue(output.isEmpty());
         verify(pulsarShell, times(2)).reload(any());
 
-        assertTrue(runCommand(new String[]{"clone", "myclient",
-                "--name", "myclient-copied"}));
+        assertTrue(runCommand(new String[] {"clone", "myclient", "--name", "myclient-copied"}));
         assertTrue(output.isEmpty());
         verify(pulsarShell, times(2)).reload(any());
 
-        assertTrue(runCommand(new String[]{"view", "myclient-copied"}));
-        assertEquals(output.get(0), "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
-                "=pulsar://localhost:6651/\n");
+        assertTrue(runCommand(new String[] {"view", "myclient-copied"}));
+        assertEquals(
+                output.get(0),
+                "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" + "=pulsar://localhost:6651/\n");
         output.clear();
     }
 
@@ -160,64 +167,66 @@ public class ConfigShellTest {
     public void testSetGetProperty() throws Exception {
         final Path newClientConf = Files.createTempFile("client", ".conf");
 
-        final byte[] content = ("webServiceUrl=http://localhost:8081/\n" +
-                "brokerServiceUrl=pulsar://localhost:6651/\n").getBytes(StandardCharsets.UTF_8);
+        final byte[] content = ("webServiceUrl=http://localhost:8081/\n"
+                        + "brokerServiceUrl=pulsar://localhost:6651/\n")
+                .getBytes(StandardCharsets.UTF_8);
         Files.write(newClientConf, content);
-        assertTrue(runCommand(new String[]{"create", "myclient",
-                "--file", newClientConf.toFile().getAbsolutePath()}));
+        assertTrue(runCommand(new String[] {
+            "create", "myclient", "--file", newClientConf.toFile().getAbsolutePath()
+        }));
         assertTrue(output.isEmpty());
         output.clear();
 
-        assertTrue(runCommand(new String[]{"use", "myclient"}));
+        assertTrue(runCommand(new String[] {"use", "myclient"}));
         assertTrue(output.isEmpty());
         output.clear();
 
-        assertTrue(runCommand(new String[]{"get-property", "-p", "webServiceUrl", "myclient"}));
+        assertTrue(runCommand(new String[] {"get-property", "-p", "webServiceUrl", "myclient"}));
         assertEquals(output.get(0), "http://localhost:8081/");
         output.clear();
 
-        assertTrue(runCommand(new String[]{"set-property", "-p", "newConf",
-                "-v", "myValue", "myclient"}));
+        assertTrue(runCommand(new String[] {"set-property", "-p", "newConf", "-v", "myValue", "myclient"}));
         verify(pulsarShell, times(2)).reload(any());
         output.clear();
 
-        assertTrue(runCommand(new String[]{"get-property", "-p", "newConf", "myclient"}));
+        assertTrue(runCommand(new String[] {"get-property", "-p", "newConf", "myclient"}));
         assertEquals(output.get(0), "myValue");
         output.clear();
 
-        assertTrue(runCommand(new String[]{"view", "myclient"}));
-        assertEquals(output.get(0), "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
-                "=pulsar://localhost:6651/\nnewConf=myValue\n");
+        assertTrue(runCommand(new String[] {"view", "myclient"}));
+        assertEquals(
+                output.get(0),
+                "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl"
+                        + "=pulsar://localhost:6651/\nnewConf=myValue\n");
         output.clear();
 
-        assertTrue(runCommand(new String[]{"set-property", "-p", "newConf",
-                "-v", "myValue2", "myclient"}));
+        assertTrue(runCommand(new String[] {"set-property", "-p", "newConf", "-v", "myValue2", "myclient"}));
         verify(pulsarShell, times(3)).reload(any());
         output.clear();
 
-        assertTrue(runCommand(new String[]{"get-property", "-p", "newConf", "myclient"}));
+        assertTrue(runCommand(new String[] {"get-property", "-p", "newConf", "myclient"}));
         assertEquals(output.get(0), "myValue2");
         output.clear();
 
-
-        assertTrue(runCommand(new String[]{"view", "myclient"}));
-        assertEquals(output.get(0), "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
-                "=pulsar://localhost:6651/\nnewConf=myValue2\n");
+        assertTrue(runCommand(new String[] {"view", "myclient"}));
+        assertEquals(
+                output.get(0),
+                "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl"
+                        + "=pulsar://localhost:6651/\nnewConf=myValue2\n");
         output.clear();
 
-        assertTrue(runCommand(new String[]{"set-property", "-p", "newConf",
-                "-v", "", "myclient"}));
+        assertTrue(runCommand(new String[] {"set-property", "-p", "newConf", "-v", "", "myclient"}));
         verify(pulsarShell, times(4)).reload(any());
         output.clear();
-        assertTrue(runCommand(new String[]{"view", "myclient"}));
-        assertEquals(output.get(0), "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
-                "=pulsar://localhost:6651/\nnewConf=\n");
+        assertTrue(runCommand(new String[] {"view", "myclient"}));
+        assertEquals(
+                output.get(0),
+                "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" + "=pulsar://localhost:6651/\nnewConf=\n");
         output.clear();
 
-        assertTrue(runCommand(new String[]{"get-property", "-p", "newConf", "myclient"}));
+        assertTrue(runCommand(new String[] {"get-property", "-p", "newConf", "myclient"}));
         assertTrue(output.isEmpty());
         output.clear();
-
     }
 
     private boolean runCommand(String[] x) throws Exception {
@@ -231,19 +240,23 @@ public class ConfigShellTest {
 
     @Test
     public void testResolveLocalFile() throws Exception {
-        assertEquals(ConfigShell.resolveLocalFile("myfile").getAbsolutePath(),
-                new File("myfile").getAbsolutePath());
-        assertEquals(ConfigShell.resolveLocalFile("mydir/myfile.txt").getAbsolutePath(),
+        assertEquals(ConfigShell.resolveLocalFile("myfile").getAbsolutePath(), new File("myfile").getAbsolutePath());
+        assertEquals(
+                ConfigShell.resolveLocalFile("mydir/myfile.txt").getAbsolutePath(),
                 new File("mydir/myfile.txt").getAbsolutePath());
-        assertEquals(ConfigShell.resolveLocalFile("myfile", "current").getAbsolutePath(),
+        assertEquals(
+                ConfigShell.resolveLocalFile("myfile", "current").getAbsolutePath(),
                 new File("current/myfile").getAbsolutePath());
-        assertEquals(ConfigShell.resolveLocalFile("mydir/myfile.txt", "current").getAbsolutePath(),
+        assertEquals(
+                ConfigShell.resolveLocalFile("mydir/myfile.txt", "current").getAbsolutePath(),
                 new File("current/mydir/myfile.txt").getAbsolutePath());
 
-        assertEquals(ConfigShell.resolveLocalFile("/tmp/absolute.txt").getAbsolutePath(),
+        assertEquals(
+                ConfigShell.resolveLocalFile("/tmp/absolute.txt").getAbsolutePath(),
                 new File("/tmp/absolute.txt").getAbsolutePath());
 
-        assertEquals(ConfigShell.resolveLocalFile("/tmp/absolute.txt", "current").getAbsolutePath(),
+        assertEquals(
+                ConfigShell.resolveLocalFile("/tmp/absolute.txt", "current").getAbsolutePath(),
                 new File("/tmp/absolute.txt").getAbsolutePath());
     }
 }

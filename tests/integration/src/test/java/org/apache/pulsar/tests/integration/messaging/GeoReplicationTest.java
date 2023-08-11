@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -32,11 +37,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Geo replication test.
@@ -50,13 +50,13 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
     }
 
     @Override
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder[] beforeSetupCluster (
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder[] beforeSetupCluster(
             PulsarClusterSpec.PulsarClusterSpecBuilder... specBuilder) {
         if (specBuilder != null) {
             Map<String, String> brokerEnvs = new HashMap<>();
             brokerEnvs.put("systemTopicEnabled", "false");
             brokerEnvs.put("topicLevelPoliciesEnabled", "false");
-            for(PulsarClusterSpec.PulsarClusterSpecBuilder builder : specBuilder) {
+            for (PulsarClusterSpec.PulsarClusterSpecBuilder builder : specBuilder) {
                 builder.brokerEnvs(brokerEnvs);
             }
         }
@@ -101,17 +101,12 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
                 .serviceUrl(getGeoCluster().getClusters()[1].getPlainTextServiceUrl())
                 .build();
 
-        @Cleanup
-        Producer<byte[]> p = client1.newProducer()
-                .topic(topic)
-                .create();
+        @Cleanup Producer<byte[]> p = client1.newProducer().topic(topic).create();
         log.info("Successfully create producer in cluster {} for topic {}.", cluster1, topic);
 
         @Cleanup
-        Consumer<byte[]> c = client2.newConsumer()
-                .topic(topic)
-                .subscriptionName("geo-sub")
-                .subscribe();
+        Consumer<byte[]> c =
+                client2.newConsumer().topic(topic).subscriptionName("geo-sub").subscribe();
         log.info("Successfully create consumer in cluster {} for topic {}.", cluster2, topic);
 
         for (int i = 0; i < 10; i++) {

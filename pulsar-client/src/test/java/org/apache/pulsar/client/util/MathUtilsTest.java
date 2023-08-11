@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.util;
 
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

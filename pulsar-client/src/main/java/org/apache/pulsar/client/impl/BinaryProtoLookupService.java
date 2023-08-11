@@ -56,19 +56,14 @@ public class BinaryProtoLookupService implements LookupService {
     private final String listenerName;
     private final int maxLookupRedirects;
 
-    public BinaryProtoLookupService(PulsarClientImpl client,
-                                    String serviceUrl,
-                                    boolean useTls,
-                                    ExecutorService executor)
+    public BinaryProtoLookupService(
+            PulsarClientImpl client, String serviceUrl, boolean useTls, ExecutorService executor)
             throws PulsarClientException {
         this(client, serviceUrl, null, useTls, executor);
     }
 
-    public BinaryProtoLookupService(PulsarClientImpl client,
-                                    String serviceUrl,
-                                    String listenerName,
-                                    boolean useTls,
-                                    ExecutorService executor)
+    public BinaryProtoLookupService(
+            PulsarClientImpl client, String serviceUrl, String listenerName, boolean useTls, ExecutorService executor)
             throws PulsarClientException {
         this.client = client;
         this.useTls = useTls;
@@ -103,8 +98,8 @@ public class BinaryProtoLookupService implements LookupService {
         return getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
     }
 
-    private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
-            boolean authoritative, TopicName topicName, final int redirectCount) {
+    private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(
+            InetSocketAddress socketAddress, boolean authoritative, TopicName topicName, final int redirectCount) {
         CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> addressFuture = new CompletableFuture<>();
 
         if (maxLookupRedirects > 0 && redirectCount > maxLookupRedirects) {
@@ -113,108 +108,122 @@ public class BinaryProtoLookupService implements LookupService {
             return addressFuture;
         }
 
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId);
-            clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    // lookup failed
-                    log.warn("[{}] failed to send lookup request : {}", topicName, t.getMessage());
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Lookup response exception: {}", topicName, t);
-                    }
+        client.getCnxPool()
+                .getConnection(socketAddress)
+                .thenAccept(clientCnx -> {
+                    long requestId = client.newRequestId();
+                    ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId);
+                    clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
+                        if (t != null) {
+                            // lookup failed
+                            log.warn("[{}] failed to send lookup request : {}", topicName, t.getMessage());
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Lookup response exception: {}", topicName, t);
+                            }
 
-                    addressFuture.completeExceptionally(t);
-                } else {
-                    URI uri = null;
-                    try {
-                        // (1) build response broker-address
-                        if (useTls) {
-                            uri = new URI(r.brokerUrlTls);
+                            addressFuture.completeExceptionally(t);
                         } else {
-                            String serviceUrl = r.brokerUrl;
-                            uri = new URI(serviceUrl);
-                        }
+                            URI uri = null;
+                            try {
+                                // (1) build response broker-address
+                                if (useTls) {
+                                    uri = new URI(r.brokerUrlTls);
+                                } else {
+                                    String serviceUrl = r.brokerUrl;
+                                    uri = new URI(serviceUrl);
+                                }
 
-                        InetSocketAddress responseBrokerAddress =
-                                InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+                                InetSocketAddress responseBrokerAddress =
+                                        InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
 
-                        // (2) redirect to given address if response is: redirect
-                        if (r.redirect) {
-                            findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1)
-                                .thenAccept(addressFuture::complete)
-                                .exceptionally((lookupException) -> {
-                                    Throwable cause = FutureUtil.unwrapCompletionException(lookupException);
-                                    // lookup failed
-                                    if (redirectCount > 0) {
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("[{}] lookup redirection failed ({}) : {}", topicName,
-                                                    redirectCount, cause.getMessage());
-                                        }
+                                // (2) redirect to given address if response is: redirect
+                                if (r.redirect) {
+                                    findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1)
+                                            .thenAccept(addressFuture::complete)
+                                            .exceptionally((lookupException) -> {
+                                                Throwable cause = FutureUtil.unwrapCompletionException(lookupException);
+                                                // lookup failed
+                                                if (redirectCount > 0) {
+                                                    if (log.isDebugEnabled()) {
+                                                        log.debug(
+                                                                "[{}] lookup redirection failed ({}) : {}",
+                                                                topicName,
+                                                                redirectCount,
+                                                                cause.getMessage());
+                                                    }
+                                                } else {
+                                                    log.warn(
+                                                            "[{}] lookup failed : {}",
+                                                            topicName,
+                                                            cause.getMessage(),
+                                                            cause);
+                                                }
+                                                addressFuture.completeExceptionally(cause);
+                                                return null;
+                                            });
+                                } else {
+                                    // (3) received correct broker to connect
+                                    if (r.proxyThroughServiceUrl) {
+                                        // Connect through proxy
+                                        addressFuture.complete(Pair.of(responseBrokerAddress, socketAddress));
                                     } else {
-                                        log.warn("[{}] lookup failed : {}", topicName,
-                                                cause.getMessage(), cause);
+                                        // Normal result with direct connection to broker
+                                        addressFuture.complete(Pair.of(responseBrokerAddress, responseBrokerAddress));
                                     }
-                                    addressFuture.completeExceptionally(cause);
-                                    return null;
-                            });
-                        } else {
-                            // (3) received correct broker to connect
-                            if (r.proxyThroughServiceUrl) {
-                                // Connect through proxy
-                                addressFuture.complete(Pair.of(responseBrokerAddress, socketAddress));
-                            } else {
-                                // Normal result with direct connection to broker
-                                addressFuture.complete(Pair.of(responseBrokerAddress, responseBrokerAddress));
+                                }
+
+                            } catch (Exception parseUrlException) {
+                                // Failed to parse url
+                                log.warn(
+                                        "[{}] invalid url {} : {}",
+                                        topicName,
+                                        uri,
+                                        parseUrlException.getMessage(),
+                                        parseUrlException);
+                                addressFuture.completeExceptionally(parseUrlException);
                             }
                         }
-
-                    } catch (Exception parseUrlException) {
-                        // Failed to parse url
-                        log.warn("[{}] invalid url {} : {}", topicName, uri, parseUrlException.getMessage(),
-                            parseUrlException);
-                        addressFuture.completeExceptionally(parseUrlException);
-                    }
-                }
-                client.getCnxPool().releaseConnection(clientCnx);
-            });
-        }).exceptionally(connectionException -> {
-            addressFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
-            return null;
-        });
+                        client.getCnxPool().releaseConnection(clientCnx);
+                    });
+                })
+                .exceptionally(connectionException -> {
+                    addressFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
+                    return null;
+                });
         return addressFuture;
     }
 
-    private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
-            TopicName topicName) {
+    private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
+            InetSocketAddress socketAddress, TopicName topicName) {
 
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
-            clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName,
-                        t.getMessage(), t);
-                    partitionFuture.completeExceptionally(t);
-                } else {
-                    try {
-                        partitionFuture.complete(new PartitionedTopicMetadata(r.partitions));
-                    } catch (Exception e) {
-                        partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
-                            format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s,"
-                                            + " error message %s",
-                                r.redirect, topicName, r.partitions,
-                                e.getMessage())));
-                    }
-                }
-                client.getCnxPool().releaseConnection(clientCnx);
-            });
-        }).exceptionally(connectionException -> {
-            partitionFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
-            return null;
-        });
+        client.getCnxPool()
+                .getConnection(socketAddress)
+                .thenAccept(clientCnx -> {
+                    long requestId = client.newRequestId();
+                    ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
+                    clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
+                        if (t != null) {
+                            log.warn("[{}] failed to get Partitioned metadata : {}", topicName, t.getMessage(), t);
+                            partitionFuture.completeExceptionally(t);
+                        } else {
+                            try {
+                                partitionFuture.complete(new PartitionedTopicMetadata(r.partitions));
+                            } catch (Exception e) {
+                                partitionFuture.completeExceptionally(new PulsarClientException.LookupException(format(
+                                        "Failed to parse partition-response redirect=%s, topic=%s, partitions with %s,"
+                                                + " error message %s",
+                                        r.redirect, topicName, r.partitions, e.getMessage())));
+                            }
+                        }
+                        client.getCnxPool().releaseConnection(clientCnx);
+                    });
+                })
+                .exceptionally(connectionException -> {
+                    partitionFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
+                    return null;
+                });
 
         return partitionFuture;
     }
@@ -224,7 +233,6 @@ public class BinaryProtoLookupService implements LookupService {
         return getSchema(topicName, null);
     }
 
-
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
         CompletableFuture<Optional<SchemaInfo>> schemaFuture = new CompletableFuture<>();
@@ -233,24 +241,26 @@ public class BinaryProtoLookupService implements LookupService {
             return schemaFuture;
         }
         InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
-                Optional.ofNullable(BytesSchemaVersion.of(version)));
-            clientCnx.sendGetSchema(request, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    log.warn("[{}] failed to get schema : {}", topicName,
-                        t.getMessage(), t);
-                    schemaFuture.completeExceptionally(t);
-                } else {
-                    schemaFuture.complete(r);
-                }
-                client.getCnxPool().releaseConnection(clientCnx);
-            });
-        }).exceptionally(ex -> {
-            schemaFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
-            return null;
-        });
+        client.getCnxPool()
+                .getConnection(socketAddress)
+                .thenAccept(clientCnx -> {
+                    long requestId = client.newRequestId();
+                    ByteBuf request = Commands.newGetSchema(
+                            requestId, topicName.toString(), Optional.ofNullable(BytesSchemaVersion.of(version)));
+                    clientCnx.sendGetSchema(request, requestId).whenComplete((r, t) -> {
+                        if (t != null) {
+                            log.warn("[{}] failed to get schema : {}", topicName, t.getMessage(), t);
+                            schemaFuture.completeExceptionally(t);
+                        } else {
+                            schemaFuture.complete(r);
+                        }
+                        client.getCnxPool().releaseConnection(clientCnx);
+                    });
+                })
+                .exceptionally(ex -> {
+                    schemaFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
+                    return null;
+                });
 
         return schemaFuture;
     }
@@ -265,10 +275,8 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace,
-                                                                                  Mode mode,
-                                                                                  String topicsPattern,
-                                                                                  String topicsHash) {
+    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(
+            NamespaceName namespace, Mode mode, String topicsPattern, String topicsHash) {
         CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
@@ -277,67 +285,90 @@ public class BinaryProtoLookupService implements LookupService {
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMax(1, TimeUnit.MINUTES)
                 .create();
-        getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode,
-                topicsPattern, topicsHash);
+        getTopicsUnderNamespace(
+                serviceNameResolver.resolveHost(),
+                namespace,
+                backoff,
+                opTimeoutMs,
+                topicsFuture,
+                mode,
+                topicsPattern,
+                topicsHash);
         return topicsFuture;
     }
 
-    private void getTopicsUnderNamespace(InetSocketAddress socketAddress,
-                                         NamespaceName namespace,
-                                         Backoff backoff,
-                                         AtomicLong remainingTime,
-                                         CompletableFuture<GetTopicsResult> getTopicsResultFuture,
-                                         Mode mode,
-                                         String topicsPattern,
-                                         String topicsHash) {
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
-                namespace.toString(), requestId, mode, topicsPattern, topicsHash);
+    private void getTopicsUnderNamespace(
+            InetSocketAddress socketAddress,
+            NamespaceName namespace,
+            Backoff backoff,
+            AtomicLong remainingTime,
+            CompletableFuture<GetTopicsResult> getTopicsResultFuture,
+            Mode mode,
+            String topicsPattern,
+            String topicsHash) {
+        client.getCnxPool()
+                .getConnection(socketAddress)
+                .thenAccept(clientCnx -> {
+                    long requestId = client.newRequestId();
+                    ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
+                            namespace.toString(), requestId, mode, topicsPattern, topicsHash);
 
-            clientCnx.newGetTopicsOfNamespace(request, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    getTopicsResultFuture.completeExceptionally(t);
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[namespace: {}] Success get topics list in request: {}",
-                                namespace, requestId);
-                    }
-                    // do not keep partition part of topic name
-                    List<String> result = new ArrayList<>();
-                    r.getTopics().forEach(topic -> {
-                        String filtered = TopicName.get(topic).getPartitionedTopicName();
-                        if (!result.contains(filtered)) {
-                            result.add(filtered);
+                    clientCnx.newGetTopicsOfNamespace(request, requestId).whenComplete((r, t) -> {
+                        if (t != null) {
+                            getTopicsResultFuture.completeExceptionally(t);
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "[namespace: {}] Success get topics list in request: {}", namespace, requestId);
+                            }
+                            // do not keep partition part of topic name
+                            List<String> result = new ArrayList<>();
+                            r.getTopics().forEach(topic -> {
+                                String filtered = TopicName.get(topic).getPartitionedTopicName();
+                                if (!result.contains(filtered)) {
+                                    result.add(filtered);
+                                }
+                            });
+
+                            getTopicsResultFuture.complete(
+                                    new GetTopicsResult(result, r.getTopicsHash(), r.isFiltered(), r.isChanged()));
                         }
+                        client.getCnxPool().releaseConnection(clientCnx);
                     });
+                })
+                .exceptionally((e) -> {
+                    long nextDelay = Math.min(backoff.next(), remainingTime.get());
+                    if (nextDelay <= 0) {
+                        getTopicsResultFuture.completeExceptionally(new PulsarClientException.TimeoutException(format(
+                                "Could not get topics of namespace %s within configured timeout",
+                                namespace.toString())));
+                        return null;
+                    }
 
-                    getTopicsResultFuture.complete(new GetTopicsResult(result, r.getTopicsHash(),
-                            r.isFiltered(), r.isChanged()));
-                }
-                client.getCnxPool().releaseConnection(clientCnx);
-            });
-        }).exceptionally((e) -> {
-            long nextDelay = Math.min(backoff.next(), remainingTime.get());
-            if (nextDelay <= 0) {
-                getTopicsResultFuture.completeExceptionally(
-                    new PulsarClientException.TimeoutException(
-                        format("Could not get topics of namespace %s within configured timeout",
-                            namespace.toString())));
-                return null;
-            }
-
-            ((ScheduledExecutorService) executor).schedule(() -> {
-                log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
-                                + " {} ms", namespace, nextDelay);
-                remainingTime.addAndGet(-nextDelay);
-                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, getTopicsResultFuture,
-                        mode, topicsPattern, topicsHash);
-            }, nextDelay, TimeUnit.MILLISECONDS);
-            return null;
-        });
+                    ((ScheduledExecutorService) executor)
+                            .schedule(
+                                    () -> {
+                                        log.warn(
+                                                "[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
+                                                        + " {} ms",
+                                                namespace,
+                                                nextDelay);
+                                        remainingTime.addAndGet(-nextDelay);
+                                        getTopicsUnderNamespace(
+                                                socketAddress,
+                                                namespace,
+                                                backoff,
+                                                remainingTime,
+                                                getTopicsResultFuture,
+                                                mode,
+                                                topicsPattern,
+                                                topicsHash);
+                                    },
+                                    nextDelay,
+                                    TimeUnit.MILLISECONDS);
+                    return null;
+                });
     }
-
 
     @Override
     public void close() throws Exception {
@@ -371,7 +402,6 @@ public class BinaryProtoLookupService implements LookupService {
             this.proxyThroughServiceUrl = false;
             this.redirect = false;
         }
-
     }
 
     private static final Logger log = LoggerFactory.getLogger(BinaryProtoLookupService.class);

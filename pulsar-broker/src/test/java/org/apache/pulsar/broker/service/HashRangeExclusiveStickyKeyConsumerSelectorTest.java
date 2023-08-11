@@ -44,8 +44,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
 
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
-        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
-                .setKeySharedMode(KeySharedMode.STICKY);
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
         keySharedMeta1.addHashRange().setStart(0).setEnd(2);
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
@@ -60,8 +59,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         Assert.assertNull(selectedConsumer);
 
         Consumer consumer2 = mock(Consumer.class);
-        KeySharedMeta keySharedMeta2 = new KeySharedMeta()
-                .setKeySharedMode(KeySharedMode.STICKY);
+        KeySharedMeta keySharedMeta2 = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
         keySharedMeta2.addHashRange().setStart(3).setEnd(9);
         when(consumer2.getKeySharedMeta()).thenReturn(keySharedMeta2);
         Assert.assertEquals(consumer2.getKeySharedMeta(), keySharedMeta2);
@@ -93,8 +91,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     public void testEmptyRanges() {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer = mock(Consumer.class);
-        KeySharedMeta keySharedMeta = new KeySharedMeta()
-                .setKeySharedMode(KeySharedMode.STICKY);
+        KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
         when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
         try {
             selector.addConsumer(consumer).get();
@@ -134,11 +131,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         List<Consumer> consumers = new ArrayList<>();
         for (int index = 0; index < consumerName.size(); index++) {
             Consumer consumer = mock(Consumer.class);
-            KeySharedMeta keySharedMeta = new KeySharedMeta()
-                    .setKeySharedMode(KeySharedMode.STICKY);
-            keySharedMeta.addHashRange()
-                    .setStart(range.get(index)[0])
-                    .setEnd(range.get(index)[1]);
+            KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
+            keySharedMeta.addHashRange().setStart(range.get(index)[0]).setEnd(range.get(index)[1]);
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
             when(consumer.consumerName()).thenReturn(consumerName.get(index));
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
@@ -151,7 +145,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         expectedResult.put(consumers.get(1), Collections.singletonList(Range.of(3, 7)));
         expectedResult.put(consumers.get(2), Collections.singletonList(Range.of(9, 12)));
         expectedResult.put(consumers.get(3), Collections.singletonList(Range.of(15, 20)));
-        for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+        for (Map.Entry<Consumer, List<Range>> entry :
+                selector.getConsumerKeyHashRanges().entrySet()) {
             Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
             expectedResult.remove(entry.getKey());
         }
@@ -166,11 +161,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
             Consumer consumer = mock(Consumer.class);
-            KeySharedMeta keySharedMeta = new KeySharedMeta()
-                    .setKeySharedMode(KeySharedMode.STICKY);
-            keySharedMeta.addHashRange()
-                    .setStart(range.get(i)[0])
-                    .setEnd(range.get(i)[1]);
+            KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
+            keySharedMeta.addHashRange().setStart(range.get(i)[0]).setEnd(range.get(i)[1]);
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
             when(consumer.consumerName()).thenReturn(consumerName);
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
@@ -196,8 +188,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         TransportCnx transportCnx = mock(TransportCnx.class);
         when(consumer1.cnx()).thenReturn(transportCnx);
         when(transportCnx.checkConnectionLiveness()).thenReturn(CompletableFuture.completedFuture(null));
-        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
-                .setKeySharedMode(KeySharedMode.STICKY);
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
         keySharedMeta1.addHashRange().setStart(2).setEnd(5);
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
@@ -217,8 +208,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
 
         for (IntRange testRange : testRanges) {
             Consumer consumer = mock(Consumer.class);
-            KeySharedMeta keySharedMeta = new KeySharedMeta()
-                    .setKeySharedMode(KeySharedMode.STICKY);
+            KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
             keySharedMeta.addHashRange().copyFrom(testRange);
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
@@ -239,8 +229,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         TransportCnx transportCnx = mock(TransportCnx.class);
         when(consumer1.cnx()).thenReturn(transportCnx);
         when(transportCnx.checkConnectionLiveness()).thenReturn(CompletableFuture.completedFuture(null));
-        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
-                .setKeySharedMode(KeySharedMode.STICKY);
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
         keySharedMeta1.addHashRange().setStart(2).setEnd(5);
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
@@ -251,18 +240,14 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         testRanges.add(List.of(
                 new IntRange().setStart(2).setEnd(2),
                 new IntRange().setStart(3).setEnd(3),
-                new IntRange().setStart(4).setEnd(5))
-        );
+                new IntRange().setStart(4).setEnd(5)));
         testRanges.add(List.of(
-                new IntRange().setStart(0).setEnd(0),
-                new IntRange().setStart(1).setEnd(2))
-        );
+                new IntRange().setStart(0).setEnd(0), new IntRange().setStart(1).setEnd(2)));
 
         for (List<IntRange> testRange : testRanges) {
             Consumer consumer = mock(Consumer.class);
-            KeySharedMeta keySharedMeta = new KeySharedMeta()
-                    .setKeySharedMode(KeySharedMode.STICKY)
-                    .addAllHashRanges(testRange);
+            KeySharedMeta keySharedMeta =
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY).addAllHashRanges(testRange);
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
             try {

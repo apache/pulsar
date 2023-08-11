@@ -38,5 +38,4 @@ public enum HashingScheme {
      * <a href="https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash</a>
      */
     Murmur3_32Hash
-
 }

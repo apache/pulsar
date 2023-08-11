@@ -59,27 +59,28 @@ public class CompactedTopicImplTest {
 
     @DataProvider(name = "argsForFindStartPointLoop")
     public Object[][] argsForFindStartPointLoop() {
-        return new Object[][]{
-                {0, 100, 0},// first value.
-                {0, 100, 1},// second value.
-                {0, 100, 1003},// not first value.
-                {0, 100, 1015},// value not exists.
-                {3, 40, 50},// less than first value & find in a range.
-                {3, 40, 1002},// first value & find in a range.
-                {3, 40, 1003},// second value & find in a range.
-                {3, 40, 1010},// not first value & find in a range.
-                {3, 40, 1015}// value not exists & find in a range.
+        return new Object[][] {
+            {0, 100, 0}, // first value.
+            {0, 100, 1}, // second value.
+            {0, 100, 1003}, // not first value.
+            {0, 100, 1015}, // value not exists.
+            {3, 40, 50}, // less than first value & find in a range.
+            {3, 40, 1002}, // first value & find in a range.
+            {3, 40, 1003}, // second value & find in a range.
+            {3, 40, 1010}, // not first value & find in a range.
+            {3, 40, 1015} // value not exists & find in a range.
         };
     }
 
-    private static CacheLoader<Long, MessageIdData> mockCacheLoader(long start, long end, final long targetMessageId,
-                                                                    AtomicLong bingoMarker) {
+    private static CacheLoader<Long, MessageIdData> mockCacheLoader(
+            long start, long end, final long targetMessageId, AtomicLong bingoMarker) {
         // Mock ledger.
         final TreeMap<Long, Long> sparseLedger = new TreeMap<>();
         sparseLedger.putAll(ORIGIN_SPARSE_LEDGER.subMap(start, end + 1));
         sparseLedger.put(Long.MAX_VALUE, Long.MAX_VALUE);
 
-        Function<Long, Long> findMessageIdFunc = entryId -> sparseLedger.ceilingEntry(entryId).getValue();
+        Function<Long, Long> findMessageIdFunc =
+                entryId -> sparseLedger.ceilingEntry(entryId).getValue();
 
         // Calculate the correct position.
         for (long i = start; i <= end; i++) {
@@ -104,8 +105,8 @@ public class CompactedTopicImplTest {
     public void testFindStartPointLoop(long start, long end, long targetMessageId) {
         AtomicLong bingoMarker = new AtomicLong();
         // Mock cache.
-        AsyncLoadingCache<Long, MessageIdData> cache = Caffeine.newBuilder()
-                .buildAsync(mockCacheLoader(start, end, targetMessageId, bingoMarker));
+        AsyncLoadingCache<Long, MessageIdData> cache =
+                Caffeine.newBuilder().buildAsync(mockCacheLoader(start, end, targetMessageId, bingoMarker));
         // Do test.
         PositionImpl targetPosition = PositionImpl.get(DEFAULT_LEDGER_ID, targetMessageId);
         CompletableFuture<Long> promise = new CompletableFuture<>();
@@ -124,14 +125,16 @@ public class CompactedTopicImplTest {
         long end = 100;
         long targetMessageId = 1;
         // Mock cache.
-        AsyncLoadingCache<Long, MessageIdData> cache = Caffeine.newBuilder()
-                .buildAsync(mockCacheLoader(start, end, targetMessageId, bingoMarker));
+        AsyncLoadingCache<Long, MessageIdData> cache =
+                Caffeine.newBuilder().buildAsync(mockCacheLoader(start, end, targetMessageId, bingoMarker));
         AtomicInteger invokeCounterOfCacheGet = new AtomicInteger();
         AsyncLoadingCache<Long, MessageIdData> cacheWithCounter = spy(cache);
         doAnswer(invocation -> {
-            invokeCounterOfCacheGet.incrementAndGet();
-            return cache.get((Long) invocation.getArguments()[0]);
-        }).when(cacheWithCounter).get(anyLong());
+                    invokeCounterOfCacheGet.incrementAndGet();
+                    return cache.get((Long) invocation.getArguments()[0]);
+                })
+                .when(cacheWithCounter)
+                .get(anyLong());
         // Because when "findStartPointLoop(...)" is executed, will trigger "cache.get()" three times, including
         // "cache.get(start)", "cache.get(mid)" and "cache.get(end)". Therefore, we can calculate the count of
         // executed "findStartPointLoop".

@@ -20,10 +20,8 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import com.yahoo.athenz.auth.token.RoleToken;
 import com.yahoo.athenz.zpe.ZpeConsts;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
@@ -31,9 +29,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -109,11 +105,13 @@ public class AuthenticationProviderAthenzTest {
                 add("test_role");
             }
         };
-        RoleToken token = new RoleToken.Builder("Z1", "test_provider", roles).principal("test_app").build();
+        RoleToken token = new RoleToken.Builder("Z1", "test_provider", roles)
+                .principal("test_app")
+                .build();
         String privateKey = new String(Files.readAllBytes(Paths.get("./src/test/resources/zts_private.pem")));
         token.sign(privateKey);
-        AuthenticationDataSource authData = new AuthenticationDataCommand(token.getSignedToken(),
-                new InetSocketAddress("localhost", 0), null);
+        AuthenticationDataSource authData =
+                new AuthenticationDataCommand(token.getSignedToken(), new InetSocketAddress("localhost", 0), null);
         assertEquals(provider.authenticate(authData), "test_app");
     }
 
@@ -125,9 +123,11 @@ public class AuthenticationProviderAthenzTest {
                 add("test_role");
             }
         };
-        RoleToken token = new RoleToken.Builder("Z1", "test_provider", roles).principal("test_app").build();
-        AuthenticationDataSource authData = new AuthenticationDataCommand(token.getUnsignedToken(),
-                new InetSocketAddress("localhost", 0), null);
+        RoleToken token = new RoleToken.Builder("Z1", "test_provider", roles)
+                .principal("test_app")
+                .build();
+        AuthenticationDataSource authData =
+                new AuthenticationDataCommand(token.getUnsignedToken(), new InetSocketAddress("localhost", 0), null);
         try {
             provider.authenticate(authData);
             fail("Unsigned token should not be authenticated");
@@ -144,11 +144,13 @@ public class AuthenticationProviderAthenzTest {
                 add("test_role");
             }
         };
-        RoleToken token = new RoleToken.Builder("Z1", "invalid", roles).principal("test_app").build();
+        RoleToken token = new RoleToken.Builder("Z1", "invalid", roles)
+                .principal("test_app")
+                .build();
         String privateKey = new String(Files.readAllBytes(Paths.get("./src/test/resources/zts_private.pem")));
         token.sign(privateKey);
-        AuthenticationDataSource authData = new AuthenticationDataCommand(token.getSignedToken(),
-                new InetSocketAddress("localhost", 0), null);
+        AuthenticationDataSource authData =
+                new AuthenticationDataCommand(token.getSignedToken(), new InetSocketAddress("localhost", 0), null);
         try {
             provider.authenticate(authData);
             fail("Token which has different domain should not be authenticated");

@@ -102,7 +102,6 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         super.internalSetup();
     }
 
-
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
@@ -129,8 +128,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         String topicName4 = "non-persistent://my-property/my-ns/pattern-topic-4-" + key;
         Pattern pattern = Pattern.compile("my-property/my-ns/pattern-topic.*");
 
-        @Cleanup
-        PulsarAdmin admin = buildAdminClient();
+        @Cleanup PulsarAdmin admin = buildAdminClient();
 
         String lookupUrl = pulsar.getBrokerServiceUrl();
 
@@ -138,23 +136,32 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         Authentication authenticationInvalidRole = new ClientAuthentication("test-role");
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication)
-                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
+                .authentication(authentication)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
 
         @Cleanup
-        PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
+        PulsarClient pulsarClientInvalidRole = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
-                .authentication(authenticationInvalidRole).build();
+                .authentication(authenticationInvalidRole)
+                .build();
 
         // 1. create partition and grant permissions
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
-        admin.namespaces().grantPermissionOnNamespace("my-property/my-ns", clientRole,
-                EnumSet.allOf(AuthAction.class));
+        admin.namespaces().grantPermissionOnNamespace("my-property/my-ns", clientRole, EnumSet.allOf(AuthAction.class));
 
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -163,26 +170,35 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         String messagePredicate = "my-message-" + key + "-";
         int totalMessages = 30;
 
-        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient
+                .newProducer()
+                .topic(topicName1)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient
+                .newProducer()
+                .topic(topicName2)
                 .enableBatching(false)
                 .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
                 .create();
-        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient
+                .newProducer()
+                .topic(topicName3)
                 .enableBatching(false)
                 .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
                 .create();
-        Producer<byte[]> producer4 = pulsarClient.newProducer().topic(topicName4)
+        Producer<byte[]> producer4 = pulsarClient
+                .newProducer()
+                .topic(topicName4)
                 .enableBatching(false)
                 .create();
 
         Consumer<byte[]> consumer;
         // Invalid user auth-role will be rejected by authorization service
         try {
-            consumer = pulsarClientInvalidRole.newConsumer()
+            consumer = pulsarClientInvalidRole
+                    .newConsumer()
                     .topicsPattern(pattern)
                     .patternAutoDiscoveryPeriod(2)
                     .subscriptionName(subscriptionName)
@@ -195,7 +211,8 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         // create pattern topics consumer with correct role client
-        consumer = pulsarClient.newConsumer()
+        consumer = pulsarClient
+                .newConsumer()
                 .topicsPattern(pattern)
                 .patternAutoDiscoveryPeriod(2)
                 .subscriptionName(subscriptionName)
@@ -211,15 +228,21 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
+        assertEquals(
+                ((PatternMultiTopicsConsumerImpl<?>) consumer)
+                        .getPartitionedTopics()
+                        .size(),
+                2);
 
         topics.forEach(topic -> log.debug("topic: {}", topic));
         consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
 
-        IntStream.range(0, topics.size()).forEach(index ->
-                assertEquals(consumers.get(index).getTopic(), topics.get(index)));
+        IntStream.range(0, topics.size())
+                .forEach(index -> assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternMultiTopicsConsumerImpl<?>) consumer)
+                .getPartitionedTopics()
+                .forEach(topic -> log.debug("getTopics topic: {}", topic));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -234,7 +257,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -264,64 +287,68 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-                                                          AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> canProduceAsync(
+                TopicName topicName, String role, AuthenticationDataSource authenticationData) {
             return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
         @Override
-        public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                          AuthenticationDataSource authenticationData, String subscription) {
+        public CompletableFuture<Boolean> canConsumeAsync(
+                TopicName topicName, String role, AuthenticationDataSource authenticationData, String subscription) {
             return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
         @Override
-        public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-                                                         AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> canLookupAsync(
+                TopicName topicName, String role, AuthenticationDataSource authenticationData) {
             return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
         @Override
-        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowFunctionOpsAsync(
+                NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSourceOpsAsync(
+                NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSinkOpsAsync(
+                NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions,
-                                                            String role, String authenticationData) {
+        public CompletableFuture<Void> grantPermissionAsync(
+                NamespaceName namespace, Set<AuthAction> actions, String role, String authenticationData) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
-                                                            String authenticationData) {
+        public CompletableFuture<Void> grantPermissionAsync(
+                TopicName topicname, Set<AuthAction> actions, String role, String authenticationData) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                        String subscriptionName, Set<String> roles, String authDataJson) {
+        public CompletableFuture<Void> grantSubscriptionPermissionAsync(
+                NamespaceName namespace, String subscriptionName, Set<String> roles, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                         String subscriptionName, String role, String authDataJson) {
+        public CompletableFuture<Void> revokeSubscriptionPermissionAsync(
+                NamespaceName namespace, String subscriptionName, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> isTenantAdmin(
+                String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
             return CompletableFuture.completedFuture(true);
         }
 
@@ -339,7 +366,10 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Boolean> allowNamespaceOperationAsync(
-                NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+                NamespaceName namespaceName,
+                String role,
+                NamespaceOperation operation,
+                AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
             if (role.equals(superUserRole) || role.equals(clientRole)) {
@@ -353,9 +383,13 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public Boolean allowNamespaceOperation(
-                NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+                NamespaceName namespaceName,
+                String role,
+                NamespaceOperation operation,
+                AuthenticationDataSource authData) {
             try {
-                return allowNamespaceOperationAsync(namespaceName, role, operation, authData).get();
+                return allowNamespaceOperationAsync(namespaceName, role, operation, authData)
+                        .get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new RestException(e);
             }
@@ -379,16 +413,20 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         public Boolean allowTopicOperation(
                 TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
             try {
-                return allowTopicOperationAsync(topicName, role, operation, authData).get();
+                return allowTopicOperationAsync(topicName, role, operation, authData)
+                        .get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new RestException(e);
             }
         }
 
         @Override
-        public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic, String role,
-                                                                         PolicyName policy, PolicyOperation operation,
-                                                                         AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(
+                TopicName topic,
+                String role,
+                PolicyName policy,
+                PolicyOperation operation,
+                AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
             if (role.equals(superUserRole) || role.equals(clientRole)) {
@@ -401,10 +439,15 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         @Override
-        public Boolean allowTopicPolicyOperation(TopicName topicName, String role, PolicyName policy,
-                                                 PolicyOperation operation, AuthenticationDataSource authData) {
+        public Boolean allowTopicPolicyOperation(
+                TopicName topicName,
+                String role,
+                PolicyName policy,
+                PolicyOperation operation,
+                AuthenticationDataSource authData) {
             try {
-                return allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData).get();
+                return allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData)
+                        .get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new RestException(e);
             }
@@ -460,7 +503,6 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         public void start() throws PulsarClientException {
             // No-op
         }
-
     }
 
     public static class TestAuthenticationProvider implements AuthenticationProvider {

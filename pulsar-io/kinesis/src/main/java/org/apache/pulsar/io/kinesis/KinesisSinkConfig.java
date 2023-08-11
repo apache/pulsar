@@ -36,71 +36,65 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
     @FieldDoc(
             required = false,
             defaultValue = "",
-            help = "Kinesis end-point port. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
-    )
+            help =
+                    "Kinesis end-point port. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html")
     private Integer awsEndpointPort;
 
     @FieldDoc(
             required = false,
             defaultValue = "false",
-            help = "Tell to Kinesis Client to skip certificate validation. This is useful while performing local tests, it's recommended to always validate certificates in production environments."
-    )
+            help =
+                    "Tell to Kinesis Client to skip certificate validation. This is useful while performing local tests, it's recommended to always validate certificates in production environments.")
     private Boolean skipCertificateValidation = false;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "ONLY_RAW_PAYLOAD",
-        help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
-            + "  #\n"
-            + "  # The available messages formats are: \n"
-            + "  #\n"
-            + "  # - ONLY_RAW_PAYLOAD \n"
-            + "  #\n"
-            + "  #   Kinesis sink directly publishes pulsar message payload as a message into the configured kinesis stream. \n"
-            + "  #\n"
-            + "  # - FULL_MESSAGE_IN_JSON \n"
-            + "  #\n"
-            + "  #   Kinesis sink creates a json payload with pulsar message payload, properties and encryptionCtx, \n"
-            + "  #   and publishes json payload into the configured kinesis stream.\n"
-            + "  #\n"
-            + "  # - FULL_MESSAGE_IN_FB \n"
-            + "  #\n"
-            + "  #   Kinesis sink creates a flatbuffer serialized paylaod with pulsar message payload, \n"
-            + "  #   properties and encryptionCtx, and publishes flatbuffer payload into the configured kinesis stream."
-            + "  #\n"
-            + "  # - FULL_MESSAGE_IN_JSON_EXPAND_VALUE \n"
-            + "  #\n"
-            + "  #   Kinesis sink sends a JSON structure containing the record topic name, key, payload, properties and event time.\n"
-            + "  #   The record schema is used to convert the value to JSON."
-    )
+            required = false,
+            defaultValue = "ONLY_RAW_PAYLOAD",
+            help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
+                    + "  #\n"
+                    + "  # The available messages formats are: \n"
+                    + "  #\n"
+                    + "  # - ONLY_RAW_PAYLOAD \n"
+                    + "  #\n"
+                    + "  #   Kinesis sink directly publishes pulsar message payload as a message into the configured kinesis stream. \n"
+                    + "  #\n"
+                    + "  # - FULL_MESSAGE_IN_JSON \n"
+                    + "  #\n"
+                    + "  #   Kinesis sink creates a json payload with pulsar message payload, properties and encryptionCtx, \n"
+                    + "  #   and publishes json payload into the configured kinesis stream.\n"
+                    + "  #\n"
+                    + "  # - FULL_MESSAGE_IN_FB \n"
+                    + "  #\n"
+                    + "  #   Kinesis sink creates a flatbuffer serialized paylaod with pulsar message payload, \n"
+                    + "  #   properties and encryptionCtx, and publishes flatbuffer payload into the configured kinesis stream."
+                    + "  #\n"
+                    + "  # - FULL_MESSAGE_IN_JSON_EXPAND_VALUE \n"
+                    + "  #\n"
+                    + "  #   Kinesis sink sends a JSON structure containing the record topic name, key, payload, properties and event time.\n"
+                    + "  #   The record schema is used to convert the value to JSON.")
     private MessageFormat messageFormat = MessageFormat.ONLY_RAW_PAYLOAD; // default : ONLY_RAW_PAYLOAD
 
     @FieldDoc(
             defaultValue = "true",
             help = "Value that indicates that only properties with non-null values are to be included when using "
-                + "MessageFormat.FULL_MESSAGE_IN_JSON_EXPAND_VALUE."
-    )
+                    + "MessageFormat.FULL_MESSAGE_IN_JSON_EXPAND_VALUE.")
     private boolean jsonIncludeNonNulls = true;
 
     @FieldDoc(
             defaultValue = "false",
-            help = "When set to true and the message format is FULL_MESSAGE_IN_JSON_EXPAND_VALUE the output JSON will be flattened."
-    )
+            help =
+                    "When set to true and the message format is FULL_MESSAGE_IN_JSON_EXPAND_VALUE the output JSON will be flattened.")
     private boolean jsonFlatten = false;
 
     @FieldDoc(
-        defaultValue = "false",
-        help = "A flag to tell Pulsar IO to retain ordering when moving messages from Pulsar to Kinesis")
+            defaultValue = "false",
+            help = "A flag to tell Pulsar IO to retain ordering when moving messages from Pulsar to Kinesis")
     private boolean retainOrdering = false;
 
-    @FieldDoc(
-            defaultValue = "100",
-            help = "The initial delay(in milliseconds) between retries.")
+    @FieldDoc(defaultValue = "100", help = "The initial delay(in milliseconds) between retries.")
     private long retryInitialDelayInMillis = 100;
 
-    @FieldDoc(
-            defaultValue = "60000",
-            help = "The maximum delay(in milliseconds) between retries.")
+    @FieldDoc(defaultValue = "60000", help = "The maximum delay(in milliseconds) between retries.")
     private long retryMaxDelayInMillis = 60000;
 
     public static KinesisSinkConfig load(String yamlFile) throws IOException {
@@ -144,5 +138,4 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
          */
         FULL_MESSAGE_IN_JSON_EXPAND_VALUE
     }
-
 }

@@ -100,8 +100,8 @@ class ClientCredentialsFlow extends FlowBase {
         try {
             tr = this.exchanger.exchangeClientCredentials(req);
         } catch (TokenExchangeException | IOException e) {
-            throw new PulsarClientException.AuthenticationException("Unable to obtain an access token: "
-                                                                    + e.getMessage());
+            throw new PulsarClientException.AuthenticationException(
+                    "Unable to obtain an access token: " + e.getMessage());
         }
 
         return tr;
@@ -148,8 +148,8 @@ class ClientCredentialsFlow extends FlowBase {
                             "Unsupported media type or encoding format: " + urlConnection.getContentType());
                 }
                 KeyFile privateKey;
-                try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(),
-                        StandardCharsets.UTF_8)) {
+                try (Reader r =
+                        new InputStreamReader((InputStream) urlConnection.getContent(), StandardCharsets.UTF_8)) {
                     privateKey = KeyFile.fromJson(r);
                 }
                 return privateKey;

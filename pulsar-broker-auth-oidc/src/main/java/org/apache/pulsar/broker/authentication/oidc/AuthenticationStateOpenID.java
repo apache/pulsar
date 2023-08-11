@@ -40,9 +40,7 @@ class AuthenticationStateOpenID implements AuthenticationState {
     private volatile long expiration;
 
     AuthenticationStateOpenID(
-            AuthenticationProviderOpenID provider,
-            SocketAddress remoteAddress,
-            SSLSession sslSession) {
+            AuthenticationProviderOpenID provider, SocketAddress remoteAddress, SSLSession sslSession) {
         this.provider = provider;
         this.remoteAddress = remoteAddress;
         this.sslSession = sslSession;
@@ -67,16 +65,14 @@ class AuthenticationStateOpenID implements AuthenticationState {
     public CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
         final String token = new String(authData.getBytes(), UTF_8);
         this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
-        return provider
-                .authenticateTokenAsync(authenticationDataSource)
-                .thenApply(jwt -> {
-                    this.role = provider.getRole(jwt);
-                    // OIDC requires setting the exp claim, so this should never be null.
-                    // We verify it is not null during token validation.
-                    this.expiration = jwt.getExpiresAt().getTime();
-                    // Single stage authentication, so return null here
-                    return null;
-                });
+        return provider.authenticateTokenAsync(authenticationDataSource).thenApply(jwt -> {
+            this.role = provider.getRole(jwt);
+            // OIDC requires setting the exp claim, so this should never be null.
+            // We verify it is not null during token validation.
+            this.expiration = jwt.getExpiresAt().getTime();
+            // Single stage authentication, so return null here
+            return null;
+        });
     }
 
     @Override

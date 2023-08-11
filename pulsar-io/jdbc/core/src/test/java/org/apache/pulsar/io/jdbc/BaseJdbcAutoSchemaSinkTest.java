@@ -29,119 +29,158 @@ public class BaseJdbcAutoSchemaSinkTest {
 
     @Test
     public void testConvertAvroString() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField("mystring", createFieldAndGetSchema((builder) ->
-                builder.name("field").type().stringType().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                "mystring",
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().stringType().noDefault()));
         Assert.assertEquals(converted, "mystring");
 
-        converted = BaseJdbcAutoSchemaSink.convertAvroField(new Utf8("mystring"), createFieldAndGetSchema((builder) ->
-                builder.name("field").type().stringType().noDefault()));
+        converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                new Utf8("mystring"),
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().stringType().noDefault()));
         Assert.assertEquals(converted, "mystring");
-
     }
 
     @Test
     public void testConvertAvroInt() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MIN_VALUE, createFieldAndGetSchema((builder) ->
-                builder.name("field").type().intType().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                Integer.MIN_VALUE,
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().intType().noDefault()));
         Assert.assertEquals(converted, Integer.MIN_VALUE);
     }
 
     @Test
     public void testConvertAvroLong() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Long.MIN_VALUE, createFieldAndGetSchema((builder) ->
-                builder.name("field").type().longType().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                Long.MIN_VALUE,
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().longType().noDefault()));
         Assert.assertEquals(converted, Long.MIN_VALUE);
     }
 
     @Test
     public void testConvertAvroBoolean() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(true, createFieldAndGetSchema((builder) ->
-                builder.name("field").type().booleanType().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                true,
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().booleanType().noDefault()));
         Assert.assertEquals(converted, true);
     }
 
     @Test
     public void testConvertAvroEnum() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField("e1", createFieldAndGetSchema((builder) ->
-                builder.name("field").type().enumeration("myenum").symbols("e1", "e2").noDefault()));
+        Object converted =
+                BaseJdbcAutoSchemaSink.convertAvroField("e1", createFieldAndGetSchema((builder) -> builder.name("field")
+                        .type()
+                        .enumeration("myenum")
+                        .symbols("e1", "e2")
+                        .noDefault()));
         Assert.assertEquals(converted, "e1");
     }
 
     @Test
     public void testConvertAvroFloat() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Float.MIN_VALUE, createFieldAndGetSchema((builder) ->
-                builder.name("field").type().floatType().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                Float.MIN_VALUE,
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().floatType().noDefault()));
         Assert.assertEquals(converted, Float.MIN_VALUE);
     }
 
     @Test
     public void testConvertAvroDouble() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Double.MIN_VALUE, createFieldAndGetSchema((builder) ->
-                builder.name("field").type().doubleType().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                Double.MIN_VALUE,
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().doubleType().noDefault()));
         Assert.assertEquals(converted, Double.MIN_VALUE);
     }
 
-
     @Test
     public void testConvertAvroUnion() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(Integer.MAX_VALUE, createFieldAndGetSchema((builder) ->
-                builder.name("field").type().unionOf().intType().endUnion().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                Integer.MAX_VALUE, createFieldAndGetSchema((builder) -> builder.name("field")
+                        .type()
+                        .unionOf()
+                        .intType()
+                        .endUnion()
+                        .noDefault()));
         Assert.assertEquals(converted, Integer.MAX_VALUE);
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class,
+    @Test(
+            expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesBytes() {
-        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
-                builder.name("field").type().bytesType().noDefault()));
+        BaseJdbcAutoSchemaSink.convertAvroField(
+                new Object(),
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().bytesType().noDefault()));
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class,
+    @Test(
+            expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesFixed() {
-        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
-                builder.name("field").type().fixed("fix").size(16).noDefault()));
+        BaseJdbcAutoSchemaSink.convertAvroField(
+                new Object(),
+                createFieldAndGetSchema((builder) ->
+                        builder.name("field").type().fixed("fix").size(16).noDefault()));
     }
-    @Test(expectedExceptions = UnsupportedOperationException.class,
+
+    @Test(
+            expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesRecord() {
-        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
-                builder.name("field").type()
-                        .record("myrecord").fields()
-                        .name("f1").type().intType().noDefault()
-                        .endRecord().noDefault()));
+        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) -> builder.name("field")
+                .type()
+                .record("myrecord")
+                .fields()
+                .name("f1")
+                .type()
+                .intType()
+                .noDefault()
+                .endRecord()
+                .noDefault()));
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class,
+    @Test(
+            expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesMap() {
-        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
-                builder.name("field").type().map().values().stringType().noDefault()));
+        BaseJdbcAutoSchemaSink.convertAvroField(
+                new Object(),
+                createFieldAndGetSchema((builder) ->
+                        builder.name("field").type().map().values().stringType().noDefault()));
     }
 
-
-    @Test(expectedExceptions = UnsupportedOperationException.class,
+    @Test(
+            expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesArray() {
-        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
-                builder.name("field").type().array().items().stringType().noDefault()));
+        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) -> builder.name("field")
+                .type()
+                .array()
+                .items()
+                .stringType()
+                .noDefault()));
     }
-
 
     @Test
     public void testConvertAvroNullValue() {
-        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(null, createFieldAndGetSchema((builder) ->
-                builder.name("field").type().stringType().noDefault()));
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(
+                null,
+                createFieldAndGetSchema(
+                        (builder) -> builder.name("field").type().stringType().noDefault()));
         Assert.assertNull(converted);
     }
 
-
-    private Schema createFieldAndGetSchema(Function<SchemaBuilder.FieldAssembler<Schema>,
-            SchemaBuilder.FieldAssembler<Schema>> consumer) {
-        final SchemaBuilder.FieldAssembler<Schema> record = SchemaBuilder.record("record")
-                .fields();
+    private Schema createFieldAndGetSchema(
+            Function<SchemaBuilder.FieldAssembler<Schema>, SchemaBuilder.FieldAssembler<Schema>> consumer) {
+        final SchemaBuilder.FieldAssembler<Schema> record =
+                SchemaBuilder.record("record").fields();
         return consumer.apply(record).endRecord().getFields().get(0).schema();
     }
-
-
 }

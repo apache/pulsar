@@ -24,7 +24,7 @@ public class DebeziumMongoDbContainer extends ChaosContainer<DebeziumMongoDbCont
 
     public static final String NAME = "debezium-mongodb-example";
 
-    public static final Integer[] PORTS = { 27017 };
+    public static final Integer[] PORTS = {27017};
     private static final String IMAGE_NAME = "debezium/example-mongodb:0.10";
 
     public DebeziumMongoDbContainer(String clusterName) {
@@ -32,6 +32,7 @@ public class DebeziumMongoDbContainer extends ChaosContainer<DebeziumMongoDbCont
         this.withEnv("MONGODB_USER", "mongodb");
         this.withEnv("MONGODB_PASSWORD", "mongodb");
     }
+
     @Override
     public String getContainerName() {
         return clusterName;

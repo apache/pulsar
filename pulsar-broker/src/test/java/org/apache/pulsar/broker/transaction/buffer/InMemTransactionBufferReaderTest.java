@@ -23,7 +23,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -33,8 +32,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferReader;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.testng.annotations.Test;
 
@@ -49,11 +48,7 @@ public class InMemTransactionBufferReaderTest {
     @Test
     public void testInvalidNumEntriesArgument() {
         try (InMemTransactionBufferReader reader = new InMemTransactionBufferReader(
-            txnID,
-            Collections.<Long, ByteBuf>emptySortedMap().entrySet().iterator(),
-            22L,
-            33L
-        )) {
+                txnID, Collections.<Long, ByteBuf>emptySortedMap().entrySet().iterator(), 22L, 33L)) {
             try {
                 reader.readNext(-1).join();
                 fail("Should fail to readNext if `numEntries` is invalid");
@@ -71,16 +66,13 @@ public class InMemTransactionBufferReaderTest {
             entries.put((long) i, Unpooled.copiedBuffer("message-" + i, UTF_8));
         }
 
-        try (InMemTransactionBufferReader reader = new InMemTransactionBufferReader(
-            txnID,
-            entries.entrySet().iterator(),
-            22L,
-            33L
-        )) {
+        try (InMemTransactionBufferReader reader =
+                new InMemTransactionBufferReader(txnID, entries.entrySet().iterator(), 22L, 33L)) {
 
             int numEntriesToRead = 10;
             // read 10 entries
-            List<TransactionEntry> txnEntries = reader.readNext(numEntriesToRead).get();
+            List<TransactionEntry> txnEntries =
+                    reader.readNext(numEntriesToRead).get();
             verifyAndReleaseEntries(txnEntries, txnID, 0L, numEntriesToRead);
             verifyEntriesReleased(entries, 0L, numEntriesToRead);
         }
@@ -97,16 +89,13 @@ public class InMemTransactionBufferReaderTest {
             entries.put((long) i, Unpooled.copiedBuffer("message-" + i, UTF_8));
         }
 
-        try (InMemTransactionBufferReader reader = new InMemTransactionBufferReader(
-            txnID,
-            entries.entrySet().iterator(),
-            22L,
-            33L
-        )) {
+        try (InMemTransactionBufferReader reader =
+                new InMemTransactionBufferReader(txnID, entries.entrySet().iterator(), 22L, 33L)) {
 
             int numEntriesToRead = numEntries + 10;
             // read all entries
-            List<TransactionEntry> txnEntries = reader.readNext(numEntriesToRead).get();
+            List<TransactionEntry> txnEntries =
+                    reader.readNext(numEntriesToRead).get();
             verifyAndReleaseEntries(txnEntries, txnID, 0L, numEntries);
             verifyEntriesReleased(entries, 0L, numEntries);
 
@@ -121,10 +110,8 @@ public class InMemTransactionBufferReaderTest {
         }
     }
 
-    private void verifyAndReleaseEntries(List<TransactionEntry> txnEntries,
-                                         TxnID txnID,
-                                         long startSequenceId,
-                                         int numEntriesToRead) {
+    private void verifyAndReleaseEntries(
+            List<TransactionEntry> txnEntries, TxnID txnID, long startSequenceId, int numEntriesToRead) {
         assertEquals(txnEntries.size(), numEntriesToRead);
         for (int i = 0; i < numEntriesToRead; i++) {
             try (TransactionEntry txnEntry = txnEntries.get(i)) {
@@ -132,17 +119,13 @@ public class InMemTransactionBufferReaderTest {
                 assertEquals(txnEntry.committedAtEntryId(), 33L);
                 assertEquals(txnEntry.txnId(), txnID);
                 assertEquals(txnEntry.sequenceId(), startSequenceId + i);
-                assertEquals(new String(
-                    ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()),
-                    UTF_8
-                ), "message-" + i);
+                assertEquals(
+                        new String(ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()), UTF_8), "message-" + i);
             }
         }
     }
 
-    private void verifyEntriesReleased(SortedMap<Long, ByteBuf> entries,
-                                       long startSequenceId,
-                                       int numEntriesToRead) {
+    private void verifyEntriesReleased(SortedMap<Long, ByteBuf> entries, long startSequenceId, int numEntriesToRead) {
         for (int i = 0; i < numEntriesToRead; i++) {
             long sequenceId = startSequenceId + i;
             ByteBuf bb = entries.get(sequenceId);

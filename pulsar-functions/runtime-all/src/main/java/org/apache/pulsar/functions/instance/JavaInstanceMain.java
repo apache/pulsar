@@ -60,16 +60,15 @@ public class JavaInstanceMain {
         // use reflection to find org.apache.logging.log4j.LogManager.shutdown method
         Method shutdownMethod = null;
         try {
-            shutdownMethod = Class.forName("org.apache.logging.log4j.LogManager")
-                    .getMethod("shutdown");
+            shutdownMethod =
+                    Class.forName("org.apache.logging.log4j.LogManager").getMethod("shutdown");
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             // ignore
         }
         log4j2ShutdownMethod = shutdownMethod;
     }
 
-    public JavaInstanceMain() {
-    }
+    public JavaInstanceMain() {}
 
     public static void main(String[] args) throws Exception {
 
@@ -107,9 +106,8 @@ public class JavaInstanceMain {
         System.out.println("Using function instance classloader: " + functionInstanceClsLoader);
         try {
             // use the function instance classloader to create org.apache.pulsar.functions.runtime.JavaInstanceStarter
-            Object main =
-                    createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter",
-                            functionInstanceClsLoader);
+            Object main = createInstance(
+                    "org.apache.pulsar.functions.runtime.JavaInstanceStarter", functionInstanceClsLoader);
 
             // Invoke start method of JavaInstanceStarter to start the function instance code
             Method method =
@@ -128,8 +126,7 @@ public class JavaInstanceMain {
         }
     }
 
-    public static Object createInstance(String userClassName,
-                                        ClassLoader classLoader) {
+    public static Object createInstance(String userClassName, ClassLoader classLoader) {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);

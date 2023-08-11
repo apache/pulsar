@@ -72,14 +72,13 @@ import org.slf4j.LoggerFactory;
  */
 public class MLPendingAckStore implements PendingAckStore {
 
-
     private final ManagedLedger managedLedger;
 
     private final ManagedCursor cursor;
 
     private final SpscArrayQueue<Entry> entryQueue;
 
-    //this is for replay
+    // this is for replay
     private final PositionImpl lastConfirmedEntry;
 
     private PositionImpl currentLoadPosition;
@@ -117,10 +116,14 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private TxnLogBufferedWriter<PendingAckMetadataEntry> bufferedWriter;
 
-    public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor,
-                             ManagedCursor subManagedCursor, long transactionPendingAckLogIndexMinLag,
-                             TxnLogBufferedWriterConfig bufferedWriterConfig,
-                             Timer timer, TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
+    public MLPendingAckStore(
+            ManagedLedger managedLedger,
+            ManagedCursor cursor,
+            ManagedCursor subManagedCursor,
+            long transactionPendingAckLogIndexMinLag,
+            TxnLogBufferedWriterConfig bufferedWriterConfig,
+            Timer timer,
+            TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
         this.managedLedger = managedLedger;
         this.cursor = cursor;
         this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
@@ -130,63 +133,76 @@ public class MLPendingAckStore implements PendingAckStore {
         this.subManagedCursor = subManagedCursor;
         this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
         this.maxIndexLag = logIndexBackoff.next(0);
-        this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(),
-                timer, PendingAckLogSerializer.INSTANCE,
-                bufferedWriterConfig.getBatchedWriteMaxRecords(), bufferedWriterConfig.getBatchedWriteMaxSize(),
-                bufferedWriterConfig.getBatchedWriteMaxDelayInMillis(), bufferedWriterConfig.isBatchEnabled(),
+        this.bufferedWriter = new TxnLogBufferedWriter(
+                managedLedger,
+                ((ManagedLedgerImpl) managedLedger).getExecutor(),
+                timer,
+                PendingAckLogSerializer.INSTANCE,
+                bufferedWriterConfig.getBatchedWriteMaxRecords(),
+                bufferedWriterConfig.getBatchedWriteMaxSize(),
+                bufferedWriterConfig.getBatchedWriteMaxDelayInMillis(),
+                bufferedWriterConfig.isBatchEnabled(),
                 bufferedWriterMetrics);
         this.batchedPendingAckLogsWaitingForHandle = new ArrayList<>();
     }
 
     @Override
     public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService transactionReplayExecutor) {
-        transactionReplayExecutor
-                .execute(new PendingAckReplay(new MLPendingAckReplyCallBack(pendingAckHandle)));
+        transactionReplayExecutor.execute(new PendingAckReplay(new MLPendingAckReplyCallBack(pendingAckHandle)));
     }
 
-    //TODO can control the number of entry to read
-    private void readAsync(int numberOfEntriesToRead,
-                           AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
+    // TODO can control the number of entry to read
+    private void readAsync(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
         cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
-
+        cursor.asyncClose(
+                new AsyncCallbacks.CloseCallback() {
                     @Override
                     public void closeComplete(Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] MLPendingAckStore closed successfully！", managedLedger.getName(), ctx);
-                        }
-                        bufferedWriter.close();
-                        completableFuture.complete(null);
+                        managedLedger.asyncClose(
+                                new AsyncCallbacks.CloseCallback() {
+
+                                    @Override
+                                    public void closeComplete(Object ctx) {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug(
+                                                    "[{}][{}] MLPendingAckStore closed successfully！",
+                                                    managedLedger.getName(),
+                                                    ctx);
+                                        }
+                                        bufferedWriter.close();
+                                        completableFuture.complete(null);
+                                    }
+
+                                    @Override
+                                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                                        log.error(
+                                                "[{}][{}] MLPendingAckStore closed failed,exception={}",
+                                                managedLedger.getName(),
+                                                ctx,
+                                                exception);
+                                        completableFuture.completeExceptionally(exception);
+                                    }
+                                },
+                                ctx);
                     }
 
                     @Override
                     public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("[{}][{}] MLPendingAckStore closed failed,exception={}", managedLedger.getName(),
-                                ctx, exception);
                         completableFuture.completeExceptionally(exception);
                     }
-                }, ctx);
-            }
-
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                completableFuture.completeExceptionally(exception);
-            }
-        }, null);
+                },
+                null);
         return completableFuture;
     }
 
     @Override
-    public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                       List<MutablePair<PositionImpl, Integer>> positions) {
+    public CompletableFuture<Void> appendIndividualAck(
+            TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Individual);
@@ -246,48 +262,60 @@ public class MLPendingAckStore implements PendingAckStore {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         pendingAckMetadataEntry.setTxnidLeastBits(txnID.getLeastSigBits());
         pendingAckMetadataEntry.setTxnidMostBits(txnID.getMostSigBits());
-        bufferedWriter.asyncAddData(pendingAckMetadataEntry, new TxnLogBufferedWriter.AddDataCallback() {
+        bufferedWriter.asyncAddData(
+                pendingAckMetadataEntry,
+                new TxnLogBufferedWriter.AddDataCallback() {
 
-            @Override
-            public void addComplete(Position position, Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] MLPendingAckStore message append success at {} txnId: {}, operation : {}",
-                            managedLedger.getName(), ctx, position, txnID, pendingAckMetadataEntry.getPendingAckOp());
-                }
-                currentIndexLag.incrementAndGet();
-                /**
-                 * If the Batch feature is enabled by {@link #bufferedWriter},
-                 * {@link #handleMetadataEntry(PositionImpl, List)} is executed after all data in the batch is written,
-                 * instead of {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is
-                 * written. This is because method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
-                 * {@link TxnLogBufferedWriter.AddDataCallback#addComplete} for elements in a batch is executed
-                 * simultaneously and in strict order, so when the last element in a batch is complete, the whole
-                 * batch is complete.
-                 */
-                if (position instanceof TxnBatchedPositionImpl batchedPosition){
-                    batchedPendingAckLogsWaitingForHandle.add(pendingAckMetadataEntry);
-                    if (batchedPosition.getBatchIndex() == batchedPosition.getBatchSize() - 1){
-                        handleMetadataEntry((PositionImpl) position, batchedPendingAckLogsWaitingForHandle);
-                        batchedPendingAckLogsWaitingForHandle.clear();
+                    @Override
+                    public void addComplete(Position position, Object ctx) {
+                        if (log.isDebugEnabled()) {
+                            log.debug(
+                                    "[{}][{}] MLPendingAckStore message append success at {} txnId: {}, operation : {}",
+                                    managedLedger.getName(),
+                                    ctx,
+                                    position,
+                                    txnID,
+                                    pendingAckMetadataEntry.getPendingAckOp());
+                        }
+                        currentIndexLag.incrementAndGet();
+                        /**
+                         * If the Batch feature is enabled by {@link #bufferedWriter},
+                         * {@link #handleMetadataEntry(PositionImpl, List)} is executed after all data in the batch is written,
+                         * instead of {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is
+                         * written. This is because method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
+                         * {@link TxnLogBufferedWriter.AddDataCallback#addComplete} for elements in a batch is executed
+                         * simultaneously and in strict order, so when the last element in a batch is complete, the whole
+                         * batch is complete.
+                         */
+                        if (position instanceof TxnBatchedPositionImpl batchedPosition) {
+                            batchedPendingAckLogsWaitingForHandle.add(pendingAckMetadataEntry);
+                            if (batchedPosition.getBatchIndex() == batchedPosition.getBatchSize() - 1) {
+                                handleMetadataEntry((PositionImpl) position, batchedPendingAckLogsWaitingForHandle);
+                                batchedPendingAckLogsWaitingForHandle.clear();
+                            }
+                        } else {
+                            handleMetadataEntry((PositionImpl) position, pendingAckMetadataEntry);
+                        }
+                        completableFuture.complete(null);
+                        clearUselessLogData();
                     }
-                } else {
-                    handleMetadataEntry((PositionImpl) position, pendingAckMetadataEntry);
-                }
-                completableFuture.complete(null);
-                clearUselessLogData();
-            }
 
-            @Override
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
-                        managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error(
+                                "[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
+                                managedLedger.getName(),
+                                ctx,
+                                exception,
+                                pendingAckMetadataEntry.getPendingAckOp());
 
-                if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
-                    managedLedger.readyToCreateNewLedger();
-                }
-                completableFuture.completeExceptionally(new PersistenceException(exception));
-            }
-        }, null);
+                        if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
+                            managedLedger.readyToCreateNewLedger();
+                        }
+                        completableFuture.completeExceptionally(new PersistenceException(exception));
+                    }
+                },
+                null);
         return completableFuture;
     }
 
@@ -301,20 +329,18 @@ public class MLPendingAckStore implements PendingAckStore {
      * @param logPosition The position of batch log Entry.
      * @param logList Pending ack log records in a batch log Entry.
      */
-    private void handleMetadataEntry(PositionImpl logPosition,
-                                     List<PendingAckMetadataEntry> logList) {
+    private void handleMetadataEntry(PositionImpl logPosition, List<PendingAckMetadataEntry> logList) {
         Stream<PendingAckMetadata> pendingAckMetaStream = logList.stream()
                 .filter(log -> bothNotAbortAndCommitPredicate.test(log))
                 .flatMap(log -> log.getPendingAckMetadatasList().stream());
         handleMetadataEntry(logPosition, pendingAckMetaStream);
     }
 
-    private final Predicate<PendingAckMetadataEntry> bothNotAbortAndCommitPredicate = (pendingAckLog) ->
-            pendingAckLog.getPendingAckOp() != PendingAckOp.ABORT
-            && pendingAckLog.getPendingAckOp() != PendingAckOp.COMMIT;
+    private final Predicate<PendingAckMetadataEntry> bothNotAbortAndCommitPredicate =
+            (pendingAckLog) -> pendingAckLog.getPendingAckOp() != PendingAckOp.ABORT
+                    && pendingAckLog.getPendingAckOp() != PendingAckOp.COMMIT;
 
-    private void handleMetadataEntry(PositionImpl logPosition,
-                                     PendingAckMetadataEntry pendingAckMetadataEntry) {
+    private void handleMetadataEntry(PositionImpl logPosition, PendingAckMetadataEntry pendingAckMetadataEntry) {
         // store the persistent position in to memory
         // store the max position of this entry retain
         if (bothNotAbortAndCommitPredicate.test(pendingAckMetadataEntry)) {
@@ -325,18 +351,18 @@ public class MLPendingAckStore implements PendingAckStore {
     private void handleMetadataEntry(PositionImpl logPosition, Stream<PendingAckMetadata> pendingAckListStream) {
         // store the persistent position in to memory
         // store the max position of this entry retain
-        Optional<PendingAckMetadata> optional = pendingAckListStream
-                .max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
-                        o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
+        Optional<PendingAckMetadata> optional = pendingAckListStream.max((o1, o2) -> ComparisonChain.start()
+                .compare(o1.getLedgerId(), o2.getLedgerId())
+                .compare(o1.getEntryId(), o2.getEntryId())
+                .result());
         optional.ifPresent(pendingAckMetadata -> {
-            PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
-                    pendingAckMetadata.getEntryId());
+            PositionImpl nowPosition =
+                    PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId());
             if (nowPosition.compareTo(maxAckPosition) > 0) {
                 maxAckPosition = nowPosition;
             }
             if (currentIndexLag.get() >= maxIndexLag) {
-                pendingAckLogIndex.compute(maxAckPosition,
-                        (thisPosition, otherPosition) -> logPosition);
+                pendingAckLogIndex.compute(maxAckPosition, (thisPosition, otherPosition) -> logPosition);
                 maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
                 currentIndexLag.set(0);
             }
@@ -350,32 +376,39 @@ public class MLPendingAckStore implements PendingAckStore {
             while (!pendingAckLogIndex.isEmpty()
                     && pendingAckLogIndex.firstKey() != null
                     && subManagedCursor.getPersistentMarkDeletedPosition() != null
-                    && pendingAckLogIndex.firstEntry().getKey()
-                    .compareTo((PositionImpl) subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
+                    && pendingAckLogIndex.firstEntry().getKey().compareTo((PositionImpl)
+                                    subManagedCursor.getPersistentMarkDeletedPosition())
+                            <= 0) {
                 deletePosition = pendingAckLogIndex.remove(pendingAckLogIndex.firstKey());
             }
 
             if (deletePosition != null) {
                 maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
                 PositionImpl finalDeletePosition = deletePosition;
-                cursor.asyncMarkDelete(deletePosition,
+                cursor.asyncMarkDelete(
+                        deletePosition,
                         new AsyncCallbacks.MarkDeleteCallback() {
                             @Override
                             public void markDeleteComplete(Object ctx) {
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Transaction pending ack store mark delete position : "
-                                                    + "[{}] success", managedLedger.getName(),
+                                    log.debug(
+                                            "[{}] Transaction pending ack store mark delete position : "
+                                                    + "[{}] success",
+                                            managedLedger.getName(),
                                             finalDeletePosition);
                                 }
                             }
 
                             @Override
                             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                                log.error("[{}] Transaction pending ack store mark delete position : "
-                                                + "[{}] fail!", managedLedger.getName(),
-                                        finalDeletePosition, exception);
+                                log.error(
+                                        "[{}] Transaction pending ack store mark delete position : " + "[{}] fail!",
+                                        managedLedger.getName(),
+                                        finalDeletePosition,
+                                        exception);
                             }
-                        }, null);
+                        },
+                        null);
             }
         }
     }
@@ -394,9 +427,10 @@ public class MLPendingAckStore implements PendingAckStore {
         public void run() {
             try {
                 if (cursor.isClosed()) {
-                    pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
-                            .CursorAlreadyClosedException("MLPendingAckStore cursor have been closed."));
-                    log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
+                    pendingAckReplyCallBack.replayFailed(new ManagedLedgerException.CursorAlreadyClosedException(
+                            "MLPendingAckStore cursor have been closed."));
+                    log.warn(
+                            "[{}] MLPendingAckStore cursor have been closed, close replay thread.",
                             cursor.getManagedLedger().getName());
                     return;
                 }
@@ -405,16 +439,16 @@ public class MLPendingAckStore implements PendingAckStore {
                     if (entry != null) {
                         currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                         List<PendingAckMetadataEntry> logs = deserializeEntry(entry);
-                        if (logs.isEmpty()){
+                        if (logs.isEmpty()) {
                             continue;
-                        } else if (logs.size() == 1){
+                        } else if (logs.size() == 1) {
                             currentIndexLag.incrementAndGet();
                             PendingAckMetadataEntry log = logs.get(0);
                             handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()), log);
                             pendingAckReplyCallBack.handleMetadataEntry(log);
                         } else {
                             int batchSize = logs.size();
-                            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++){
+                            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
                                 PendingAckMetadataEntry log = logs.get(batchIndex);
                                 pendingAckReplyCallBack.handleMetadataEntry(log);
                             }
@@ -428,28 +462,33 @@ public class MLPendingAckStore implements PendingAckStore {
                             Thread.sleep(1);
                         } catch (InterruptedException e) {
                             if (Thread.interrupted()) {
-                                log.error("[{}]Transaction pending "
-                                        + "replay thread interrupt!", managedLedger.getName(), e);
+                                log.error(
+                                        "[{}]Transaction pending " + "replay thread interrupt!",
+                                        managedLedger.getName(),
+                                        e);
                             }
                         }
                     }
                 }
             } catch (Exception e) {
                 pendingAckReplyCallBack.replayFailed(e);
-                log.error("[{}] Pending ack recover fail!", subManagedCursor.getManagedLedger().getName(), e);
+                log.error(
+                        "[{}] Pending ack recover fail!",
+                        subManagedCursor.getManagedLedger().getName(),
+                        e);
                 return;
             }
             pendingAckReplyCallBack.replayComplete();
         }
     }
 
-    private List<PendingAckMetadataEntry> deserializeEntry(Entry entry){
+    private List<PendingAckMetadataEntry> deserializeEntry(Entry entry) {
         ByteBuf buffer = entry.getDataBuffer();
         // Check whether it is batched Entry.
         buffer.markReaderIndex();
         short magicNum = buffer.readShort();
         buffer.resetReaderIndex();
-        if (magicNum == BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER){
+        if (magicNum == BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER) {
             // skip version
             buffer.skipBytes(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN + BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN);
             BatchedPendingAckMetadataEntry batchedPendingAckMetadataEntry = new BatchedPendingAckMetadataEntry();
@@ -481,15 +520,18 @@ public class MLPendingAckStore implements PendingAckStore {
 
         @Override
         public void readEntriesComplete(List<Entry> entries, Object ctx) {
-            entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
-                private int i = 0;
-                @Override
-                public Entry get() {
-                    Entry entry = entries.get(i);
-                    i++;
-                    return entry;
-                }
-            }, entries.size());
+            entryQueue.fill(
+                    new MessagePassingQueue.Supplier<Entry>() {
+                        private int i = 0;
+
+                        @Override
+                        public Entry get() {
+                            Entry entry = entries.get(i);
+                            i++;
+                            return entry;
+                        }
+                    },
+                    entries.size());
 
             outstandingReadsRequests.decrementAndGet();
         }
@@ -497,7 +539,7 @@ public class MLPendingAckStore implements PendingAckStore {
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (managedLedger.getConfig().isAutoSkipNonRecoverableData()
-                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+                            && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
                     || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
@@ -505,7 +547,6 @@ public class MLPendingAckStore implements PendingAckStore {
             log.error("MLPendingAckStore of topic [{}] stat reply fail!", managedLedger.getName(), exception);
             outstandingReadsRequests.decrementAndGet();
         }
-
     }
 
     public CompletableFuture<ManagedLedger> getManagedLedger() {
@@ -537,7 +578,7 @@ public class MLPendingAckStore implements PendingAckStore {
             };
 
     private static class PendingAckLogSerializer
-            implements TxnLogBufferedWriter.DataSerializer<PendingAckMetadataEntry>{
+            implements TxnLogBufferedWriter.DataSerializer<PendingAckMetadataEntry> {
 
         private static final PendingAckLogSerializer INSTANCE = new PendingAckLogSerializer();
 

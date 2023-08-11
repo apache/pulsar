@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.mockito.Mockito.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -42,7 +43,6 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
-import static org.mockito.Mockito.*;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -76,11 +76,15 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
     public void beforeMethod() throws Exception {
         String topic = NAMESPACE1 + "/test-txn-topic";
         admin.topics().createNonPartitionedTopic(topic);
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(topic, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(pendingAckLogIndexMinLag);
-        CompletableFuture<Subscription> subscriptionFuture = persistentTopic .createSubscription("test",
-                CommandSubscribe.InitialPosition.Earliest, false, null);
+        CompletableFuture<Subscription> subscriptionFuture =
+                persistentTopic.createSubscription("test", CommandSubscribe.InitialPosition.Earliest, false, null);
         PersistentSubscription subscription = (PersistentSubscription) subscriptionFuture.get();
         ManagedCursor managedCursor = subscription.getCursor();
         this.managedCursorMock = spy(managedCursor);
@@ -97,42 +101,45 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
     @AfterMethod(alwaysRun = true)
     private void afterMethod() throws Exception {
         ServiceConfiguration defaultConfig = new ServiceConfiguration();
-        ServiceConfiguration serviceConfiguration =
-                persistentSubscriptionMock.getTopic().getBrokerService().getPulsar().getConfiguration();
+        ServiceConfiguration serviceConfiguration = persistentSubscriptionMock
+                .getTopic()
+                .getBrokerService()
+                .getPulsar()
+                .getConfiguration();
         serviceConfiguration.setTransactionPendingAckBatchedWriteMaxRecords(
-                defaultConfig.getTransactionPendingAckBatchedWriteMaxRecords()
-        );
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxRecords());
         serviceConfiguration.setTransactionPendingAckBatchedWriteMaxSize(
-                defaultConfig.getTransactionPendingAckBatchedWriteMaxSize()
-        );
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxSize());
         serviceConfiguration.setTransactionPendingAckBatchedWriteMaxDelayInMillis(
-                defaultConfig.getTransactionPendingAckBatchedWriteMaxDelayInMillis()
-        );
-        serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(defaultConfig.isTransactionPendingAckBatchedWriteEnabled());
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxDelayInMillis());
+        serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(
+                defaultConfig.isTransactionPendingAckBatchedWriteEnabled());
         admin.topics().delete("persistent://" + NAMESPACE1 + "/test-txn-topic", true);
     }
 
     @AfterClass
-    public void cleanup(){
+    public void cleanup() {
         super.internalCleanup();
     }
 
     private MLPendingAckStore createPendingAckStore(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig)
             throws Exception {
         MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
-        ServiceConfiguration serviceConfiguration =
-                persistentSubscriptionMock.getTopic().getBrokerService().getPulsar().getConfiguration();
+        ServiceConfiguration serviceConfiguration = persistentSubscriptionMock
+                .getTopic()
+                .getBrokerService()
+                .getPulsar()
+                .getConfiguration();
         serviceConfiguration.setTransactionPendingAckBatchedWriteMaxRecords(
-                txnLogBufferedWriterConfig.getBatchedWriteMaxRecords()
-        );
+                txnLogBufferedWriterConfig.getBatchedWriteMaxRecords());
         serviceConfiguration.setTransactionPendingAckBatchedWriteMaxSize(
-                txnLogBufferedWriterConfig.getBatchedWriteMaxSize()
-        );
+                txnLogBufferedWriterConfig.getBatchedWriteMaxSize());
         serviceConfiguration.setTransactionPendingAckBatchedWriteMaxDelayInMillis(
-                txnLogBufferedWriterConfig.getBatchedWriteMaxDelayInMillis()
-        );
+                txnLogBufferedWriterConfig.getBatchedWriteMaxDelayInMillis());
         serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(txnLogBufferedWriterConfig.isBatchEnabled());
-        return (MLPendingAckStore) mlPendingAckStoreProvider.newPendingAckStore(persistentSubscriptionMock).get();
+        return (MLPendingAckStore) mlPendingAckStoreProvider
+                .newPendingAckStore(persistentSubscriptionMock)
+                .get();
     }
 
     /**
@@ -143,12 +150,12 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
      *   1. Non-batched write and replay with batched feature.
      */
     @DataProvider(name = "mainProcessArgs")
-    public Object[][] mainProcessArgsProvider(){
+    public Object[][] mainProcessArgsProvider() {
         Object[][] args = new Object[4][];
-        args[0] = new Object[]{true, true};
-        args[1] = new Object[]{false, false};
-        args[2] = new Object[]{true, false};
-        args[3] = new Object[]{false, true};
+        args[0] = new Object[] {true, true};
+        args[1] = new Object[] {false, false};
+        args[2] = new Object[] {true, false};
+        args[3] = new Object[] {false, true};
         return args;
     }
 
@@ -170,20 +177,20 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         configForWrite.setBatchedWriteMaxDelayInMillis(1000 * 3600);
         MLPendingAckStore mlPendingAckStoreForWrite = createPendingAckStore(configForWrite);
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
-        for (int i = 0; i < 20; i++){
+        for (int i = 0; i < 20; i++) {
             TxnID txnID = new TxnID(i, i);
             PositionImpl position = PositionImpl.get(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendCumulativeAck(txnID, position));
         }
-        for (int i = 0; i < 10; i++){
+        for (int i = 0; i < 10; i++) {
             TxnID txnID = new TxnID(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendCommitMark(txnID, CommandAck.AckType.Cumulative));
         }
-        for (int i = 10; i < 20; i++){
+        for (int i = 10; i < 20; i++) {
             TxnID txnID = new TxnID(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendAbortMark(txnID, CommandAck.AckType.Cumulative));
         }
-        for (int i = 40; i < 50; i++){
+        for (int i = 40; i < 50; i++) {
             TxnID txnID = new TxnID(i, i);
             PositionImpl position = PositionImpl.get(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendCumulativeAck(txnID, position));
@@ -191,17 +198,17 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         FutureUtil.waitForAll(futureList).get();
         // Verify build sparse indexes correct after add many cmd-ack.
         ArrayList<Long> positionList = new ArrayList<>();
-        for (long i = 0; i < 50; i++){
+        for (long i = 0; i < 50; i++) {
             positionList.add(i);
         }
         // The indexes not contains the data which is commit or abort.
         LinkedHashSet<Long> skipSet = new LinkedHashSet<>();
-        for (long i = 20; i < 40; i++){
+        for (long i = 20; i < 40; i++) {
             skipSet.add(i);
         }
         if (writeWithBatch) {
-            for (long i = 0; i < 50; i++){
-                if (i % 2 == 0){
+            for (long i = 0; i < 50; i++) {
+                if (i % 2 == 0) {
                     // The indexes contains only the last position in the batch.
                     skipSet.add(i);
                 }
@@ -210,9 +217,9 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         LinkedHashSet<Long> expectedPositions = calculatePendingAckIndexes(positionList, skipSet);
         Assert.assertEquals(
                 mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().stream()
-                        .map(PositionImpl::getEntryId).collect(Collectors.toList()),
-                new ArrayList<>(expectedPositions)
-        );
+                        .map(PositionImpl::getEntryId)
+                        .collect(Collectors.toList()),
+                new ArrayList<>(expectedPositions));
         // Replay.
         TxnLogBufferedWriterConfig configForReplay = new TxnLogBufferedWriterConfig();
         configForReplay.setBatchEnabled(readWithBatch);
@@ -226,34 +233,51 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         // Process controller, mark the replay task already finish.
         final AtomicInteger processController = new AtomicInteger();
         doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                processController.incrementAndGet();
-                return null;
-            }
-        }).when(pendingAckHandle).completeHandleFuture();
+                    @Override
+                    public Object answer(InvocationOnMock invocation) throws Throwable {
+                        processController.incrementAndGet();
+                        return null;
+                    }
+                })
+                .when(pendingAckHandle)
+                .completeHandleFuture();
         mlPendingAckStoreForRead.replayAsync(pendingAckHandle, internalPinnedExecutor);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> processController.get() == 1);
         // Verify build sparse indexes correct after replay.
-        Assert.assertEquals(mlPendingAckStoreForRead.pendingAckLogIndex.size(),
+        Assert.assertEquals(
+                mlPendingAckStoreForRead.pendingAckLogIndex.size(),
                 mlPendingAckStoreForWrite.pendingAckLogIndex.size());
         Iterator<Map.Entry<PositionImpl, PositionImpl>> iteratorReplay =
                 mlPendingAckStoreForRead.pendingAckLogIndex.entrySet().iterator();
         Iterator<Map.Entry<PositionImpl, PositionImpl>> iteratorWrite =
                 mlPendingAckStoreForWrite.pendingAckLogIndex.entrySet().iterator();
-        while (iteratorReplay.hasNext()){
+        while (iteratorReplay.hasNext()) {
             Map.Entry<PositionImpl, PositionImpl> replayEntry = iteratorReplay.next();
-            Map.Entry<PositionImpl, PositionImpl> writeEntry =  iteratorWrite.next();
+            Map.Entry<PositionImpl, PositionImpl> writeEntry = iteratorWrite.next();
             Assert.assertEquals(replayEntry.getKey(), writeEntry.getKey());
-            Assert.assertEquals(replayEntry.getValue().getLedgerId(), writeEntry.getValue().getLedgerId());
-            Assert.assertEquals(replayEntry.getValue().getEntryId(), writeEntry.getValue().getEntryId());
+            Assert.assertEquals(
+                    replayEntry.getValue().getLedgerId(), writeEntry.getValue().getLedgerId());
+            Assert.assertEquals(
+                    replayEntry.getValue().getEntryId(), writeEntry.getValue().getEntryId());
         }
         // Verify delete correct.
         when(managedCursorMock.getPersistentMarkDeletedPosition()).thenReturn(PositionImpl.get(19, 19));
         mlPendingAckStoreForWrite.clearUselessLogData();
         mlPendingAckStoreForRead.clearUselessLogData();
-        Assert.assertTrue(mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().iterator().next().getEntryId() > 19);
-        Assert.assertTrue(mlPendingAckStoreForRead.pendingAckLogIndex.keySet().iterator().next().getEntryId() > 19);
+        Assert.assertTrue(mlPendingAckStoreForWrite
+                        .pendingAckLogIndex
+                        .keySet()
+                        .iterator()
+                        .next()
+                        .getEntryId()
+                > 19);
+        Assert.assertTrue(mlPendingAckStoreForRead
+                        .pendingAckLogIndex
+                        .keySet()
+                        .iterator()
+                        .next()
+                        .getEntryId()
+                > 19);
 
         // cleanup.
         closePendingAckStoreWithRetry(mlPendingAckStoreForWrite);
@@ -265,12 +289,12 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
      * Because when the cursor close and cursor switch ledger are concurrent executing, the bad version exception is
      * thrown.
      */
-    private void closePendingAckStoreWithRetry(MLPendingAckStore pendingAckStore){
+    private void closePendingAckStoreWithRetry(MLPendingAckStore pendingAckStore) {
         Awaitility.await().until(() -> {
             try {
                 pendingAckStore.closeAsync().get();
                 return true;
-            } catch (Exception ex){
+            } catch (Exception ex) {
                 return false;
             }
         });
@@ -281,18 +305,18 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
      * @param positionList the position add to pending ack log/
      * @param skipSet the position which should increment the count but not marked to indexes. aka: commit & abort.
      */
-    private LinkedHashSet<Long> calculatePendingAckIndexes(List<Long> positionList, LinkedHashSet<Long> skipSet){
+    private LinkedHashSet<Long> calculatePendingAckIndexes(List<Long> positionList, LinkedHashSet<Long> skipSet) {
         LogIndexLagBackoff logIndexLagBackoff = new LogIndexLagBackoff(pendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
         long nextCount = logIndexLagBackoff.next(0);
         long recordCountInCurrentLoop = 0;
         LinkedHashSet<Long> indexes = new LinkedHashSet<>();
-        for (int i = 0; i < positionList.size(); i++){
-            recordCountInCurrentLoop ++;
+        for (int i = 0; i < positionList.size(); i++) {
+            recordCountInCurrentLoop++;
             long value = positionList.get(i);
-            if (skipSet.contains(value)){
+            if (skipSet.contains(value)) {
                 continue;
             }
-            if (recordCountInCurrentLoop >= nextCount){
+            if (recordCountInCurrentLoop >= nextCount) {
                 indexes.add(value);
                 nextCount = logIndexLagBackoff.next(indexes.size());
                 recordCountInCurrentLoop = 0;

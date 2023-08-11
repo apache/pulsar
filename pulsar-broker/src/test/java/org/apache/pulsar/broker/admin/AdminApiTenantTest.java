@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -43,7 +42,11 @@ public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
         admin.clusters()
-                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                .createCluster(
+                        CLUSTER,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
     }
 
     @BeforeClass(alwaysRun = true)
@@ -59,8 +62,13 @@ public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreateAndDeleteTenant() throws PulsarAdminException {
-        String tenant = "test-tenant-"+ UUID.randomUUID();
-        admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
+        String tenant = "test-tenant-" + UUID.randomUUID();
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        TenantInfo.builder()
+                                .allowedClusters(Collections.singleton(CLUSTER))
+                                .build());
         List<String> tenants = admin.tenants().getTenants();
         assertTrue(tenants.contains(tenant));
         admin.tenants().deleteTenant(tenant);
@@ -71,6 +79,7 @@ public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testDeleteNonExistTenant() {
         String tenant = "test-non-exist-tenant-" + UUID.randomUUID();
-        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.tenants().deleteTenant(tenant));
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.tenants()
+                .deleteTenant(tenant));
     }
 }

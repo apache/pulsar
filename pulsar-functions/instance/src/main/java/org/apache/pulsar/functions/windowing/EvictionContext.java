@@ -38,7 +38,6 @@ public interface EvictionContext {
      */
     Long getSlidingCount();
 
-
     /**
      * Returns the sliding interval for time based windows.
      *

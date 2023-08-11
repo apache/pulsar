@@ -56,7 +56,8 @@ public class FutureUtil {
     }
 
     public static <T> CompletableFuture<List<T>> waitForAll(Stream<CompletableFuture<List<T>>> futures) {
-        return futures.reduce(CompletableFuture.completedFuture(new ArrayList<>()),
+        return futures.reduce(
+                CompletableFuture.completedFuture(new ArrayList<>()),
                 (pre, curr) -> pre.thenCompose(preV -> curr.thenApply(currV -> {
                     preV.addAll(currV);
                     return preV;
@@ -80,8 +81,8 @@ public class FutureUtil {
      * @param tester if any future match the predicate
      * @return a new CompletableFuture that is completed when any of the given CompletableFutures match the tester
      */
-    public static CompletableFuture<Optional<Object>> waitForAny(Collection<? extends CompletableFuture<?>> futures,
-                                                       Predicate<Object> tester) {
+    public static CompletableFuture<Optional<Object>> waitForAny(
+            Collection<? extends CompletableFuture<?>> futures, Predicate<Object> tester) {
         return waitForAny(futures).thenCompose(v -> {
             if (tester.test(v)) {
                 futures.forEach(f -> {
@@ -91,9 +92,8 @@ public class FutureUtil {
                 });
                 return CompletableFuture.completedFuture(Optional.of(v));
             }
-            Collection<CompletableFuture<?>> doneFutures = futures.stream()
-                    .filter(f -> f.isDone())
-                    .collect(Collectors.toList());
+            Collection<CompletableFuture<?>> doneFutures =
+                    futures.stream().filter(f -> f.isDone()).collect(Collectors.toList());
             futures.removeAll(doneFutures);
             Optional<?> value = doneFutures.stream()
                     .filter(f -> !f.isCompletedExceptionally())
@@ -115,7 +115,6 @@ public class FutureUtil {
         });
     }
 
-
     /**
      * Return a future that represents the completion of the futures in the provided Collection.
      * The future will support {@link CompletableFuture#cancel(boolean)}. It will cancel
@@ -125,7 +124,7 @@ public class FutureUtil {
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
     public static CompletableFuture<Void> waitForAllAndSupportCancel(
-                                                    Collection<? extends CompletableFuture<?>> futures) {
+            Collection<? extends CompletableFuture<?>> futures) {
         CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
         CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(futuresArray);
         whenCancelledOrTimedOut(combinedFuture, () -> {
@@ -148,8 +147,7 @@ public class FutureUtil {
      * @param cancelAction action to invoke if the future is cancelled or times out
      */
     public static void whenCancelledOrTimedOut(CompletableFuture<?> future, Runnable cancelAction) {
-        CompletableFutureCancellationHandler cancellationHandler =
-                new CompletableFutureCancellationHandler();
+        CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         cancellationHandler.setCancelAction(cancelAction);
         cancellationHandler.attachToFuture(future);
     }
@@ -182,6 +180,7 @@ public class FutureUtil {
         public static <T> Sequencer<T> create(boolean allowExceptionBreakChain) {
             return new Sequencer<>(allowExceptionBreakChain);
         }
+
         public static <T> Sequencer<T> create() {
             return new Sequencer<>(false);
         }
@@ -212,9 +211,8 @@ public class FutureUtil {
      * @param <T> type parameter for the future
      * @return the new {@link CompletableFuture} instance
      */
-    public static <T> CompletableFuture<T> createFutureWithTimeout(Duration timeout,
-                                                                   ScheduledExecutorService executor,
-                                                                   Supplier<Throwable> exceptionSupplier) {
+    public static <T> CompletableFuture<T> createFutureWithTimeout(
+            Duration timeout, ScheduledExecutorService executor, Supplier<Throwable> exceptionSupplier) {
         return addTimeoutHandling(new CompletableFuture<>(), timeout, executor, exceptionSupplier);
     }
 
@@ -228,14 +226,19 @@ public class FutureUtil {
      * @param <T> type parameter for the future
      * @return returns the original target future
      */
-    public static <T> CompletableFuture<T> addTimeoutHandling(CompletableFuture<T> future, Duration timeout,
-                                               ScheduledExecutorService executor,
-                                               Supplier<Throwable> exceptionSupplier) {
-        ScheduledFuture<?> scheduledFuture = executor.schedule(() -> {
-            if (!future.isDone()) {
-                future.completeExceptionally(exceptionSupplier.get());
-            }
-        }, timeout.toMillis(), TimeUnit.MILLISECONDS);
+    public static <T> CompletableFuture<T> addTimeoutHandling(
+            CompletableFuture<T> future,
+            Duration timeout,
+            ScheduledExecutorService executor,
+            Supplier<Throwable> exceptionSupplier) {
+        ScheduledFuture<?> scheduledFuture = executor.schedule(
+                () -> {
+                    if (!future.isDone()) {
+                        future.completeExceptionally(exceptionSupplier.get());
+                    }
+                },
+                timeout.toMillis(),
+                TimeUnit.MILLISECONDS);
         future.whenComplete((res, exception) -> scheduledFuture.cancel(false));
         return future;
     }
@@ -244,8 +247,8 @@ public class FutureUtil {
      * @throws RejectedExecutionException if this task cannot be accepted for execution
      * @throws NullPointerException if one of params is null
      */
-    public static <T> @Nonnull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
-                                                                 Executor executor) {
+    public static <T> @Nonnull CompletableFuture<T> composeAsync(
+            Supplier<CompletableFuture<T>> futureSupplier, Executor executor) {
         Objects.requireNonNull(futureSupplier);
         Objects.requireNonNull(executor);
         final CompletableFuture<T> future = new CompletableFuture<>();
@@ -262,7 +265,6 @@ public class FutureUtil {
         }
         return future;
     }
-
 
     /**
      * Creates a low-overhead timeout exception which is performance optimized to minimize allocations
@@ -284,8 +286,8 @@ public class FutureUtil {
 
         LowOverheadTimeoutException(String message, Class<?> sourceClass, String sourceMethod) {
             super(message);
-            setStackTrace(new StackTraceElement[]{new StackTraceElement(sourceClass.getName(), sourceMethod,
-                    null, -1)});
+            setStackTrace(
+                    new StackTraceElement[] {new StackTraceElement(sourceClass.getName(), sourceMethod, null, -1)});
         }
 
         @Override
@@ -330,15 +332,10 @@ public class FutureUtil {
      * @param completableFuture  the future to complete in case of exceptions
      * @return
      */
-
-    public static void safeRunAsync(Runnable runnable,
-                                    Executor executor,
-                                    CompletableFuture completableFuture) {
-        CompletableFuture
-                .runAsync(runnable, executor)
-                .exceptionally((throwable) -> {
-                    completableFuture.completeExceptionally(throwable);
-                    return null;
-                });
+    public static void safeRunAsync(Runnable runnable, Executor executor, CompletableFuture completableFuture) {
+        CompletableFuture.runAsync(runnable, executor).exceptionally((throwable) -> {
+            completableFuture.completeExceptionally(throwable);
+            return null;
+        });
     }
 }

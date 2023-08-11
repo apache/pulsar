@@ -109,10 +109,14 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
         try {
             this.client = newEtcdClient(metadataURL, conf);
             this.kv = client.getKVClient();
-            this.client.getWatchClient().watch(ByteSequence.from("\0", StandardCharsets.UTF_8),
-                    WatchOption.newBuilder()
-                            .withPrefix(ByteSequence.from("/", StandardCharsets.UTF_8))
-                            .build(), this::handleWatchResponse);
+            this.client
+                    .getWatchClient()
+                    .watch(
+                            ByteSequence.from("\0", StandardCharsets.UTF_8),
+                            WatchOption.newBuilder()
+                                    .withPrefix(ByteSequence.from("/", StandardCharsets.UTF_8))
+                                    .build(),
+                            this::handleWatchResponse);
             if (enableSessionWatcher) {
                 this.sessionWatcher =
                         new EtcdSessionWatcher(client, conf.getSessionTimeoutMillis(), this::receivedSessionEvent);
@@ -129,8 +133,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     private Client newEtcdClient(String metadataURL, MetadataStoreConfig conf) throws IOException {
         String etcdUrl = metadataURL.replaceFirst(ETCD_SCHEME_IDENTIFIER, "");
-        ClientBuilder clientBuilder = Client.builder()
-                .endpoints(etcdUrl.split(","));
+        ClientBuilder clientBuilder = Client.builder().endpoints(etcdUrl.split(","));
 
         if (StringUtils.isNotEmpty(conf.getConfigFilePath())) {
             try (InputStream inputStream = Files.newInputStream(Paths.get(conf.getConfigFilePath()))) {
@@ -182,8 +185,10 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
         }
     }
 
-    private static final GetOption EXISTS_GET_OPTION = GetOption.newBuilder().withCountOnly(true).build();
-    private static final GetOption SINGLE_GET_OPTION = GetOption.newBuilder().withLimit(1).build();
+    private static final GetOption EXISTS_GET_OPTION =
+            GetOption.newBuilder().withCountOnly(true).build();
+    private static final GetOption SINGLE_GET_OPTION =
+            GetOption.newBuilder().withLimit(1).build();
 
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
@@ -192,8 +197,8 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                               EnumSet<CreateOption> options) {
+    protected CompletableFuture<Stat> storePut(
+            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options) {
         if (!options.contains(CreateOption.Sequential)) {
             return super.storePut(path, data, optExpectedVersion, options);
         } else {
@@ -236,8 +241,11 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                         OpDelete del = op.asDelete();
                         ByteSequence key = ByteSequence.from(del.getPath(), StandardCharsets.UTF_8);
                         if (del.getOptExpectedVersion().isPresent()) {
-                            txn.If(new Cmp(key, Cmp.Op.EQUAL,
-                                    CmpTarget.version(del.getOptExpectedVersion().get() + 1)));
+                            txn.If(new Cmp(
+                                    key,
+                                    Cmp.Op.EQUAL,
+                                    CmpTarget.version(
+                                            del.getOptExpectedVersion().get() + 1)));
                         }
                         break;
                     }
@@ -248,17 +256,15 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
             ops.forEach(op -> {
                 switch (op.getType()) {
                     case GET: {
-                        txn.Then(
-                                Op.get(ByteSequence.from(op.asGet().getPath(), StandardCharsets.UTF_8),
-                                        SINGLE_GET_OPTION));
+                        txn.Then(Op.get(
+                                ByteSequence.from(op.asGet().getPath(), StandardCharsets.UTF_8), SINGLE_GET_OPTION));
                         break;
                     }
                     case PUT: {
                         OpPut put = op.asPut();
                         ByteSequence key = ByteSequence.from(put.getPath(), StandardCharsets.UTF_8);
                         if (!put.getFuture().isDone()) {
-                            PutOption.Builder b = PutOption.newBuilder()
-                                    .withPrevKV();
+                            PutOption.Builder b = PutOption.newBuilder().withPrevKV();
 
                             if (put.isEphemeral()) {
                                 b.withLeaseId(leaseId);
@@ -281,58 +287,61 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                         ByteSequence prefix =
                                 ByteSequence.from(path.equals("/") ? path : path + "/", StandardCharsets.UTF_8);
 
-                        txn.Then(Op.get(prefix, GetOption.newBuilder()
-                                .withKeysOnly(true)
-                                .withSortField(GetOption.SortTarget.KEY)
-                                .withSortOrder(GetOption.SortOrder.ASCEND)
-                                .withPrefix(prefix)
-                                .build()));
+                        txn.Then(Op.get(
+                                prefix,
+                                GetOption.newBuilder()
+                                        .withKeysOnly(true)
+                                        .withSortField(GetOption.SortTarget.KEY)
+                                        .withSortOrder(GetOption.SortOrder.ASCEND)
+                                        .withPrefix(prefix)
+                                        .build()));
                         break;
                     }
                 }
             });
 
-            txn.commit().thenAccept(txnResponse -> {
-                handleBatchOperationResult(txnResponse, ops);
-            }).exceptionally(ex -> {
-                Throwable cause = ex.getCause();
-                if (cause instanceof ExecutionException || cause instanceof CompletionException) {
-                    cause = cause.getCause();
-                }
-                if (ops.size() > 1 && cause instanceof StatusRuntimeException) {
-                    Status.Code code = ((StatusRuntimeException) cause).getStatus().getCode();
-                    if (
-                            code == Status.Code.INVALID_ARGUMENT /* This could be caused by having repeated keys
+            txn.commit()
+                    .thenAccept(txnResponse -> {
+                        handleBatchOperationResult(txnResponse, ops);
+                    })
+                    .exceptionally(ex -> {
+                        Throwable cause = ex.getCause();
+                        if (cause instanceof ExecutionException || cause instanceof CompletionException) {
+                            cause = cause.getCause();
+                        }
+                        if (ops.size() > 1 && cause instanceof StatusRuntimeException) {
+                            Status.Code code =
+                                    ((StatusRuntimeException) cause).getStatus().getCode();
+                            if (code == Status.Code.INVALID_ARGUMENT /* This could be caused by having repeated keys
                                     in the batch, retry individually */
-                                    ||
-                                    code
-                                            == Status.Code.RESOURCE_EXHAUSTED /* We might have exceeded the max-frame
-                                             size for the response */
-                    ) {
-                        ops.forEach(o -> batchOperation(Collections.singletonList(o)));
-                    }
-                } else {
-                    log.warn("Failed to commit: {}", cause.getMessage());
-                    executor.execute(() -> {
-                        ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                                    || code
+                                            == Status.Code
+                                                    .RESOURCE_EXHAUSTED /* We might have exceeded the max-frame
+                                                                        size for the response */) {
+                                ops.forEach(o -> batchOperation(Collections.singletonList(o)));
+                            }
+                        } else {
+                            log.warn("Failed to commit: {}", cause.getMessage());
+                            executor.execute(() -> {
+                                ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                            });
+                        }
+                        return null;
                     });
-                }
-                return null;
-            });
         } catch (Throwable t) {
             log.warn("Error in committing batch: {}", t.getMessage());
         }
     }
 
-    private void handleBatchOperationResult(TxnResponse txnResponse,
-                                            List<MetadataOp> ops) {
+    private void handleBatchOperationResult(TxnResponse txnResponse, List<MetadataOp> ops) {
         executor.execute(() -> {
             if (!txnResponse.isSucceeded()) {
                 if (ops.size() > 1) {
                     // Retry individually
                     ops.forEach(o -> batchOperation(Collections.singletonList(o)));
                 } else {
-                    ops.get(0).getFuture()
+                    ops.get(0)
+                            .getFuture()
                             .completeExceptionally(new MetadataStoreException.BadVersionException("Bad version"));
                 }
                 return;
@@ -352,14 +361,16 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                             KeyValue kv = gr.getKvs().get(0);
                             boolean isEphemeral = kv.getLease() != 0;
                             boolean createdBySelf = kv.getLease() == leaseId;
-                            get.getFuture().complete(Optional.of(
-                                            new GetResult(
-                                                    kv.getValue().getBytes(),
-                                                    new Stat(get.getPath(), kv.getVersion() - 1, 0, 0, isEphemeral,
-                                                            createdBySelf)
-                                            )
-                                    )
-                            );
+                            get.getFuture()
+                                    .complete(Optional.of(new GetResult(
+                                            kv.getValue().getBytes(),
+                                            new Stat(
+                                                    get.getPath(),
+                                                    kv.getVersion() - 1,
+                                                    0,
+                                                    0,
+                                                    isEphemeral,
+                                                    createdBySelf))));
                         }
                         break;
                     }
@@ -368,11 +379,11 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                         PutResponse pr = txnResponse.getPutResponses().get(putIdx++);
                         KeyValue prevKv = pr.getPrevKv();
                         if (prevKv == null) {
-                            put.getFuture().complete(new Stat(put.getPath(),
-                                    0, 0, 0, put.isEphemeral(), true));
+                            put.getFuture().complete(new Stat(put.getPath(), 0, 0, 0, put.isEphemeral(), true));
                         } else {
-                            put.getFuture().complete(new Stat(put.getPath(),
-                                    prevKv.getVersion(), 0, 0, put.isEphemeral(), true));
+                            put.getFuture()
+                                    .complete(new Stat(
+                                            put.getPath(), prevKv.getVersion(), 0, 0, put.isEphemeral(), true));
                         }
 
                         break;
@@ -390,8 +401,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     case GET_CHILDREN: {
                         OpGetChildren getChildren = op.asGetChildren();
                         GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
-                        String basePath =
-                                getChildren.getPath().equals("/") ? "/" : getChildren.getPath() + "/";
+                        String basePath = getChildren.getPath().equals("/") ? "/" : getChildren.getPath() + "/";
 
                         Set<String> children = gr.getKvs().stream()
                                 .map(kv -> kv.getKey().toString(StandardCharsets.UTF_8))
@@ -408,7 +418,8 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     }
 
     private synchronized CompletableFuture<Void> createLease(boolean retryOnFailure) {
-        CompletableFuture<Void> future = client.getLeaseClient().grant(leaseTTLSeconds)
+        CompletableFuture<Void> future = client.getLeaseClient()
+                .grant(leaseTTLSeconds)
                 .thenAccept(lease -> {
                     synchronized (this) {
                         this.leaseId = lease.getID();
@@ -416,37 +427,40 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                         if (leaseClient != null) {
                             leaseClient.close();
                         }
-                        this.leaseClient =
-                                this.client.getLeaseClient()
-                                        .keepAlive(leaseId, new StreamObserver<LeaseKeepAliveResponse>() {
-                                            @Override
-                                            public void onNext(LeaseKeepAliveResponse leaseKeepAliveResponse) {
-                                                if (log.isDebugEnabled()) {
-                                                    log.debug("On next: {}", leaseKeepAliveResponse);
-                                                }
-                                            }
+                        this.leaseClient = this.client
+                                .getLeaseClient()
+                                .keepAlive(leaseId, new StreamObserver<LeaseKeepAliveResponse>() {
+                                    @Override
+                                    public void onNext(LeaseKeepAliveResponse leaseKeepAliveResponse) {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("On next: {}", leaseKeepAliveResponse);
+                                        }
+                                    }
 
-                                            @Override
-                                            public void onError(Throwable throwable) {
-                                                log.warn("Lease client error :", throwable);
-                                                receivedSessionEvent(SessionEvent.SessionLost);
-                                            }
+                                    @Override
+                                    public void onError(Throwable throwable) {
+                                        log.warn("Lease client error :", throwable);
+                                        receivedSessionEvent(SessionEvent.SessionLost);
+                                    }
 
-                                            @Override
-                                            public void onCompleted() {
-                                                log.info("Etcd lease has expired");
-                                                receivedSessionEvent(SessionEvent.SessionLost);
-                                            }
-                                        });
+                                    @Override
+                                    public void onCompleted() {
+                                        log.info("Etcd lease has expired");
+                                        receivedSessionEvent(SessionEvent.SessionLost);
+                                    }
+                                });
                     }
                 });
 
         if (retryOnFailure) {
             future.exceptionally(ex -> {
                 log.warn("Failed to create Etcd lease. Retrying later", ex);
-                executor.schedule(() -> {
-                    createLease(true);
-                }, 1, TimeUnit.SECONDS);
+                executor.schedule(
+                        () -> {
+                            createLease(true);
+                        },
+                        1,
+                        TimeUnit.SECONDS);
                 return null;
             });
         }
@@ -476,10 +490,9 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     protected void receivedSessionEvent(SessionEvent event) {
         if (event == SessionEvent.SessionReestablished) {
             // Re-create the lease before notifying that we are reconnected
-            createLease(true)
-                    .thenRun(() -> {
-                        super.receivedSessionEvent(event);
-                    });
+            createLease(true).thenRun(() -> {
+                super.receivedSessionEvent(event);
+            });
 
         } else {
             super.receivedSessionEvent(event);
@@ -510,8 +523,9 @@ class EtcdMetadataStoreProvider implements MetadataStoreProvider {
     }
 
     @Override
-    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
-                                boolean enableSessionWatcher) throws MetadataStoreException {
+    public MetadataStore create(
+            String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+            throws MetadataStoreException {
         return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 }

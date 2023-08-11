@@ -74,16 +74,23 @@ public class TransactionConsumeTest extends TransactionTestBase {
         setBrokerCount(1);
         super.internalSetup();
 
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(new HashSet<>(), Sets.newHashSet(CLUSTER_NAME)));
+        String[] brokerServiceUrlArr =
+                getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder()
+                                .serviceUrl("http://localhost:" + webServicePort)
+                                .build());
+        admin.tenants().createTenant("public", new TenantInfoImpl(new HashSet<>(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/txn", 10);
         admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
 
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.tenants()
+                .createTenant(
+                        NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                        new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         createTransactionCoordinatorAssign(1);
     }
@@ -101,18 +108,19 @@ public class TransactionConsumeTest extends TransactionTestBase {
         int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(CONSUME_TOPIC)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(CONSUME_TOPIC).create();
 
         @Cleanup
-        Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
+        Consumer<byte[]> exclusiveConsumer = pulsarClient
+                .newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("exclusive-test")
                 .subscribe();
 
         @Cleanup
-        Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
+        Consumer<byte[]> sharedConsumer = pulsarClient
+                .newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
@@ -125,8 +133,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
         long leastSigBits = 5L;
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
 
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(CONSUME_TOPIC, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(CONSUME_TOPIC, false)
+                .get()
+                .get();
         log.info("transactionBuffer init finish.");
 
         List<String> sendMessageList = new ArrayList<>();
@@ -180,18 +192,19 @@ public class TransactionConsumeTest extends TransactionTestBase {
         int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(CONSUME_TOPIC)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(CONSUME_TOPIC).create();
 
         @Cleanup
-        Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
+        Consumer<byte[]> exclusiveConsumer = pulsarClient
+                .newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("exclusive-test")
                 .subscribe();
 
         @Cleanup
-        Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
+        Consumer<byte[]> sharedConsumer = pulsarClient
+                .newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
@@ -203,8 +216,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
         long leastSigBits = 5L;
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
 
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(CONSUME_TOPIC, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(CONSUME_TOPIC, false)
+                .get()
+                .get();
 
         List<String> sendMessageList = new ArrayList<>();
         sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
@@ -234,7 +251,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
         String subName = "shared-test";
 
         @Cleanup
-        Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
+        Consumer<byte[]> sharedConsumer = pulsarClient
+                .newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -247,26 +265,31 @@ public class TransactionConsumeTest extends TransactionTestBase {
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
 
         // produce batch message with txn and then abort
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(CONSUME_TOPIC, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(CONSUME_TOPIC, false)
+                .get()
+                .get();
 
         List<String> sendMessageList = new ArrayList<>();
-        List<MessageIdData> messageIdDataList = appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
+        List<MessageIdData> messageIdDataList =
+                appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
 
         persistentTopic.endTxn(txnID, TxnAction.ABORT_VALUE, 0L).get();
         log.info("Abort txn.");
 
         // redeliver transaction messages to shared consumer
         PersistentSubscription subRef = persistentTopic.getSubscription(subName);
-        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) subRef
-                .getDispatcher();
-        Field redeliveryMessagesField = PersistentDispatcherMultipleConsumers.class
-                .getDeclaredField("redeliveryMessages");
+        PersistentDispatcherMultipleConsumers dispatcher =
+                (PersistentDispatcherMultipleConsumers) subRef.getDispatcher();
+        Field redeliveryMessagesField =
+                PersistentDispatcherMultipleConsumers.class.getDeclaredField("redeliveryMessages");
         redeliveryMessagesField.setAccessible(true);
         MessageRedeliveryController redeliveryMessages = new MessageRedeliveryController(true);
 
-        final Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class
-                .getDeclaredField("totalAvailablePermits");
+        final Field totalAvailablePermitsField =
+                PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
         totalAvailablePermitsField.setAccessible(true);
         totalAvailablePermitsField.set(dispatcher, 1000);
 
@@ -284,8 +307,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
         log.info("TransactionConsumeTest testMessageRedelivery finish.");
     }
 
-    private void sendNormalMessages(Producer<byte[]> producer, int startMsgCnt,
-                                    int messageCnt, List<String> sendMessageList)
+    private void sendNormalMessages(
+            Producer<byte[]> producer, int startMsgCnt, int messageCnt, List<String> sendMessageList)
             throws PulsarClientException {
         for (int i = 0; i < messageCnt; i++) {
             String msg = NORMAL_MSG_CONTENT + (startMsgCnt + i);
@@ -297,13 +320,18 @@ public class TransactionConsumeTest extends TransactionTestBase {
     private List<MessageIdData> appendTransactionMessages(
             TxnID txnID, PersistentTopic topic, int transactionMsgCnt, List<String> sendMessageList)
             throws ExecutionException, InterruptedException, PulsarClientException {
-        //Change the state of TB to Ready.
+        // Change the state of TB to Ready.
         @Cleanup
-        PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
-                .enableTransaction(true).build();
+        PulsarClient pulsarClient1 = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true)
+                .build();
         @Cleanup
         Producer<String> producer = pulsarClient1
-                .newProducer(Schema.STRING).topic(CONSUME_TOPIC).sendTimeout(0, TimeUnit.SECONDS).create();
+                .newProducer(Schema.STRING)
+                .topic(CONSUME_TOPIC)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
         List<MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {
             final int j = i;
@@ -316,8 +344,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
             String msg = TXN_MSG_CONTENT + i;
             sendMessageList.add(msg);
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
-                    Commands.ChecksumType.Crc32c, metadata,
-                    Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
+                    Commands.ChecksumType.Crc32c, metadata, Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
             CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
             topic.publishTxnMessage(txnID, headerAndPayload, new Topic.PublishContext() {
 
@@ -345,15 +372,15 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 }
 
                 public long getHighestSequenceId() {
-                    return  j + 30;
+                    return j + 30;
                 }
 
                 public long getOriginalHighestSequenceId() {
-                    return  j + 30;
+                    return j + 30;
                 }
 
                 public long getNumberOfMessages() {
-                    return  j + 30;
+                    return j + 30;
                 }
 
                 @Override
@@ -361,11 +388,11 @@ public class TransactionConsumeTest extends TransactionTestBase {
                     completableFuture.complete(PositionImpl.get(ledgerId, entryId));
                 }
             });
-            positionList.add(new MessageIdData().setLedgerId(completableFuture.get()
-                    .getLedgerId()).setEntryId(completableFuture.get().getEntryId()));
+            positionList.add(new MessageIdData()
+                    .setLedgerId(completableFuture.get().getLedgerId())
+                    .setEntryId(completableFuture.get().getEntryId()));
         }
         log.info("append messages to TB finish.");
         return positionList;
     }
-
 }

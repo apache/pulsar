@@ -58,5 +58,4 @@ public class VipStatus {
         log.warn("Failed to access \"status.html\". The service is not ready");
         throw new WebApplicationException(Status.NOT_FOUND);
     }
-
 }

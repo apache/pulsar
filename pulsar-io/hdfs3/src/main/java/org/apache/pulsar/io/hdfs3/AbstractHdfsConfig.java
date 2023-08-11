@@ -65,12 +65,12 @@ public abstract class AbstractHdfsConfig implements Serializable {
 
     public void validate() {
         if (StringUtils.isEmpty(hdfsConfigResources) || StringUtils.isEmpty(directory)) {
-           throw new IllegalArgumentException("Required property not set.");
+            throw new IllegalArgumentException("Required property not set.");
         }
 
         if ((StringUtils.isNotEmpty(kerberosUserPrincipal) && StringUtils.isEmpty(keytab))
-            || (StringUtils.isEmpty(kerberosUserPrincipal) && StringUtils.isNotEmpty(keytab))) {
-          throw new IllegalArgumentException("Values for both kerberosUserPrincipal & keytab are required.");
+                || (StringUtils.isEmpty(kerberosUserPrincipal) && StringUtils.isNotEmpty(keytab))) {
+            throw new IllegalArgumentException("Values for both kerberosUserPrincipal & keytab are required.");
         }
     }
 }

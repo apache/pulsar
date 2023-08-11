@@ -23,9 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
-
 import java.lang.reflect.InvocationTargetException;
-
 import org.testng.annotations.Test;
 
 /**
@@ -33,19 +31,15 @@ import org.testng.annotations.Test;
  */
 public class ReflectionsTest {
 
-    private interface bInterface {
-    }
+    private interface bInterface {}
 
-    private interface aInterface {
-    }
+    private interface aInterface {}
 
-    private static class aImplementation implements aInterface {
-    }
+    private static class aImplementation implements aInterface {}
 
     private static class OneArgClass implements aInterface {
 
         OneArgClass(int oneArg) {}
-
     }
 
     private static class ThrowExceptionClass implements aInterface {
@@ -54,8 +48,7 @@ public class ReflectionsTest {
         }
     }
 
-    private static abstract class AbstractClass implements aInterface {
-    }
+    private abstract static class AbstractClass implements aInterface {}
 
     private final ClassLoader classLoader;
 
@@ -150,8 +143,8 @@ public class ReflectionsTest {
             fail("Should fail to load a class that isn't assignable");
         } catch (RuntimeException re) {
             assertEquals(
-                aImplementation.class.getName() + " does not implement " + bInterface.class.getName(),
-                re.getMessage());
+                    aImplementation.class.getName() + " does not implement " + bInterface.class.getName(),
+                    re.getMessage());
         }
     }
 

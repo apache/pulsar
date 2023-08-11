@@ -29,10 +29,7 @@ public class ShortSchemaTest {
     public void testSchemaEncode() {
         ShortSchema schema = ShortSchema.of();
         Short data = 12345;
-        byte[] expected = new byte[] {
-                (byte) (data >>> 8),
-                data.byteValue()
-        };
+        byte[] expected = new byte[] {(byte) (data >>> 8), data.byteValue()};
         Assert.assertEquals(expected, schema.encode(data));
     }
 
@@ -42,7 +39,7 @@ public class ShortSchemaTest {
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(2);
         short start = 3440;
         for (short i = 0; i < 100; ++i) {
-            byte[] encode = schema.encode((short)(start + i));
+            byte[] encode = schema.encode((short) (start + i));
             byteBuf.writerIndex(0);
             byteBuf.writeBytes(encode);
             int decoded = schema.decode(encode);
@@ -54,11 +51,8 @@ public class ShortSchemaTest {
 
     @Test
     public void testSchemaDecode() {
-        byte[] byteData = new byte[] {
-               24,
-               42
-        };
-        Short expected = 24*256 + 42;
+        byte[] byteData = new byte[] {24, 42};
+        Short expected = 24 * 256 + 42;
         ShortSchema schema = ShortSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(2);
         byteBuf.writeBytes(byteData);
@@ -74,5 +68,4 @@ public class ShortSchemaTest {
         Assert.assertNull(ShortSchema.of().decode(byteBuf));
         Assert.assertNull(ShortSchema.of().decode(bytes));
     }
-
 }

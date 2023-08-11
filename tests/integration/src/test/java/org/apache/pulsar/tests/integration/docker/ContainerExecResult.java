@@ -37,12 +37,10 @@ public class ContainerExecResult {
     }
 
     public void assertNoStdout() {
-        assertTrue(stdout.isEmpty(),
-                "stdout should be empty, but was '" + stdout + "'");
+        assertTrue(stdout.isEmpty(), "stdout should be empty, but was '" + stdout + "'");
     }
 
     public void assertNoStderr() {
-        assertTrue(stderr.isEmpty(),
-                "stderr should be empty, but was '" + stderr + "'");
+        assertTrue(stderr.isEmpty(), "stderr should be empty, but was '" + stderr + "'");
     }
 }

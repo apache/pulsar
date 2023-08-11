@@ -64,8 +64,8 @@ public interface MetadataStoreExtended extends MetadataStore {
      *             if the expected version doesn't match the actual version of the data
      * @return a future to track the async request
      */
-    CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
-            EnumSet<CreateOption> options);
+    CompletableFuture<Stat> put(
+            String path, byte[] value, Optional<Long> expectedVersion, EnumSet<CreateOption> options);
 
     /**
      * Register a session listener that will get notified of changes in status of the current session.

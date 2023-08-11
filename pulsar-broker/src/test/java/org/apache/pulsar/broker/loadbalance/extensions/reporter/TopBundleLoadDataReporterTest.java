@@ -138,17 +138,15 @@ public class TopBundleLoadDataReporterTest {
         assertEquals(target.generateLoadData(), expected.getLoadData());
     }
 
-
-    public void testReportForce()  {
+    public void testReportForce() {
         var target = new TopBundleLoadDataReporter(pulsar, broker, store);
         target.reportAsync(false);
         verify(store, times(0)).pushAsync(any(), any());
         target.reportAsync(true);
         verify(store, times(1)).pushAsync(broker, new TopBundlesLoadData());
-
     }
 
-    public void testReport(){
+    public void testReport() {
         pulsar.getConfiguration().setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(1);
         var target = new TopBundleLoadDataReporter(pulsar, broker, store);
         doReturn(1l).when(pulsarStats).getUpdatedAt();
@@ -163,57 +161,58 @@ public class TopBundleLoadDataReporterTest {
 
         var target = spy(new TopBundleLoadDataReporter(pulsar, broker, store));
 
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Assigning, broker, VERSION_ID_INIT), null);
+        target.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Assigning, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
         verify(target, times(0)).tombstone();
 
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Deleted, broker, VERSION_ID_INIT), null);
+        target.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Deleted, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
         verify(target, times(0)).tombstone();
 
-
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Init, broker, VERSION_ID_INIT), null);
+        target.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Init, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
         verify(target, times(0)).tombstone();
 
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Free, broker, VERSION_ID_INIT), null);
+        target.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Free, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
         verify(target, times(0)).tombstone();
 
-        target.handleEvent(bundle,
+        target.handleEvent(
+                bundle,
                 new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT),
                 new RuntimeException());
         verify(store, times(0)).removeAsync(eq(broker));
         verify(target, times(0)).tombstone();
 
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT), null);
+        target.handleEvent(
+                bundle,
+                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT),
+                null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             verify(target, times(1)).tombstone();
             verify(store, times(1)).removeAsync(eq(broker));
         });
 
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT), null);
+        target.handleEvent(
+                bundle,
+                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT),
+                null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             verify(target, times(2)).tombstone();
             verify(store, times(1)).removeAsync(eq(broker));
         });
 
         FieldUtils.writeDeclaredField(target, "tombstoneDelayInMillis", 0, true);
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-2", broker, VERSION_ID_INIT), null);
+        target.handleEvent(
+                bundle,
+                new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-2", broker, VERSION_ID_INIT),
+                null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             verify(target, times(3)).tombstone();
             verify(store, times(2)).removeAsync(eq(broker));
         });
 
-        target.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Owned, broker, VERSION_ID_INIT), null);
+        target.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Owned, broker, VERSION_ID_INIT), null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             verify(target, times(4)).tombstone();
             verify(store, times(3)).removeAsync(eq(broker));

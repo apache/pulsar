@@ -21,17 +21,15 @@ package org.apache.pulsar.io.twitter;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.testng.annotations.Test;
 
 public class TwitterFireHoseConfigTests {
-    
+
     private TwitterFireHoseConfig config;
 
     @Test
@@ -43,44 +41,45 @@ public class TwitterFireHoseConfigTests {
 
     @Test
     public final void loadFromMapTest() throws IOException {
-        Map<String, Object> map = new HashMap<> ();
+        Map<String, Object> map = new HashMap<>();
         map.put("consumerKey", "xxx");
         map.put("consumerSecret", "xxx");
         map.put("token", "xxx");
         map.put("tokenSecret", "xxx");
-        
+
         config = TwitterFireHoseConfig.load(map);
-        
+
         assertNotNull(config);
     }
 
     @Test
     public final void validValidateTest() throws IOException {
-        Map<String, Object> map = new HashMap<> ();
+        Map<String, Object> map = new HashMap<>();
         map.put("consumerKey", "xxx");
         map.put("consumerSecret", "xxx");
         map.put("token", "xxx");
         map.put("tokenSecret", "xxx");
-        
+
         config = TwitterFireHoseConfig.load(map);
         config.validate();
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Required property not set.")
     public final void missingConsumerKeyValidateTest() throws IOException {
-        Map<String, Object> map = new HashMap<> ();
-        
+        Map<String, Object> map = new HashMap<>();
+
         config = TwitterFireHoseConfig.load(map);
         config.validate();
     }
-    
+
     @Test
     public final void getFollowingsTest() throws IOException {
-        Map<String, Object> map = new HashMap<> ();
+        Map<String, Object> map = new HashMap<>();
         map.put("followings", "123, 456, 789");
         config = TwitterFireHoseConfig.load(map);
-        
+
         List<Long> followings = config.getFollowings();
         assertNotNull(followings);
         assertEquals(followings.size(), 3);
@@ -88,23 +87,21 @@ public class TwitterFireHoseConfigTests {
         assertTrue(followings.contains(456L));
         assertTrue(followings.contains(789L));
     }
-    
-    
+
     @Test
     public final void getTermsTest() throws IOException {
-        Map<String, Object> map = new HashMap<> ();
+        Map<String, Object> map = new HashMap<>();
         map.put("terms", "mickey, donald, goofy");
         config = TwitterFireHoseConfig.load(map);
-        
+
         List<String> terms = config.getTrackTerms();
         assertNotNull(terms);
         assertEquals(terms.size(), 3);
         assertTrue(terms.contains("mickey"));
     }
-    
+
     private File getFile(String name) {
         ClassLoader classLoader = getClass().getClassLoader();
         return new File(classLoader.getResource(name).getFile());
     }
-
 }

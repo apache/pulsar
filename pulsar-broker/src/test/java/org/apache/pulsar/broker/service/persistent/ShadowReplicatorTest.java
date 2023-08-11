@@ -57,8 +57,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
-        admin.tenants().createTenant("prop1",
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.tenants().createTenant("prop1", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop1/ns-source");
         admin.namespaces().createNamespace("prop1/ns-shadow");
     }
@@ -81,31 +80,44 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         admin.topics().setShadowTopics(sourceTopicName, Lists.newArrayList(shadowTopicName, shadowTopicName2));
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopicName).create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(sourceTopicName).create();
 
         @Cleanup
-        Consumer<byte[]> shadowConsumer =
-                pulsarClient.newConsumer().topic(shadowTopicName).subscriptionName("shadow-sub")
-                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        Consumer<byte[]> shadowConsumer = pulsarClient
+                .newConsumer()
+                .topic(shadowTopicName)
+                .subscriptionName("shadow-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         @Cleanup
-        Consumer<byte[]> shadowConsumer2 =
-                pulsarClient.newConsumer().topic(shadowTopicName2).subscriptionName("shadow-sub")
-                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        Consumer<byte[]> shadowConsumer2 = pulsarClient
+                .newConsumer()
+                .topic(shadowTopicName2)
+                .subscriptionName("shadow-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
-        PersistentTopic sourceTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopicName).get().get();
+        PersistentTopic sourceTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(sourceTopicName)
+                .get()
+                .get();
 
-        Awaitility.await().untilAsserted(()->Assert.assertEquals(sourceTopic.getShadowReplicators().size(), 2));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        Assert.assertEquals(sourceTopic.getShadowReplicators().size(), 2));
 
-        ShadowReplicator
-                replicator = (ShadowReplicator) sourceTopic.getShadowReplicators().get(shadowTopicName);
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(String.valueOf(replicator.getState()), "Started"));
+        ShadowReplicator replicator =
+                (ShadowReplicator) sourceTopic.getShadowReplicators().get(shadowTopicName);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(String.valueOf(replicator.getState()), "Started"));
 
         @Cleanup
-        Consumer<byte[]> sourceConsumer =
-                pulsarClient.newConsumer().topic(sourceTopicName).subscriptionName("source-sub")
-                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        Consumer<byte[]> sourceConsumer = pulsarClient
+                .newConsumer()
+                .topic(sourceTopicName)
+                .subscriptionName("source-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         byte[] data = "test-shadow-topic".getBytes(StandardCharsets.UTF_8);
         MessageId sourceMessageId = producer.newMessage()
                 .sequenceId(1)
@@ -118,15 +130,17 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         Message<byte[]> sourceMessage = sourceConsumer.receive();
         Assert.assertEquals(sourceMessage.getMessageId(), sourceMessageId);
 
-        //Wait until msg is replicated to shadow topic.
+        // Wait until msg is replicated to shadow topic.
         Awaitility.await().until(() -> {
             replicator.msgOut.calculateRate();
             return replicator.msgOut.getCount() >= 1;
         });
         Awaitility.await().until(() -> PersistentReplicator.PENDING_MESSAGES_UPDATER.get(replicator) == 0);
 
-        PersistentTopic shadowTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicName).get().get();
+        PersistentTopic shadowTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(shadowTopicName)
+                .get()
+                .get();
         Assert.assertNotNull(shadowTopic);
 
         Message<byte[]> shadowMessage = shadowConsumer.receive(5, TimeUnit.SECONDS);
@@ -142,22 +156,27 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         Assert.assertEquals(shadowMessage.getBrokerPublishTime(), sourceMessage.getBrokerPublishTime());
         Assert.assertEquals(shadowMessage.getIndex(), sourceMessage.getIndex());
 
-        //`replicatedFrom` is set as localClusterName in shadow topic.
+        // `replicatedFrom` is set as localClusterName in shadow topic.
         Assert.assertNotEquals(shadowMessage.getReplicatedFrom(), sourceMessage.getReplicatedFrom());
         Assert.assertEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
     }
 
     private static PersistentReplicator getAnyShadowReplicator(TopicName topicName, PulsarService pulsar) {
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).join().get();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName.toString(), false)
+                .join()
+                .get();
         Awaitility.await().until(() -> !persistentTopic.getShadowReplicators().isEmpty());
-        return (PersistentReplicator) persistentTopic.getShadowReplicators().values().iterator().next();
+        return (PersistentReplicator)
+                persistentTopic.getShadowReplicators().values().iterator().next();
     }
 
-    private static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin){
+    private static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin) {
         Awaitility.await().untilAsserted(() -> {
-            for (Map.Entry<String, ? extends ReplicatorStats> subStats :
-                    admin.topics().getStats(topicName.toString(), true, false, false).getReplication().entrySet()){
+            for (Map.Entry<String, ? extends ReplicatorStats> subStats : admin.topics()
+                    .getStats(topicName.toString(), true, false, false)
+                    .getReplication()
+                    .entrySet()) {
                 assertTrue(subStats.getValue().getReplicationBacklog() == 0, "replication task finished");
             }
         });
@@ -165,10 +184,10 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
     @Test
     public void testCounterOfPengdingMessagesCorrect() throws Exception {
-        TopicName sourceTopicName = TopicName
-                .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic"));
-        TopicName shadowTopicName = TopicName
-                .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-shadow/shadow-topic"));
+        TopicName sourceTopicName =
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic"));
+        TopicName shadowTopicName =
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-shadow/shadow-topic"));
 
         admin.topics().createNonPartitionedTopic(sourceTopicName.toString());
         admin.topics().createShadowTopic(shadowTopicName.toString(), sourceTopicName.toString());
@@ -177,13 +196,15 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         // Init replicator and send many messages.
         final String subName = "my-sub";
         @Cleanup
-        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> consumer = pulsarClient
+                .newConsumer(Schema.AUTO_CONSUME())
                 .topic(sourceTopicName.toString())
                 .subscriptionName(subName)
                 .receiverQueueSize(10)
                 .subscribe();
         @Cleanup
-        Producer<Schemas.PersonOne> producer = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+        Producer<Schemas.PersonOne> producer = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(sourceTopicName.toString())
                 .enableBatching(false)
                 .create();

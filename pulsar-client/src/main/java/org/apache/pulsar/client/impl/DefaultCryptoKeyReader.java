@@ -106,5 +106,4 @@ public class DefaultCryptoKeyReader implements CryptoKeyReader {
             throw new IllegalArgumentException("Invalid key format");
         }
     }
-
 }

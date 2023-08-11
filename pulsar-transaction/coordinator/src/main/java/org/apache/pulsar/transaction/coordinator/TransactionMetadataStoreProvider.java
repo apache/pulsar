@@ -44,9 +44,9 @@ public interface TransactionMetadataStoreProvider {
         try {
             providerClass = Class.forName(providerClassName);
             Object obj = providerClass.getDeclaredConstructor().newInstance();
-            checkArgument(obj instanceof TransactionMetadataStoreProvider,
-                "The factory has to be an instance of "
-                    + TransactionMetadataStoreProvider.class.getName());
+            checkArgument(
+                    obj instanceof TransactionMetadataStoreProvider,
+                    "The factory has to be an instance of " + TransactionMetadataStoreProvider.class.getName());
 
             return (TransactionMetadataStoreProvider) obj;
         } catch (Exception e) {
@@ -68,8 +68,12 @@ public interface TransactionMetadataStoreProvider {
      *         if the operation succeeds.
      */
     CompletableFuture<TransactionMetadataStore> openStore(
-            TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
-            ManagedLedgerConfig managedLedgerConfig, TransactionTimeoutTracker timeoutTracker,
-            TransactionRecoverTracker recoverTracker, long maxActiveTransactionsPerCoordinator,
-            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig, Timer timer);
+            TransactionCoordinatorID transactionCoordinatorId,
+            ManagedLedgerFactory managedLedgerFactory,
+            ManagedLedgerConfig managedLedgerConfig,
+            TransactionTimeoutTracker timeoutTracker,
+            TransactionRecoverTracker recoverTracker,
+            long maxActiveTransactionsPerCoordinator,
+            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+            Timer timer);
 }

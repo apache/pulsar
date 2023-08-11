@@ -72,7 +72,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGetWritableBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
@@ -80,8 +81,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         @Cleanup
         RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
 
-        @Cleanup
-        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         Set<BookieId> addresses = prepareNBookies(10);
         List<String> children = new ArrayList<>();
@@ -95,11 +95,11 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         assertEquals(result.getValue().size(), addresses.size());
     }
 
-
     @Test(dataProvider = "impl")
     public void testGetReadonlyBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
@@ -107,8 +107,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         @Cleanup
         RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
 
-        @Cleanup
-        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         Set<BookieId> addresses = prepareNBookies(10);
         List<String> children = new ArrayList<>();
@@ -125,7 +124,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGetBookieServiceInfo(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
@@ -133,8 +133,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         @Cleanup
         RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
 
-        @Cleanup
-        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         List<BookieId> addresses = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -169,9 +168,11 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() -> {
             for (BookieId address : addresses) {
-                BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+                BookieServiceInfo bookieServiceInfo =
+                        rc.getBookieServiceInfo(address).get().getValue();
                 compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
-            }});
+            }
+        });
 
         // shutdown the bookies (but keep the cookie)
         for (BookieId address : addresses) {
@@ -187,10 +188,12 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             for (BookieId address : addresses) {
                 assertTrue(
                         expectThrows(ExecutionException.class, () -> {
-                            rc.getBookieServiceInfo(address).get();
-                        }).getCause() instanceof BKException.BKBookieHandleNotAvailableException);
-            }});
-
+                                            rc.getBookieServiceInfo(address).get();
+                                        })
+                                        .getCause()
+                                instanceof BKException.BKBookieHandleNotAvailableException);
+            }
+        });
 
         // restart the bookies, all writable
         // we 'register' the bookie, but do not write the cookie again
@@ -205,7 +208,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
                 .ignoreExceptionsMatching(e -> e.getCause() instanceof BKException.BKBookieHandleNotAvailableException)
                 .untilAsserted(() -> {
                     for (BookieId address : addresses) {
-                        BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+                        BookieServiceInfo bookieServiceInfo =
+                                rc.getBookieServiceInfo(address).get().getValue();
                         compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
                     }
                 });
@@ -237,17 +241,16 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         }
 
         // verify that the client tracked the changes
-        Awaitility
-                .await()
+        Awaitility.await()
                 .ignoreExceptionsMatching(e -> e.getCause() instanceof BKException.BKBookieHandleNotAvailableException)
                 .untilAsserted(() -> {
                     // verify that infos are updated
                     for (BookieId address : addresses) {
-                        BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+                        BookieServiceInfo bookieServiceInfo =
+                                rc.getBookieServiceInfo(address).get().getValue();
                         compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
                     }
                 });
-
     }
 
     private static void getAndVerifyAllBookies(RegistrationClient rc, List<BookieId> addresses)
@@ -275,22 +278,20 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             assertEquals(e1.getExtensions(), e2.getExtensions());
             assertEquals(e1.getAuth(), e2.getAuth());
         }
-
     }
 
     @Test(dataProvider = "impl")
     public void testGetAllBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
 
         @Cleanup
         RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
 
-        @Cleanup
-        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         Set<BookieId> addresses = prepareNBookies(10);
         List<String> children = new ArrayList<>();
@@ -317,7 +318,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             throws Exception {
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
@@ -325,8 +327,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         @Cleanup
         RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
 
-        @Cleanup
-        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         //
         // 1. test watch bookies with a listener
@@ -357,7 +358,6 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         });
     }
 
-
     @Test
     public void testNetworkDelayWithBkZkManager() throws Throwable {
         final String zksConnectionString = zks.getConnectionString();
@@ -366,16 +366,16 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         ZooKeeper zk = new ZooKeeper(zksConnectionString, 5000, null);
         final ServerConfiguration serverConfiguration = new ServerConfiguration();
         serverConfiguration.setZkLedgersRootPath(ledgersRoot);
-        final FaultInjectableZKRegistrationManager rm = new FaultInjectableZKRegistrationManager(serverConfiguration, zk);
+        final FaultInjectableZKRegistrationManager rm =
+                new FaultInjectableZKRegistrationManager(serverConfiguration, zk);
         rm.prepareFormat();
         // prepare registration client
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(zksConnectionString,
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                zksConnectionString,
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
-        @Cleanup
-        RegistrationClient rc1 = new PulsarRegistrationClient(store, ledgersRoot);
-        @Cleanup
-        RegistrationClient rc2 = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup RegistrationClient rc1 = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup RegistrationClient rc2 = new PulsarRegistrationClient(store, ledgersRoot);
 
         final List<BookieId> addresses = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -406,15 +406,14 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() -> {
             for (BookieId address : addresses) {
-                compareBookieServiceInfo(rc1.getBookieServiceInfo(address).get().getValue(),
-                        bookieServiceInfos.get(address));
-                compareBookieServiceInfo(rc2.getBookieServiceInfo(address).get().getValue(),
-                        bookieServiceInfos.get(address));
+                compareBookieServiceInfo(
+                        rc1.getBookieServiceInfo(address).get().getValue(), bookieServiceInfos.get(address));
+                compareBookieServiceInfo(
+                        rc2.getBookieServiceInfo(address).get().getValue(), bookieServiceInfos.get(address));
             }
         });
 
         // verified the init status.
-
 
         // mock network delay
         rm.betweenRegisterReadOnlyBookie(__ -> {
@@ -434,10 +433,10 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() -> {
             for (BookieId address : addresses) {
-                compareBookieServiceInfo(rc1.getBookieServiceInfo(address).get().getValue(),
-                        bookieServiceInfos.get(address));
-                compareBookieServiceInfo(rc2.getBookieServiceInfo(address).get().getValue(),
-                        bookieServiceInfos.get(address));
+                compareBookieServiceInfo(
+                        rc1.getBookieServiceInfo(address).get().getValue(), bookieServiceInfos.get(address));
+                compareBookieServiceInfo(
+                        rc2.getBookieServiceInfo(address).get().getValue(), bookieServiceInfos.get(address));
             }
         });
     }

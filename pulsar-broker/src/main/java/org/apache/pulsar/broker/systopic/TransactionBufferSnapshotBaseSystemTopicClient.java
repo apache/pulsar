@@ -31,16 +31,16 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Slf4j
-public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTopicClientBase<T> {
+public class TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTopicClientBase<T> {
 
     protected final SystemTopicTxnBufferSnapshotService<T> systemTopicTxnBufferSnapshotService;
     protected final Class<T> schemaType;
 
-    public TransactionBufferSnapshotBaseSystemTopicClient(PulsarClient client,
-                                                          TopicName topicName,
-                                                          SystemTopicTxnBufferSnapshotService<T>
-                                                                  systemTopicTxnBufferSnapshotService,
-                                                          Class<T> schemaType) {
+    public TransactionBufferSnapshotBaseSystemTopicClient(
+            PulsarClient client,
+            TopicName topicName,
+            SystemTopicTxnBufferSnapshotService<T> systemTopicTxnBufferSnapshotService,
+            Class<T> schemaType) {
         super(client, topicName);
         this.systemTopicTxnBufferSnapshotService = systemTopicTxnBufferSnapshotService;
         this.schemaType = schemaType;
@@ -62,42 +62,31 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
         protected final TransactionBufferSnapshotBaseSystemTopicClient<T>
                 transactionBufferSnapshotBaseSystemTopicClient;
 
-        protected TransactionBufferSnapshotWriter(Producer<T> producer,
-                                                  TransactionBufferSnapshotBaseSystemTopicClient<T>
-                                                    transactionBufferSnapshotBaseSystemTopicClient) {
+        protected TransactionBufferSnapshotWriter(
+                Producer<T> producer,
+                TransactionBufferSnapshotBaseSystemTopicClient<T> transactionBufferSnapshotBaseSystemTopicClient) {
             this.producer = producer;
             this.transactionBufferSnapshotBaseSystemTopicClient = transactionBufferSnapshotBaseSystemTopicClient;
         }
 
         @Override
-        public MessageId write(String key, T t)
-                throws PulsarClientException {
-            return producer.newMessage().key(key)
-                    .value(t).send();
+        public MessageId write(String key, T t) throws PulsarClientException {
+            return producer.newMessage().key(key).value(t).send();
         }
 
         @Override
         public CompletableFuture<MessageId> writeAsync(String key, T t) {
-            return producer.newMessage()
-                    .key(key)
-                    .value(t).sendAsync();
+            return producer.newMessage().key(key).value(t).sendAsync();
         }
 
         @Override
-        public MessageId delete(String key, T t)
-                throws PulsarClientException {
-            return producer.newMessage()
-                    .key(key)
-                    .value(null)
-                    .send();
+        public MessageId delete(String key, T t) throws PulsarClientException {
+            return producer.newMessage().key(key).value(null).send();
         }
 
         @Override
         public CompletableFuture<MessageId> deleteAsync(String key, T t) {
-            return producer.newMessage()
-                    .key(key)
-                    .value(null)
-                    .sendAsync();
+            return producer.newMessage().key(key).value(null).sendAsync();
         }
 
         @Override
@@ -189,11 +178,12 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
         return client.newProducer(Schema.AVRO(schemaType))
                 .topic(topicName.toString())
                 .enableBatching(false)
-                .createAsync().thenApply(producer -> {
+                .createAsync()
+                .thenApply(producer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new {} writer is created", topicName, schemaType.getName());
                     }
-                    return  new TransactionBufferSnapshotWriter<>(producer, this);
+                    return new TransactionBufferSnapshotWriter<>(producer, this);
                 });
     }
 
@@ -211,5 +201,4 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
                     return new TransactionBufferSnapshotReader<>(reader, this);
                 });
     }
-
 }

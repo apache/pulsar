@@ -19,26 +19,30 @@
 package org.apache.pulsar.client.admin;
 
 public enum Mode {
-
-    PERSISTENT(0), NON_PERSISTENT(1), ALL(2),;
+    PERSISTENT(0),
+    NON_PERSISTENT(1),
+    ALL(2),
+    ;
     private final int value;
+
     private Mode(int value) {
         this.value = value;
     }
+
     public int getValue() {
         return value;
     }
+
     public static Mode valueOf(int n) {
         switch (n) {
-            case 0 :
+            case 0:
                 return PERSISTENT;
-            case 1 :
+            case 1:
                 return NON_PERSISTENT;
-            case 2 :
+            case 2:
                 return ALL;
-            default :
+            default:
                 return null;
-
         }
     }
 }

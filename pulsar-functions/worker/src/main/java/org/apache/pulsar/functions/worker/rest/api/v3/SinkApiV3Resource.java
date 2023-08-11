@@ -32,5 +32,4 @@ import javax.ws.rs.core.MediaType;
 /**
  * @deprecated in favor of {@link SinksApiV3Resource}
  */
-public class SinkApiV3Resource extends SinksApiV3Resource {
-}
+public class SinkApiV3Resource extends SinksApiV3Resource {}

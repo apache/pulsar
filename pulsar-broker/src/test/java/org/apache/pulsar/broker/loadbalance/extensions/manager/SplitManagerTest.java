@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SplitManagerTest {
-    
+
     String bundle = "bundle-1";
 
     String dstBroker = "broker-1";
@@ -51,9 +51,8 @@ public class SplitManagerTest {
         var counter = new SplitCounter();
         SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
-        CompletableFuture<Void> future =
-                manager.waitAsync(FutureUtil.failedFuture(new Exception("test")),
-                        bundle, decision, 10, TimeUnit.SECONDS);
+        CompletableFuture<Void> future = manager.waitAsync(
+                FutureUtil.failedFuture(new Exception("test")), bundle, decision, 10, TimeUnit.SECONDS);
 
         assertTrue(future.isCompletedExceptionally());
         try {
@@ -64,7 +63,8 @@ public class SplitManagerTest {
         }
         var counterExpected = new SplitCounter();
         counterExpected.update(SplitDecision.Label.Failure, Unknown);
-        assertEquals(counter.toMetrics(null).toString(),
+        assertEquals(
+                counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
     }
 
@@ -74,8 +74,7 @@ public class SplitManagerTest {
         SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 3, TimeUnit.SECONDS);
+                manager.waitAsync(CompletableFuture.completedFuture(null), bundle, decision, 3, TimeUnit.SECONDS);
         var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
 
         assertEquals(inFlightUnloadRequests.size(), 1);
@@ -90,7 +89,8 @@ public class SplitManagerTest {
         assertEquals(inFlightUnloadRequests.size(), 0);
         var counterExpected = new SplitCounter();
         counterExpected.update(SplitDecision.Label.Failure, Unknown);
-        assertEquals(counter.toMetrics(null).toString(),
+        assertEquals(
+                counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
     }
 
@@ -102,60 +102,58 @@ public class SplitManagerTest {
         var decision = new SplitDecision();
         decision.succeed(Sessions);
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 5, TimeUnit.SECONDS);
+                manager.waitAsync(CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
         var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
 
         assertEquals(inFlightUnloadRequests.size(), 1);
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Assigning, dstBroker, VERSION_ID_INIT), null);
+        manager.handleEvent(
+                bundle, new ServiceUnitStateData(ServiceUnitState.Assigning, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 1);
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Splitting, dstBroker, VERSION_ID_INIT), null);
+        manager.handleEvent(
+                bundle, new ServiceUnitStateData(ServiceUnitState.Splitting, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 1);
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Releasing, dstBroker, VERSION_ID_INIT), null);
+        manager.handleEvent(
+                bundle, new ServiceUnitStateData(ServiceUnitState.Releasing, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 1);
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, VERSION_ID_INIT), null);
+        manager.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 1);
-        assertEquals(counter.toMetrics(null).toString(),
+        assertEquals(
+                counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Deleted, dstBroker, VERSION_ID_INIT), null);
+        manager.handleEvent(
+                bundle, new ServiceUnitStateData(ServiceUnitState.Deleted, dstBroker, VERSION_ID_INIT), null);
         counterExpected.update(SplitDecision.Label.Success, Sessions);
         assertEquals(inFlightUnloadRequests.size(), 0);
-        assertEquals(counter.toMetrics(null).toString(),
+        assertEquals(
+                counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
 
         // Success with Init state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                bundle, decision, 5, TimeUnit.SECONDS);
+        future = manager.waitAsync(CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
         inFlightUnloadRequests = getinFlightUnloadRequests(manager);
         assertEquals(inFlightUnloadRequests.size(), 1);
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Init, dstBroker, VERSION_ID_INIT), null);
+        manager.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Init, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 0);
         counterExpected.update(SplitDecision.Label.Success, Sessions);
-        assertEquals(counter.toMetrics(null).toString(),
+        assertEquals(
+                counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
         future.get();
 
         // Success with Owned state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                bundle, decision, 5, TimeUnit.SECONDS);
+        future = manager.waitAsync(CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
         inFlightUnloadRequests = getinFlightUnloadRequests(manager);
         assertEquals(inFlightUnloadRequests.size(), 1);
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
+        manager.handleEvent(bundle, new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 0);
         counterExpected.update(SplitDecision.Label.Success, Sessions);
-        assertEquals(counter.toMetrics(null).toString(),
+        assertEquals(
+                counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
         future.get();
     }
@@ -166,13 +164,13 @@ public class SplitManagerTest {
         SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 5, TimeUnit.SECONDS);
+                manager.waitAsync(CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
         var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
 
         assertEquals(inFlightUnloadRequests.size(), 1);
 
-        manager.handleEvent(bundle,
+        manager.handleEvent(
+                bundle,
                 new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT),
                 new IllegalStateException("Failed stage."));
 
@@ -187,7 +185,8 @@ public class SplitManagerTest {
         assertEquals(inFlightUnloadRequests.size(), 0);
         var counterExpected = new SplitCounter();
         counterExpected.update(SplitDecision.Label.Failure, Unknown);
-        assertEquals(counter.toMetrics(null).toString(),
+        assertEquals(
+                counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
     }
 
@@ -196,8 +195,7 @@ public class SplitManagerTest {
         SplitManager manager = new SplitManager(new SplitCounter());
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 5, TimeUnit.SECONDS);
+                manager.waitAsync(CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
         var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
         assertEquals(inFlightUnloadRequests.size(), 1);
         manager.close();
@@ -218,5 +216,4 @@ public class SplitManagerTest {
 
         return inFlightUnloadRequest;
     }
-
 }

@@ -41,10 +41,12 @@ public class BrokerTestUtil {
      * @return a spy of the provided class created with given constructor arguments
      */
     public static <T> T spyWithClassAndConstructorArgs(Class<T> classToSpy, Object... args) {
-        return Mockito.mock(classToSpy, Mockito.withSettings()
-                .useConstructor(args)
-                .defaultAnswer(Mockito.CALLS_REAL_METHODS)
-                .stubOnly());
+        return Mockito.mock(
+                classToSpy,
+                Mockito.withSettings()
+                        .useConstructor(args)
+                        .defaultAnswer(Mockito.CALLS_REAL_METHODS)
+                        .stubOnly());
     }
 
     /**
@@ -58,9 +60,8 @@ public class BrokerTestUtil {
      * @return a spy of the provided class created with given constructor arguments
      */
     public static <T> T spyWithClassAndConstructorArgsRecordingInvocations(Class<T> classToSpy, Object... args) {
-        return Mockito.mock(classToSpy, Mockito.withSettings()
-                .useConstructor(args)
-                .defaultAnswer(Mockito.CALLS_REAL_METHODS));
+        return Mockito.mock(
+                classToSpy, Mockito.withSettings().useConstructor(args).defaultAnswer(Mockito.CALLS_REAL_METHODS));
     }
 
     /**
@@ -72,9 +73,11 @@ public class BrokerTestUtil {
      * @param <T> type of object
      */
     public static <T> T spyWithoutRecordingInvocations(T object) {
-        return Mockito.mock((Class<T>) object.getClass(), Mockito.withSettings()
-                .spiedInstance(object)
-                .defaultAnswer(Mockito.CALLS_REAL_METHODS)
-                .stubOnly());
+        return Mockito.mock(
+                (Class<T>) object.getClass(),
+                Mockito.withSettings()
+                        .spiedInstance(object)
+                        .defaultAnswer(Mockito.CALLS_REAL_METHODS)
+                        .stubOnly());
     }
 }

@@ -20,10 +20,8 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -62,8 +60,8 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -83,8 +81,12 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
-                .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/topic").create();
+                .allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .build();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/topic")
+                .create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -96,17 +98,24 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
-                .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
+                .allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .build();
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/partitioned-topic")
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/partitioned-topic")
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
-                .subscriptionName("my-sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://sample/test/local/partitioned-topic")
+                .subscriptionName("my-sub")
+                .subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -117,5 +126,4 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
             requireNonNull(msg);
         }
     }
-
 }

@@ -39,7 +39,10 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public abstract class CliCommand {
 
-    @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
+    @Parameter(
+            names = {"--help", "-h"},
+            help = true,
+            hidden = true)
     private boolean help = false;
 
     public boolean isHelp() {
@@ -93,28 +96,27 @@ public abstract class CliCommand {
             size = SIZE_UNIT.contains(last) ? Long.parseLong(subStr) : Long.parseLong(s);
         } catch (IllegalArgumentException e) {
             throw new ParameterException(
-                    String.format("Invalid size '%s'. Valid formats are: %s",
-                            s, "(4096, 100K, 10M, 16G, 2T)"));
+                    String.format("Invalid size '%s'. Valid formats are: %s", s, "(4096, 100K, 10M, 16G, 2T)"));
         }
         switch (last) {
-        case 'k':
-        case 'K':
-            return size * 1024;
+            case 'k':
+            case 'K':
+                return size * 1024;
 
-        case 'm':
-        case 'M':
-            return size * 1024 * 1024;
+            case 'm':
+            case 'M':
+                return size * 1024 * 1024;
 
-        case 'g':
-        case 'G':
-            return size * 1024 * 1024 * 1024;
+            case 'g':
+            case 'G':
+                return size * 1024 * 1024 * 1024;
 
-        case 't':
-        case 'T':
-            return size * 1024 * 1024 * 1024 * 1024;
+            case 't':
+            case 'T':
+                return size * 1024 * 1024 * 1024 * 1024;
 
-        default:
-            return size;
+            default:
+                return size;
         }
     }
 
@@ -187,8 +189,8 @@ public abstract class CliCommand {
             try {
                 authAction = AuthAction.valueOf(action);
             } catch (IllegalArgumentException exception) {
-                throw new ParameterException(String.format("Illegal auth action '%s'. Possible values: %s",
-                        action, Arrays.toString(AuthAction.values())));
+                throw new ParameterException(String.format(
+                        "Illegal auth action '%s'. Possible values: %s", action, Arrays.toString(AuthAction.values())));
             }
             res.add(authAction);
         }

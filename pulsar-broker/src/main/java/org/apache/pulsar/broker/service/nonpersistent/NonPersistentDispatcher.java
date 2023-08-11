@@ -25,7 +25,6 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.common.stats.Rate;
 
-
 public interface NonPersistentDispatcher extends Dispatcher {
 
     void sendMessages(List<Entry> entries);
@@ -48,5 +47,4 @@ public interface NonPersistentDispatcher extends Dispatcher {
     default void addUnAckedMessages(int unAckMessages) {
         // No-op
     }
-
 }

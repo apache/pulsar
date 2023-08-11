@@ -46,8 +46,7 @@ public class TransactionSubscription implements Comparable<TransactionSubscripti
             return false;
         }
         TransactionSubscription that = (TransactionSubscription) o;
-        return topic.equals(that.topic)
-                && subscription.equals(that.subscription);
+        return topic.equals(that.topic) && subscription.equals(that.subscription);
     }
 
     @Override

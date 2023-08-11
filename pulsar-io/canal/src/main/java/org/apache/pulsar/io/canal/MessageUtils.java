@@ -90,8 +90,8 @@ public class MessageUtils {
                 try {
                     rowChange = CanalEntry.RowChange.parseFrom(entry.getStoreValue());
                 } catch (Exception e) {
-                    throw new RuntimeException("ERROR ## parser of eromanga-event has an error, data:"
-                            + entry.toString(), e);
+                    throw new RuntimeException(
+                            "ERROR ## parser of eromanga-event has an error, data:" + entry.toString(), e);
                 }
 
                 CanalEntry.EventType eventType = rowChange.getEventType();
@@ -111,7 +111,8 @@ public class MessageUtils {
                     List<Map<String, String>> old = new ArrayList<>();
 
                     for (CanalEntry.RowData rowData : rowChange.getRowDatasList()) {
-                        if (eventType != CanalEntry.EventType.INSERT && eventType != CanalEntry.EventType.UPDATE
+                        if (eventType != CanalEntry.EventType.INSERT
+                                && eventType != CanalEntry.EventType.UPDATE
                                 && eventType != CanalEntry.EventType.DELETE) {
                             continue;
                         }
@@ -155,5 +156,4 @@ public class MessageUtils {
             throw new RuntimeException(e);
         }
     }
-
 }

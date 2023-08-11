@@ -61,7 +61,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @DataProvider(name = "lookupType")
     public Object[][] codecProvider() {
-        return new Object[][] { { "http" }, { "binary" } };
+        return new Object[][] {{"http"}, {"binary"}};
     }
 
     /**
@@ -84,13 +84,13 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
     @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
-     // clean up peer-clusters
+        // clean up peer-clusters
         admin1.clusters().updatePeerClusterNames("r1", null);
         admin1.clusters().updatePeerClusterNames("r2", null);
         admin1.clusters().updatePeerClusterNames("r3", null);
 
-        final String serviceUrl = protocol.equalsIgnoreCase("http") ? pulsar3.getWebServiceAddress()
-                : pulsar3.getBrokerServiceUrl();
+        final String serviceUrl =
+                protocol.equalsIgnoreCase("http") ? pulsar3.getWebServiceAddress() : pulsar3.getBrokerServiceUrl();
         final String namespace1 = "pulsar/global/peer1-" + protocol;
         final String namespace2 = "pulsar/global/peer2-" + protocol;
         admin1.namespaces().createNamespace(namespace1);
@@ -108,8 +108,11 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         final String topic2 = "persistent://" + namespace2 + "/topic2";
 
         @Cleanup
-        PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS)
-            .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+        PulsarClient client3 = PulsarClient.builder()
+                .serviceUrl(serviceUrl)
+                .statsInterval(0, TimeUnit.SECONDS)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
         try {
             // try to create producer for topic1 (part of cluster: r1) by calling cluster: r3
             client3.newProducer().topic(topic1).create();
@@ -129,7 +132,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // set peer-clusters : r3->r1
         admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r1")));
         Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
         assertNotNull(topic);
         pulsar1.getBrokerService().updateRates();
         // get stats for topic1 using cluster-r3's admin3
@@ -144,7 +148,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // set peer-clusters : r3->r2
         admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r2")));
         producer = client3.newProducer().topic(topic2).create();
-        topic = (PersistentTopic) pulsar2.getBrokerService().getOrCreateTopic(topic2).get();
+        topic = (PersistentTopic)
+                pulsar2.getBrokerService().getOrCreateTopic(topic2).get();
         assertNotNull(topic);
         pulsar2.getBrokerService().updateRates();
         // get stats for topic1 using cluster-r3's admin3
@@ -155,8 +160,6 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         assertNotNull(stats);
         assertEquals(stats.getPublishers().size(), 1);
         producer.close();
-
-
     }
 
     @Test(timeOut = 10000)
@@ -171,13 +174,19 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         assertNull(admin1.clusters().getPeerClusterNames(mainClusterName));
         LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(List.of("r2", "r3"));
         admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
-        retryStrategically((test) -> {
-            try {
-                return admin1.clusters().getPeerClusterNames(mainClusterName).size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 100);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin1.clusters()
+                                        .getPeerClusterNames(mainClusterName)
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                5,
+                100);
         assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), peerClusters);
     }
 
@@ -209,12 +218,16 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         final String topic1 = "persistent://" + namespace1 + "/topic1";
 
         @Cleanup
-        PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS).build();
+        PulsarClient client3 = PulsarClient.builder()
+                .serviceUrl(serviceUrl)
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
         // set peer-clusters : r3->r1
         admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r1")));
         admin1.clusters().updatePeerClusterNames("r1", Sets.newLinkedHashSet(List.of("r3")));
         Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
         assertNotNull(topic);
         pulsar1.getBrokerService().updateRates();
         // get stats for topic1 using cluster-r3's admin3
@@ -228,21 +241,24 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         // change the repl cluster to peer-cluster r3 from r1
         admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r3"));
-        NamespaceBundles bundles = pulsar1.getNamespaceService().getNamespaceBundleFactory()
-                .getBundles(NamespaceName.get(namespace1));
+        NamespaceBundles bundles =
+                pulsar1.getNamespaceService().getNamespaceBundleFactory().getBundles(NamespaceName.get(namespace1));
         NamespaceBundle bundle = bundles.getBundles().get(0);
-        retryStrategically((test) -> {
-            try {
-                return !pulsar1.getNamespaceService().isNamespaceBundleOwned(bundle).get();
-            } catch (Exception e) {
-                return false;
-            }
-        }, 5, 200);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return !pulsar1.getNamespaceService()
+                                .isNamespaceBundleOwned(bundle)
+                                .get();
+                    } catch (Exception e) {
+                        return false;
+                    }
+                },
+                5,
+                200);
 
         assertFalse(pulsar1.getNamespaceService().isNamespaceBundleOwned(bundle).get());
         // topic should be unloaded from broker1
         assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topic1));
-
     }
-
 }

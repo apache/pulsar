@@ -25,11 +25,9 @@ import java.util.Map;
  * the validateField method.
  */
 public abstract class Validator {
-    public Validator(Map<String, Object> params) {
-    }
+    public Validator(Map<String, Object> params) {}
 
-    public Validator() {
-    }
+    public Validator() {}
 
     /**
      * validate the field value o that belogs to the field which is named name

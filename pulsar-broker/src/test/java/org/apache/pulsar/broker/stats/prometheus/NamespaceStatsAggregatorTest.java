@@ -51,9 +51,10 @@ public class NamespaceStatsAggregatorTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        multiLayerTopicsMap = ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>newBuilder()
-                .build();
+        multiLayerTopicsMap =
+                ConcurrentOpenHashMap
+                        .<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>newBuilder()
+                        .build();
         pulsar = Mockito.mock(PulsarService.class);
         broker = Mockito.mock(BrokerService.class);
         doReturn(multiLayerTopicsMap).when(broker).getMultiLayerTopicMap();
@@ -71,7 +72,8 @@ public class NamespaceStatsAggregatorTest {
         // prepare multi-layer topic map
         ConcurrentOpenHashMap bundlesMap = ConcurrentOpenHashMap.newBuilder().build();
         ConcurrentOpenHashMap topicsMap = ConcurrentOpenHashMap.newBuilder().build();
-        ConcurrentOpenHashMap subscriptionsMaps = ConcurrentOpenHashMap.newBuilder().build();
+        ConcurrentOpenHashMap subscriptionsMaps =
+                ConcurrentOpenHashMap.newBuilder().build();
         bundlesMap.put("my-bundle", topicsMap);
         multiLayerTopicsMap.put(namespace, bundlesMap);
 
@@ -81,8 +83,8 @@ public class NamespaceStatsAggregatorTest {
         StatsBuckets statsBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
         when(mlBeanStats.getInternalAddEntryLatencyBuckets()).thenReturn(statsBuckets);
         when(mlBeanStats.getInternalLedgerAddEntryLatencyBuckets()).thenReturn(statsBuckets);
-        when(mlBeanStats.getInternalEntrySizeBuckets()).thenReturn(
-                new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES));
+        when(mlBeanStats.getInternalEntrySizeBuckets())
+                .thenReturn(new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES));
         when(ml.getStats()).thenReturn(mlBeanStats);
 
         // Prepare topic and subscription
@@ -99,7 +101,9 @@ public class NamespaceStatsAggregatorTest {
         when(topic.getStats(false, false, false)).thenReturn(topicStats);
         when(topic.getBrokerService()).thenReturn(broker);
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
-        when(topic.getReplicators()).thenReturn(ConcurrentOpenHashMap.<String,Replicator>newBuilder().build());
+        when(topic.getReplicators())
+                .thenReturn(
+                        ConcurrentOpenHashMap.<String, Replicator>newBuilder().build());
         when(topic.getManagedLedger()).thenReturn(ml);
         when(topic.getBacklogQuota(Mockito.any())).thenReturn(Mockito.mock(BacklogQuota.class));
         topicsMap.put("my-topic", topic);
@@ -113,8 +117,7 @@ public class NamespaceStatsAggregatorTest {
         subStats.consumers.add(0, consumerStats);
 
         // when
-        NamespaceStatsAggregator.generate(pulsar, true, true,
-                true, true, metricStreams);
+        NamespaceStatsAggregator.generate(pulsar, true, true, true, true, metricStreams);
 
         // then
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_blocked_on_unacked_messages", 1);
@@ -125,36 +128,40 @@ public class NamespaceStatsAggregatorTest {
     }
 
     private void verifySubscriptionMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {
-        Mockito.verify(metricStreams).writeSample(metricName,
-                value,
-                "cluster",
-                null,
-                "namespace",
-                "tenant/cluster/ns",
-                "topic",
-                "my-topic",
-                "partition",
-                "-1",
-                "subscription",
-                "my-subscription");
+        Mockito.verify(metricStreams)
+                .writeSample(
+                        metricName,
+                        value,
+                        "cluster",
+                        null,
+                        "namespace",
+                        "tenant/cluster/ns",
+                        "topic",
+                        "my-topic",
+                        "partition",
+                        "-1",
+                        "subscription",
+                        "my-subscription");
     }
 
     private void verifyConsumerMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {
-        Mockito.verify(metricStreams).writeSample(metricName,
-                value,
-                "cluster",
-                null,
-                "namespace",
-                "tenant/cluster/ns",
-                "topic",
-                "my-topic",
-                "partition",
-                "-1",
-                "subscription",
-                "my-subscription",
-                "consumer_name",
-                null,
-                "consumer_id",
-                "0");
+        Mockito.verify(metricStreams)
+                .writeSample(
+                        metricName,
+                        value,
+                        "cluster",
+                        null,
+                        "namespace",
+                        "tenant/cluster/ns",
+                        "topic",
+                        "my-topic",
+                        "partition",
+                        "-1",
+                        "subscription",
+                        "my-subscription",
+                        "consumer_name",
+                        null,
+                        "consumer_id",
+                        "0");
     }
 }

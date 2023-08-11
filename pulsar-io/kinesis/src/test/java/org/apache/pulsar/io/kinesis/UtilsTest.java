@@ -23,21 +23,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
-
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
@@ -66,7 +62,7 @@ public class UtilsTest {
 
     @DataProvider(name = "encryption")
     public Object[][] encryptionProvider() {
-        return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @Test
@@ -91,25 +87,35 @@ public class UtilsTest {
         Map<String, String> metadata2 = Maps.newHashMap();
         metadata2.put("version", "v2");
         metadata2.put("ckms", "cmks-2");
-        Record<GenericObject> recordCtx =
-                createRecord(data, algo, keyNames, keyValues, param.getBytes(), metadata1, metadata2,
-                        batchSize, compressionMsgSize, properties, true);
+        Record<GenericObject> recordCtx = createRecord(
+                data,
+                algo,
+                keyNames,
+                keyValues,
+                param.getBytes(),
+                metadata1,
+                metadata2,
+                batchSize,
+                compressionMsgSize,
+                properties,
+                true);
         String json = Utils.serializeRecordToJson(recordCtx);
 
         // deserialize from json and assert
         KinesisMessageResponse kinesisJsonResponse = deSerializeRecordFromJson(json);
         assertEquals(data, getDecoder().decode(kinesisJsonResponse.getPayloadBase64()));
         EncryptionCtx encryptionCtxDeser = kinesisJsonResponse.getEncryptionCtx();
-        assertEquals(key1Value.getBytes(),
+        assertEquals(
+                key1Value.getBytes(),
                 getDecoder().decode(encryptionCtxDeser.getKeysMapBase64().get(keyNames[0])));
-        assertEquals(key2Value.getBytes(),
+        assertEquals(
+                key2Value.getBytes(),
                 getDecoder().decode(encryptionCtxDeser.getKeysMapBase64().get(keyNames[1])));
         assertEquals(param.getBytes(), getDecoder().decode(encryptionCtxDeser.getEncParamBase64()));
         assertEquals(algo, encryptionCtxDeser.getAlgorithm());
         assertEquals(metadata1, encryptionCtxDeser.getKeysMetadataMap().get(keyNames[0]));
         assertEquals(metadata2, encryptionCtxDeser.getKeysMetadataMap().get(keyNames[1]));
         assertEquals(properties, kinesisJsonResponse.getProperties());
-
     }
 
     @Test(dataProvider = "encryption")
@@ -135,8 +141,18 @@ public class UtilsTest {
             Map<String, String> metadata2 = Maps.newHashMap();
             metadata2.put("version", "v2");
             metadata2.put("ckms", "cmks-2");
-            Record<GenericObject> record = createRecord(data, algo, keyNames, keyValues, param.getBytes(), metadata1,
-                    metadata2, batchSize, compressionMsgSize, properties, isEncryption);
+            Record<GenericObject> record = createRecord(
+                    data,
+                    algo,
+                    keyNames,
+                    keyValues,
+                    param.getBytes(),
+                    metadata1,
+                    metadata2,
+                    batchSize,
+                    compressionMsgSize,
+                    properties,
+                    isEncryption);
             ByteBuffer flatBuffer = Utils.serializeRecordToFlatBuffer(record);
 
             Message kinesisJsonResponse = Message.getRootAsMessage(flatBuffer);
@@ -188,15 +204,21 @@ public class UtilsTest {
                 fbproperties.put(property.key(), property.value());
             }
             assertEquals(properties, fbproperties);
-
         }
     }
 
-    private Record<GenericObject> createRecord(byte[] data, String algo, String[] keyNames, byte[][] keyValues,
-                                               byte[] param,
-                                               Map<String, String> metadata1, Map<String, String> metadata2,
-                                               int batchSize, int compressionMsgSize,
-                                               Map<String, String> properties, boolean isEncryption) {
+    private Record<GenericObject> createRecord(
+            byte[] data,
+            String algo,
+            String[] keyNames,
+            byte[][] keyValues,
+            byte[] param,
+            Map<String, String> metadata1,
+            Map<String, String> metadata2,
+            int batchSize,
+            int compressionMsgSize,
+            Map<String, String> properties,
+            boolean isEncryption) {
         EncryptionContext ctx = null;
         if (isEncryption) {
             ctx = new EncryptionContext();
@@ -266,7 +288,7 @@ public class UtilsTest {
 
     @DataProvider(name = "schemaType")
     public Object[] schemaType() {
-        return new Object[]{SchemaType.JSON, SchemaType.AVRO};
+        return new Object[] {SchemaType.JSON, SchemaType.AVRO};
     }
 
     @Test(dataProvider = "schemaType")
@@ -282,20 +304,28 @@ public class UtilsTest {
         udtSchemaBuilder.field("i").type(SchemaType.INT32).optional().defaultValue(null);
         udtSchemaBuilder.field("l").type(SchemaType.INT64).optional().defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
-        valueSchemaBuilder.field("e", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        valueSchemaBuilder
+                .field("e", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
+        GenericRecord valueGenericRecord = valueSchema
+                .newRecordBuilder()
                 .set("c", "1")
                 .set("d", 1)
-                .set("e", udtGenericSchema.newRecordBuilder()
-                        .set("a", "a")
-                        .set("b", true)
-                        .set("d", 1.0)
-                        .set("f", 1.0f)
-                        .set("i", 1)
-                        .set("l", 10L)
-                        .build())
+                .set(
+                        "e",
+                        udtGenericSchema
+                                .newRecordBuilder()
+                                .set("a", "a")
+                                .set("b", true)
+                                .set("d", 1.0)
+                                .set("f", 1.0f)
+                                .set("i", 1)
+                                .set("l", 10L)
+                                .build())
                 .build();
 
         Map<String, String> properties = new HashMap<>();
@@ -336,9 +366,11 @@ public class UtilsTest {
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":{\"c\":\"1\","
-                + "\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}},"
-                + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
+        assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":{\"c\":\"1\","
+                        + "\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}},"
+                        + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
     }
 
     @Test(dataProvider = "schemaType")
@@ -347,10 +379,8 @@ public class UtilsTest {
         keySchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);
         keySchemaBuilder.field("b").type(SchemaType.INT32).optional().defaultValue(null);
         GenericSchema<GenericRecord> keySchema = Schema.generic(keySchemaBuilder.build(schemaType));
-        GenericRecord keyGenericRecord = keySchema.newRecordBuilder()
-                .set("a", "1")
-                .set("b", 1)
-                .build();
+        GenericRecord keyGenericRecord =
+                keySchema.newRecordBuilder().set("a", "1").set("b", 1).build();
 
         RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
         valueSchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
@@ -363,26 +393,34 @@ public class UtilsTest {
         udtSchemaBuilder.field("i").type(SchemaType.INT32).optional().defaultValue(null);
         udtSchemaBuilder.field("l").type(SchemaType.INT64).optional().defaultValue(null);
         GenericSchema<GenericRecord> udtGenericSchema = Schema.generic(udtSchemaBuilder.build(schemaType));
-        valueSchemaBuilder.field("e", udtGenericSchema).type(schemaType).optional().defaultValue(null);
+        valueSchemaBuilder
+                .field("e", udtGenericSchema)
+                .type(schemaType)
+                .optional()
+                .defaultValue(null);
         GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
 
-        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
+        GenericRecord valueGenericRecord = valueSchema
+                .newRecordBuilder()
                 .set("c", "1")
                 .set("d", 1)
-                .set("e", udtGenericSchema.newRecordBuilder()
-                        .set("a", "a")
-                        .set("b", true)
-                        .set("d", 1.0)
-                        .set("f", 1.0f)
-                        .set("i", 1)
-                        .set("l", 10L)
-                        .build())
+                .set(
+                        "e",
+                        udtGenericSchema
+                                .newRecordBuilder()
+                                .set("a", "a")
+                                .set("b", true)
+                                .set("d", 1.0)
+                                .set("f", 1.0f)
+                                .set("i", 1)
+                                .set("l", 10L)
+                                .build())
                 .build();
 
         Schema<org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord>> keyValueSchema =
                 Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
-        org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord>
-                keyValue = new org.apache.pulsar.common.schema.KeyValue<>(keyGenericRecord, valueGenericRecord);
+        org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord> keyValue =
+                new org.apache.pulsar.common.schema.KeyValue<>(keyGenericRecord, valueGenericRecord);
         GenericObject genericObject = new GenericObject() {
             @Override
             public SchemaType getSchemaType() {
@@ -433,17 +471,21 @@ public class UtilsTest {
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
-                + "\"payload\":{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,"
-                + "\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}},\"properties\":{\"prop-key\":\"prop-value\"},"
-                + "\"eventTime\":1648502845803}");
+        assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
+                        + "\"payload\":{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,"
+                        + "\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}},\"properties\":{\"prop-key\":\"prop-value\"},"
+                        + "\"eventTime\":1648502845803}");
 
         json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, true);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload.value.c\":\"1\","
-                + "\"payload.value.d\":1,\"payload.value.e.a\":\"a\",\"payload.value.e.b\":true,\"payload.value.e"
-                + ".d\":1.0,\"payload.value.e.f\":1.0,\"payload.value.e.i\":1,\"payload.value.e.l\":10,\"payload.key"
-                + ".a\":\"1\",\"payload.key.b\":1,\"properties.prop-key\":\"prop-value\",\"eventTime\":1648502845803}");
+        assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload.value.c\":\"1\","
+                        + "\"payload.value.d\":1,\"payload.value.e.a\":\"a\",\"payload.value.e.b\":true,\"payload.value.e"
+                        + ".d\":1.0,\"payload.value.e.f\":1.0,\"payload.value.e.i\":1,\"payload.value.e.l\":10,\"payload.key"
+                        + ".a\":\"1\",\"payload.key.b\":1,\"properties.prop-key\":\"prop-value\",\"eventTime\":1648502845803}");
     }
 
     @Test(dataProvider = "schemaType")
@@ -458,8 +500,8 @@ public class UtilsTest {
 
         Schema<org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord>> keyValueSchema =
                 Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
-        org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord>
-                keyValue = new org.apache.pulsar.common.schema.KeyValue<>(null, null);
+        org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord> keyValue =
+                new org.apache.pulsar.common.schema.KeyValue<>(null, null);
         GenericObject genericObject = new GenericObject() {
             @Override
             public SchemaType getSchemaType() {
@@ -507,15 +549,19 @@ public class UtilsTest {
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
-                + "\"payload\":{},"
-                + "\"eventTime\":1648502845803}");
+        assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
+                        + "\"payload\":{},"
+                        + "\"eventTime\":1648502845803}");
 
         json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, true);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
-                + "\"payload\":{},"
-                + "\"eventTime\":1648502845803}");
+        assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
+                        + "\"payload\":{},"
+                        + "\"eventTime\":1648502845803}");
     }
 
     @Test
@@ -570,7 +616,9 @@ public class UtilsTest {
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":\"message-value\","
-                + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
+        assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":\"message-value\","
+                        + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
     }
 }

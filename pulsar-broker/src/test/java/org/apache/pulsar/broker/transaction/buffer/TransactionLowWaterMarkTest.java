@@ -78,8 +78,10 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     protected void setup() throws Exception {
         setUpBase(1, 16, TOPIC, 0);
 
-        Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
-                getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores();
+        Map<TransactionCoordinatorID, TransactionMetadataStore> stores = getPulsarServiceList()
+                .get(0)
+                .getTransactionMetadataStoreService()
+                .getStores();
         Awaitility.await().until(() -> {
             if (stores.size() == 16) {
                 for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
@@ -102,9 +104,11 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferLowWaterMark() throws Exception {
-        Transaction txn = pulsarClient.newTransaction()
+        Transaction txn = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -115,7 +119,8 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 .create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -142,25 +147,30 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         try {
             txn.commit().get();
             Assert.fail("The commit operation should be failed.");
-        } catch (Exception e){
-            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException);
+        } catch (Exception e) {
+            Assert.assertTrue(
+                    e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException);
         }
 
-        PartitionedTopicMetadata partitionedTopicMetadata =
-                ((PulsarClientImpl) pulsarClient).getLookup()
-                        .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
+        PartitionedTopicMetadata partitionedTopicMetadata = ((PulsarClientImpl) pulsarClient)
+                .getLookup()
+                .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
+                .get();
         Transaction lowWaterMarkTxn = null;
         for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
-            lowWaterMarkTxn = pulsarClient.newTransaction()
+            lowWaterMarkTxn = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(5, TimeUnit.SECONDS)
-                    .build().get();
+                    .build()
+                    .get();
             if (((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits() == ((TransactionImpl) txn).getTxnIdMostBits()) {
                 break;
             }
         }
 
-        if (lowWaterMarkTxn != null &&
-                ((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits() == ((TransactionImpl) txn).getTxnIdMostBits()) {
+        if (lowWaterMarkTxn != null
+                && ((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits()
+                        == ((TransactionImpl) txn).getTxnIdMostBits()) {
             producer.newMessage(lowWaterMarkTxn).value(TEST3.getBytes()).send();
 
             message = consumer.receive(2, TimeUnit.SECONDS);
@@ -174,15 +184,16 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         } else {
             fail();
         }
-
     }
 
     @Test
     public void testPendingAckLowWaterMark() throws Exception {
         String subName = "test";
-        Transaction txn = pulsarClient.newTransaction()
+        Transaction txn = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -193,7 +204,8 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 .create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(TOPIC)
                 .subscriptionName(subName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -217,14 +229,14 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             Field field = BrokerService.class.getDeclaredField("topics");
             field.setAccessible(true);
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>)
+                            field.get(getPulsarServiceList().get(i).getBrokerService());
             CompletableFuture<Optional<Topic>> completableFuture = topics.get(TOPIC);
             if (completableFuture != null) {
                 Optional<Topic> topic = completableFuture.get();
                 if (topic.isPresent()) {
-                    PersistentSubscription persistentSubscription = (PersistentSubscription) topic.get()
-                            .getSubscription(subName);
+                    PersistentSubscription persistentSubscription =
+                            (PersistentSubscription) topic.get().getSubscription(subName);
                     field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
                     field.setAccessible(true);
                     PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
@@ -236,56 +248,60 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             }
         }
 
-        assertTrue(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
-                ((TransactionImpl) txn).getTxnIdLeastBits())));
+        assertTrue(individualAckOfTransaction.containsKey(
+                new TxnID(((TransactionImpl) txn).getTxnIdMostBits(), ((TransactionImpl) txn).getTxnIdLeastBits())));
         txn.commit().get();
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(txn, TransactionImpl.State.OPEN);
-        assertFalse(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
-                ((TransactionImpl) txn).getTxnIdLeastBits())));
+        assertFalse(individualAckOfTransaction.containsKey(
+                new TxnID(((TransactionImpl) txn).getTxnIdMostBits(), ((TransactionImpl) txn).getTxnIdLeastBits())));
 
         message = consumer.receive();
         assertEquals(new String(message.getData()), TEST2);
         consumer.acknowledgeAsync(message.getMessageId(), txn).get();
-        assertTrue(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
-                ((TransactionImpl) txn).getTxnIdLeastBits())));
+        assertTrue(individualAckOfTransaction.containsKey(
+                new TxnID(((TransactionImpl) txn).getTxnIdMostBits(), ((TransactionImpl) txn).getTxnIdLeastBits())));
 
-        PartitionedTopicMetadata partitionedTopicMetadata =
-                ((PulsarClientImpl) pulsarClient).getLookup()
-                        .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
+        PartitionedTopicMetadata partitionedTopicMetadata = ((PulsarClientImpl) pulsarClient)
+                .getLookup()
+                .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
+                .get();
         Transaction lowWaterMarkTxn = null;
         for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
-            lowWaterMarkTxn = pulsarClient.newTransaction()
+            lowWaterMarkTxn = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(5, TimeUnit.SECONDS)
-                    .build().get();
+                    .build()
+                    .get();
             if (((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits() == ((TransactionImpl) txn).getTxnIdMostBits()) {
                 break;
             }
         }
 
-        if (lowWaterMarkTxn != null &&
-                ((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits() == ((TransactionImpl) txn).getTxnIdMostBits()) {
+        if (lowWaterMarkTxn != null
+                && ((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits()
+                        == ((TransactionImpl) txn).getTxnIdMostBits()) {
             producer.newMessage(lowWaterMarkTxn).value(TEST3.getBytes()).send();
 
             message = consumer.receive(2, TimeUnit.SECONDS);
             assertEquals(new String(message.getData()), TEST3);
             consumer.acknowledgeAsync(message.getMessageId(), lowWaterMarkTxn).get();
 
-            assertTrue(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
-                    ((TransactionImpl) txn).getTxnIdLeastBits())));
+            assertTrue(individualAckOfTransaction.containsKey(new TxnID(
+                    ((TransactionImpl) txn).getTxnIdMostBits(), ((TransactionImpl) txn).getTxnIdLeastBits())));
 
-            assertTrue(individualAckOfTransaction
-                    .containsKey(new TxnID(((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits(),
-                            ((TransactionImpl) lowWaterMarkTxn).getTxnIdLeastBits())));
+            assertTrue(individualAckOfTransaction.containsKey(new TxnID(
+                    ((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits(),
+                    ((TransactionImpl) lowWaterMarkTxn).getTxnIdLeastBits())));
             lowWaterMarkTxn.commit().get();
 
-            assertFalse(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
-                    ((TransactionImpl) txn).getTxnIdLeastBits())));
+            assertFalse(individualAckOfTransaction.containsKey(new TxnID(
+                    ((TransactionImpl) txn).getTxnIdMostBits(), ((TransactionImpl) txn).getTxnIdLeastBits())));
 
-            assertFalse(individualAckOfTransaction
-                    .containsKey(new TxnID(((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits(),
-                            ((TransactionImpl) lowWaterMarkTxn).getTxnIdLeastBits())));
+            assertFalse(individualAckOfTransaction.containsKey(new TxnID(
+                    ((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits(),
+                    ((TransactionImpl) lowWaterMarkTxn).getTxnIdLeastBits())));
 
         } else {
             fail();
@@ -294,16 +310,22 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
     @Test
     public void testTBLowWaterMarkEndToEnd() throws Exception {
-        Transaction txn1 = pulsarClient.newTransaction()
+        Transaction txn1 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
-                .build().get();
-        Transaction txn2 = pulsarClient.newTransaction()
+                .build()
+                .get();
+        Transaction txn2 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
         while (txn2.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
-            txn2 = pulsarClient.newTransaction()
+            txn2 = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(500, TimeUnit.SECONDS)
-                    .build().get();
+                    .build()
+                    .get();
         }
 
         @Cleanup
@@ -324,7 +346,8 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         field.setAccessible(true);
         field.set(txn1, TransactionImpl.State.OPEN);
 
-        PersistentTopic t = (PersistentTopic) getPulsarServiceList().get(0)
+        PersistentTopic t = (PersistentTopic) getPulsarServiceList()
+                .get(0)
                 .getBrokerService()
                 .getTopic(TopicName.get(TOPIC).toString(), false)
                 .get()
@@ -343,43 +366,59 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     public void testLowWaterMarkForDifferentTC() throws Exception {
         String subName = "sub";
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(TOPIC)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(TOPIC)
                 .subscriptionName(subName)
                 .subscribe();
 
-        Transaction txn1 = pulsarClient.newTransaction()
+        Transaction txn1 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
-                .build().get();
-        Transaction txn2 = pulsarClient.newTransaction()
+                .build()
+                .get();
+        Transaction txn2 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
         while (txn2.getTxnID().getMostSigBits() == txn1.getTxnID().getMostSigBits()) {
-            txn2 = pulsarClient.newTransaction()
+            txn2 = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(500, TimeUnit.SECONDS)
-                    .build().get();
+                    .build()
+                    .get();
         }
-        Transaction txn3 = pulsarClient.newTransaction()
+        Transaction txn3 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
         while (txn3.getTxnID().getMostSigBits() != txn2.getTxnID().getMostSigBits()) {
-            txn3 = pulsarClient.newTransaction()
+            txn3 = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(500, TimeUnit.SECONDS)
-                    .build().get();
+                    .build()
+                    .get();
         }
 
-        Transaction txn4 = pulsarClient.newTransaction()
+        Transaction txn4 = pulsarClient
+                .newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
-                .build().get();
+                .build()
+                .get();
         while (txn4.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
-            txn4 = pulsarClient.newTransaction()
+            txn4 = pulsarClient
+                    .newTransaction()
                     .withTransactionTimeout(500, TimeUnit.SECONDS)
-                    .build().get();
+                    .build()
+                    .get();
         }
 
         for (int i = 0; i < 10; i++) {
@@ -437,10 +476,12 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     private boolean checkTxnIsOngoingInTP(TxnID txnID, String subName) throws Exception {
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
                 .getBrokerService()
                 .getTopic(TopicName.get(TOPIC).toString(), false)
-                .get().get();
+                .get()
+                .get();
 
         PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
 
@@ -456,20 +497,18 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     private boolean checkTxnIsOngoingInTB(TxnID txnID) throws Exception {
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList()
+                .get(0)
                 .getBrokerService()
                 .getTopic(TopicName.get(TOPIC).toString(), false)
-                .get().get();
+                .get()
+                .get();
 
-        TopicTransactionBuffer topicTransactionBuffer =
-                (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
         Field field3 = TopicTransactionBuffer.class.getDeclaredField("ongoingTxns");
         field3.setAccessible(true);
         LinkedMap<TxnID, PositionImpl> ongoingTxns =
                 (LinkedMap<TxnID, PositionImpl>) field3.get(topicTransactionBuffer);
         return ongoingTxns.containsKey(txnID);
-
     }
-
-
 }

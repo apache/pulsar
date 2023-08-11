@@ -53,10 +53,12 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testShadowWrites() throws Exception {
-        ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("source_ML", new ManagedLedgerConfig()
-                .setMaxEntriesPerLedger(2)
-                .setRetentionTime(-1, TimeUnit.DAYS)
-                .setRetentionSizeInMB(-1));
+        ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open(
+                "source_ML",
+                new ManagedLedgerConfig()
+                        .setMaxEntriesPerLedger(2)
+                        .setRetentionTime(-1, TimeUnit.DAYS)
+                        .setRetentionSizeInMB(-1));
         byte[] data = new byte[10];
         List<Position> positions = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
@@ -68,83 +70,92 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         assertEquals(sourceML.ledgers.size(), 3);
 
         ShadowManagedLedgerImpl shadowML = openShadowManagedLedger("shadow_ML", "source_ML");
-        //After init, the state should be the same.
+        // After init, the state should be the same.
         assertEquals(shadowML.ledgers.size(), 3);
         assertEquals(sourceML.currentLedger.getId(), shadowML.currentLedger.getId());
         assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
 
-        //Add new data to source ML
+        // Add new data to source ML
         Position newPos = sourceML.addEntry(data);
 
         // The state should not be the same.
         log.info("Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         assertNotEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
 
-        //Add new data to source ML, and a new ledger rolled
+        // Add new data to source ML, and a new ledger rolled
         newPos = sourceML.addEntry(data);
         assertEquals(sourceML.ledgers.size(), 4);
-        Awaitility.await().untilAsserted(()->assertEquals(shadowML.ledgers.size(), 4));
+        Awaitility.await().untilAsserted(() -> assertEquals(shadowML.ledgers.size(), 4));
         log.info("Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
-        Awaitility.await().untilAsserted(()->assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry));
+        Awaitility.await().untilAsserted(() -> assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry));
 
-        {// test write entry with ledgerId < currentLedger
+        { // test write entry with ledgerId < currentLedger
             CompletableFuture<Position> future = new CompletableFuture<>();
-            shadowML.asyncAddEntry(data, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    future.complete(position);
-                }
+            shadowML.asyncAddEntry(
+                    data,
+                    new AsyncCallbacks.AddEntryCallback() {
+                        @Override
+                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                            future.complete(position);
+                        }
 
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, positions.get(2));
+                        @Override
+                        public void addFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    },
+                    positions.get(2));
             assertEquals(future.get(), positions.get(2));
             // LCE is not updated.
             log.info("1.Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
             assertNotEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         }
 
-        {// test write entry with ledgerId == currentLedger
+        { // test write entry with ledgerId == currentLedger
             newPos = sourceML.addEntry(data);
             assertEquals(sourceML.ledgers.size(), 4);
             assertNotEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
 
             CompletableFuture<Position> future = new CompletableFuture<>();
-            shadowML.asyncAddEntry(data, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    future.complete(position);
-                }
+            shadowML.asyncAddEntry(
+                    data,
+                    new AsyncCallbacks.AddEntryCallback() {
+                        @Override
+                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                            future.complete(position);
+                        }
 
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, newPos);
+                        @Override
+                        public void addFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    },
+                    newPos);
             assertEquals(future.get(), newPos);
             // LCE should be updated.
             log.info("2.Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
             assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         }
 
-        {// test write entry with ledgerId > currentLedger
+        { // test write entry with ledgerId > currentLedger
             PositionImpl fakePos = PositionImpl.get(newPos.getLedgerId() + 1, newPos.getEntryId());
 
             CompletableFuture<Position> future = new CompletableFuture<>();
-            shadowML.asyncAddEntry(data, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    future.complete(position);
-                }
+            shadowML.asyncAddEntry(
+                    data,
+                    new AsyncCallbacks.AddEntryCallback() {
+                        @Override
+                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                            future.complete(position);
+                        }
 
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, fakePos);
-            //This write will be queued unit new ledger is rolled in source.
+                        @Override
+                        public void addFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    },
+                    fakePos);
+            // This write will be queued unit new ledger is rolled in source.
 
             newPos = sourceML.addEntry(data); // new ledger rolled.
             newPos = sourceML.addEntry(data);

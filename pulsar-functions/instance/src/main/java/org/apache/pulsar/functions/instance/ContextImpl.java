@@ -108,6 +108,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @VisibleForTesting
     StateManager stateManager;
+
     @VisibleForTesting
     DefaultStateStore defaultStateStore;
 
@@ -130,18 +131,25 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     static {
         // add label to indicate user metric
-        userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.METRICS_LABEL_NAMES,
-                ComponentStatsManager.METRICS_LABEL_NAMES.length + 1);
+        userMetricsLabelNames = Arrays.copyOf(
+                ComponentStatsManager.METRICS_LABEL_NAMES, ComponentStatsManager.METRICS_LABEL_NAMES.length + 1);
         userMetricsLabelNames[ComponentStatsManager.METRICS_LABEL_NAMES.length] = "metric";
     }
 
     private final Function.FunctionDetails.ComponentType componentType;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
-                       String[] metricsLabels,
-                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder)
+    public ContextImpl(
+            InstanceConfig config,
+            Logger logger,
+            PulsarClient client,
+            SecretsProvider secretsProvider,
+            FunctionCollectorRegistry collectorRegistry,
+            String[] metricsLabels,
+            Function.FunctionDetails.ComponentType componentType,
+            ComponentStatsManager statsManager,
+            StateManager stateManager,
+            PulsarAdmin pulsarAdmin,
+            ClientBuilder clientBuilder)
             throws PulsarClientException {
         this.config = config;
         this.logger = logger;
@@ -151,17 +159,20 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.topicSchema = new TopicSchema(client, Thread.currentThread().getContextClassLoader());
         this.statsManager = statsManager;
 
-        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
+        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer()
+                .blockIfQueueFull(true)
+                .enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         boolean useThreadLocalProducers = false;
-        Function.ProducerSpec producerSpec = config.getFunctionDetails().getSink().getProducerSpec();
+        Function.ProducerSpec producerSpec =
+                config.getFunctionDetails().getSink().getProducerSpec();
         if (producerSpec != null) {
             if (producerSpec.getMaxPendingMessages() != 0) {
                 this.producerBuilder.maxPendingMessages(producerSpec.getMaxPendingMessages());
             }
             if (producerSpec.getMaxPendingMessagesAcrossPartitions() != 0) {
-                this.producerBuilder
-                        .maxPendingMessagesAcrossPartitions(producerSpec.getMaxPendingMessagesAcrossPartitions());
+                this.producerBuilder.maxPendingMessagesAcrossPartitions(
+                        producerSpec.getMaxPendingMessagesAcrossPartitions());
             }
             if (producerSpec.getBatchBuilder() != null) {
                 if (producerSpec.getBatchBuilder().equals("KEY_BASED")) {
@@ -181,15 +192,17 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
         } else {
-            userConfigs = new Gson().fromJson(config.getFunctionDetails().getUserConfig(),
-                    new TypeToken<Map<String, Object>>() {
-                    }.getType());
+            userConfigs = new Gson()
+                    .fromJson(
+                            config.getFunctionDetails().getUserConfig(),
+                            new TypeToken<Map<String, Object>>() {}.getType());
         }
         this.secretsProvider = secretsProvider;
         if (!StringUtils.isEmpty(config.getFunctionDetails().getSecretsMap())) {
-            secretsMap = new Gson().fromJson(config.getFunctionDetails().getSecretsMap(),
-                    new TypeToken<Map<String, Object>>() {
-                    }.getType());
+            secretsMap = new Gson()
+                    .fromJson(
+                            config.getFunctionDetails().getSecretsMap(),
+                            new TypeToken<Map<String, Object>>() {}.getType());
         } else {
             secretsMap = new HashMap<>();
         }
@@ -225,8 +238,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
                 config.getFunctionDetails().getTenant(),
                 config.getFunctionDetails().getNamespace(),
-                config.getFunctionDetails().getName()
-        );
+                config.getFunctionDetails().getName());
         this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
 
         Function.SourceSpec sourceSpec = config.getFunctionDetails().getSource();
@@ -381,9 +393,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @Override
     public <T extends StateStore> T getStateStore(String name) {
         return getStateStore(
-            config.getFunctionDetails().getTenant(),
-            config.getFunctionDetails().getNamespace(),
-            name);
+                config.getFunctionDetails().getTenant(),
+                config.getFunctionDetails().getNamespace(),
+                name);
     }
 
     @Override
@@ -392,10 +404,12 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     private void ensureStateEnabled() {
-        checkState(null != defaultStateStore, "State %s/%s/%s is not enabled.",
-            config.getFunctionDetails().getTenant(),
-            config.getFunctionDetails().getNamespace(),
-            config.getFunctionDetails().getName());
+        checkState(
+                null != defaultStateStore,
+                "State %s/%s/%s is not enabled.",
+                config.getFunctionDetails().getTenant(),
+                config.getFunctionDetails().getNamespace(),
+                config.getFunctionDetails().getName());
     }
 
     @Override
@@ -466,8 +480,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @SuppressWarnings("unchecked")
     @Override
     public <T> CompletableFuture<Void> publish(String topicName, T object, String schemaOrSerdeClassName) {
-        return publish(topicName, object,
-                (Schema<T>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
+        return publish(
+                topicName, object, (Schema<T>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
     }
 
     @Override
@@ -562,7 +576,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                     // that might happen when consumer is blocked due to unacked messages
                     .sendTimeout(0, TimeUnit.SECONDS)
                     .topic(topicName)
-                    .properties(InstanceUtils.getProperties(componentType,
+                    .properties(InstanceUtils.getProperties(
+                            componentType,
                             FunctionCommon.getFullyQualifiedName(
                                     this.config.getFunctionDetails().getTenant(),
                                     this.config.getFunctionDetails().getNamespace(),
@@ -629,13 +644,12 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
         @Override
         public CompletableFuture<MessageId> sendAsync() {
-            return underlyingBuilder.sendAsync()
-                    .whenComplete((result, cause) -> {
-                        if (null != cause) {
-                            statsManager.incrSysExceptions(cause);
-                            logger.error("Failed to publish to topic with error", cause);
-                        }
-                    });
+            return underlyingBuilder.sendAsync().whenComplete((result, cause) -> {
+                if (null != cause) {
+                    statsManager.incrSysExceptions(cause);
+                    logger.error("Failed to publish to topic with error", cause);
+                }
+            });
         }
 
         @Override
@@ -767,10 +781,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public void setInputConsumers(List<Consumer<?>> inputConsumers) {
         this.inputConsumers = inputConsumers;
         inputConsumers.stream()
-                .flatMap(consumer ->
-                        consumer instanceof MultiTopicsConsumerImpl
-                                ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
-                                : Stream.of(consumer))
+                .flatMap(consumer -> consumer instanceof MultiTopicsConsumerImpl
+                        ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
+                        : Stream.of(consumer))
                 .forEach(consumer -> topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer));
     }
 
@@ -778,13 +791,13 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         // MultiTopicsConsumer in the list of inputConsumers could change its nested consumers
         // if ne partition was created or a new topic added that matches subscription pattern.
         // Let's update topicConsumers map to match.
-        inputConsumers
-                .stream()
-                .flatMap(c ->
-                        c instanceof MultiTopicsConsumerImpl
+        inputConsumers.stream()
+                .flatMap(
+                        c -> c instanceof MultiTopicsConsumerImpl
                                 ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
                                 : Stream.empty() // no changes expected in regular consumers
-                ).forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
+                        )
+                .forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
     }
 
     // returns null if consumer not found
@@ -819,7 +832,6 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         if (consumer != null) {
             return consumer;
         }
-        throw new PulsarClientException("Consumer for topic " + topic
-                + " partition " + partition + " is not found");
+        throw new PulsarClientException("Consumer for topic " + topic + " partition " + partition + " is not found");
     }
 }

@@ -42,7 +42,6 @@ import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 
-
 /**
  * Class that will return the broker host usage.
  */
@@ -60,15 +59,15 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
         this(
-            pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
-            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
-            pulsar.getLoadManagerExecutor()
-        );
+                pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
+                pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
+                pulsar.getLoadManagerExecutor());
     }
 
-    public LinuxBrokerHostUsageImpl(int hostUsageCheckIntervalMin,
-                                    Optional<Double> overrideBrokerNicSpeedGbps,
-                                    ScheduledExecutorService executorService) {
+    public LinuxBrokerHostUsageImpl(
+            int hostUsageCheckIntervalMin,
+            Optional<Double> overrideBrokerNicSpeedGbps,
+            ScheduledExecutorService executorService) {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
@@ -76,9 +75,11 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         this.isCGroupsEnabled = isCGroupEnabled();
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
+        executorService.scheduleWithFixedDelay(
+                catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
                 hostUsageCheckIntervalMin,
-                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
+                hostUsageCheckIntervalMin,
+                TimeUnit.MINUTES);
     }
 
     @Override
@@ -126,7 +127,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     double getTotalNicLimitWithConfiguration(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
-        return overrideBrokerNicSpeedGbps.map(BitRateUnit.Gigabit::toKilobit)
+        return overrideBrokerNicSpeedGbps
+                .map(BitRateUnit.Gigabit::toKilobit)
                 .map(speed -> speed * nics.size())
                 .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.Kilobit));
     }
@@ -163,7 +165,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             return -1;
         }
         double currentUsage = (cpuUsageForEntireHost.getUsage() - lastCpuUsage)
-                / (cpuUsageForEntireHost.getTotal() - lastCpuTotalTime) * getTotalCpuLimit(isCGroupsEnabled);
+                / (cpuUsageForEntireHost.getTotal() - lastCpuTotalTime)
+                * getTotalCpuLimit(isCGroupsEnabled);
         lastCpuUsage = cpuUsageForEntireHost.getUsage();
         lastCpuTotalTime = cpuUsageForEntireHost.getTotal();
         return currentUsage;
@@ -174,5 +177,4 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         double free = ((double) systemBean.getFreePhysicalMemorySize()) / (1024 * 1024);
         return new ResourceUsage(total - free, total);
     }
-
 }

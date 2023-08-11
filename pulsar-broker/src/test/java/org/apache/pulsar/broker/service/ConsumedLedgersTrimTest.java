@@ -50,7 +50,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
     @Override
     protected void setup() throws Exception {
-        //No-op
+        // No-op
     }
 
     @AfterMethod(alwaysRun = true)
@@ -74,18 +74,24 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         final String subscriptionName = "my-subscriber-name";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .producerName("producer-name")
                 .create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
                 .subscribe();
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topicName).get();
         Assert.assertNotNull(topicRef);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
-        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        ManagedLedgerConfig managedLedgerConfig =
+                persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionSizeInMB(1L);
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(2);
@@ -99,7 +105,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
 
-        //no traffic, unconsumed ledger will be retained
+        // no traffic, unconsumed ledger will be retained
         Thread.sleep(1200);
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
 
@@ -109,11 +115,10 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
             consumer.acknowledge(msg);
         }
 
-        //no traffic, but consumed ledger will be cleaned
+        // no traffic, but consumed ledger will be cleaned
         Thread.sleep(1500);
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
     }
-
 
     @Test
     public void testConsumedLedgersTrimNoSubscriptions() throws Exception {
@@ -124,15 +129,18 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
         // write some messages
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .producerName("producer-name")
                 .create();
 
         // set retention parameters, the ledgers are to be deleted as soon as possible
         // but the topic is not to be automatically deleted
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerConfig managedLedgerConfig =
+                persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionSizeInMB(-1);
         managedLedgerConfig.setRetentionTime(-1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(1000);
@@ -160,7 +168,8 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         LOG.info("lastmessageid " + messageIdAfterRestart);
         assertEquals(messageIdAfterRestart, messageIdBeforeRestart);
 
-        persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         // now we have two ledgers, the first is expired but is contains the lastMessageId
         // the second is empty and should be kept as it is the current tail
@@ -182,7 +191,6 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         MessageId messageIdAfterTrim = pulsar.getAdminClient().topics().getLastMessageId(topicName);
         LOG.info("lastmessageid " + messageIdAfterTrim);
         assertEquals(messageIdAfterTrim, MessageId.earliest);
-
     }
 
     @Test
@@ -197,13 +205,17 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
         admin.topics().createPartitionedTopic(topicName, partitionedNum);
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .producerName("producer-name")
                 .create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
                 .subscribe();
         for (int i = 0; i < partitionedNum; i++) {
             String topic = TopicName.get(topicName).getPartition(i).toString();
@@ -211,8 +223,10 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
             Assert.assertNotNull(topicRef);
         }
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicReference(TopicName.get(topicName).getPartition(0).toString()).get();
-        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+                .getTopicReference(TopicName.get(topicName).getPartition(0).toString())
+                .get();
+        ManagedLedgerConfig managedLedgerConfig =
+                persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionSizeInMB(-1);
         managedLedgerConfig.setRetentionTime(1, TimeUnit.MILLISECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(maxEntriesPerLedger);
@@ -228,11 +242,11 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
             assertNotNull(msg);
             consumer.acknowledge(msg);
         }
-        //consumed ledger should be cleaned
+        // consumed ledger should be cleaned
         admin.topics().trimTopic(topicName);
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1));
-
+        Awaitility.await()
+                .untilAsserted(() ->
+                        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1));
     }
 
     @Test
@@ -242,7 +256,8 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         int partitionedNum = 3;
         admin.topics().createPartitionedTopic(topicName, partitionedNum);
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .producerName("producer-name")

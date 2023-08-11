@@ -55,9 +55,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         this(producer, schema, null);
     }
 
-    public TypedMessageBuilderImpl(ProducerBase<?> producer,
-                                   Schema<T> schema,
-                                   TransactionImpl txn) {
+    public TypedMessageBuilderImpl(ProducerBase<?> producer, Schema<T> schema, TransactionImpl txn) {
         this.producer = producer;
         this.schema = schema;
         this.content = EMPTY_CONTENT;
@@ -106,9 +104,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> key(String key) {
-        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
-                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
-                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        getKeyValueSchema()
+                .ifPresent(keyValueSchema -> checkArgument(
+                        keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                        "This method is not allowed to set keys when in encoding type is SEPARATED"));
         if (key == null) {
             msgMetadata.setNullPartitionKey(true);
             return this;
@@ -120,9 +119,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
-        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
-                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
-                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        getKeyValueSchema()
+                .ifPresent(keyValueSchema -> checkArgument(
+                        keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                        "This method is not allowed to set keys when in encoding type is SEPARATED"));
         if (key == null) {
             msgMetadata.setNullPartitionKey(true);
             return this;
@@ -145,26 +145,26 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             return this;
         }
 
-        return getKeyValueSchema().map(keyValueSchema -> {
-            if (keyValueSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-                setSeparateKeyValue(value, keyValueSchema);
-                return this;
-            } else {
-                return null;
-            }
-        }).orElseGet(() -> {
-            content = ByteBuffer.wrap(schema.encode(value));
-            return this;
-        });
+        return getKeyValueSchema()
+                .map(keyValueSchema -> {
+                    if (keyValueSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                        setSeparateKeyValue(value, keyValueSchema);
+                        return this;
+                    } else {
+                        return null;
+                    }
+                })
+                .orElseGet(() -> {
+                    content = ByteBuffer.wrap(schema.encode(value));
+                    return this;
+                });
     }
 
     @Override
     public TypedMessageBuilder<T> property(String name, String value) {
         checkArgument(name != null, "Need Non-Null name");
         checkArgument(value != null, "Need Non-Null value for name: " + name);
-        msgMetadata.addProperty()
-                    .setKey(name)
-                    .setValue(value);
+        msgMetadata.addProperty().setKey(name).setValue(value);
         return this;
     }
 
@@ -173,9 +173,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
             checkArgument(entry.getKey() != null, "Need Non-Null key");
             checkArgument(entry.getValue() != null, "Need Non-Null value for key: " + entry.getKey());
-            msgMetadata.addProperty()
-                    .setKey(entry.getKey())
-                    .setValue(entry.getValue());
+            msgMetadata.addProperty().setKey(entry.getKey()).setValue(entry.getValue());
         }
 
         return this;
@@ -304,8 +302,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
         // set key as the message key
         if (keyValue.getKey() != null) {
-            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(
-                    keyValueSchema.getKeySchema().encode(keyValue.getKey())));
+            msgMetadata.setPartitionKey(Base64.getEncoder()
+                    .encodeToString(keyValueSchema.getKeySchema().encode(keyValue.getKey())));
             msgMetadata.setPartitionKeyB64Encoded(true);
         } else {
             msgMetadata.setNullPartitionKey(true);

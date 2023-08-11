@@ -36,8 +36,7 @@ class ConfigUtils {
      * @param configProp - the property to get
      * @return a string from the conf or null, if the configuration property was not set
      */
-    static String getConfigValueAsString(ServiceConfiguration conf,
-                                                String configProp) throws IllegalArgumentException {
+    static String getConfigValueAsString(ServiceConfiguration conf, String configProp) throws IllegalArgumentException {
         String value = getConfigValueAsStringImpl(conf, configProp);
         log.info("Configuration for [{}] is [{}]", configProp, value);
         return value;
@@ -50,8 +49,8 @@ class ConfigUtils {
      * @param defaultValue - the value to use if the configuration value is not set
      * @return a string from the conf or the default value
      */
-    static String getConfigValueAsString(ServiceConfiguration conf, String configProp,
-                                                String defaultValue) throws IllegalArgumentException {
+    static String getConfigValueAsString(ServiceConfiguration conf, String configProp, String defaultValue)
+            throws IllegalArgumentException {
         String value = getConfigValueAsStringImpl(conf, configProp);
         if (value == null) {
             value = defaultValue;
@@ -79,8 +78,8 @@ class ConfigUtils {
         return set;
     }
 
-    private static String getConfigValueAsStringImpl(ServiceConfiguration conf,
-                                                     String configProp) throws IllegalArgumentException {
+    private static String getConfigValueAsStringImpl(ServiceConfiguration conf, String configProp)
+            throws IllegalArgumentException {
         Object value = conf.getProperty(configProp);
         if (value instanceof String) {
             return (String) value;
@@ -107,8 +106,12 @@ class ConfigUtils {
             try {
                 return Integer.parseInt((String) value);
             } catch (NumberFormatException numberFormatException) {
-                log.error("Expected configuration for [{}] to be a long, but got [{}]. Using default value: [{}]",
-                        configProp, value, defaultValue, numberFormatException);
+                log.error(
+                        "Expected configuration for [{}] to be a long, but got [{}]. Using default value: [{}]",
+                        configProp,
+                        value,
+                        defaultValue,
+                        numberFormatException);
                 return defaultValue;
             }
         } else {

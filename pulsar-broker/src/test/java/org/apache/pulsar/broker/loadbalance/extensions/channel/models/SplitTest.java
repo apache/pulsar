@@ -45,7 +45,6 @@ public class SplitTest {
         new Split(null, "A", Map.of());
     }
 
-
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testInvalidSplitServiceUnitToDestBroker() {
         Map<String, Optional<String>> map = new HashMap<>();
@@ -59,5 +58,4 @@ public class SplitTest {
     public void testNullSplitServiceUnitToDestBroker() {
         var split = new Split("A", "B", null);
     }
-
 }

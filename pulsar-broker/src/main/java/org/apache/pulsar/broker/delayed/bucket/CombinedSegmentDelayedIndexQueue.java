@@ -87,7 +87,7 @@ class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
         if (node.segmentCursor + 1 < snapshotSegment.getIndexesCount()) {
             node.segmentCursor++;
             kpq.offer(node);
-        } else  {
+        } else {
             // help GC
             node.segmentList.set(node.segmentListCursor, null);
             while (node.segmentListCursor + 1 < node.segmentList.size()) {

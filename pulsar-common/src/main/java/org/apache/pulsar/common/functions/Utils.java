@@ -36,14 +36,15 @@ public class Utils {
     public static final String BUILTIN = "builtin";
 
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(HTTP)
-                || functionPkgUrl.startsWith(FILE)
-                || hasPackageTypePrefix(functionPkgUrl));
+        return isNotBlank(functionPkgUrl)
+                && (functionPkgUrl.startsWith(HTTP)
+                        || functionPkgUrl.startsWith(FILE)
+                        || hasPackageTypePrefix(functionPkgUrl));
     }
 
     public static boolean hasPackageTypePrefix(String destPkgUrl) {
-        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString())
-                && destPkgUrl.contains("://"));
+        return Arrays.stream(PackageType.values())
+                .anyMatch(type -> destPkgUrl.startsWith(type.toString()) && destPkgUrl.contains("://"));
     }
 
     public static void inferMissingFunctionName(FunctionConfig functionConfig) {

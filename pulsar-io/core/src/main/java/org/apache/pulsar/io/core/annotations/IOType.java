@@ -37,5 +37,4 @@ public enum IOType {
      * Source connector.
      */
     SOURCE
-
 }

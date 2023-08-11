@@ -48,13 +48,16 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
-    private final Map<EnsemblePlacementPolicyConfig, BookKeeper>
-            bkEnsemblePolicyToBkClientMap = new ConcurrentHashMap<>();
+    private final Map<EnsemblePlacementPolicyConfig, BookKeeper> bkEnsemblePolicyToBkClientMap =
+            new ConcurrentHashMap<>();
     private StatsProvider statsProvider = new NullStatsProvider();
 
-    public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                           BookKeeperClientFactory bookkeeperProvider,
-                           EventLoopGroup eventLoopGroup) throws Exception {
+    public void initialize(
+            ServiceConfiguration conf,
+            MetadataStoreExtended metadataStore,
+            BookKeeperClientFactory bookkeeperProvider,
+            EventLoopGroup eventLoopGroup)
+            throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
@@ -79,7 +82,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
         Configuration configuration = new ClientConfiguration();
         if (conf.isBookkeeperClientExposeStatsToPrometheus()) {
-            configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
+            configuration.addProperty(
+                    PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
                     conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
             configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, conf.getClusterName());
             statsProvider = new PrometheusMetricsProvider();
@@ -91,26 +95,34 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         this.defaultBkClient =
                 bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger);
 
-        BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
-                EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
-            BookKeeper bkClient = null;
-            // find or create bk-client in cache for a specific ensemblePlacementPolicy
-            if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
-                bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
-                    try {
-                        return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
-                                Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
-                    } catch (Exception e) {
-                        log.error("Failed to initialize bk-client for policy {}, properties {}",
-                                ensemblePlacementPolicyConfig.getPolicyClass(),
-                                ensemblePlacementPolicyConfig.getProperties(), e);
+        BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory =
+                (EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
+                    BookKeeper bkClient = null;
+                    // find or create bk-client in cache for a specific ensemblePlacementPolicy
+                    if (ensemblePlacementPolicyConfig != null
+                            && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
+                        bkClient =
+                                bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
+                                    try {
+                                        return bookkeeperProvider.create(
+                                                conf,
+                                                metadataStore,
+                                                eventLoopGroup,
+                                                Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
+                                                ensemblePlacementPolicyConfig.getProperties(),
+                                                statsLogger);
+                                    } catch (Exception e) {
+                                        log.error(
+                                                "Failed to initialize bk-client for policy {}, properties {}",
+                                                ensemblePlacementPolicyConfig.getPolicyClass(),
+                                                ensemblePlacementPolicyConfig.getProperties(),
+                                                e);
+                                    }
+                                    return this.defaultBkClient;
+                                });
                     }
-                    return this.defaultBkClient;
-                });
-            }
-            return bkClient != null ? bkClient : defaultBkClient;
-        };
+                    return bkClient != null ? bkClient : defaultBkClient;
+                };
 
         this.managedLedgerFactory =
                 new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);

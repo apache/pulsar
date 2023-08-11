@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.fail;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.pulsar.client.api.Message;
@@ -35,17 +44,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.fail;
-
 public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBase {
 
     private static ElasticsearchContainer container;
@@ -62,6 +60,7 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
 
     @Mock
     protected SinkContext mockSinkContext;
+
     protected Map<String, Object> map;
     protected ElasticSearchSink sink;
 
@@ -86,8 +85,8 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
     @SuppressWarnings("unchecked")
     @BeforeMethod
     public final void setUp() throws Exception {
-        map = new HashMap<String, Object> ();
-        map.put("elasticSearchUrl", "http://"+container.getHttpHostAddress());
+        map = new HashMap<String, Object>();
+        map.put("elasticSearchUrl", "http://" + container.getHttpHostAddress());
         map.put("schemaEnable", "false");
         sink = new ElasticSearchSink();
 
@@ -100,26 +99,27 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
                 throw new RuntimeException("Not expected to be called");
-            }});
-
+            }
+        });
 
         when(mockRecord.getValue()).thenAnswer(new Answer<GenericObject>() {
             public GenericObject answer(InvocationOnMock invocation) throws Throwable {
                 throw new RuntimeException("Not expected to be called");
-            }});
+            }
+        });
 
         when(mockRecord.getSchema()).thenAnswer(new Answer<Schema>() {
             public Schema answer(InvocationOnMock invocation) throws Throwable {
                 return schema;
-            }});
+            }
+        });
 
         when(mockRecord.getMessage()).thenReturn(Optional.of(mockMessage));
     }
 
     @AfterMethod(alwaysRun = true)
     public final void tearDown() throws Exception {
-        if (sink != null)
-            sink.close();
+        if (sink != null) sink.close();
     }
 
     @Test(enabled = true)
@@ -145,18 +145,17 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
     private static class StripNonPrintableCharactersTestConfig {
         private boolean stripNonPrintableCharacters;
         private boolean bulkEnabled;
-
     }
+
     @DataProvider(name = "stripNonPrintableCharacters")
     public Object[] stripNonPrintableCharacters() {
-        return new Object[]{
-                new StripNonPrintableCharactersTestConfig(true, true),
-                new StripNonPrintableCharactersTestConfig(true, false),
-                new StripNonPrintableCharactersTestConfig(false, true),
-                new StripNonPrintableCharactersTestConfig(false, false),
+        return new Object[] {
+            new StripNonPrintableCharactersTestConfig(true, true),
+            new StripNonPrintableCharactersTestConfig(true, false),
+            new StripNonPrintableCharactersTestConfig(false, true),
+            new StripNonPrintableCharactersTestConfig(false, false),
         };
     }
-
 
     @Test(dataProvider = "stripNonPrintableCharacters")
     public final void testStripNonPrintableCharacters(StripNonPrintableCharactersTestConfig conf) throws Exception {
@@ -167,7 +166,7 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
         map.put("stripNonPrintableCharacters", conf.isStripNonPrintableCharacters());
         sink.open(map, mockSinkContext);
 
-        final String data = "\t" + ((char)0) + "{\"a\":\"b" + ((char)31) + "\"}";
+        final String data = "\t" + ((char) 0) + "{\"a\":\"b" + ((char) 31) + "\"}";
         when(mockMessage.getData()).thenReturn(data.getBytes(StandardCharsets.UTF_8));
         try {
             send(1);
@@ -181,5 +180,4 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
             }
         }
     }
-
 }

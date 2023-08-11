@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Collections;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.Collections;
 
 public class EnsemblePlacementPolicyConfigTest {
 
@@ -29,14 +28,13 @@ public class EnsemblePlacementPolicyConfigTest {
 
     @Test
     public void testEncodeDecodeSuccessfully()
-        throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
+            throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
 
         EnsemblePlacementPolicyConfig originalConfig =
-            new EnsemblePlacementPolicyConfig(MockedEnsemblePlacementPolicy.class, Collections.emptyMap());
+                new EnsemblePlacementPolicyConfig(MockedEnsemblePlacementPolicy.class, Collections.emptyMap());
         byte[] encodedConfig = originalConfig.encode();
 
-        EnsemblePlacementPolicyConfig decodedConfig =
-            EnsemblePlacementPolicyConfig.decode(encodedConfig);
+        EnsemblePlacementPolicyConfig decodedConfig = EnsemblePlacementPolicyConfig.decode(encodedConfig);
         Assert.assertEquals(decodedConfig, originalConfig);
     }
 

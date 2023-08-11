@@ -27,8 +27,12 @@ public class UnrecognizedPropertyExceptionMapper implements ExceptionMapper<Unre
 
     @Override
     public Response toResponse(UnrecognizedPropertyException exception) {
-        String response = String.format("Unknown property %s, perhaps you want to use one of these: %s",
+        String response = String.format(
+                "Unknown property %s, perhaps you want to use one of these: %s",
                 exception.getPropertyName(), String.valueOf(exception.getKnownPropertyIds()));
-        return Response.status(Response.Status.BAD_REQUEST).entity(response).type(MediaType.TEXT_PLAIN).build();
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity(response)
+                .type(MediaType.TEXT_PLAIN)
+                .build();
     }
 }

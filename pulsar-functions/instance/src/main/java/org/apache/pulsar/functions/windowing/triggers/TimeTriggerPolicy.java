@@ -39,7 +39,6 @@ import org.apache.pulsar.functions.windowing.WindowUtils;
 /**
  * Invokes {@link TriggerHandler#onTrigger()} after the duration.
  */
-
 @Slf4j
 public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
 
@@ -50,8 +49,8 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
     private final ScheduledExecutorService executor;
     private Context context;
 
-    public TimeTriggerPolicy(long millis, TriggerHandler handler, EvictionPolicy<T, ?>
-            evictionPolicy, Context context) {
+    public TimeTriggerPolicy(
+            long millis, TriggerHandler handler, EvictionPolicy<T, ?> evictionPolicy, Context context) {
         this.duration = millis;
         this.handler = handler;
         this.evictionPolicy = evictionPolicy;
@@ -69,15 +68,12 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
     }
 
     @Override
-    public void reset() {
-
-    }
+    public void reset() {}
 
     @Override
     public void start() {
-        executorFuture =
-                executor.scheduleAtFixedRate(catchingAndLoggingThrowables(newTriggerTask()), duration, duration,
-                        TimeUnit.MILLISECONDS);
+        executorFuture = executor.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(newTriggerTask()), duration, duration, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -103,8 +99,10 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
             @Override
             public void run() {
                 // initialize the thread context
-                ThreadContext.put("function", WindowUtils.getFullyQualifiedName(
-                        context.getTenant(), context.getNamespace(), context.getFunctionName()));
+                ThreadContext.put(
+                        "function",
+                        WindowUtils.getFullyQualifiedName(
+                                context.getTenant(), context.getNamespace(), context.getFunctionName()));
                 // do not process current timestamp since tuples might arrive while the trigger is executing
                 long now = System.currentTimeMillis() - 1;
                 try {
@@ -143,7 +141,5 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
     }
 
     @Override
-    public void restoreState(Void state) {
-
-    }
+    public void restoreState(Void state) {}
 }

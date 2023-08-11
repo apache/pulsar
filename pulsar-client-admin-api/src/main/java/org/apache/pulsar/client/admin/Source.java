@@ -22,5 +22,4 @@ package org.apache.pulsar.client.admin;
  * @deprecated in favor of {@link Sources}
  */
 @Deprecated
-public interface Source extends Sources {
-}
+public interface Source extends Sources {}

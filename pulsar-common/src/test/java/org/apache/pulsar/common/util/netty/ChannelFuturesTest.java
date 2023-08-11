@@ -19,15 +19,12 @@
 package org.apache.pulsar.common.util.netty;
 
 import static org.mockito.Mockito.when;
-
 import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.DefaultEventLoop;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
@@ -76,7 +73,7 @@ public class ChannelFuturesTest {
     @Test
     public void toCompletableFuture_shouldCompleteSuccessfully_channelFutureCompletedBefore() throws Exception {
         channelFuture.setSuccess();
-        Assert.assertEquals(ChannelFutures.toCompletableFuture(channelFuture).get(1,  TimeUnit.SECONDS), channel);
+        Assert.assertEquals(ChannelFutures.toCompletableFuture(channelFuture).get(1, TimeUnit.SECONDS), channel);
     }
 
     @Test
@@ -85,7 +82,7 @@ public class ChannelFuturesTest {
         Assert.assertFalse(future.isDone());
 
         channelFuture.setSuccess();
-        Assert.assertEquals(future.get(1,  TimeUnit.SECONDS), channel);
+        Assert.assertEquals(future.get(1, TimeUnit.SECONDS), channel);
     }
 
     @Test
@@ -114,5 +111,4 @@ public class ChannelFuturesTest {
             Assert.assertSame(e.getCause(), failure);
         }
     }
-
 }

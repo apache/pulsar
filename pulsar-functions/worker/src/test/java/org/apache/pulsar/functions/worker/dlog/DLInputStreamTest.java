@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -53,10 +52,8 @@ public class DLInputStreamTest {
 
         byte[] b = new byte[1];
         DLInputStream in = new DLInputStream(dlm);
-        assertEquals("Should return 0 when reading an empty eos stream",
-            0, in.read(b, 0, 1));
-        assertEquals("Should return -1 when reading an empty eos stream",
-            -1, in.read(b, 0, 1));
+        assertEquals("Should return 0 when reading an empty eos stream", 0, in.read(b, 0, 1));
+        assertEquals("Should return -1 when reading an empty eos stream", -1, in.read(b, 0, 1));
     }
 
     /**
@@ -86,11 +83,8 @@ public class DLInputStreamTest {
 
         byte[] data = "test-read".getBytes(StandardCharsets.UTF_8);
         LogRecordWithDLSN record = mock(LogRecordWithDLSN.class);
-        when(record.getPayLoadInputStream())
-            .thenReturn(new ByteArrayInputStream(data));
-        when(reader.readNext(anyBoolean()))
-            .thenReturn(record)
-            .thenThrow(new EndOfStreamException("eos"));
+        when(record.getPayLoadInputStream()).thenReturn(new ByteArrayInputStream(data));
+        when(reader.readNext(anyBoolean())).thenReturn(record).thenThrow(new EndOfStreamException("eos"));
 
         DLInputStream in = new DLInputStream(dlm);
         int numReads = 0;
@@ -101,5 +95,4 @@ public class DLInputStreamTest {
         }
         assertEquals(data.length, numReads);
     }
-
 }

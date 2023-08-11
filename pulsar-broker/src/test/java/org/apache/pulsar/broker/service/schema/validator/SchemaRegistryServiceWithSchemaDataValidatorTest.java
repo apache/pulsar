@@ -20,20 +20,19 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -69,10 +68,9 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         String schemaId = "test-schema-id";
         CompletableFuture<SchemaAndMetadata> getFuture = new CompletableFuture<>();
         when(underlyingService.getSchema(eq(schemaId), any(SchemaVersion.class)))
-            .thenReturn(getFuture);
+                .thenReturn(getFuture);
         assertSame(getFuture, service.getSchema(schemaId, SchemaVersion.Latest));
-        verify(underlyingService, times(1))
-            .getSchema(eq(schemaId), same(SchemaVersion.Latest));
+        verify(underlyingService, times(1)).getSchema(eq(schemaId), same(SchemaVersion.Latest));
     }
 
     @Test
@@ -80,8 +78,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         String schemaId = "test-schema-id";
         String user = "test-user";
         CompletableFuture<SchemaVersion> deleteFuture = new CompletableFuture<>();
-        when(underlyingService.deleteSchema(eq(schemaId), eq(user), eq(false)))
-                .thenReturn(deleteFuture);
+        when(underlyingService.deleteSchema(eq(schemaId), eq(user), eq(false))).thenReturn(deleteFuture);
         assertSame(deleteFuture, service.deleteSchema(schemaId, user, false));
         verify(underlyingService, times(1)).deleteSchema(eq(schemaId), eq(user), eq(false));
     }
@@ -92,14 +89,11 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         when(underlyingService.isCompatible(eq(schemaId), any(SchemaData.class), eq(strategy)))
-            .thenReturn(future);
-        SchemaData schemaData = SchemaData.builder()
-            .type(SchemaType.BOOLEAN)
-            .data(new byte[0])
-            .build();
+                .thenReturn(future);
+        SchemaData schemaData =
+                SchemaData.builder().type(SchemaType.BOOLEAN).data(new byte[0]).build();
         assertSame(future, service.isCompatible(schemaId, schemaData, strategy));
-        verify(underlyingService, times(1))
-            .isCompatible(eq(schemaId), same(schemaData), eq(strategy));
+        verify(underlyingService, times(1)).isCompatible(eq(schemaId), same(schemaData), eq(strategy));
     }
 
     @Test
@@ -108,19 +102,16 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         when(underlyingService.isCompatible(eq(schemaId), any(SchemaData.class), eq(strategy)))
-            .thenReturn(future);
-        SchemaData schemaData = SchemaData.builder()
-            .type(SchemaType.BOOLEAN)
-            .data(new byte[10])
-            .build();
+                .thenReturn(future);
+        SchemaData schemaData =
+                SchemaData.builder().type(SchemaType.BOOLEAN).data(new byte[10]).build();
         try {
             service.isCompatible(schemaId, schemaData, strategy).get();
             fail("Should fail isCompatible check");
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof InvalidSchemaDataException);
         }
-        verify(underlyingService, times(0))
-            .isCompatible(eq(schemaId), same(schemaData), eq(strategy));
+        verify(underlyingService, times(0)).isCompatible(eq(schemaId), same(schemaData), eq(strategy));
     }
 
     @Test
@@ -129,14 +120,11 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
         CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
         when(underlyingService.putSchemaIfAbsent(eq(schemaId), any(SchemaData.class), eq(strategy)))
-            .thenReturn(future);
-        SchemaData schemaData = SchemaData.builder()
-            .type(SchemaType.BOOLEAN)
-            .data(new byte[0])
-            .build();
+                .thenReturn(future);
+        SchemaData schemaData =
+                SchemaData.builder().type(SchemaType.BOOLEAN).data(new byte[0]).build();
         assertSame(future, service.putSchemaIfAbsent(schemaId, schemaData, strategy));
-        verify(underlyingService, times(1))
-            .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
+        verify(underlyingService, times(1)).putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
     }
 
     @Test
@@ -145,19 +133,15 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
         CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
         when(underlyingService.putSchemaIfAbsent(eq(schemaId), any(SchemaData.class), eq(strategy)))
-            .thenReturn(future);
-        SchemaData schemaData = SchemaData.builder()
-            .type(SchemaType.BOOLEAN)
-            .data(new byte[10])
-            .build();
+                .thenReturn(future);
+        SchemaData schemaData =
+                SchemaData.builder().type(SchemaType.BOOLEAN).data(new byte[10]).build();
         try {
             service.putSchemaIfAbsent(schemaId, schemaData, strategy).get();
             fail("Should fail putSchemaIfAbsent");
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof InvalidSchemaDataException);
         }
-        verify(underlyingService, times(0))
-            .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
+        verify(underlyingService, times(0)).putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
     }
-
 }

@@ -60,11 +60,8 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param msgMetadata message metadata. The message metadata will be recycled after this call.
      */
     @Deprecated
-    default void beforeSendMessage(Subscription subscription,
-                                   Entry entry,
-                                   long[] ackSet,
-                                   MessageMetadata msgMetadata) {
-    }
+    default void beforeSendMessage(
+            Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {}
 
     /**
      * Intercept messages before sending them to the consumers.
@@ -75,25 +72,18 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param msgMetadata message metadata. The message metadata will be recycled after this call.
      * @param consumer consumer. Consumer which entry are sent to.
      */
-    default void beforeSendMessage(Subscription subscription,
-                                   Entry entry,
-                                   long[] ackSet,
-                                   MessageMetadata msgMetadata,
-                                   Consumer consumer) {
-    }
+    default void beforeSendMessage(
+            Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {}
 
     /**
      * Called by the broker when a new connection is created.
      */
-    default void onConnectionCreated(ServerCnx cnx){
-    }
+    default void onConnectionCreated(ServerCnx cnx) {}
 
     /**
      * Called by the broker when a new connection is created.
      */
-    default void producerCreated(ServerCnx cnx, Producer producer,
-                                 Map<String, String> metadata){
-    }
+    default void producerCreated(ServerCnx cnx, Producer producer, Map<String, String> metadata) {}
 
     /**
      * Called by the broker when a producer is closed.
@@ -102,10 +92,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param producer Producer object
      * @param metadata A map of metadata
      */
-    default void producerClosed(ServerCnx cnx,
-                                Producer producer,
-                                Map<String, String> metadata) {
-    }
+    default void producerClosed(ServerCnx cnx, Producer producer, Map<String, String> metadata) {}
 
     /**
      * Intercept after a consumer is created.
@@ -114,10 +101,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param consumer Consumer object
      * @param metadata A map of metadata
      */
-    default void consumerCreated(ServerCnx cnx,
-                                 Consumer consumer,
-                                 Map<String, String> metadata) {
-    }
+    default void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {}
 
     /**
      *  Called by the broker when a consumer is closed.
@@ -126,10 +110,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param consumer Consumer object
      * @param metadata A map of metadata
      */
-    default void consumerClosed(ServerCnx cnx,
-                                Consumer consumer,
-                                Map<String, String> metadata) {
-    }
+    default void consumerClosed(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {}
 
     /**
      * Intercept message when broker receive a send request.
@@ -137,11 +118,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param headersAndPayload entry's header and payload
      * @param publishContext Publish Context
      */
-    default void onMessagePublish(Producer producer,
-                                  ByteBuf headersAndPayload,
-                                  Topic.PublishContext publishContext) {
-
-    }
+    default void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {}
 
     /**
      * Intercept after a message is produced.
@@ -150,9 +127,13 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param producer Producer object
      * @param publishContext Publish Context
      */
-    default void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
-                                 long entryId, Topic.PublishContext publishContext) {
-    }
+    default void messageProduced(
+            ServerCnx cnx,
+            Producer producer,
+            long startTimeNs,
+            long ledgerId,
+            long entryId,
+            Topic.PublishContext publishContext) {}
 
     /**
      * Intercept after a message is dispatched to consumer.
@@ -163,9 +144,8 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param entryId Entry ID
      * @param headersAndPayload Data
      */
-    default void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
-                                   long entryId, ByteBuf headersAndPayload) {
-    }
+    default void messageDispatched(
+            ServerCnx cnx, Consumer consumer, long ledgerId, long entryId, ByteBuf headersAndPayload) {}
 
     /**
      * Intercept after a message ack is processed.
@@ -173,9 +153,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param cnx client Connection
      * @param ackCmd Command object
      */
-    default void messageAcked(ServerCnx cnx, Consumer consumer,
-                              CommandAck ackCmd) {
-    }
+    default void messageAcked(ServerCnx cnx, Consumer consumer, CommandAck ackCmd) {}
 
     /**
      * Intercept when a transaction begins.
@@ -183,8 +161,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param tcId Transaction Coordinator Id
      * @param txnID Transaction ID
      */
-    default void txnOpened(long tcId, String txnID) {
-    }
+    default void txnOpened(long tcId, String txnID) {}
 
     /**
      * Intercept when a transaction ends.
@@ -192,8 +169,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param txnID Transaction ID
      * @param txnAction Transaction Action
      */
-    default void txnEnded(String txnID, long txnAction) {
-    }
+    default void txnEnded(String txnID, long txnAction) {}
     /**
      * Called by the broker while new command incoming.
      */

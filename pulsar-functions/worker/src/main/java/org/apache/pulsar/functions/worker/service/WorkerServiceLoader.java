@@ -48,11 +48,11 @@ public class WorkerServiceLoader {
      * @throws IOException when fail to load the worker service or get the definition
      */
     public static WorkerServiceDefinition getWorkerServiceDefinition(String narPath, String narExtractionDirectory)
-        throws IOException {
+            throws IOException {
         try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(new File(narPath))
                 .extractionDirectory(narExtractionDirectory)
-                .build();) {
+                .build(); ) {
             return getWorkerServiceDefinition(ncl);
         }
     }
@@ -60,9 +60,7 @@ public class WorkerServiceLoader {
     private static WorkerServiceDefinition getWorkerServiceDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PULSAR_FN_WORKER_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(
-            configStr, WorkerServiceDefinition.class
-        );
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, WorkerServiceDefinition.class);
     }
 
     /**
@@ -71,8 +69,8 @@ public class WorkerServiceLoader {
      * @param metadata the worker service definition.
      * @return
      */
-    static WorkerServiceWithClassLoader load(WorkerServiceMetadata metadata,
-                                             String narExtractionDirectory) throws IOException {
+    static WorkerServiceWithClassLoader load(WorkerServiceMetadata metadata, String narExtractionDirectory)
+            throws IOException {
         final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
@@ -83,15 +81,15 @@ public class WorkerServiceLoader {
         WorkerServiceDefinition phDef = getWorkerServiceDefinition(ncl);
         if (StringUtils.isBlank(phDef.getHandlerClass())) {
             throw new IOException("Functions Worker Service Nar Package `" + phDef.getName()
-                + "` does NOT provide a functions worker service implementation");
+                    + "` does NOT provide a functions worker service implementation");
         }
 
         try {
             Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
             Object handler = handlerClass.getDeclaredConstructor().newInstance();
             if (!(handler instanceof WorkerService)) {
-                throw new IOException("Class " + phDef.getHandlerClass()
-                    + " does not implement worker service interface");
+                throw new IOException(
+                        "Class " + phDef.getHandlerClass() + " does not implement worker service interface");
             }
             WorkerService ph = (WorkerService) handler;
             return new WorkerServiceWithClassLoader(ph, ncl);
@@ -101,8 +99,7 @@ public class WorkerServiceLoader {
         }
     }
 
-    private static void rethrowIOException(Throwable cause)
-            throws IOException {
+    private static void rethrowIOException(Throwable cause) throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;
         } else if (cause instanceof RuntimeException) {
@@ -121,9 +118,7 @@ public class WorkerServiceLoader {
      * @return the worker service
      */
     public static WorkerService load(WorkerConfig workerConfig) {
-        return load(
-            workerConfig.getFunctionsWorkerServiceNarPackage(),
-            workerConfig.getNarExtractionDirectory());
+        return load(workerConfig.getFunctionsWorkerServiceNarPackage(), workerConfig.getNarExtractionDirectory());
     }
 
     /**
@@ -140,15 +135,10 @@ public class WorkerServiceLoader {
 
         WorkerServiceDefinition definition;
         try {
-            definition = getWorkerServiceDefinition(
-                wsNarPackage,
-                narExtractionDirectory
-            );
+            definition = getWorkerServiceDefinition(wsNarPackage, narExtractionDirectory);
         } catch (IOException ioe) {
-            log.error("Failed to get the worker service definition from {}",
-                wsNarPackage, ioe);
-            throw new RuntimeException("Failed to get the worker service definition from "
-                + wsNarPackage, ioe);
+            log.error("Failed to get the worker service definition from {}", wsNarPackage, ioe);
+            throw new RuntimeException("Failed to get the worker service definition from " + wsNarPackage, ioe);
         }
 
         WorkerServiceMetadata metadata = new WorkerServiceMetadata();

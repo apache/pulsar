@@ -51,7 +51,12 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         pulsarClient.close();
         PulsarService crashedMetaStore = null;
         for (int i = pulsarServiceList.size() - 1; i >= 0; i--) {
-            if (pulsarServiceList.get(i).getTransactionMetadataStoreService().getStores().size() > 0) {
+            if (pulsarServiceList
+                            .get(i)
+                            .getTransactionMetadataStoreService()
+                            .getStores()
+                            .size()
+                    > 0) {
                 crashedMetaStore = pulsarServiceList.get(i);
                 break;
             }
@@ -62,13 +67,15 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         crashedMetaStore.close();
 
         pulsarClient = buildClient();
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    int transactionMetaStoreCount2 = pulsarServiceList.stream()
-                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
-                            .sum();
-                    Assert.assertEquals(transactionMetaStoreCount2, 16);
-                });
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            int transactionMetaStoreCount2 = pulsarServiceList.stream()
+                    .mapToInt(pulsarService -> pulsarService
+                            .getTransactionMetadataStoreService()
+                            .getStores()
+                            .size())
+                    .sum();
+            Assert.assertEquals(transactionMetaStoreCount2, 16);
+        });
         pulsarClient.close();
     }
 
@@ -94,37 +101,40 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         checkTransactionCoordinatorNum(16);
 
         pulsarClient.close();
-
     }
 
     private void checkTransactionCoordinatorNum(int number) {
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    int transactionMetaStoreCount = pulsarServiceList.stream()
-                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
-                            .sum();
-                    Assert.assertEquals(transactionMetaStoreCount, number);
-                });
+        Awaitility.await().untilAsserted(() -> {
+            int transactionMetaStoreCount = pulsarServiceList.stream()
+                    .mapToInt(pulsarService -> pulsarService
+                            .getTransactionMetadataStoreService()
+                            .getStores()
+                            .size())
+                    .sum();
+            Assert.assertEquals(transactionMetaStoreCount, number);
+        });
     }
 
     private PulsarClient buildClient() throws Exception {
         return PulsarClient.builder()
                 .serviceUrlProvider(new ServiceUrlProvider() {
                     final AtomicInteger atomicInteger = new AtomicInteger();
-                    @Override
-                    public void initialize(PulsarClient client) {
 
-                    }
+                    @Override
+                    public void initialize(PulsarClient client) {}
 
                     @Override
                     public String getServiceUrl() {
-                        return pulsarServiceList.get(atomicInteger.getAndIncrement() % pulsarServiceList.size()).getBrokerServiceUrl();
+                        return pulsarServiceList
+                                .get(atomicInteger.getAndIncrement() % pulsarServiceList.size())
+                                .getBrokerServiceUrl();
                     }
                 })
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
     }
+
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {

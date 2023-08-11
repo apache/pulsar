@@ -56,6 +56,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     private static final String RECONNECT_TOPIC = NAMESPACE1 + "/txn-client-reconnect-test";
     private static final int NUM_PARTITIONS = 1;
+
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         setUpBase(1, NUM_PARTITIONS, RECONNECT_TOPIC, 0);
@@ -69,16 +70,18 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testTransactionNewReconnect() throws Exception {
-        Callable<CompletableFuture<?>> callable = () -> pulsarClient.newTransaction()
-                .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build();
+        Callable<CompletableFuture<?>> callable = () -> pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(200, TimeUnit.MILLISECONDS)
+                .build();
         tryCommandReconnect(callable, callable);
     }
 
     @Test
     public void testTransactionAddSubscriptionToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient
-                .addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test");
+        Callable<CompletableFuture<?>> callable =
+                () -> transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test");
         tryCommandReconnect(callable, callable);
     }
 
@@ -98,8 +101,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             completableFuture.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException ignore) {
         } catch (ExecutionException e) {
-            assertFalse(e.getCause()
-                    instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
+            assertFalse(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
         }
 
         unFence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
@@ -109,28 +111,24 @@ public class TransactionClientConnectTest extends TransactionTestBase {
     @Test
     public void testTransactionAbortToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0,
-                0));
-        Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0,
-                1));
+        Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0, 0));
+        Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0, 1));
         tryCommandReconnect(callable1, callable2);
     }
 
     @Test
     public void testTransactionCommitToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0,
-                0));
-        Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0,
-                1));
+        Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0, 0));
+        Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0, 1));
         tryCommandReconnect(callable1, callable2);
     }
 
     @Test
     public void testTransactionAddPublishPartitionToTxnReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
-                Collections.singletonList("test"));
+        Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient.addPublishPartitionToTxnAsync(
+                new TxnID(0, 0), Collections.singletonList("test"));
         tryCommandReconnect(callable, callable);
     }
 
@@ -157,16 +155,16 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             try {
                 handler.newTransactionAsync(10, TimeUnit.SECONDS).get();
             } catch (ExecutionException | InterruptedException e) {
-                assertTrue(e.getCause()
-                        instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);
+                assertTrue(
+                        e.getCause()
+                                instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);
             }
         }
     }
 
     @Test
     public void testHandlerStateChangeToReady() throws Exception {
-        TransactionCoordinatorClientImpl transactionCoordinatorClient =
-                ((PulsarClientImpl) pulsarClient).getTcClient();
+        TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");
         field.setAccessible(true);
         TransactionMetaStoreHandler[] handlers =
@@ -176,53 +174,71 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         Assert.assertTrue(transactionMetaStoreHandler.changeToReadyState());
     }
 
-
     @Test(expectedExceptions = PulsarClientException.class)
     public void testNotEnableTransactionInBroker() throws Exception {
-        getPulsarServiceList().get(0).getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .deletePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
-        PulsarClient.builder().enableTransaction(true)
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl()).build();
+        getPulsarServiceList()
+                .get(0)
+                .getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .deletePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
+                .get();
+        PulsarClient.builder()
+                .enableTransaction(true)
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
+                .build();
     }
 
     public void start() throws Exception {
         // wait transaction coordinator init success
-        pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
-        pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
+        pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
+                .build()
+                .get();
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService();
         // remove transaction metadap0-ta store
-        transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0)).get();
-
+        transactionMetadataStoreService
+                .removeTransactionMetadataStore(TransactionCoordinatorID.get(0))
+                .get();
     }
 
     public void fence(TransactionMetadataStoreService transactionMetadataStoreService) throws Exception {
         Field field = ManagedLedgerImpl.class.getDeclaredField("state");
         field.setAccessible(true);
-        field.set(((MLTransactionMetadataStore) transactionMetadataStoreService.getStores()
-                .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.Fenced);
+        field.set(
+                ((MLTransactionMetadataStore)
+                                transactionMetadataStoreService.getStores().get(TransactionCoordinatorID.get(0)))
+                        .getManagedLedger(),
+                ManagedLedgerImpl.State.Fenced);
     }
+
     public void unFence(TransactionMetadataStoreService transactionMetadataStoreService) throws Exception {
         Field field = ManagedLedgerImpl.class.getDeclaredField("state");
         field.setAccessible(true);
-        field.set(((MLTransactionMetadataStore) transactionMetadataStoreService.getStores()
-                .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.LedgerOpened);
+        field.set(
+                ((MLTransactionMetadataStore)
+                                transactionMetadataStoreService.getStores().get(TransactionCoordinatorID.get(0)))
+                        .getManagedLedger(),
+                ManagedLedgerImpl.State.LedgerOpened);
     }
 
-    public void waitToReady() throws Exception{
+    public void waitToReady() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService();
         Class<TransactionMetadataStoreService> transactionMetadataStoreServiceClass =
                 TransactionMetadataStoreService.class;
-        Field field1 =
-                transactionMetadataStoreServiceClass.getDeclaredField("stores");
+        Field field1 = transactionMetadataStoreServiceClass.getDeclaredField("stores");
         field1.setAccessible(true);
         Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
-                (Map<TransactionCoordinatorID, TransactionMetadataStore>) field1
-                        .get(transactionMetadataStoreService);
+                (Map<TransactionCoordinatorID, TransactionMetadataStore>) field1.get(transactionMetadataStoreService);
         Awaitility.await().until(() -> {
             for (TransactionMetadataStore transactionMetadataStore : stores.values()) {
                 Class<TransactionMetadataStoreState> transactionMetadataStoreStateClass =

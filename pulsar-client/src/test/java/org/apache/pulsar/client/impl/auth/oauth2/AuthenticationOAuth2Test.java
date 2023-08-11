@@ -24,9 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -114,7 +112,10 @@ public class AuthenticationOAuth2Test {
     @Test
     public void testGetAuthData() throws Exception {
         AuthenticationDataProvider data;
-        TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(TEST_EXPIRES_IN).build();
+        TokenResult tr = TokenResult.builder()
+                .accessToken(TEST_ACCESS_TOKEN)
+                .expiresIn(TEST_EXPIRES_IN)
+                .build();
         doReturn(tr).when(this.flow).authenticate();
         data = this.auth.getAuthData();
         verify(this.flow, times(1)).authenticate();
@@ -134,7 +135,8 @@ public class AuthenticationOAuth2Test {
 
     @Test
     public void testMetadataResolver() throws MalformedURLException {
-        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(URI.create("http://localhost/path/oauth").toURL());
+        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL());
         assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", url.toString());
     }
 

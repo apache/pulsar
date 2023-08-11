@@ -48,18 +48,18 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
         properties.put(ALWAYS_ALLOW_NULL, "true");
         properties.put(JSR310_CONVERSION_ENABLED, "false");
         this.schemaInfo = SchemaInfo.builder()
-            .name("")
-            .schema(schema.toString().getBytes(StandardCharsets.UTF_8))
-            .properties(properties)
-            .type(SchemaType.AVRO)
-            .build();
+                .name("")
+                .schema(schema.toString().getBytes(StandardCharsets.UTF_8))
+                .properties(properties)
+                .type(SchemaType.AVRO)
+                .build();
     }
 
     public NativeAvroBytesSchema(Object schema) {
         this(validateSchema(schema));
     }
 
-    private static org.apache.avro.Schema validateSchema (Object schema) {
+    private static org.apache.avro.Schema validateSchema(Object schema) {
         if (!(schema instanceof org.apache.avro.Schema)) {
             throw new IllegalArgumentException("The input schema is not of type 'org.apache.avro.Schema'.");
         }
@@ -91,5 +91,4 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
     public Schema<byte[]> clone() {
         return new NativeAvroBytesSchema(nativeSchema);
     }
-
 }

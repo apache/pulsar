@@ -40,41 +40,59 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.SizeUnit;
 
-
 public class PulsarClientTool {
 
     @Getter
     @Parameters(commandDescription = "Produce or consume messages on a specified topic")
     public static class RootParams {
-        @Parameter(names = { "--url" }, description = "Broker URL to which to connect.")
+        @Parameter(
+                names = {"--url"},
+                description = "Broker URL to which to connect.")
         String serviceURL = null;
 
-        @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+        @Parameter(
+                names = {"--proxy-url"},
+                description = "Proxy-server URL to which to connect.")
         String proxyServiceURL = null;
 
-        @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+        @Parameter(
+                names = {"--proxy-protocol"},
+                description = "Proxy protocol to select type of routing at proxy.")
         ProxyProtocol proxyProtocol = null;
 
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
+        @Parameter(
+                names = {"--auth-plugin"},
+                description = "Authentication plugin class name.")
         String authPluginClassName = null;
 
-        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+        @Parameter(
+                names = {"--listener-name"},
+                description = "Listener name for the broker.")
         String listenerName = null;
 
         @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation "
-                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
+                names = {"--auth-params"},
+                description = "Authentication parameters, whose format is determined by the implementation "
+                        + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         String authParams = null;
 
-        @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")
+        @Parameter(
+                names = {"-v", "--version"},
+                description = "Get version of pulsar client")
         boolean version;
 
-        @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
+        @Parameter(
+                names = {
+                    "-h", "--help",
+                },
+                help = true,
+                description = "Show this help.")
         boolean help;
 
-        @Parameter(names = { "--tlsTrustCertsFilePath" }, description = "File path to client trust certificates")
+        @Parameter(
+                names = {"--tlsTrustCertsFilePath"},
+                description = "File path to client trust certificates")
         String tlsTrustCertsFilePath;
     }
 
@@ -84,7 +102,6 @@ public class PulsarClientTool {
 
     String tlsKeyFilePath;
     String tlsCertificateFilePath;
-
 
     // for tls with keystore type config
     boolean useKeyStoreTls;
@@ -105,12 +122,11 @@ public class PulsarClientTool {
     public PulsarClientTool(Properties properties) {
         rootParams = new RootParams();
         initRootParamsFromProperties(properties);
-        this.tlsAllowInsecureConnection = Boolean
-                .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
-        this.tlsEnableHostnameVerification = Boolean
-                .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        this.useKeyStoreTls = Boolean
-                .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
+        this.tlsAllowInsecureConnection =
+                Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
+        this.tlsEnableHostnameVerification =
+                Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
+        this.useKeyStoreTls = Boolean.parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
         this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
         this.tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
         this.tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
@@ -142,7 +158,8 @@ public class PulsarClientTool {
 
     protected void initRootParamsFromProperties(Properties properties) {
         this.rootParams.serviceURL = isNotBlank(properties.getProperty("brokerServiceUrl"))
-                ? properties.getProperty("brokerServiceUrl") : properties.getProperty("webServiceUrl");
+                ? properties.getProperty("brokerServiceUrl")
+                : properties.getProperty("webServiceUrl");
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
         if (isBlank(this.rootParams.serviceURL)) {
             this.rootParams.serviceURL = properties.getProperty("serviceUrl");
@@ -164,8 +181,7 @@ public class PulsarClientTool {
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
-        ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES);
+        ClientBuilder clientBuilder = PulsarClient.builder().memoryLimit(0, SizeUnit.BYTES);
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
             authentication = AuthenticationFactory.create(rootParams.authPluginClassName, rootParams.authParams);
@@ -178,11 +194,13 @@ public class PulsarClientTool {
         clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
         clientBuilder.serviceUrl(rootParams.serviceURL);
 
-        clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath)
+        clientBuilder
+                .tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath)
                 .tlsKeyFilePath(tlsKeyFilePath)
                 .tlsCertificateFilePath(tlsCertificateFilePath);
 
-        clientBuilder.useKeyStoreTls(useKeyStoreTls)
+        clientBuilder
+                .useKeyStoreTls(useKeyStoreTls)
                 .tlsTrustStoreType(tlsTrustStoreType)
                 .tlsTrustStorePath(tlsTrustStorePath)
                 .tlsTrustStorePassword(tlsTrustStorePassword)
@@ -223,7 +241,7 @@ public class PulsarClientTool {
 
             try {
                 this.updateConfig(); // If the --url, --auth-plugin, or --auth-params parameter are not specified,
-                                     // it will default to the values passed in by the constructor
+                // it will default to the values passed in by the constructor
             } catch (UnsupportedAuthenticationException exp) {
                 System.out.println("Failed to load an authentication plugin");
                 exp.printStackTrace();
@@ -277,6 +295,5 @@ public class PulsarClientTool {
         int exitCode = clientTool.run(Arrays.copyOfRange(args, 1, args.length));
 
         System.exit(exitCode);
-
     }
 }

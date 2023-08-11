@@ -122,9 +122,8 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         Map<Consumer, List<Range>> result = new HashMap<>();
         int start = 0;
-        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
-            result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
-                    .add(Range.of(start, entry.getKey()));
+        for (Map.Entry<Integer, Consumer> entry : rangeMap.entrySet()) {
+            result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>()).add(Range.of(start, entry.getKey()));
             start = entry.getKey() + 1;
         }
         return result;
@@ -152,8 +151,8 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             lowerKey = 0;
         }
         if (range - lowerKey <= 1) {
-            throw new ConsumerAssignException("No more range can assigned to new consumer, assigned consumers "
-                    + rangeMap.size());
+            throw new ConsumerAssignException(
+                    "No more range can assigned to new consumer, assigned consumers " + rangeMap.size());
         }
         int splitRange = range - ((range - lowerKey) >> 1);
         rangeMap.put(splitRange, targetConsumer);

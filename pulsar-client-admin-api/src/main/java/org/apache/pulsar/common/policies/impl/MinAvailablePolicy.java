@@ -38,6 +38,7 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
 
     @SuppressWarnings("checkstyle:MemberName")
     public int min_limit;
+
     @SuppressWarnings("checkstyle:MemberName")
     public int usage_threshold;
 

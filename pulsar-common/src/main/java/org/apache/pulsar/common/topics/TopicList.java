@@ -45,15 +45,19 @@ public class TopicList {
         Pattern topicsPattern = Pattern.compile(regex);
         return filterTopics(original, topicsPattern);
     }
+
     public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
 
         final Pattern shortenedTopicsPattern = topicsPattern.toString().contains(SCHEME_SEPARATOR)
-                ? Pattern.compile(SCHEME_SEPARATOR_PATTERN.split(topicsPattern.toString())[1]) : topicsPattern;
+                ? Pattern.compile(SCHEME_SEPARATOR_PATTERN.split(topicsPattern.toString())[1])
+                : topicsPattern;
 
         return original.stream()
                 .map(TopicName::get)
                 .map(TopicName::toString)
-                .filter(topic -> shortenedTopicsPattern.matcher(SCHEME_SEPARATOR_PATTERN.split(topic)[1]).matches())
+                .filter(topic -> shortenedTopicsPattern
+                        .matcher(SCHEME_SEPARATOR_PATTERN.split(topic)[1])
+                        .matches())
                 .collect(Collectors.toList());
     }
 
@@ -64,13 +68,13 @@ public class TopicList {
     }
 
     public static String calculateHash(List<String> topics) {
-        return Hashing.crc32c().hashBytes(topics.stream()
-                .sorted()
-                .collect(Collectors.joining(","))
-                .getBytes(StandardCharsets.UTF_8)).toString();
+        return Hashing.crc32c()
+                .hashBytes(topics.stream()
+                        .sorted()
+                        .collect(Collectors.joining(","))
+                        .getBytes(StandardCharsets.UTF_8))
+                .toString();
     }
-
-
 
     // get topics, which are contained in list1, and not in list2
     public static Set<String> minus(Collection<String> list1, Collection<String> list2) {

@@ -37,8 +37,11 @@ public class PulsarRecordSet implements RecordSet {
 
     private PulsarDispatchingRowDecoderFactory decoderFactory;
 
-    public PulsarRecordSet(PulsarSplit split, List<PulsarColumnHandle> columnHandles, PulsarConnectorConfig
-            pulsarConnectorConfig, PulsarDispatchingRowDecoderFactory decoderFactory) {
+    public PulsarRecordSet(
+            PulsarSplit split,
+            List<PulsarColumnHandle> columnHandles,
+            PulsarConnectorConfig pulsarConnectorConfig,
+            PulsarDispatchingRowDecoderFactory decoderFactory) {
         requireNonNull(split, "split is null");
         this.columnHandles = requireNonNull(columnHandles, "column handles is null");
         ImmutableList.Builder<Type> types = ImmutableList.builder();
@@ -54,7 +57,6 @@ public class PulsarRecordSet implements RecordSet {
         this.decoderFactory = decoderFactory;
     }
 
-
     @Override
     public List<Type> getColumnTypes() {
         return this.columnTypes;
@@ -62,7 +64,7 @@ public class PulsarRecordSet implements RecordSet {
 
     @Override
     public RecordCursor cursor() {
-        return new PulsarRecordCursor(this.columnHandles, this.pulsarSplit,
-                this.pulsarConnectorConfig, this.decoderFactory);
+        return new PulsarRecordCursor(
+                this.columnHandles, this.pulsarSplit, this.pulsarConnectorConfig, this.decoderFactory);
     }
 }

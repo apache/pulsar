@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -80,8 +80,8 @@ public class TopKBundlesTest {
         localPoliciesResources = mock(LocalPoliciesResources.class);
         doReturn(localPoliciesResources).when(pulsarResources).getLocalPolicies();
         doReturn(Optional.empty()).when(localPoliciesResources).getLocalPolicies(any());
-
     }
+
     @Test
     public void testTopBundlesLoadData() {
         Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
@@ -131,8 +131,7 @@ public class TopKBundlesTest {
         assertEquals(top0.bundleName(), bundle1);
     }
 
-
-    private  void setAntiAffinityGroup() throws MetadataStoreException {
+    private void setAntiAffinityGroup() throws MetadataStoreException {
         LocalPolicies localPolicies = new LocalPolicies(null, null, "namespaceAntiAffinityGroup");
         NamespaceName namespace = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundle2));
         doReturn(Optional.of(localPolicies)).when(localPoliciesResources).getLocalPolicies(eq(namespace));
@@ -142,16 +141,15 @@ public class TopKBundlesTest {
         Map<String, String> parameters = new HashMap<>();
         parameters.put("min_limit", "3");
         parameters.put("usage_threshold", "90");
-        var policyData = Map.of("policy", (NamespaceIsolationDataImpl)
-                NamespaceIsolationData.builder()
-                        .namespaces(Collections.singletonList("my-tenant/my-namespace1.*"))
-                        .primary(Collections.singletonList("prod1-broker[1-3].messaging.use.example.com"))
-                        .secondary(Collections.singletonList("prod1-broker.*.use.example.com"))
-                        .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                                .policyType(AutoFailoverPolicyType.min_available)
-                                .parameters(parameters)
-                                .build()
-                        ).build());
+        var policyData = Map.of("policy", (NamespaceIsolationDataImpl) NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("my-tenant/my-namespace1.*"))
+                .primary(Collections.singletonList("prod1-broker[1-3].messaging.use.example.com"))
+                .secondary(Collections.singletonList("prod1-broker.*.use.example.com"))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters)
+                        .build())
+                .build());
 
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies(policyData);
         doReturn(Optional.of(policies)).when(isolationPolicyResources).getIsolationDataPolicies(any());
@@ -178,7 +176,6 @@ public class TopKBundlesTest {
         assertEquals(top0.bundleName(), bundle2);
     }
 
-
     @Test
     public void testAntiAffinityGroupPolicy() throws MetadataStoreException {
 
@@ -198,7 +195,6 @@ public class TopKBundlesTest {
         assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
         var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
         assertEquals(top0.bundleName(), bundle1);
-
     }
 
     @Test
@@ -235,7 +231,6 @@ public class TopKBundlesTest {
         assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
     }
 
-
     @Test
     public void testPartitionSort() {
 
@@ -264,8 +259,8 @@ public class TopKBundlesTest {
                 Integer l = (Integer) actual.get(i).getValue();
                 Integer r = (Integer) expected.get(i).getValue();
                 if (!l.equals(r)) {
-                    errorMsg = String.format("Diff found at i=%d, %d != %d, actual:%s, expected:%s",
-                            i, l, r, actual, expected);
+                    errorMsg = String.format(
+                            "Diff found at i=%d, %d != %d, actual:%s, expected:%s", i, l, r, actual, expected);
                 }
                 assertNull(errorMsg);
             }

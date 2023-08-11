@@ -25,5 +25,4 @@ public class ElasticSearch8AuthTests extends ElasticSearchAuthTests {
     public ElasticSearch8AuthTests() {
         super(ELASTICSEARCH_8);
     }
-
 }

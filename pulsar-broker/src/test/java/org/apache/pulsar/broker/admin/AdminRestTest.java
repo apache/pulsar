@@ -53,36 +53,43 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     private final String topicName = "persistent://" + namespaceName + "/" + topicNameSuffix;
 
     @Test
-    public void testRejectUnknownEntityProperties() throws Exception{
+    public void testRejectUnknownEntityProperties() throws Exception {
         // Build request command.
         int port = pulsar.getWebService().getListenPortHTTP().get();
-        @Cleanup
-        Client client = ClientBuilder.newClient();
-        WebTarget target = client.target("http://127.0.0.1:" + port
-                + "/admin/v2/persistent/" + namespaceName + "/" + topicNameSuffix + "/retention");
-        Map<String,Object> data = new HashMap<>();
+        @Cleanup Client client = ClientBuilder.newClient();
+        WebTarget target = client.target("http://127.0.0.1:" + port + "/admin/v2/persistent/" + namespaceName + "/"
+                + topicNameSuffix + "/retention");
+        Map<String, Object> data = new HashMap<>();
         data.put("retention_size_in_mb", -1);
         data.put("retention_time_in_minutes", 40320);
         // Configuration default, response success.
-        Response response1 = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
+        Response response1 = target.request(MediaType.APPLICATION_JSON_TYPE)
+                .buildPost(Entity.json(data))
+                .invoke();
         Assert.assertTrue(response1.getStatus() / 200 == 1);
         // Enabled feature, bad request response.
         admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "true");
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
-                () -> !pulsar.getWebService().getSharedUnknownPropertyHandler().isSkipUnknownProperty()
-        );
-        Response response2 = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> !pulsar.getWebService()
+                .getSharedUnknownPropertyHandler()
+                .isSkipUnknownProperty());
+        Response response2 = target.request(MediaType.APPLICATION_JSON_TYPE)
+                .buildPost(Entity.json(data))
+                .invoke();
         Assert.assertEquals(MediaType.valueOf(MediaType.TEXT_PLAIN), response2.getMediaType());
         String responseBody = parseResponseEntity(response2.getEntity());
-        Assert.assertEquals(responseBody, "Unknown property retention_time_in_minutes, perhaps you want to use"
-                + " one of these: [retentionSizeInMB, retentionTimeInMinutes]");
+        Assert.assertEquals(
+                responseBody,
+                "Unknown property retention_time_in_minutes, perhaps you want to use"
+                        + " one of these: [retentionSizeInMB, retentionTimeInMinutes]");
         Assert.assertEquals(response2.getStatus(), 400);
         // Disabled feature, response success.
         admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "false");
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
-                () -> pulsar.getWebService().getSharedUnknownPropertyHandler().isSkipUnknownProperty()
-        );
-        Response response3 = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> pulsar.getWebService()
+                .getSharedUnknownPropertyHandler()
+                .isSkipUnknownProperty());
+        Response response3 = target.request(MediaType.APPLICATION_JSON_TYPE)
+                .buildPost(Entity.json(data))
+                .invoke();
         Assert.assertTrue(response3.getStatus() / 200 == 1);
         // cleanup.
         response1.close();
@@ -95,7 +102,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in));
         StringBuilder stringBuilder = new StringBuilder();
         String line = null;
-        while ((line = bufferedReader.readLine()) != null){
+        while ((line = bufferedReader.readLine()) != null) {
             stringBuilder.append(line);
         }
         return stringBuilder.toString();
@@ -106,9 +113,13 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         super.internalSetup();
         // Create tenant, namespace, topic
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant(tenantName,
-                new TenantInfoImpl(Collections.singleton("a"), Collections.singleton(clusterName)));
+        admin.clusters()
+                .createCluster(
+                        clusterName,
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants()
+                .createTenant(
+                        tenantName, new TenantInfoImpl(Collections.singleton("a"), Collections.singleton(clusterName)));
         admin.namespaces().createNamespace(namespaceName);
         admin.topics().createNonPartitionedTopic(topicName);
     }

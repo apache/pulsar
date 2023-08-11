@@ -69,4 +69,3 @@ public interface OffloadIndexBlockV2 extends Closeable {
      */
     long getDataBlockHeaderLength();
 }
-

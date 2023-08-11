@@ -56,8 +56,7 @@ public class PulsarTableHandle implements ConnectorTableHandle {
             @JsonProperty("connectorId") String connectorId,
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
-            @JsonProperty("topicName") String topicName
-    ) {
+            @JsonProperty("topicName") String topicName) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null");
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");

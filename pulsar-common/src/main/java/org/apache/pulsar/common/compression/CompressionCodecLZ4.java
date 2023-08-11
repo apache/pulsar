@@ -88,8 +88,12 @@ public class CompressionCodecLZ4 implements CompressionCodec {
         ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
 
         if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
-            Lz4RawDecompressor.decompress(null, encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.memoryAddress() + encoded.writerIndex(), null, uncompressed.memoryAddress(),
+            Lz4RawDecompressor.decompress(
+                    null,
+                    encoded.memoryAddress() + encoded.readerIndex(),
+                    encoded.memoryAddress() + encoded.writerIndex(),
+                    null,
+                    uncompressed.memoryAddress(),
                     uncompressed.memoryAddress() + uncompressedLength);
         } else {
             ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
@@ -101,5 +105,4 @@ public class CompressionCodecLZ4 implements CompressionCodec {
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;
     }
-
 }

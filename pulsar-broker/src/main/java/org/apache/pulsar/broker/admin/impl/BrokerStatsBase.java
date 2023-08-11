@@ -52,10 +52,12 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring",
+    @ApiOperation(
+            value = "Gets the metrics for Monitoring",
             notes = "Requested should be executed by Monitoring agent on each broker to fetch the metrics",
-            response = Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+            response = Metrics.class,
+            responseContainer = "List")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public Collection<Metrics> getMetrics() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -70,9 +72,11 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/mbeans")
-    @ApiOperation(value = "Get all the mbean details of this broker JVM",
-            response = Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiOperation(
+            value = "Get all the mbean details of this broker JVM",
+            response = Metrics.class,
+            responseContainer = "List")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public Collection<Metrics> getMBeans() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -87,10 +91,12 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/destinations")
-    @ApiOperation(value = "Get all the topic stats by namespace", response = OutputStream.class,
+    @ApiOperation(
+            value = "Get all the topic stats by namespace",
+            response = OutputStream.class,
             responseContainer = "OutputStream") // https://github.com/swagger-api/swagger-ui/issues/558
     // map support missing
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public StreamingOutput getTopics2() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -105,9 +111,10 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/allocator-stats/{allocator}")
-    @ApiOperation(value = "Get the stats for the Netty allocator. Available allocators are 'default' and 'ml-cache'",
+    @ApiOperation(
+            value = "Get the stats for the Netty allocator. Available allocators are 'default' and 'ml-cache'",
             response = AllocatorStats.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public AllocatorStats getAllocatorStats(@PathParam("allocator") String allocatorName) throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -124,12 +131,13 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/bookieops")
-    @ApiOperation(value = "Get pending bookie client op stats by namespace",
+    @ApiOperation(
+            value = "Get pending bookie client op stats by namespace",
             response = PendingBookieOpsStats.class,
             // https://github.com/swagger-api/swagger-core/issues/449
             // nested containers are not supported
             responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public Map<String, Map<String, PendingBookieOpsStats>> getPendingBookieOpsStats() {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -143,9 +151,11 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/load-report")
-    @ApiOperation(value = "Get Load for this broker", notes = "consists of topics stats & systemResourceUsage",
+    @ApiOperation(
+            value = "Get Load for this broker",
+            notes = "consists of topics stats & systemResourceUsage",
             response = LoadReport.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public LoadManagerReport getLoadReport() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -162,7 +172,9 @@ public class BrokerStatsBase extends AdminResource {
             validateSuperUserAccess();
             LoadManager lm = pulsar().getLoadManager().get();
             if (lm instanceof SimpleLoadManagerImpl) {
-                return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(namespace).asMap();
+                return ((SimpleLoadManagerImpl) lm)
+                        .getResourceAvailabilityFor(namespace)
+                        .asMap();
             } else {
                 throw new RestException(Status.CONFLICT, lm.getClass().getName() + " does not support this operation");
             }

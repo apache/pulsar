@@ -23,18 +23,17 @@ import org.apache.pulsar.broker.ShutdownService;
 
 public interface ErrorNotifier extends Serializable, AutoCloseable {
 
-  void triggerError(Throwable th);
+    void triggerError(Throwable th);
 
-  void waitForError() throws Exception;
+    void waitForError() throws Exception;
 
-  void close();
+    void close();
 
-  static ErrorNotifier getDefaultImpl() {
-    return new ErrorNotifierImpl();
-  }
+    static ErrorNotifier getDefaultImpl() {
+        return new ErrorNotifierImpl();
+    }
 
-  static ErrorNotifier getShutdownServiceImpl(ShutdownService shutdownService) {
-    return new ErrorNotifierShutdownServiceImpl(shutdownService);
-  }
-
+    static ErrorNotifier getShutdownServiceImpl(ShutdownService shutdownService) {
+        return new ErrorNotifierShutdownServiceImpl(shutdownService);
+    }
 }

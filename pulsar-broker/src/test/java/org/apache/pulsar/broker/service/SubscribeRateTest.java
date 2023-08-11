@@ -50,10 +50,11 @@ public class SubscribeRateTest extends BrokerTestBase {
     @Test
     public void testBrokerLevelSubscribeRateDynamicUpdate() throws Exception {
         final String topic = "persistent://prop/ns-abc/testBrokerLevelSubscribeRateDynamicUpdate";
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topic)
-            .producerName("producer-name")
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .producerName("producer-name")
+                .create();
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
@@ -62,8 +63,10 @@ public class SubscribeRateTest extends BrokerTestBase {
         final int ratePerConsumer = 10;
         final int ratePeriod = 60;
 
-        String defaultRatePerConsumer = admin.brokers().getRuntimeConfigurations().get("subscribeThrottlingRatePerConsumer");
-        String defaultRatePeriod = admin.brokers().getRuntimeConfigurations().get("subscribeRatePeriodPerConsumerInSecond");
+        String defaultRatePerConsumer =
+                admin.brokers().getRuntimeConfigurations().get("subscribeThrottlingRatePerConsumer");
+        String defaultRatePeriod =
+                admin.brokers().getRuntimeConfigurations().get("subscribeRatePeriodPerConsumerInSecond");
         Assert.assertNotNull(defaultRatePerConsumer);
         Assert.assertNotNull(defaultRatePeriod);
         Assert.assertNotEquals(ratePerConsumer, Integer.parseInt(defaultRatePerConsumer));
@@ -71,14 +74,17 @@ public class SubscribeRateTest extends BrokerTestBase {
 
         // subscribeThrottlingRatePerConsumer
         admin.brokers().updateDynamicConfiguration("subscribeThrottlingRatePerConsumer", ratePerConsumer + "");
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(topicRef.getSubscribeRateLimiter().isPresent()));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        Assert.assertTrue(topicRef.getSubscribeRateLimiter().isPresent()));
         SubscribeRateLimiter limiter = topicRef.getSubscribeRateLimiter().get();
         Assert.assertEquals(limiter.getSubscribeRate().subscribeThrottlingRatePerConsumer, ratePerConsumer);
         Assert.assertEquals(limiter.getSubscribeRate().ratePeriodInSecond, 30);
 
         // subscribeRatePeriodPerConsumerInSecond
         admin.brokers().updateDynamicConfiguration("subscribeRatePeriodPerConsumerInSecond", ratePeriod + "");
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getSubscribeRate().ratePeriodInSecond, ratePeriod));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(limiter.getSubscribeRate().ratePeriodInSecond, ratePeriod));
         Assert.assertEquals(limiter.getSubscribeRate().subscribeThrottlingRatePerConsumer, ratePerConsumer);
 
         producer.close();
@@ -90,10 +96,11 @@ public class SubscribeRateTest extends BrokerTestBase {
         final String topic = "persistent://prop/ns-abc/testUpdateSubscribeRateLimiter";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topic)
-            .producerName("producer-name")
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .producerName("producer-name")
+                .create();
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);

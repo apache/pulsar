@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.List;
+import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import java.util.List;
-import java.util.UUID;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;
@@ -65,11 +65,12 @@ public class HierarchyTopicAutoCreationTest extends ProducerConsumerBase {
                 .build();
         admin.namespaces().setAutoTopicCreation(namespace, expectedPolicies);
         // Double-check the policies
-        final AutoTopicCreationOverride nsAutoTopicCreationOverride = admin.namespaces()
-                .getAutoTopicCreation(namespace);
+        final AutoTopicCreationOverride nsAutoTopicCreationOverride =
+                admin.namespaces().getAutoTopicCreation(namespace);
         Assert.assertEquals(nsAutoTopicCreationOverride, expectedPolicies);
         // Background invalidate cache
-        final MetadataCache<Policies> nsCache = pulsar.getPulsarResources().getNamespaceResources().getCache();
+        final MetadataCache<Policies> nsCache =
+                pulsar.getPulsarResources().getNamespaceResources().getCache();
         final Thread t1 = new Thread(() -> {
             while (true) {
                 nsCache.invalidate("/admin/policies/" + namespace);
@@ -79,13 +80,13 @@ public class HierarchyTopicAutoCreationTest extends ProducerConsumerBase {
 
         // trigger auto-creation
         final String topicName = "persistent://" + namespace + "/test-" + UUID.randomUUID();
-        @Cleanup final Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        @Cleanup
+        final Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topicName).create();
         final List<String> topics = admin.topics().getList(namespace);
-        Assert.assertEquals(topics.size(), 1);  // expect only one topic
-        Assert.assertEquals(topics.get(0),
-                TopicName.get(topicName).getPartition(0).toString()); // expect partitioned topic
+        Assert.assertEquals(topics.size(), 1); // expect only one topic
+        Assert.assertEquals(
+                topics.get(0), TopicName.get(topicName).getPartition(0).toString()); // expect partitioned topic
 
         // double-check policies
         final AutoTopicCreationOverride actualPolicies2 = admin.namespaces().getAutoTopicCreation(namespace);

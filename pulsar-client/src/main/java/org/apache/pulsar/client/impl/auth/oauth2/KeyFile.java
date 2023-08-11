@@ -26,7 +26,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-
 /**
  * A JSON object representing a credentials file.
  */

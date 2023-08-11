@@ -37,7 +37,9 @@ public class TestLoggingSink implements Sink<GenericObject> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         logger = sinkContext.getLogger();
         String topic = (String) config.getOrDefault("log-topic", "log-topic");
-        producer = sinkContext.getPulsarClient().newProducer(Schema.STRING)
+        producer = sinkContext
+                .getPulsarClient()
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
     }
@@ -61,14 +63,12 @@ public class TestLoggingSink implements Sink<GenericObject> {
             payload = "(key = " + key + ", value = " + value + ")";
         }
         producer.newMessage()
-            .properties(record.getProperties())
-            .value(record.getSchema().getSchemaInfo().getType().name() + " - " + payload)
-            .send();
+                .properties(record.getProperties())
+                .value(record.getSchema().getSchemaInfo().getType().name() + " - " + payload)
+                .send();
         record.ack();
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 }

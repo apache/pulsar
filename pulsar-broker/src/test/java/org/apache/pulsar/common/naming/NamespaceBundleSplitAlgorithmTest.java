@@ -18,12 +18,9 @@
  */
 package org.apache.pulsar.common.naming;
 
-
+import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.*;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.*;
-
 
 public class NamespaceBundleSplitAlgorithmTest {
 
@@ -33,13 +30,17 @@ public class NamespaceBundleSplitAlgorithmTest {
         Assert.assertNull(nullValue);
         NamespaceBundleSplitAlgorithm whatever = NamespaceBundleSplitAlgorithm.of("whatever");
         Assert.assertNull(whatever);
-        NamespaceBundleSplitAlgorithm rangeEquallyDivideName = NamespaceBundleSplitAlgorithm.of(RANGE_EQUALLY_DIVIDE_NAME);
+        NamespaceBundleSplitAlgorithm rangeEquallyDivideName =
+                NamespaceBundleSplitAlgorithm.of(RANGE_EQUALLY_DIVIDE_NAME);
         Assert.assertTrue(rangeEquallyDivideName instanceof RangeEquallyDivideBundleSplitAlgorithm);
-        NamespaceBundleSplitAlgorithm topicCountEquallyDivide = NamespaceBundleSplitAlgorithm.of(TOPIC_COUNT_EQUALLY_DIVIDE);
+        NamespaceBundleSplitAlgorithm topicCountEquallyDivide =
+                NamespaceBundleSplitAlgorithm.of(TOPIC_COUNT_EQUALLY_DIVIDE);
         Assert.assertTrue(topicCountEquallyDivide instanceof TopicCountEquallyDivideBundleSplitAlgorithm);
-        NamespaceBundleSplitAlgorithm specifiedTopicCountEquallyDivide = NamespaceBundleSplitAlgorithm.of(SPECIFIED_POSITIONS_DIVIDE);
+        NamespaceBundleSplitAlgorithm specifiedTopicCountEquallyDivide =
+                NamespaceBundleSplitAlgorithm.of(SPECIFIED_POSITIONS_DIVIDE);
         Assert.assertTrue(specifiedTopicCountEquallyDivide instanceof SpecifiedPositionsBundleSplitAlgorithm);
-        NamespaceBundleSplitAlgorithm flowOrQPSEquallyDivide = NamespaceBundleSplitAlgorithm.of(FLOW_OR_QPS_EQUALLY_DIVIDE);
+        NamespaceBundleSplitAlgorithm flowOrQPSEquallyDivide =
+                NamespaceBundleSplitAlgorithm.of(FLOW_OR_QPS_EQUALLY_DIVIDE);
         Assert.assertTrue(flowOrQPSEquallyDivide instanceof FlowOrQpsEquallyDivideBundleSplitAlgorithm);
     }
 }

@@ -33,9 +33,10 @@ public class DoubleSchema extends AbstractSchema<Double> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("Double")
-            .type(SchemaType.DOUBLE)
-            .schema(new byte[0]).build();
+                .name("Double")
+                .type(SchemaType.DOUBLE)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new DoubleSchema();
     }
 
@@ -56,7 +57,6 @@ public class DoubleSchema extends AbstractSchema<Double> {
             throw new SchemaSerializationException("Size of data received by DoubleSchema is not 8");
         }
     }
-
 
     @Override
     public byte[] encode(Double message) {

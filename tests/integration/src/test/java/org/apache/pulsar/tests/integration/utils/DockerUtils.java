@@ -72,35 +72,37 @@ public class DockerUtils {
         File output = getUniqueFileInTargetDirectory(containerName, "docker", ".log");
         try (OutputStream os = new BufferedOutputStream(new FileOutputStream(output))) {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            dockerClient.logContainerCmd(containerName).withStdOut(true)
-                    .withStdErr(true).withTimestamps(true).exec(new ResultCallback<Frame>() {
-                @Override
-                public void close() {
-                }
+            dockerClient
+                    .logContainerCmd(containerName)
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .withTimestamps(true)
+                    .exec(new ResultCallback<Frame>() {
+                        @Override
+                        public void close() {}
 
-                @Override
-                public void onStart(Closeable closeable) {
-                }
+                        @Override
+                        public void onStart(Closeable closeable) {}
 
-                @Override
-                public void onNext(Frame object) {
-                    try {
-                        os.write(object.getPayload());
-                    } catch (IOException e) {
-                        onError(e);
-                    }
-                }
+                        @Override
+                        public void onNext(Frame object) {
+                            try {
+                                os.write(object.getPayload());
+                            } catch (IOException e) {
+                                onError(e);
+                            }
+                        }
 
-                @Override
-                public void onError(Throwable throwable) {
-                    future.completeExceptionally(throwable);
-                }
+                        @Override
+                        public void onError(Throwable throwable) {
+                            future.completeExceptionally(throwable);
+                        }
 
-                @Override
-                public void onComplete() {
-                    future.complete(true);
-                }
-            });
+                        @Override
+                        public void onComplete() {
+                            future.complete(true);
+                        }
+                    });
             future.get();
         } catch (RuntimeException | ExecutionException | IOException e) {
             LOG.error("Error dumping log for {}", containerName, e);
@@ -125,19 +127,21 @@ public class DockerUtils {
     }
 
     private static String getContainerName(DockerClient dockerClient, String containerId) {
-        final InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(containerId).exec();
+        final InspectContainerResponse inspectContainerResponse =
+                dockerClient.inspectContainerCmd(containerId).exec();
         // docker api returns names prefixed with "/", it's part of it's legacy design,
         // this removes it to be consistent with what docker ps shows.
         return inspectContainerResponse.getName().replace("/", "");
     }
 
-    public static void dumpContainerDirToTargetCompressed(DockerClient dockerClient, String containerId,
-                                                          String path) {
+    public static void dumpContainerDirToTargetCompressed(DockerClient dockerClient, String containerId, String path) {
         final String containerName = getContainerName(dockerClient, containerId);
         final String baseName = path.replace("/", "-").replaceAll("^-", "");
         File output = getUniqueFileInTargetDirectory(containerName, baseName, ".tar.gz");
-        try (InputStream dockerStream = dockerClient.copyArchiveFromContainerCmd(containerId, path).exec();
-             OutputStream os = new GZIPOutputStream(new BufferedOutputStream(new FileOutputStream(output)))) {
+        try (InputStream dockerStream = dockerClient
+                        .copyArchiveFromContainerCmd(containerId, path)
+                        .exec();
+                OutputStream os = new GZIPOutputStream(new BufferedOutputStream(new FileOutputStream(output)))) {
             IOUtils.copy(dockerStream, os);
         } catch (RuntimeException | IOException e) {
             if (!(e instanceof NotFoundException)) {
@@ -146,11 +150,11 @@ public class DockerUtils {
         }
     }
 
-    public static void dumpContainerLogDirToTarget(DockerClient docker, String containerId,
-                                                   String path) {
+    public static void dumpContainerLogDirToTarget(DockerClient docker, String containerId, String path) {
         File targetDirectory = getTargetDirectory(containerId);
-        try (InputStream dockerStream = docker.copyArchiveFromContainerCmd(containerId, path).exec();
-             TarArchiveInputStream stream = new TarArchiveInputStream(dockerStream)) {
+        try (InputStream dockerStream =
+                        docker.copyArchiveFromContainerCmd(containerId, path).exec();
+                TarArchiveInputStream stream = new TarArchiveInputStream(dockerStream)) {
             TarArchiveEntry entry = stream.getNextTarEntry();
             while (entry != null) {
                 if (entry.isFile()) {
@@ -166,15 +170,16 @@ public class DockerUtils {
 
     public static String getContainerIP(DockerClient docker, String containerId) {
         for (Map.Entry<String, ContainerNetwork> e : docker.inspectContainerCmd(containerId)
-                .exec().getNetworkSettings().getNetworks().entrySet()) {
+                .exec()
+                .getNetworkSettings()
+                .getNetworks()
+                .entrySet()) {
             return e.getValue().getIpAddress();
         }
         throw new IllegalArgumentException("Container " + containerId + " has no networks");
     }
 
-    public static ContainerExecResult runCommand(DockerClient docker,
-                                                 String containerId,
-                                                 String... cmd)
+    public static ContainerExecResult runCommand(DockerClient docker, String containerId, String... cmd)
             throws ContainerExecException, ExecutionException, InterruptedException {
         try {
             return runCommandAsync(docker, containerId, cmd).get();
@@ -186,10 +191,8 @@ public class DockerUtils {
         }
     }
 
-    public static ContainerExecResult runCommandAsUser(String userId,
-                                                       DockerClient docker,
-                                                       String containerId,
-                                                       String... cmd)
+    public static ContainerExecResult runCommandAsUser(
+            String userId, DockerClient docker, String containerId, String... cmd)
             throws ContainerExecException, ExecutionException, InterruptedException {
         try {
             return runCommandAsyncAsUser(userId, docker, containerId, cmd).get();
@@ -201,11 +204,10 @@ public class DockerUtils {
         }
     }
 
-    public static CompletableFuture<ContainerExecResult> runCommandAsyncAsUser(String userId,
-                                                                               DockerClient dockerClient,
-                                                                               String containerId,
-                                                                               String... cmd) {
-        String execId = dockerClient.execCreateCmd(containerId)
+    public static CompletableFuture<ContainerExecResult> runCommandAsyncAsUser(
+            String userId, DockerClient dockerClient, String containerId, String... cmd) {
+        String execId = dockerClient
+                .execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
@@ -215,10 +217,10 @@ public class DockerUtils {
         return runCommandAsync(execId, dockerClient, containerId, cmd);
     }
 
-    public static CompletableFuture<ContainerExecResult> runCommandAsync(DockerClient dockerClient,
-                                                                         String containerId,
-                                                                         String... cmd) {
-        String execId = dockerClient.execCreateCmd(containerId)
+    public static CompletableFuture<ContainerExecResult> runCommandAsync(
+            DockerClient dockerClient, String containerId, String... cmd) {
+        String execId = dockerClient
+                .execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
@@ -227,74 +229,68 @@ public class DockerUtils {
         return runCommandAsync(execId, dockerClient, containerId, cmd);
     }
 
-    private static CompletableFuture<ContainerExecResult> runCommandAsync(String execId,
-                                                                          DockerClient dockerClient,
-                                                                          String containerId,
-                                                                          String... cmd) {
+    private static CompletableFuture<ContainerExecResult> runCommandAsync(
+            String execId, DockerClient dockerClient, String containerId, String... cmd) {
         CompletableFuture<ContainerExecResult> future = new CompletableFuture<>();
         final String containerName = getContainerName(dockerClient, containerId);
         String cmdString = String.join(" ", cmd);
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
-        dockerClient.execStartCmd(execId).withDetach(false)
-                .exec(new ResultCallback<Frame>() {
-                    @Override
-                    public void close() {
-                    }
+        dockerClient.execStartCmd(execId).withDetach(false).exec(new ResultCallback<Frame>() {
+            @Override
+            public void close() {}
 
-                    @Override
-                    public void onStart(Closeable closeable) {
-                        LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
-                    }
+            @Override
+            public void onStart(Closeable closeable) {
+                LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+            }
 
-                    @Override
-                    public void onNext(Frame object) {
-                        LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
-                        if (StreamType.STDOUT == object.getStreamType()) {
-                            stdout.append(new String(object.getPayload(), UTF_8));
-                        } else if (StreamType.STDERR == object.getStreamType()) {
-                            stderr.append(new String(object.getPayload(), UTF_8));
-                        }
-                    }
+            @Override
+            public void onNext(Frame object) {
+                LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
+                if (StreamType.STDOUT == object.getStreamType()) {
+                    stdout.append(new String(object.getPayload(), UTF_8));
+                } else if (StreamType.STDERR == object.getStreamType()) {
+                    stderr.append(new String(object.getPayload(), UTF_8));
+                }
+            }
 
-                    @Override
-                    public void onError(Throwable throwable) {
-                        future.completeExceptionally(throwable);
-                    }
+            @Override
+            public void onError(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
 
-                    @Override
-                    public void onComplete() {
-                        LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+            @Override
+            public void onComplete() {
+                LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
 
-                        InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-                        long retCode = resp.getExitCodeLong();
-                        ContainerExecResult result = ContainerExecResult.of(
-                                retCode,
-                                stdout.toString(),
-                                stderr.toString()
-                        );
-                        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
+                InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
+                long retCode = resp.getExitCodeLong();
+                ContainerExecResult result = ContainerExecResult.of(retCode, stdout.toString(), stderr.toString());
+                LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
 
-                        if (retCode != 0) {
-                            LOG.error(
-                                    "DOCKER.exec({}:{}): completed with non zero return code: {}\nstdout: {}\nstderr:"
-                                            + " {}",
-                                    containerName, cmdString, result.getExitCode(), result.getStdout(),
-                                    result.getStderr());
-                            future.completeExceptionally(new ContainerExecException(cmdString, containerId, result));
-                        } else {
-                            future.complete(result);
-                        }
-                    }
-                });
+                if (retCode != 0) {
+                    LOG.error(
+                            "DOCKER.exec({}:{}): completed with non zero return code: {}\nstdout: {}\nstderr:" + " {}",
+                            containerName,
+                            cmdString,
+                            result.getExitCode(),
+                            result.getStdout(),
+                            result.getStderr());
+                    future.completeExceptionally(new ContainerExecException(cmdString, containerId, result));
+                } else {
+                    future.complete(result);
+                }
+            }
+        });
         return future;
     }
 
-    public static ContainerExecResultBytes runCommandWithRawOutput(DockerClient dockerClient,
-                                                                   String containerId,
-                                                                   String... cmd) throws ContainerExecException {
+    public static ContainerExecResultBytes runCommandWithRawOutput(
+            DockerClient dockerClient, String containerId, String... cmd) throws ContainerExecException {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        String execId = dockerClient.execCreateCmd(containerId)
+        String execId = dockerClient
+                .execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
@@ -304,50 +300,46 @@ public class DockerUtils {
         String cmdString = String.join(" ", cmd);
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-        dockerClient.execStartCmd(execId).withDetach(false)
-                .exec(new ResultCallback<Frame>() {
-                    @Override
-                    public void close() {
-                    }
+        dockerClient.execStartCmd(execId).withDetach(false).exec(new ResultCallback<Frame>() {
+            @Override
+            public void close() {}
 
-                    @Override
-                    public void onStart(Closeable closeable) {
-                        LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
-                    }
+            @Override
+            public void onStart(Closeable closeable) {
+                LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+            }
 
-                    @Override
-                    public void onNext(Frame object) {
-                        try {
-                            if (StreamType.STDOUT == object.getStreamType()) {
-                                stdout.write(object.getPayload());
-                            } else if (StreamType.STDERR == object.getStreamType()) {
-                                stderr.write(object.getPayload());
-                            }
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
+            @Override
+            public void onNext(Frame object) {
+                try {
+                    if (StreamType.STDOUT == object.getStreamType()) {
+                        stdout.write(object.getPayload());
+                    } else if (StreamType.STDERR == object.getStreamType()) {
+                        stderr.write(object.getPayload());
                     }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
 
-                    @Override
-                    public void onError(Throwable throwable) {
-                        future.completeExceptionally(throwable);
-                    }
+            @Override
+            public void onError(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
 
-                    @Override
-                    public void onComplete() {
-                        LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
-                        future.complete(true);
-                    }
-                });
+            @Override
+            public void onComplete() {
+                LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+                future.complete(true);
+            }
+        });
         future.join();
 
         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
         long retCode = resp.getExitCodeLong();
 
-        ContainerExecResultBytes result = ContainerExecResultBytes.of(
-                retCode,
-                stdout.toByteArray(),
-                stderr.toByteArray());
+        ContainerExecResultBytes result =
+                ContainerExecResultBytes.of(retCode, stdout.toByteArray(), stderr.toByteArray());
         LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
 
         if (retCode != 0) {
@@ -356,10 +348,11 @@ public class DockerUtils {
         return result;
     }
 
-    public static CompletableFuture<Long> runCommandAsyncWithLogging(DockerClient dockerClient,
-                                                                        String containerId, String... cmd) {
+    public static CompletableFuture<Long> runCommandAsyncWithLogging(
+            DockerClient dockerClient, String containerId, String... cmd) {
         CompletableFuture<Long> future = new CompletableFuture<>();
-        String execId = dockerClient.execCreateCmd(containerId)
+        String execId = dockerClient
+                .execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
@@ -367,36 +360,34 @@ public class DockerUtils {
                 .getId();
         final String containerName = getContainerName(dockerClient, containerId);
         String cmdString = String.join(" ", cmd);
-        dockerClient.execStartCmd(execId).withDetach(false)
-                .exec(new ResultCallback<Frame>() {
-                    @Override
-                    public void close() {
-                    }
+        dockerClient.execStartCmd(execId).withDetach(false).exec(new ResultCallback<Frame>() {
+            @Override
+            public void close() {}
 
-                    @Override
-                    public void onStart(Closeable closeable) {
-                        LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
-                    }
+            @Override
+            public void onStart(Closeable closeable) {
+                LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+            }
 
-                    @Override
-                    public void onNext(Frame object) {
-                        LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
-                    }
+            @Override
+            public void onNext(Frame object) {
+                LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
+            }
 
-                    @Override
-                    public void onError(Throwable throwable) {
-                        future.completeExceptionally(throwable);
-                    }
+            @Override
+            public void onError(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
 
-                    @Override
-                    public void onComplete() {
-                        LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
-                        InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-                        long retCode = resp.getExitCodeLong();
-                        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
-                        future.complete(retCode);
-                    }
-                });
+            @Override
+            public void onComplete() {
+                LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+                InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
+                long retCode = resp.getExitCodeLong();
+                LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
+                future.complete(retCode);
+            }
+        });
         return future;
     }
 
@@ -416,6 +407,9 @@ public class DockerUtils {
 
     public static Optional<String> getContainerCluster(DockerClient docker, String containerId) {
         return Optional.ofNullable(docker.inspectContainerCmd(containerId)
-                .exec().getConfig().getLabels().get("cluster"));
+                .exec()
+                .getConfig()
+                .getLabels()
+                .get("cluster"));
     }
 }

@@ -41,5 +41,4 @@ public class ClientConfigurationDataTest {
         String serializedConf = objectMapper.writeValueAsString(clientConfigurationData);
         assertThat(serializedConf).doesNotContain("xxxx", "yyyy", "zzzz");
     }
-
 }

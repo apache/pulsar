@@ -69,14 +69,17 @@ public class MembershipManager implements AutoCloseable {
         try {
             topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            log.error("Failed to get status of coordinate topic {}",
-                    this.workerConfig.getClusterCoordinationTopic(), e);
+            log.error(
+                    "Failed to get status of coordinate topic {}", this.workerConfig.getClusterCoordinationTopic(), e);
             throw new RuntimeException(e);
         }
 
-        for (ConsumerStats consumerStats : topicStats.getSubscriptions()
-                .get(COORDINATION_TOPIC_SUBSCRIPTION).getConsumers()) {
-            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.getMetadata().get(WORKER_IDENTIFIER));
+        for (ConsumerStats consumerStats : topicStats
+                .getSubscriptions()
+                .get(COORDINATION_TOPIC_SUBSCRIPTION)
+                .getConsumers()) {
+            WorkerInfo workerInfo =
+                    WorkerInfo.parseFrom(consumerStats.getMetadata().get(WORKER_IDENTIFIER));
             workerIds.add(workerInfo);
         }
         return workerIds;
@@ -87,16 +90,20 @@ public class MembershipManager implements AutoCloseable {
         try {
             topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            log.error("Failed to get status of coordinate topic {}",
-                    this.workerConfig.getClusterCoordinationTopic(), e);
+            log.error(
+                    "Failed to get status of coordinate topic {}", this.workerConfig.getClusterCoordinationTopic(), e);
             throw new RuntimeException(e);
         }
 
-        String activeConsumerName =
-                topicStats.getSubscriptions().get(COORDINATION_TOPIC_SUBSCRIPTION).getActiveConsumerName();
+        String activeConsumerName = topicStats
+                .getSubscriptions()
+                .get(COORDINATION_TOPIC_SUBSCRIPTION)
+                .getActiveConsumerName();
         WorkerInfo leader = null;
-        for (ConsumerStats consumerStats : topicStats.getSubscriptions()
-                .get(COORDINATION_TOPIC_SUBSCRIPTION).getConsumers()) {
+        for (ConsumerStats consumerStats : topicStats
+                .getSubscriptions()
+                .get(COORDINATION_TOPIC_SUBSCRIPTION)
+                .getConsumers()) {
             if (consumerStats.getConsumerName().equals(activeConsumerName)) {
                 leader = WorkerInfo.parseFrom(consumerStats.getMetadata().get(WORKER_IDENTIFIER));
             }
@@ -108,16 +115,16 @@ public class MembershipManager implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public void close() {}
 
-    }
-
-    public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
-                              FunctionRuntimeManager functionRuntimeManager,
-                              SchedulerManager schedulerManager) {
+    public void checkFailures(
+            FunctionMetaDataManager functionMetaDataManager,
+            FunctionRuntimeManager functionRuntimeManager,
+            SchedulerManager schedulerManager) {
 
         Set<String> currentMembership = this.getCurrentMembership().stream()
-                .map(entry -> entry.getWorkerId()).collect(Collectors.toSet());
+                .map(entry -> entry.getWorkerId())
+                .collect(Collectors.toSet());
         List<Function.FunctionMetaData> functionMetaDataList = functionMetaDataManager.getAllFunctionMetaData();
         Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
         for (Function.FunctionMetaData entry : functionMetaDataList) {
@@ -132,17 +139,18 @@ public class MembershipManager implements AutoCloseable {
         long currentTimeMs = System.currentTimeMillis();
 
         // remove functions
-        Iterator<Map.Entry<Function.Instance, Long>> it = unsignedFunctionDurations.entrySet().iterator();
+        Iterator<Map.Entry<Function.Instance, Long>> it =
+                unsignedFunctionDurations.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Function.Instance, Long> entry = it.next();
             String fullyQualifiedFunctionName = FunctionCommon.getFullyQualifiedName(
                     entry.getKey().getFunctionMetaData().getFunctionDetails());
             String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(entry.getKey());
-            //remove functions that don't exist anymore
+            // remove functions that don't exist anymore
             if (!functionMetaDataMap.containsKey(fullyQualifiedFunctionName)) {
                 it.remove();
             } else {
-                //remove functions that have been scheduled
+                // remove functions that have been scheduled
                 Function.Assignment assignment = assignmentMap.get(fullyQualifiedInstanceId);
                 if (assignment != null) {
                     String assignedWorkerId = assignment.getWorkerId();
@@ -156,8 +164,8 @@ public class MembershipManager implements AutoCloseable {
 
         // check for function instances that haven't been assigned
         for (Function.FunctionMetaData functionMetaData : functionMetaDataList) {
-            Collection<Function.Assignment> assignments =
-                    FunctionRuntimeManager.findFunctionAssignments(functionMetaData.getFunctionDetails().getTenant(),
+            Collection<Function.Assignment> assignments = FunctionRuntimeManager.findFunctionAssignments(
+                    functionMetaData.getFunctionDetails().getTenant(),
                     functionMetaData.getFunctionDetails().getNamespace(),
                     functionMetaData.getFunctionDetails().getName(),
                     currentAssignments);
@@ -166,8 +174,8 @@ public class MembershipManager implements AutoCloseable {
                     .map(assignment -> assignment.getInstance())
                     .collect(Collectors.toSet());
 
-            Set<Function.Instance> instances = new HashSet<>(SchedulerManager.computeInstances(functionMetaData,
-                    functionRuntimeManager.getRuntimeFactory().externallyManaged()));
+            Set<Function.Instance> instances = new HashSet<>(SchedulerManager.computeInstances(
+                    functionMetaData, functionRuntimeManager.getRuntimeFactory().externallyManaged()));
 
             for (Function.Instance instance : instances) {
                 if (!assignedInstances.contains(instance)) {
@@ -229,7 +237,9 @@ public class MembershipManager implements AutoCloseable {
                     "Failure check - Total number of instances that need to be scheduled/rescheduled: {} "
                             + "| Number of unassigned instances that need to be scheduled: {} | Number of instances "
                             + "on dead workers that need to be reassigned {}",
-                    needSchedule.size(), needSchedule.size() - needRemove.size(), numRemoved);
+                    needSchedule.size(),
+                    needSchedule.size() - needRemove.size(),
+                    numRemoved);
             schedulerManager.schedule();
         }
     }

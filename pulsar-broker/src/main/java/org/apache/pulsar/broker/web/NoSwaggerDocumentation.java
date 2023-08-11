@@ -18,6 +18,4 @@
  */
 package org.apache.pulsar.broker.web;
 
-public @interface NoSwaggerDocumentation {
-
-}
+public @interface NoSwaggerDocumentation {}

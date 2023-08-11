@@ -47,9 +47,15 @@ class OpScan implements ReadEntriesCallback {
     PositionImpl searchPosition;
     Position lastSeenPosition = null;
 
-    public OpScan(ManagedCursorImpl cursor, int batchSize,
-                  PositionImpl startPosition, Predicate<Entry> condition,
-                  ScanCallback callback, Object ctx, long maxEntries, long timeOutMs) {
+    public OpScan(
+            ManagedCursorImpl cursor,
+            int batchSize,
+            PositionImpl startPosition,
+            Predicate<Entry> condition,
+            ScanCallback callback,
+            Object ctx,
+            long maxEntries,
+            long timeOutMs) {
         this.batchSize = batchSize;
         if (batchSize <= 0) {
             throw new IllegalArgumentException("batchSize " + batchSize);
@@ -88,8 +94,8 @@ class OpScan implements ReadEntriesCallback {
                     }
                 }
             }
-            searchPosition = ledger.getPositionAfterN((PositionImpl) lastPositionForBatch, 1,
-                    PositionBound.startExcluded);
+            searchPosition =
+                    ledger.getPositionAfterN((PositionImpl) lastPositionForBatch, 1, PositionBound.startExcluded);
             if (log.isDebugEnabled()) {
                 log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
             }
@@ -101,8 +107,10 @@ class OpScan implements ReadEntriesCallback {
             }
         } catch (Throwable t) {
             log.error("Unhandled error", t);
-            callback.scanFailed(ManagedLedgerException.getManagedLedgerException(t),
-                    Optional.ofNullable(lastSeenPosition), OpScan.this.ctx);
+            callback.scanFailed(
+                    ManagedLedgerException.getManagedLedgerException(t),
+                    Optional.ofNullable(lastSeenPosition),
+                    OpScan.this.ctx);
             return;
         } finally {
             entries.forEach(Entry::release);
@@ -127,8 +135,8 @@ class OpScan implements ReadEntriesCallback {
             return;
         }
         if (cursor.hasMoreEntries(searchPosition)) {
-            OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize,
-            this, OpScan.this.ctx, null, null);
+            OpReadEntry opReadEntry =
+                    OpReadEntry.create(cursor, searchPosition, batchSize, this, OpScan.this.ctx, null, null);
             ledger.asyncReadEntries(opReadEntry);
         } else {
             callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);

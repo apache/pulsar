@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -26,14 +25,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-
 import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -70,7 +67,6 @@ public class ManagedLedgerFactoryShutdownTest {
         metadataStore = mock(MetadataStoreExtended.class);
         bookKeeper = mock(BookKeeper.class);
 
-
         given(metadataStore.get(any())).willAnswer(inv -> {
             String path = inv.getArgument(0, String.class);
             if (path == null) {
@@ -78,10 +74,12 @@ public class ManagedLedgerFactoryShutdownTest {
             }
             if (path.endsWith(ledgerName)) { // ledger
                 MLDataFormats.ManagedLedgerInfo.Builder mli = MLDataFormats.ManagedLedgerInfo.newBuilder()
-                        .addLedgerInfo(0, MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder()
-                                .setLedgerId(0)
-                                .setEntries(0)
-                                .setTimestamp(System.currentTimeMillis()));
+                        .addLedgerInfo(
+                                0,
+                                MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder()
+                                        .setLedgerId(0)
+                                        .setEntries(0)
+                                        .setTimestamp(System.currentTimeMillis()));
                 Stat stat = new Stat(path, version, createTimeMillis, createTimeMillis, false, false);
                 return CompletableFuture.supplyAsync(() -> {
                     try {
@@ -90,7 +88,10 @@ public class ManagedLedgerFactoryShutdownTest {
                         e.printStackTrace();
                     }
                     MLDataFormats.ManagedLedgerInfo managedLedgerInfo = mli.build();
-                    log.info("metadataStore.get({}) returned,managedLedgerInfo={},stat={}", path, managedLedgerInfo,
+                    log.info(
+                            "metadataStore.get({}) returned,managedLedgerInfo={},stat={}",
+                            path,
+                            managedLedgerInfo,
                             stat);
                     return Optional.of(new GetResult(managedLedgerInfo.toByteArray(), stat));
                 });
@@ -108,7 +109,10 @@ public class ManagedLedgerFactoryShutdownTest {
                         e.printStackTrace();
                     }
                     MLDataFormats.ManagedCursorInfo managedCursorInfo = mci.build();
-                    log.info("metadataStore.get({}) returned:managedCursorInfo={},stat={}", path, managedCursorInfo,
+                    log.info(
+                            "metadataStore.get({}) returned:managedCursorInfo={},stat={}",
+                            path,
+                            managedCursorInfo,
                             stat);
                     return Optional.of(new GetResult(managedCursorInfo.toByteArray(), stat));
                 });
@@ -120,32 +124,35 @@ public class ManagedLedgerFactoryShutdownTest {
         given(metadataStore.put(anyString(), any(), any())).willAnswer(inv -> {
             @SuppressWarnings("unchecked cast")
             Optional<Long> expectedVersion = inv.getArgument(2, Optional.class);
-            return CompletableFuture.supplyAsync(() -> new Stat(inv.getArgument(0, String.class),
-                    expectedVersion.orElse(0L) + 1, createTimeMillis,
-                    System.currentTimeMillis(), false, false));
+            return CompletableFuture.supplyAsync(() -> new Stat(
+                    inv.getArgument(0, String.class),
+                    expectedVersion.orElse(0L) + 1,
+                    createTimeMillis,
+                    System.currentTimeMillis(),
+                    false,
+                    false));
         });
         given(metadataStore.getChildren(anyString()))
                 .willAnswer(inv -> CompletableFuture.supplyAsync(() -> Collections.singletonList("cursor")));
-
 
         LedgerHandle ledgerHandle = mock(LedgerHandle.class);
         LedgerHandle newLedgerHandle = mock(LedgerHandle.class);
         OrderedExecutor executor = OrderedExecutor.newBuilder().name("Test").build();
         given(bookKeeper.getMainWorkerPool()).willReturn(executor);
         doAnswer(inv -> {
-            AsyncCallback.OpenCallback cb = inv.getArgument(3, AsyncCallback.OpenCallback.class);
-            cb.openComplete(0, ledgerHandle, inv.getArgument(4, Object.class));
-            return null;
-        }).when(bookKeeper).asyncOpenLedger(anyLong(), any(), any(), any(), any());
+                    AsyncCallback.OpenCallback cb = inv.getArgument(3, AsyncCallback.OpenCallback.class);
+                    cb.openComplete(0, ledgerHandle, inv.getArgument(4, Object.class));
+                    return null;
+                })
+                .when(bookKeeper)
+                .asyncOpenLedger(anyLong(), any(), any(), any(), any());
         doAnswer(inv -> {
-            AsyncCallback.CreateCallback cb = inv.getArgument(5, AsyncCallback.CreateCallback.class);
-            cb.createComplete(0, newLedgerHandle, inv.getArgument(6, Object.class));
-            return null;
-        }).when(bookKeeper)
-                .asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any()/*callback*/, any(), any());
-
-
-
+                    AsyncCallback.CreateCallback cb = inv.getArgument(5, AsyncCallback.CreateCallback.class);
+                    cb.createComplete(0, newLedgerHandle, inv.getArgument(6, Object.class));
+                    return null;
+                })
+                .when(bookKeeper)
+                .asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any() /*callback*/, any(), any());
     }
 
     @Test(timeOut = 5000)
@@ -153,19 +160,25 @@ public class ManagedLedgerFactoryShutdownTest {
 
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bookKeeper);
         CountDownLatch callbackInvoked = new CountDownLatch(2);
-        factory.asyncOpen(ledgerName, new AsyncCallbacks.OpenLedgerCallback() {
-            @Override
-            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                callbackInvoked.countDown();
-            }
+        factory.asyncOpen(
+                ledgerName,
+                new AsyncCallbacks.OpenLedgerCallback() {
+                    @Override
+                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                        callbackInvoked.countDown();
+                    }
 
-            @Override
-            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                callbackInvoked.countDown();
-            }
-        }, null);
+                    @Override
+                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        callbackInvoked.countDown();
+                    }
+                },
+                null);
 
-        factory.asyncOpenReadOnlyCursor(ledgerName, PositionImpl.EARLIEST, new ManagedLedgerConfig(),
+        factory.asyncOpenReadOnlyCursor(
+                ledgerName,
+                PositionImpl.EARLIEST,
+                new ManagedLedgerConfig(),
                 new AsyncCallbacks.OpenReadOnlyCursorCallback() {
                     @Override
                     public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
@@ -177,21 +190,22 @@ public class ManagedLedgerFactoryShutdownTest {
                         log.info("openReadOnlyCursorFailed");
                         callbackInvoked.countDown();
                     }
-                }, null);
+                },
+                null);
 
         log.info("Shutdown factory...");
 
-
         factory.shutdownAsync().get();
-        //make zk returned after factory shutdown
+        // make zk returned after factory shutdown
         slowZk.countDown();
 
         //
         Assert.assertTrue(callbackInvoked.await(5, TimeUnit.SECONDS));
-        //ManagedLedgerFactoryClosedException should be thrown after factory is shutdown
-        Assert.assertThrows(ManagedLedgerException.ManagedLedgerFactoryClosedException.class,
-                () -> factory.open(ledgerName));
-        Assert.assertThrows(ManagedLedgerException.ManagedLedgerFactoryClosedException.class,
+        // ManagedLedgerFactoryClosedException should be thrown after factory is shutdown
+        Assert.assertThrows(
+                ManagedLedgerException.ManagedLedgerFactoryClosedException.class, () -> factory.open(ledgerName));
+        Assert.assertThrows(
+                ManagedLedgerException.ManagedLedgerFactoryClosedException.class,
                 () -> factory.openReadOnlyCursor(ledgerName, PositionImpl.EARLIEST, new ManagedLedgerConfig()));
     }
 }

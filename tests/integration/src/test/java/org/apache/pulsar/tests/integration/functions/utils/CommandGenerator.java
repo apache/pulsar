@@ -40,6 +40,7 @@ public class CommandGenerator {
         PYTHON,
         GO,
     };
+
     private String functionName;
     private String tenant = "public";
     private String namespace = "default";
@@ -103,7 +104,7 @@ public class CommandGenerator {
         if (functionName != null) {
             commandBuilder.append(" --name " + functionName);
         }
-        if(runtime != Runtime.GO){
+        if (runtime != Runtime.GO) {
             commandBuilder.append(" --className " + functionClassName);
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
@@ -127,7 +128,7 @@ public class CommandGenerator {
         if (subscriptionInitialPosition != null) {
             commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
         }
-        switch (runtime){
+        switch (runtime) {
             case JAVA:
                 commandBuilder.append(" --jar " + JAVAJAR);
                 break;
@@ -169,7 +170,7 @@ public class CommandGenerator {
         if (functionName != null) {
             commandBuilder.append(" --name " + functionName);
         }
-        if (runtime != Runtime.GO){
+        if (runtime != Runtime.GO) {
             commandBuilder.append(" --className " + functionClassName);
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
@@ -205,13 +206,13 @@ public class CommandGenerator {
         if (windowLengthCount != null) {
             commandBuilder.append(" --windowLengthCount " + windowLengthCount);
         }
-        if (windowLengthDurationMs != null)  {
+        if (windowLengthDurationMs != null) {
             commandBuilder.append(" --windowLengthDurationMs " + windowLengthDurationMs);
         }
-        if (slidingIntervalCount != null)  {
-            commandBuilder.append( " --slidingIntervalCount " + slidingIntervalCount);
+        if (slidingIntervalCount != null) {
+            commandBuilder.append(" --slidingIntervalCount " + slidingIntervalCount);
         }
-        if (slidingIntervalDurationMs != null)  {
+        if (slidingIntervalDurationMs != null) {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
         }
         if (customSchemaInputs != null) {
@@ -236,7 +237,7 @@ public class CommandGenerator {
             commandBuilder.append(" --retain-key-ordering ");
         }
 
-        switch (runtime){
+        switch (runtime) {
             case JAVA:
                 commandBuilder.append(" --jar " + JAVAJAR);
                 commandBuilder.append(" --ram " + JAVA_RUNTIME_RAM_BYTES);
@@ -315,13 +316,13 @@ public class CommandGenerator {
         if (windowLengthCount != null) {
             commandBuilder.append(" --windowLengthCount " + windowLengthCount);
         }
-        if (windowLengthDurationMs != null)  {
+        if (windowLengthDurationMs != null) {
             commandBuilder.append(" --windowLengthDurationMs " + windowLengthDurationMs);
         }
-        if (slidingIntervalCount != null)  {
+        if (slidingIntervalCount != null) {
             commandBuilder.append(" --slidingIntervalCount " + slidingIntervalCount);
         }
-        if (slidingIntervalDurationMs != null)  {
+        if (slidingIntervalDurationMs != null) {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
         }
         if (customSchemaInputs != null) {

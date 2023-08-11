@@ -54,7 +54,12 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         this.conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));

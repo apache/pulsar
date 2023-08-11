@@ -83,16 +83,23 @@ public class PulsarProtobufNativeColumnDecoder {
             this.columnType = columnHandle.getType();
             this.columnMapping = columnHandle.getMapping();
             this.columnName = columnHandle.getName();
-            checkArgument(!columnHandle.isInternal(),
-                    "unexpected internal column '%s'", columnName);
-            checkArgument(columnHandle.getFormatHint() == null,
-                    "unexpected format hint '%s' defined for column '%s'", columnHandle.getFormatHint(), columnName);
-            checkArgument(columnHandle.getDataFormat() == null,
-                    "unexpected data format '%s' defined for column '%s'", columnHandle.getDataFormat(), columnName);
-            checkArgument(columnHandle.getMapping() != null,
-                    "mapping not defined for column '%s'", columnName);
-            checkArgument(isSupportedType(columnType),
-                    "Unsupported column type '%s' for column '%s'", columnType, columnName);
+            checkArgument(!columnHandle.isInternal(), "unexpected internal column '%s'", columnName);
+            checkArgument(
+                    columnHandle.getFormatHint() == null,
+                    "unexpected format hint '%s' defined for column '%s'",
+                    columnHandle.getFormatHint(),
+                    columnName);
+            checkArgument(
+                    columnHandle.getDataFormat() == null,
+                    "unexpected data format '%s' defined for column '%s'",
+                    columnHandle.getDataFormat(),
+                    columnName);
+            checkArgument(columnHandle.getMapping() != null, "mapping not defined for column '%s'", columnName);
+            checkArgument(
+                    isSupportedType(columnType),
+                    "Unsupported column type '%s' for column '%s'",
+                    columnType,
+                    columnName);
         } catch (IllegalArgumentException e) {
             throw new TrinoException(GENERIC_USER_ERROR, e);
         }
@@ -104,15 +111,13 @@ public class PulsarProtobufNativeColumnDecoder {
         }
 
         if (type instanceof ArrayType) {
-            checkArgument(type.getTypeParameters().size() == 1,
-                    "expecting exactly one type parameter for array");
+            checkArgument(type.getTypeParameters().size() == 1, "expecting exactly one type parameter for array");
             return isSupportedType(type.getTypeParameters().get(0));
         }
 
         if (type instanceof MapType) {
             List<Type> typeParameters = type.getTypeParameters();
-            checkArgument(typeParameters.size() == 2,
-                    "expecting exactly two type parameters for map");
+            checkArgument(typeParameters.size() == 2, "expecting exactly two type parameters for map");
             return isSupportedType(typeParameters.get(1)) && isSupportedType(typeParameters.get(0));
         }
 
@@ -142,14 +147,13 @@ public class PulsarProtobufNativeColumnDecoder {
             if (value == null) {
                 return null;
             }
-            value = ((DynamicMessage) value).getField(((DynamicMessage) value).getDescriptorForType()
-                    .findFieldByName(pathElement));
+            value = ((DynamicMessage) value)
+                    .getField(((DynamicMessage) value).getDescriptorForType().findFieldByName(pathElement));
         }
         return value;
     }
 
-    private static class ObjectValueProvider
-            extends FieldValueProvider {
+    private static class ObjectValueProvider extends FieldValueProvider {
         private final Object value;
         private final Type columnType;
         private final String columnName;
@@ -170,8 +174,10 @@ public class PulsarProtobufNativeColumnDecoder {
             if (value instanceof Double || value instanceof Float) {
                 return ((Number) value).doubleValue();
             }
-            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                    format("cannot decode object of '%s' as '%s' for column '%s'",
+            throw new TrinoException(
+                    DECODER_CONVERSION_NOT_SUPPORTED,
+                    format(
+                            "cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
 
@@ -180,8 +186,10 @@ public class PulsarProtobufNativeColumnDecoder {
             if (value instanceof Boolean) {
                 return (Boolean) value;
             }
-            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                    format("cannot decode object of '%s' as '%s' for column '%s'",
+            throw new TrinoException(
+                    DECODER_CONVERSION_NOT_SUPPORTED,
+                    format(
+                            "cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
 
@@ -195,18 +203,22 @@ public class PulsarProtobufNativeColumnDecoder {
                 return floatToIntBits((Float) value);
             }
 
-            //return millisecond which parsed from protobuf/timestamp
+            // return millisecond which parsed from protobuf/timestamp
             if (TimestampType.TIMESTAMP_MILLIS.equals(columnType) && value instanceof DynamicMessage) {
                 DynamicMessage message = (DynamicMessage) value;
-                int nanos = (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));
-                long seconds = (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
-                //maybe an exception here, but seems will never happen in hundred years.
+                int nanos =
+                        (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));
+                long seconds =
+                        (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
+                // maybe an exception here, but seems will never happen in hundred years.
                 long millis = seconds * MILLIS_PER_SECOND + nanos / NANOS_PER_MILLISECOND;
                 return millis * Timestamps.MICROSECONDS_PER_MILLISECOND;
             }
 
-            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                    format("cannot decode object of '%s' as '%s' for column '%s'",
+            throw new TrinoException(
+                    DECODER_CONVERSION_NOT_SUPPORTED,
+                    format(
+                            "cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
 
@@ -225,7 +237,7 @@ public class PulsarProtobufNativeColumnDecoder {
 
         if (value instanceof ByteString) {
             return Slices.wrappedBuffer(((ByteString) value).toByteArray());
-        } else if (value instanceof EnumValue) { //enum
+        } else if (value instanceof EnumValue) { // enum
             return truncateToLength(utf8Slice(((EnumValue) value).getName()), type);
         } else if (value instanceof byte[]) {
             return Slices.wrappedBuffer((byte[]) value);
@@ -235,9 +247,9 @@ public class PulsarProtobufNativeColumnDecoder {
             return truncateToLength(utf8Slice(value.toString()), type);
         }
 
-        throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                format("cannot decode object of '%s' as '%s' for column '%s'",
-                        value.getClass(), type, columnName));
+        throw new TrinoException(
+                DECODER_CONVERSION_NOT_SUPPORTED,
+                format("cannot decode object of '%s' as '%s' for column '%s'", value.getClass(), type, columnName));
     }
 
     private static Block serializeObject(BlockBuilder builder, Object value, Type type, String columnName) {
@@ -289,8 +301,10 @@ public class PulsarProtobufNativeColumnDecoder {
         }
 
         if ((value instanceof Integer || value instanceof Long)
-                && (type instanceof BigintType || type instanceof IntegerType
-                || type instanceof SmallintType || type instanceof TinyintType)) {
+                && (type instanceof BigintType
+                        || type instanceof IntegerType
+                        || type instanceof SmallintType
+                        || type instanceof TinyintType)) {
             type.writeLong(blockBuilder, ((Number) value).longValue());
             return;
         }
@@ -310,9 +324,9 @@ public class PulsarProtobufNativeColumnDecoder {
             return;
         }
 
-        throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                format("cannot decode object of '%s' as '%s' for column '%s'",
-                        value.getClass(), type, columnName));
+        throw new TrinoException(
+                DECODER_CONVERSION_NOT_SUPPORTED,
+                format("cannot decode object of '%s' as '%s' for column '%s'", value.getClass(), type, columnName));
     }
 
     private static Block serializeMap(BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
@@ -353,10 +367,15 @@ public class PulsarProtobufNativeColumnDecoder {
     protected static Map parseProtobufMap(Object value) {
         Map map = new HashMap();
         for (Object mapMsg : ((List) value)) {
-            map.put(((DynamicMessage) mapMsg).getField(((DynamicMessage) mapMsg).getDescriptorForType()
-                    .findFieldByName(PROTOBUF_MAP_KEY_NAME)), ((DynamicMessage) mapMsg)
-                    .getField(((DynamicMessage) mapMsg).getDescriptorForType()
-                            .findFieldByName(PROTOBUF_MAP_VALUE_NAME)));
+            map.put(
+                    ((DynamicMessage) mapMsg)
+                            .getField(((DynamicMessage) mapMsg)
+                                    .getDescriptorForType()
+                                    .findFieldByName(PROTOBUF_MAP_KEY_NAME)),
+                    ((DynamicMessage) mapMsg)
+                            .getField(((DynamicMessage) mapMsg)
+                                    .getDescriptorForType()
+                                    .findFieldByName(PROTOBUF_MAP_VALUE_NAME)));
         }
         return map;
     }
@@ -380,9 +399,13 @@ public class PulsarProtobufNativeColumnDecoder {
         List<Field> fields = ((RowType) type).getFields();
         for (Field field : fields) {
             checkState(field.getName().isPresent(), "field name not found");
-            serializeObject(singleRowBuilder, record.getField(((DynamicMessage) value).getDescriptorForType()
-                    .findFieldByName(field.getName().get())), field.getType(), columnName);
-
+            serializeObject(
+                    singleRowBuilder,
+                    record.getField(((DynamicMessage) value)
+                            .getDescriptorForType()
+                            .findFieldByName(field.getName().get())),
+                    field.getType(),
+                    columnName);
         }
         blockBuilder.closeEntry();
         if (parentBlockBuilder == null) {

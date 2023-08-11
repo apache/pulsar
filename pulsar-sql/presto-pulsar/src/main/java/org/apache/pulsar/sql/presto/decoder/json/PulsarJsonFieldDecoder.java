@@ -77,8 +77,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * 5) support {@link io.trino.spi.type.RealType}.
  * 6) support {@link io.trino.spi.type.DecimalType}.
  */
-public class PulsarJsonFieldDecoder
-        implements JsonFieldDecoder {
+public class PulsarJsonFieldDecoder implements JsonFieldDecoder {
 
     private final DecoderColumnHandle columnHandle;
     private final long minValue;
@@ -117,17 +116,17 @@ public class PulsarJsonFieldDecoder
             return true;
         }
         if (ImmutableList.of(
-                BigintType.BIGINT,
-                IntegerType.INTEGER,
-                SmallintType.SMALLINT,
-                TinyintType.TINYINT,
-                BooleanType.BOOLEAN,
-                DoubleType.DOUBLE,
-                TimestampType.TIMESTAMP_MILLIS,
-                DateType.DATE,
-                TimeType.TIME_MILLIS,
-                RealType.REAL
-        ).contains(type)) {
+                        BigintType.BIGINT,
+                        IntegerType.INTEGER,
+                        SmallintType.SMALLINT,
+                        TinyintType.TINYINT,
+                        BooleanType.BOOLEAN,
+                        DoubleType.DOUBLE,
+                        TimestampType.TIMESTAMP_MILLIS,
+                        DateType.DATE,
+                        TimeType.TIME_MILLIS,
+                        RealType.REAL)
+                .contains(type)) {
             return true;
         }
 
@@ -138,7 +137,8 @@ public class PulsarJsonFieldDecoder
         if (type instanceof MapType) {
             List<Type> typeParameters = type.getTypeParameters();
             checkArgument(typeParameters.size() == 2, "expecting exactly two type parameters for map");
-            return isSupportedType(type.getTypeParameters().get(0)) && isSupportedType(type.getTypeParameters().get(1));
+            return isSupportedType(type.getTypeParameters().get(0))
+                    && isSupportedType(type.getTypeParameters().get(1));
         }
 
         if (type instanceof RowType) {
@@ -161,8 +161,7 @@ public class PulsarJsonFieldDecoder
     /**
      * JsonValueProvider.
      */
-    public static class JsonValueProvider
-            extends FieldValueProvider {
+    public static class JsonValueProvider extends FieldValueProvider {
         private final JsonNode value;
         private final DecoderColumnHandle columnHandle;
         private final long minValue;
@@ -204,7 +203,6 @@ public class PulsarJsonFieldDecoder
         public Block getBlock() {
             return serializeObject(null, value, columnHandle.getType(), columnHandle.getName());
         }
-
 
         public static boolean getBoolean(JsonNode value, Type type, String columnName) {
             if (value.isValueNode()) {
@@ -268,7 +266,6 @@ public class PulsarJsonFieldDecoder
             throw new TrinoException(
                     DECODER_CONVERSION_NOT_SUPPORTED,
                     format("could not parse value '%s' as '%s' for column '%s'", value.asText(), type, columnName));
-
         }
 
         private static Slice getSlice(JsonNode value, Type type, String columnName) {
@@ -359,8 +356,10 @@ public class PulsarJsonFieldDecoder
             if (node instanceof JsonNode) {
                 value = (JsonNode) node;
             } else {
-                throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                        format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode",
+                throw new TrinoException(
+                        DECODER_CONVERSION_NOT_SUPPORTED,
+                        format(
+                                "primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode",
                                 node.getClass(), type, columnName));
             }
 
@@ -369,10 +368,14 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            if (type instanceof RealType || type instanceof BigintType
-                    || type instanceof IntegerType || type instanceof SmallintType
-                    || type instanceof TinyintType || type instanceof TimestampType
-                    || type instanceof TimeType || type instanceof DateType) {
+            if (type instanceof RealType
+                    || type instanceof BigintType
+                    || type instanceof IntegerType
+                    || type instanceof SmallintType
+                    || type instanceof TinyintType
+                    || type instanceof TimestampType
+                    || type instanceof TimeType
+                    || type instanceof DateType) {
                 Pair<Long, Long> numRange = getNumRangeByType(type);
                 type.writeLong(blockBuilder, getLong(value, type, columnName, numRange.getKey(), numRange.getValue()));
                 return;
@@ -388,7 +391,8 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            throw new TrinoException(
+                    DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'", value.getClass(), type, columnName));
         }
 
@@ -417,7 +421,9 @@ public class PulsarJsonFieldDecoder
             while (fields.hasNext()) {
                 Map.Entry entry = fields.next();
                 if (entry.getKey() != null) {
-                    keyType.writeSlice(entryBuilder, truncateToLength(utf8Slice(entry.getKey().toString()), keyType));
+                    keyType.writeSlice(
+                            entryBuilder,
+                            truncateToLength(utf8Slice(entry.getKey().toString()), keyType));
                     serializeObject(entryBuilder, entry.getValue(), valueType, columnName);
                 }
             }
@@ -429,7 +435,6 @@ public class PulsarJsonFieldDecoder
             }
             return null;
         }
-
 
         private Block serializeRow(BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
             if (value == null) {
@@ -452,8 +457,11 @@ public class PulsarJsonFieldDecoder
 
             for (RowType.Field field : fields) {
                 checkState(field.getName().isPresent(), "field name not found");
-                serializeObject(singleRowBuilder, ((ObjectNode) value).get(field.getName().get()),
-                        field.getType(), columnName);
+                serializeObject(
+                        singleRowBuilder,
+                        ((ObjectNode) value).get(field.getName().get()),
+                        field.getType(),
+                        columnName);
             }
             blockBuilder.closeEntry();
             if (parentBlockBuilder == null) {
@@ -461,9 +469,7 @@ public class PulsarJsonFieldDecoder
             }
             return null;
         }
-
     }
 
     private static final Logger log = Logger.get(PulsarJsonFieldDecoder.class);
-
 }

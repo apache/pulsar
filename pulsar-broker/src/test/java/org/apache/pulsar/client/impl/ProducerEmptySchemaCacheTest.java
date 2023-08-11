@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MockBrokerService;
 import org.apache.pulsar.client.api.Producer;
@@ -29,11 +32,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker-impl")
 public class ProducerEmptySchemaCacheTest {
@@ -62,9 +60,8 @@ public class ProducerEmptySchemaCacheTest {
 
         mockBrokerService.setHandleGetOrCreateSchema((ctx, commandGetOrCreateSchema) -> {
             counter.incrementAndGet();
-            ctx.writeAndFlush(
-                    Commands.newGetOrCreateSchemaResponse(commandGetOrCreateSchema.getRequestId(),
-                            SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponse(
+                    commandGetOrCreateSchema.getRequestId(), SchemaVersion.Empty));
         });
 
         // this schema mode is used in consumer retry and dlq Producer
@@ -84,9 +81,9 @@ public class ProducerEmptySchemaCacheTest {
                 .create();
 
         for (int i = 10; i > 0; i--) {
-            TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                    dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(readerSchema))
-                            .value("hello".getBytes());
+            TypedMessageBuilder<byte[]> typedMessageBuilderNew = dlqProducer
+                    .newMessage(Schema.AUTO_PRODUCE_BYTES(readerSchema))
+                    .value("hello".getBytes());
 
             typedMessageBuilderNew.send();
         }

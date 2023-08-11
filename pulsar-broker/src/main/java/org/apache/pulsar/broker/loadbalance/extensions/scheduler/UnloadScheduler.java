@@ -75,26 +75,35 @@ public class UnloadScheduler implements LoadManagerScheduler {
 
     private final Map<String, Long> recentlyUnloadedBrokers;
 
-    public UnloadScheduler(PulsarService pulsar,
-                           ScheduledExecutorService loadManagerExecutor,
-                           UnloadManager unloadManager,
-                           LoadManagerContext context,
-                           ServiceUnitStateChannel channel,
-                           UnloadCounter counter,
-                           AtomicReference<List<Metrics>> unloadMetrics) {
-        this(pulsar, loadManagerExecutor, unloadManager, context, channel,
-                createNamespaceUnloadStrategy(pulsar), counter, unloadMetrics);
+    public UnloadScheduler(
+            PulsarService pulsar,
+            ScheduledExecutorService loadManagerExecutor,
+            UnloadManager unloadManager,
+            LoadManagerContext context,
+            ServiceUnitStateChannel channel,
+            UnloadCounter counter,
+            AtomicReference<List<Metrics>> unloadMetrics) {
+        this(
+                pulsar,
+                loadManagerExecutor,
+                unloadManager,
+                context,
+                channel,
+                createNamespaceUnloadStrategy(pulsar),
+                counter,
+                unloadMetrics);
     }
 
     @VisibleForTesting
-    protected UnloadScheduler(PulsarService pulsar,
-                              ScheduledExecutorService loadManagerExecutor,
-                              UnloadManager unloadManager,
-                              LoadManagerContext context,
-                              ServiceUnitStateChannel channel,
-                              NamespaceUnloadStrategy strategy,
-                              UnloadCounter counter,
-                              AtomicReference<List<Metrics>> unloadMetrics) {
+    protected UnloadScheduler(
+            PulsarService pulsar,
+            ScheduledExecutorService loadManagerExecutor,
+            UnloadManager unloadManager,
+            LoadManagerContext context,
+            ServiceUnitStateChannel channel,
+            NamespaceUnloadStrategy strategy,
+            UnloadCounter counter,
+            AtomicReference<List<Metrics>> unloadMetrics) {
         this.pulsar = pulsar;
         this.namespaceUnloadStrategy = strategy;
         this.recentlyUnloadedBundles = new HashMap<>();
@@ -113,8 +122,10 @@ public class UnloadScheduler implements LoadManagerScheduler {
     public synchronized void execute() {
         boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
         if (debugMode) {
-            log.info("Load balancer enabled: {}, Shedding enabled: {}.",
-                    conf.isLoadBalancerEnabled(), conf.isLoadBalancerSheddingEnabled());
+            log.info(
+                    "Load balancer enabled: {}, Shedding enabled: {}.",
+                    conf.isLoadBalancerEnabled(),
+                    conf.isLoadBalancerSheddingEnabled());
         }
         if (!isLoadBalancerSheddingEnabled()) {
             if (debugMode) {
@@ -137,7 +148,8 @@ public class UnloadScheduler implements LoadManagerScheduler {
                     }
                     return;
                 }
-                List<String> availableBrokers = context.brokerRegistry().getAvailableBrokersAsync()
+                List<String> availableBrokers = context.brokerRegistry()
+                        .getAvailableBrokersAsync()
                         .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
                 if (debugMode) {
                     log.info("Available brokers: {}", availableBrokers);
@@ -146,15 +158,18 @@ public class UnloadScheduler implements LoadManagerScheduler {
                     log.info("Only 1 broker available: no load shedding will be performed. Skipping.");
                     return;
                 }
-                final Set<UnloadDecision> decisions = namespaceUnloadStrategy
-                        .findBundlesForUnloading(context, recentlyUnloadedBundles, recentlyUnloadedBrokers);
+                final Set<UnloadDecision> decisions = namespaceUnloadStrategy.findBundlesForUnloading(
+                        context, recentlyUnloadedBundles, recentlyUnloadedBrokers);
                 if (debugMode) {
-                    log.info("[{}] Unload decision result: {}",
-                            namespaceUnloadStrategy.getClass().getSimpleName(), decisions);
+                    log.info(
+                            "[{}] Unload decision result: {}",
+                            namespaceUnloadStrategy.getClass().getSimpleName(),
+                            decisions);
                 }
                 if (decisions.isEmpty()) {
                     if (debugMode) {
-                        log.info("[{}] Unload decision unloads is empty. Skipping.",
+                        log.info(
+                                "[{}] Unload decision unloads is empty. Skipping.",
                                 namespaceUnloadStrategy.getClass().getSimpleName());
                     }
                     return;
@@ -164,10 +179,17 @@ public class UnloadScheduler implements LoadManagerScheduler {
                 decisions.forEach(decision -> {
                     if (decision.getLabel() == Success) {
                         Unload unload = decision.getUnload();
-                        log.info("[{}] Unloading bundle: {}",
-                                namespaceUnloadStrategy.getClass().getSimpleName(), unload);
-                        futures.add(unloadManager.waitAsync(channel.publishUnloadEventAsync(unload),
-                                        unload.serviceUnit(), decision, asyncOpTimeoutMs, TimeUnit.MILLISECONDS)
+                        log.info(
+                                "[{}] Unloading bundle: {}",
+                                namespaceUnloadStrategy.getClass().getSimpleName(),
+                                unload);
+                        futures.add(unloadManager
+                                .waitAsync(
+                                        channel.publishUnloadEventAsync(unload),
+                                        unload.serviceUnit(),
+                                        decision,
+                                        asyncOpTimeoutMs,
+                                        TimeUnit.MILLISECONDS)
                                 .thenAccept(__ -> {
                                     unloadBrokers.add(unload.sourceBroker());
                                     recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
@@ -179,8 +201,10 @@ public class UnloadScheduler implements LoadManagerScheduler {
                         .whenComplete((__, ex) -> counter.updateUnloadBrokerCount(unloadBrokers.size()))
                         .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
             } catch (Exception ex) {
-                log.error("[{}] Namespace unload has exception.",
-                        namespaceUnloadStrategy.getClass().getSimpleName(), ex);
+                log.error(
+                        "[{}] Namespace unload has exception.",
+                        namespaceUnloadStrategy.getClass().getSimpleName(),
+                        ex);
             } finally {
                 if (counter.updatedAt() > counterLastUpdatedAt) {
                     unloadMetrics.set(counter.toMetrics(pulsar.getAdvertisedAddress()));
@@ -193,8 +217,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
     @Override
     public void start() {
         if (this.task == null) {
-            long loadSheddingInterval = TimeUnit.MINUTES
-                    .toMillis(conf.getLoadBalancerSheddingIntervalMinutes());
+            long loadSheddingInterval = TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingIntervalMinutes());
             this.task = loadManagerExecutor.scheduleAtFixedRate(
                     this::execute, loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
         }
@@ -214,13 +237,18 @@ public class UnloadScheduler implements LoadManagerScheduler {
         ServiceConfiguration conf = pulsar.getConfiguration();
         NamespaceUnloadStrategy unloadStrategy;
         try {
-            unloadStrategy = Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(),
+            unloadStrategy = Reflections.createInstance(
+                    conf.getLoadBalancerLoadSheddingStrategy(),
                     NamespaceUnloadStrategy.class,
                     Thread.currentThread().getContextClassLoader());
-            log.info("Created namespace unload strategy:{}", unloadStrategy.getClass().getCanonicalName());
+            log.info(
+                    "Created namespace unload strategy:{}",
+                    unloadStrategy.getClass().getCanonicalName());
         } catch (Exception e) {
-            log.error("Error when trying to create namespace unload strategy: {}",
-                    conf.getLoadBalancerLoadPlacementStrategy(), e);
+            log.error(
+                    "Error when trying to create namespace unload strategy: {}",
+                    conf.getLoadBalancerLoadPlacementStrategy(),
+                    e);
             log.error("create namespace unload strategy failed. using TransferShedder instead.");
             unloadStrategy = new TransferShedder();
         }

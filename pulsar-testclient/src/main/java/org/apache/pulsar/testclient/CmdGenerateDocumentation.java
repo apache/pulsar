@@ -36,12 +36,16 @@ public class CmdGenerateDocumentation {
     @Parameters(commandDescription = "Generate documentation automatically.")
     static class Arguments {
 
-        @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Help message",
+                help = true)
         boolean help;
 
-        @Parameter(names = {"-n", "--command-names"}, description = "List of command names")
+        @Parameter(
+                names = {"-n", "--command-names"},
+                description = "List of command names")
         private List<String> commandNames = new ArrayList<>();
-
     }
 
     public static void main(String[] args) throws Exception {
@@ -67,11 +71,13 @@ public class CmdGenerateDocumentation {
         cmdClassMap.put("transaction", Class.forName("org.apache.pulsar.testclient.PerformanceTransaction$Arguments"));
         cmdClassMap.put("read", Class.forName("org.apache.pulsar.testclient.PerformanceReader$Arguments"));
         cmdClassMap.put("monitor-brokers", Class.forName("org.apache.pulsar.testclient.BrokerMonitor$Arguments"));
-        cmdClassMap.put("simulation-client",
-                Class.forName("org.apache.pulsar.testclient.LoadSimulationClient$MainArguments"));
-        cmdClassMap.put("simulation-controller",
+        cmdClassMap.put(
+                "simulation-client", Class.forName("org.apache.pulsar.testclient.LoadSimulationClient$MainArguments"));
+        cmdClassMap.put(
+                "simulation-controller",
                 Class.forName("org.apache.pulsar.testclient.LoadSimulationController$MainArguments"));
-        cmdClassMap.put("websocket-producer",
+        cmdClassMap.put(
+                "websocket-producer",
                 Class.forName("org.apache.pulsar.proxy.socket.client.PerformanceClient$Arguments"));
         cmdClassMap.put("managed-ledger", Class.forName("org.apache.pulsar.testclient.ManagedLedgerWriter$Arguments"));
 
@@ -100,17 +106,21 @@ public class CmdGenerateDocumentation {
         sb.append("## ").append(module).append("\n\n");
         sb.append(parentCmd.getUsageFormatter().getCommandDescription(module)).append("\n");
         sb.append("\n\n```shell\n")
-                .append("$ pulsar-perf ").append(module).append(" [options]")
+                .append("$ pulsar-perf ")
+                .append(module)
+                .append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
         List<ParameterDescription> options = cmd.getParameters();
-        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
-                sb.append("| `").append(option.getNames())
-                        .append("` | ").append(option.getDescription().replace("\n", " "))
-                        .append("|").append(option.getDefault()).append("|\n")
-        );
+        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) -> sb.append("| `")
+                .append(option.getNames())
+                .append("` | ")
+                .append(option.getDescription().replace("\n", " "))
+                .append("|")
+                .append(option.getDefault())
+                .append("|\n"));
         System.out.println(sb.toString());
         return sb.toString();
     }

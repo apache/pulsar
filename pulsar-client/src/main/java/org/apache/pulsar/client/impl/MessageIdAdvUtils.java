@@ -26,7 +26,8 @@ public class MessageIdAdvUtils {
 
     static int hashCode(MessageIdAdv msgId) {
         return (int) (31 * (msgId.getLedgerId() + 31 * msgId.getEntryId())
-                + (31 * (long) msgId.getPartitionIndex()) + msgId.getBatchIndex());
+                + (31 * (long) msgId.getPartitionIndex())
+                + msgId.getBatchIndex());
     }
 
     static boolean equals(MessageIdAdv lhs, Object o) {

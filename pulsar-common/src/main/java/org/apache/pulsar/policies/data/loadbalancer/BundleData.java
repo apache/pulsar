@@ -36,8 +36,7 @@ public class BundleData {
     private int topics;
 
     // For JSON only.
-    public BundleData() {
-    }
+    public BundleData() {}
 
     /**
      * Initialize the bundle data.

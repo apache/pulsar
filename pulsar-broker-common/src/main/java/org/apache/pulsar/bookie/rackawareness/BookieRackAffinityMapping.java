@@ -56,8 +56,7 @@ import org.slf4j.LoggerFactory;
 /**
  * It provides the mapping of bookies to its rack from zookeeper.
  */
-public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
-        implements RackChangeNotifier {
+public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping implements RackChangeNotifier {
     private static final Logger LOG = LoggerFactory.getLogger(BookieRackAffinityMapping.class);
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
@@ -83,7 +82,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
             if (StringUtils.isNotBlank(metadataServiceUri)) {
                 try {
-                    url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
+                    url = metadataServiceUri
+                            .replaceFirst(METADATA_STORE_SCHEME + ":", "")
                             .replace(";", ",");
                 } catch (Exception e) {
                     throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
@@ -91,15 +91,18 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             } else {
                 String zkServers = ConfigurationStringUtil.castToString(conf.getProperty("zkServers"));
                 if (StringUtils.isBlank(zkServers)) {
-                    String errorMsg = String.format("Neither %s configuration set in the BK client configuration nor "
-                            + "metadataServiceUri/zkServers set in bk server configuration", METADATA_STORE_INSTANCE);
+                    String errorMsg = String.format(
+                            "Neither %s configuration set in the BK client configuration nor "
+                                    + "metadataServiceUri/zkServers set in bk server configuration",
+                            METADATA_STORE_INSTANCE);
                     throw new RuntimeException(errorMsg);
                 }
                 url = zkServers;
             }
             try {
                 int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
-                store = MetadataStoreExtended.create(url,
+                store = MetadataStoreExtended.create(
+                        url,
                         MetadataStoreConfig.builder()
                                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                                 .sessionTimeoutMillis(zkTimeout)
@@ -119,8 +122,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store = createMetadataStore(conf);
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
             store.registerListener(this::handleUpdates);
-            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
-                    .orElseGet(BookiesRackConfiguration::new);
+            racksWithHost =
+                    bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get().orElseGet(BookiesRackConfiguration::new);
             updateRacksWithHost(racksWithHost);
             watchAvailableBookies();
             for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
@@ -128,8 +131,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                     bookieAddressListLastTime.add(BookieId.parse(address));
                 }
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
-                            bookieAddressListLastTime);
+                    LOG.debug(
+                            "BookieRackAffinityMapping init, bookieAddressListLastTime {}", bookieAddressListLastTime);
                 }
             }
         } catch (InterruptedException | ExecutionException | MetadataException e) {
@@ -146,7 +149,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 RegistrationClient registrationClient = (RegistrationClient) field.get(bookieAddressResolver);
                 registrationClient.watchWritableBookies(versioned -> {
                     try {
-                        racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+                        racksWithHost = bookieMappingCache
+                                .get(BOOKIE_INFO_ROOT_PATH)
+                                .get()
                                 .orElseGet(BookiesRackConfiguration::new);
                         updateRacksWithHost(racksWithHost);
                     } catch (InterruptedException | ExecutionException e) {
@@ -165,35 +170,33 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         // To work around this issue, we insert in the map the bookie ip/hostname with same rack-info
         BookiesRackConfiguration newRacksWithHost = new BookiesRackConfiguration();
         Map<String, BookieInfo> newBookieInfoMap = new HashMap<>();
-        racks.forEach((group, bookies) ->
-                bookies.forEach((addr, bi) -> {
-                    try {
-                        BookieId bookieId = BookieId.parse(addr);
-                        BookieAddressResolver addressResolver = getBookieAddressResolver();
-                        if (addressResolver == null) {
-                            LOG.warn("Bookie address resolver not yet initialized, skipping resolution");
-                        } else {
-                            BookieSocketAddress bsa = addressResolver.resolve(bookieId);
-                            newRacksWithHost.updateBookie(group, bsa.toString(), bi);
+        racks.forEach((group, bookies) -> bookies.forEach((addr, bi) -> {
+            try {
+                BookieId bookieId = BookieId.parse(addr);
+                BookieAddressResolver addressResolver = getBookieAddressResolver();
+                if (addressResolver == null) {
+                    LOG.warn("Bookie address resolver not yet initialized, skipping resolution");
+                } else {
+                    BookieSocketAddress bsa = addressResolver.resolve(bookieId);
+                    newRacksWithHost.updateBookie(group, bsa.toString(), bi);
 
-                            String hostname = bsa.getSocketAddress().getHostName();
-                            newBookieInfoMap.put(hostname, bi);
+                    String hostname = bsa.getSocketAddress().getHostName();
+                    newBookieInfoMap.put(hostname, bi);
 
-                            InetAddress address = bsa.getSocketAddress().getAddress();
-                            if (null != address) {
-                                String hostIp = address.getHostAddress();
-                                if (null != hostIp) {
-                                    newBookieInfoMap.put(hostIp, bi);
-                                }
-                            } else {
-                                LOG.info("Network address for {} is unresolvable yet.", addr);
-                            }
+                    InetAddress address = bsa.getSocketAddress().getAddress();
+                    if (null != address) {
+                        String hostIp = address.getHostAddress();
+                        if (null != hostIp) {
+                            newBookieInfoMap.put(hostIp, bi);
                         }
-                    } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
-                        LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
+                    } else {
+                        LOG.info("Network address for {} is unresolvable yet.", addr);
                     }
-                })
-        );
+                }
+            } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
+                LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
+            }
+        }));
         racksWithHost = newRacksWithHost;
         bookieInfoMap = newBookieInfoMap;
     }
@@ -243,30 +246,28 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             return;
         }
 
-        bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
-                .thenAccept(optVal -> {
-                    synchronized (this) {
-                        LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", optVal);
-                        this.updateRacksWithHost(optVal.orElseGet(BookiesRackConfiguration::new));
-                        List<BookieId> bookieAddressList = new ArrayList<>();
-                        for (Map<String, BookieInfo> bookieMapping : optVal.map(Map::values).orElse(
-                                Collections.emptyList())) {
-                            for (String addr : bookieMapping.keySet()) {
-                                bookieAddressList.add(BookieId.parse(addr));
-                            }
-                        }
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
-                                    bookieAddressList);
-                        }
-                        Set<BookieId> bookieIdSet = new HashSet<>(bookieAddressList);
-                        bookieIdSet.addAll(bookieAddressListLastTime);
-                        bookieAddressListLastTime = bookieAddressList;
-                        if (rackawarePolicy != null) {
-                            rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
-                        }
+        bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).thenAccept(optVal -> {
+            synchronized (this) {
+                LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", optVal);
+                this.updateRacksWithHost(optVal.orElseGet(BookiesRackConfiguration::new));
+                List<BookieId> bookieAddressList = new ArrayList<>();
+                for (Map<String, BookieInfo> bookieMapping :
+                        optVal.map(Map::values).orElse(Collections.emptyList())) {
+                    for (String addr : bookieMapping.keySet()) {
+                        bookieAddressList.add(BookieId.parse(addr));
                     }
-                });
+                }
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime, bookieAddressList);
+                }
+                Set<BookieId> bookieIdSet = new HashSet<>(bookieAddressList);
+                bookieIdSet.addAll(bookieAddressListLastTime);
+                bookieAddressListLastTime = bookieAddressList;
+                if (rackawarePolicy != null) {
+                    rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
+                }
+            }
+        });
     }
 
     @Override

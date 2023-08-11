@@ -29,12 +29,8 @@ public class IntSchemaTest {
     public void testSchemaEncode() {
         IntSchema schema = IntSchema.of();
         Integer data = 1234578;
-        byte[] expected = new byte[] {
-                (byte) (data >>> 24),
-                (byte) (data >>> 16),
-                (byte) (data >>> 8),
-                data.byteValue()
-        };
+        byte[] expected =
+                new byte[] {(byte) (data >>> 24), (byte) (data >>> 16), (byte) (data >>> 8), data.byteValue()};
         Assert.assertEquals(expected, schema.encode(data));
     }
 
@@ -56,14 +52,9 @@ public class IntSchemaTest {
 
     @Test
     public void testSchemaDecode() {
-        byte[] byteData = new byte[] {
-               0,
-               10,
-               24,
-               42
-        };
+        byte[] byteData = new byte[] {0, 10, 24, 42};
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(4);
-        Integer expected = 10*65536 + 24*256 + 42;
+        Integer expected = 10 * 65536 + 24 * 256 + 42;
         IntSchema schema = IntSchema.of();
         byteBuf.writeBytes(byteData);
         Assert.assertEquals(expected, schema.decode(byteData));
@@ -78,5 +69,4 @@ public class IntSchemaTest {
         Assert.assertNull(IntSchema.of().decode(bytes));
         Assert.assertNull(IntSchema.of().decode(byteBuf));
     }
-
 }

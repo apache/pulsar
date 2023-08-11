@@ -28,27 +28,24 @@ public class TransactionBufferSnapshotServiceFactory {
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> txnBufferSnapshotService;
 
-    private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment>
-            txnBufferSnapshotSegmentService;
+    private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment> txnBufferSnapshotSegmentService;
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> txnBufferSnapshotIndexService;
 
     public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient) {
-        this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
-                EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
-                TransactionBufferSnapshotSegment.class);
-        this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
-                EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);
-        this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
-                EventType.TRANSACTION_BUFFER_SNAPSHOT, TransactionBufferSnapshot.class);
+        this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(
+                pulsarClient, EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS, TransactionBufferSnapshotSegment.class);
+        this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(
+                pulsarClient, EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);
+        this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(
+                pulsarClient, EventType.TRANSACTION_BUFFER_SNAPSHOT, TransactionBufferSnapshot.class);
     }
 
     public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> getTxnBufferSnapshotIndexService() {
         return this.txnBufferSnapshotIndexService;
     }
 
-    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment>
-    getTxnBufferSnapshotSegmentService() {
+    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment> getTxnBufferSnapshotSegmentService() {
         return this.txnBufferSnapshotSegmentService;
     }
 

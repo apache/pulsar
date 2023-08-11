@@ -41,12 +41,10 @@ public class LocalPolicies {
         namespaceAntiAffinityGroup = null;
     }
 
-    public LocalPolicies(BundlesData data,
-                         BookieAffinityGroupData bookieAffinityGroup,
-                         String namespaceAntiAffinityGroup) {
+    public LocalPolicies(
+            BundlesData data, BookieAffinityGroupData bookieAffinityGroup, String namespaceAntiAffinityGroup) {
         bundles = data;
         this.bookieAffinityGroup = bookieAffinityGroup;
         this.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
     }
-
 }

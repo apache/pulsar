@@ -85,8 +85,8 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         totalAcksFailed = new LongAdder();
     }
 
-    public ConsumerStatsRecorderImpl(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf,
-            Consumer<?> consumer) {
+    public ConsumerStatsRecorderImpl(
+            PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf, Consumer<?> consumer) {
         this.pulsarClient = pulsarClient;
         this.consumer = consumer;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
@@ -106,7 +106,8 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     private void init(ConsumerConfigurationData<?> conf) {
-        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways().writer()
+        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways()
+                .writer()
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
@@ -141,22 +142,35 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
                 receivedMsgsRate = currentNumMsgsReceived / elapsed;
                 receivedBytesRate = currentNumBytesReceived / elapsed;
-                if ((currentNumMsgsReceived | currentNumBytesReceived | currentNumReceiveFailed | currentNumAcksSent
-                        | currentNumAcksFailed) != 0) {
+                if ((currentNumMsgsReceived
+                                | currentNumBytesReceived
+                                | currentNumReceiveFailed
+                                | currentNumAcksSent
+                                | currentNumAcksFailed)
+                        != 0) {
                     log.info(
                             "[{}] [{}] [{}] Prefetched messages: {} --- "
                                     + "Consume throughput received: {} msgs/s --- {} Mbit/s --- "
                                     + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- batch messages: {} ---"
                                     + "Failed acks: {}",
-                            consumerImpl.getTopic(), consumerImpl.getSubscription(), consumerImpl.consumerName,
-                            consumerImpl.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),
+                            consumerImpl.getTopic(),
+                            consumerImpl.getSubscription(),
+                            consumerImpl.consumerName,
+                            consumerImpl.incomingMessages.size(),
+                            THROUGHPUT_FORMAT.format(receivedMsgsRate),
                             THROUGHPUT_FORMAT.format(receivedBytesRate * 8 / 1024 / 1024),
-                            THROUGHPUT_FORMAT.format(currentNumAcksSent / elapsed), currentNumReceiveFailed,
-                            currentNumBatchReceiveFailed, currentNumAcksFailed);
+                            THROUGHPUT_FORMAT.format(currentNumAcksSent / elapsed),
+                            currentNumReceiveFailed,
+                            currentNumBatchReceiveFailed,
+                            currentNumAcksFailed);
                 }
             } catch (Exception e) {
-                log.error("[{}] [{}] [{}]: {}", consumerImpl.getTopic(), consumerImpl.subscription
-                        , consumerImpl.consumerName, e.getMessage());
+                log.error(
+                        "[{}] [{}] [{}]: {}",
+                        consumerImpl.getTopic(),
+                        consumerImpl.subscription,
+                        consumerImpl.consumerName,
+                        e.getMessage());
             } finally {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
@@ -239,7 +253,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     public Integer getMsgNumInReceiverQueue() {
         if (consumer instanceof ConsumerBase) {
             ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
-            if (consumerBase.listener != null){
+            if (consumerBase.listener != null) {
                 return ConsumerBase.MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.get(consumerBase);
             }
             return consumerBase.incomingMessages.size();
@@ -251,10 +265,10 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     public Map<Long, Integer> getMsgNumInSubReceiverQueue() {
         if (consumer instanceof MultiTopicsConsumerImpl) {
             List<ConsumerImpl<?>> consumerList = ((MultiTopicsConsumerImpl) consumer).getConsumers();
-            return consumerList.stream().collect(
-                    Collectors.toMap((consumerImpl) -> consumerImpl.consumerId
-                            , (consumerImpl) -> consumerImpl.incomingMessages.size())
-            );
+            return consumerList.stream()
+                    .collect(Collectors.toMap(
+                            (consumerImpl) -> consumerImpl.consumerId,
+                            (consumerImpl) -> consumerImpl.incomingMessages.size()));
         }
         return null;
     }

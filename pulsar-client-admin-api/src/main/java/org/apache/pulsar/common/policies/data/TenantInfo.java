@@ -28,7 +28,9 @@ public interface TenantInfo {
 
     interface Builder {
         Builder adminRoles(Set<String> adminRoles);
+
         Builder allowedClusters(Set<String> allowedClusters);
+
         TenantInfo build();
     }
 

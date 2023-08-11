@@ -99,8 +99,7 @@ public interface ProducerInterceptor extends AutoCloseable {
      * @param msgId the message id that assigned by the broker; null if send failed.
      * @param exception the exception on sending messages, null indicates send has succeed.
      */
-    void onSendAcknowledgement(
-            Producer producer, Message message, MessageId msgId, Throwable exception);
+    void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception);
 
     /**
      * This method is called when partitions of the topic (partitioned-topic) changes.
@@ -108,6 +107,5 @@ public interface ProducerInterceptor extends AutoCloseable {
      * @param topicName topic name
      * @param partitions new updated partitions
      */
-    default void onPartitionsChange(String topicName, int partitions) {
-    }
+    default void onPartitionsChange(String topicName, int partitions) {}
 }

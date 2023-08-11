@@ -32,8 +32,7 @@ public class InstanceCache {
     private final ScheduledExecutorService scheduledExecutorService;
 
     private InstanceCache() {
-        ThreadFactory namedThreadFactory =
-                new ExecutorProvider.ExtendedThreadFactory("function-timer-thread");
+        ThreadFactory namedThreadFactory = new ExecutorProvider.ExtendedThreadFactory("function-timer-thread");
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(namedThreadFactory);
     }
 

@@ -31,6 +31,7 @@ abstract class HandlerState {
 
     private static final AtomicReferenceFieldUpdater<HandlerState, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(HandlerState.class, State.class, "state");
+
     @SuppressWarnings("unused")
     private volatile State state = null;
 
@@ -41,7 +42,7 @@ abstract class HandlerState {
         Closing, // Close cmd has been sent to broker
         Closed, // Broker acked the close
         Terminated, // Topic associated with this handler
-                    // has been terminated
+        // has been terminated
         Failed, // Handler is failed
         RegisteringSchema, // Handler is registering schema
         ProducerFenced, // The producer has been fenced by the broker

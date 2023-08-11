@@ -19,13 +19,11 @@
 package org.apache.pulsar.tests.integration.auth.token;
 
 import java.util.concurrent.TimeUnit;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSuite {
@@ -41,24 +39,42 @@ public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSui
         log.info("Created secret key: {}", secretKey);
 
         clientAuthToken = container
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:;base64," + secretKey,
-                        "--subject", REGULAR_USER_ROLE)
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--secret-key",
+                        "data:;base64," + secretKey,
+                        "--subject",
+                        REGULAR_USER_ROLE)
+                .getStdout()
+                .trim();
         log.info("Created client token: {}", clientAuthToken);
 
         superUserAuthToken = container
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:;base64," + secretKey,
-                        "--subject", SUPER_USER_ROLE)
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--secret-key",
+                        "data:;base64," + secretKey,
+                        "--subject",
+                        SUPER_USER_ROLE)
+                .getStdout()
+                .trim();
         log.info("Created super-user token: {}", superUserAuthToken);
 
         proxyAuthToken = container
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:;base64," + secretKey,
-                        "--subject", PROXY_ROLE)
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--secret-key",
+                        "data:;base64," + secretKey,
+                        "--subject",
+                        PROXY_ROLE)
+                .getStdout()
+                .trim();
         log.info("Created proxy token: {}", proxyAuthToken);
     }
 
@@ -75,10 +91,17 @@ public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSui
     @Override
     protected String createClientTokenWithExpiry(long expiryTime, TimeUnit unit) throws Exception {
         return cmdContainer
-                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:;base64," + secretKey,
-                        "--subject", REGULAR_USER_ROLE,
-                        "--expiry-time", unit.toSeconds(expiryTime) + "s")
-                .getStdout().trim();
+                .execCmd(
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT,
+                        "tokens",
+                        "create",
+                        "--secret-key",
+                        "data:;base64," + secretKey,
+                        "--subject",
+                        REGULAR_USER_ROLE,
+                        "--expiry-time",
+                        unit.toSeconds(expiryTime) + "s")
+                .getStdout()
+                .trim();
     }
 }

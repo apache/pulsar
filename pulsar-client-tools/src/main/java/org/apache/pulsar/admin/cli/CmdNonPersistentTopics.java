@@ -61,8 +61,10 @@ public class CmdNonPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the stats for the topic and its connected producers and consumers. "
-            + "All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    @Parameters(
+            commandDescription =
+                    "Get the stats for the topic and its connected producers and consumers. "
+                            + "All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
     private class GetStats extends CliCommand {
         @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -86,15 +88,18 @@ public class CmdNonPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create a partitioned topic. "
-            + "The partitioned topic has to be created before creating a producer on it.")
+    @Parameters(
+            commandDescription = "Create a partitioned topic. "
+                    + "The partitioned topic has to be created before creating a producer on it.")
     private class CreatePartitionedCmd extends CliCommand {
 
         @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-p",
-                "--partitions" }, description = "Number of partitions for the topic", required = true)
+        @Parameter(
+                names = {"-p", "--partitions"},
+                description = "Number of partitions for the topic",
+                required = true)
         private int numPartitions;
 
         @Override
@@ -104,8 +109,10 @@ public class CmdNonPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the partitioned topic metadata. "
-            + "If the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
+    @Parameters(
+            commandDescription =
+                    "Get the partitioned topic metadata. "
+                            + "If the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
     private class GetPartitionedTopicMetadataCmd extends CliCommand {
 
         @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
@@ -135,8 +142,10 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-b",
-                "--bundle" }, description = "bundle range", required = true)
+        @Parameter(
+                names = {"-b", "--bundle"},
+                description = "bundle range",
+                required = true)
         private String bundleRange;
 
         @Override

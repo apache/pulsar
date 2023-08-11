@@ -29,5 +29,4 @@ import org.apache.pulsar.broker.admin.impl.TenantsBase;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/properties", description = "TenantsBase admin apis", tags = "properties", hidden = true)
-public class Properties extends TenantsBase {
-}
+public class Properties extends TenantsBase {}

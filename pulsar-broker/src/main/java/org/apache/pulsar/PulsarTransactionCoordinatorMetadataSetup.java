@@ -34,27 +34,36 @@ public class PulsarTransactionCoordinatorMetadataSetup {
 
     private static class Arguments {
 
-        @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
+        @Parameter(
+                names = {"-c", "--cluster"},
+                description = "Cluster name",
+                required = true)
         private String cluster;
 
-        @Parameter(names = { "-cs",
-                "--configuration-store" }, description = "Configuration Store connection string", required = true)
+        @Parameter(
+                names = {"-cs", "--configuration-store"},
+                description = "Configuration Store connection string",
+                required = true)
         private String configurationStore;
 
-        @Parameter(names = {
-                "--zookeeper-session-timeout-ms"
-        }, description = "Local zookeeper session timeout ms")
+        @Parameter(
+                names = {"--zookeeper-session-timeout-ms"},
+                description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = {
-                "--initial-num-transaction-coordinators"
-        }, description = "Num transaction coordinators will assigned in cluster")
+        @Parameter(
+                names = {"--initial-num-transaction-coordinators"},
+                description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
 
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 
@@ -90,22 +99,20 @@ public class PulsarTransactionCoordinatorMetadataSetup {
             System.exit(1);
         }
 
-        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup
-                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup.initConfigMetadataStore(
+                arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
             PulsarResources pulsarResources = new PulsarResources(null, configStore);
             // Create system tenant
-            PulsarClusterMetadataSetup
-                    .createTenantIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                            arguments.cluster);
+            PulsarClusterMetadataSetup.createTenantIfAbsent(
+                    pulsarResources, NamespaceName.SYSTEM_NAMESPACE.getTenant(), arguments.cluster);
 
             // Create system namespace
-            PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE,
-                    arguments.cluster);
+            PulsarClusterMetadataSetup.createNamespaceIfAbsent(
+                    pulsarResources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
 
             // Create transaction coordinator assign partitioned topic
-            PulsarClusterMetadataSetup.createPartitionedTopic(configStore,
-                    SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                    arguments.numTransactionCoordinators);
+            PulsarClusterMetadataSetup.createPartitionedTopic(
+                    configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, arguments.numTransactionCoordinators);
         }
 
         System.out.println("Transaction coordinator metadata setup success");

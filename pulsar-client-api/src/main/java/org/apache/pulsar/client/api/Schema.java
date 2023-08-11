@@ -91,8 +91,7 @@ public interface Schema<T> extends Cloneable {
         return false;
     }
 
-    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
-    }
+    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {}
 
     /**
      * Decode a byte array into an object using the schema definition and deserializer implementation.
@@ -172,8 +171,7 @@ public interface Schema<T> extends Cloneable {
      * @param componentName component name
      * @param schemaInfo schema info
      */
-    default void configureSchemaInfo(String topic, String componentName,
-                                     SchemaInfo schemaInfo) {
+    default void configureSchemaInfo(String topic, String componentName, SchemaInfo schemaInfo) {
         // no-op
     }
 
@@ -201,7 +199,8 @@ public interface Schema<T> extends Cloneable {
     /**
      * ByteBuffer Schema.
      */
-    Schema<ByteBuffer> BYTEBUFFER = DefaultImplementation.getDefaultImplementation().newByteBufferSchema();
+    Schema<ByteBuffer> BYTEBUFFER =
+            DefaultImplementation.getDefaultImplementation().newByteBufferSchema();
 
     /**
      * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
@@ -256,7 +255,8 @@ public interface Schema<T> extends Cloneable {
     /**
      * Timestamp Schema.
      */
-    Schema<Timestamp> TIMESTAMP = DefaultImplementation.getDefaultImplementation().newTimestampSchema();
+    Schema<Timestamp> TIMESTAMP =
+            DefaultImplementation.getDefaultImplementation().newTimestampSchema();
 
     /**
      * Instant Schema.
@@ -265,15 +265,18 @@ public interface Schema<T> extends Cloneable {
     /**
      * LocalDate Schema.
      */
-    Schema<LocalDate> LOCAL_DATE = DefaultImplementation.getDefaultImplementation().newLocalDateSchema();
+    Schema<LocalDate> LOCAL_DATE =
+            DefaultImplementation.getDefaultImplementation().newLocalDateSchema();
     /**
      * LocalTime Schema.
      */
-    Schema<LocalTime> LOCAL_TIME = DefaultImplementation.getDefaultImplementation().newLocalTimeSchema();
+    Schema<LocalTime> LOCAL_TIME =
+            DefaultImplementation.getDefaultImplementation().newLocalTimeSchema();
     /**
      * LocalDateTime Schema.
      */
-    Schema<LocalDateTime> LOCAL_DATE_TIME = DefaultImplementation.getDefaultImplementation().newLocalDateTimeSchema();
+    Schema<LocalDateTime> LOCAL_DATE_TIME =
+            DefaultImplementation.getDefaultImplementation().newLocalDateTimeSchema();
 
     // CHECKSTYLE.OFF: MethodName
 
@@ -306,7 +309,8 @@ public interface Schema<T> extends Cloneable {
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
         return DefaultImplementation.getDefaultImplementation()
-                .newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+                .newProtobufNativeSchema(
+                        SchemaDefinition.builder().withPojo(clazz).build());
     }
 
     /**
@@ -395,8 +399,8 @@ public interface Schema<T> extends Cloneable {
     /**
      * Key Value Schema using passed in key, value and encoding type schemas.
      */
-    static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value,
-        KeyValueEncodingType keyValueEncodingType) {
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(
+            Schema<K> key, Schema<V> value, KeyValueEncodingType keyValueEncodingType) {
         return DefaultImplementation.getDefaultImplementation().newKeyValueSchema(key, value, keyValueEncodingType);
     }
 

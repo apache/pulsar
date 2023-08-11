@@ -71,15 +71,22 @@ public class ElasticBulkProcessor implements BulkProcessor {
         this.lock = new ReentrantLock();
         this.bulkActions = config.getBulkActions();
         this.bulkSize = config.getBulkSizeInMb() * 1024 * 1024;
-        this.internalExecutorService = Executors.newFixedThreadPool(Math.max(1, config.getBulkConcurrentRequests()),
-                new ThreadFactoryBuilder().setNameFormat("elastic-bulk-executor-%d").build());
-        this.bulkRequestHandler = new BulkRequestHandler(new RandomExponentialRetry(config.getMaxRetryTimeInSec()),
-                config.getBulkConcurrentRequests(), listener);
+        this.internalExecutorService = Executors.newFixedThreadPool(
+                Math.max(1, config.getBulkConcurrentRequests()),
+                new ThreadFactoryBuilder()
+                        .setNameFormat("elastic-bulk-executor-%d")
+                        .build());
+        this.bulkRequestHandler = new BulkRequestHandler(
+                new RandomExponentialRetry(config.getMaxRetryTimeInSec()),
+                config.getBulkConcurrentRequests(),
+                listener);
 
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("elastic-flush-task-%d").build());
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                .setNameFormat("elastic-flush-task-%d")
+                .build());
         if (config.getBulkFlushIntervalInMs() > 0) {
-            futureFlushTask = executor.scheduleWithFixedDelay(new Flush(),
+            futureFlushTask = executor.scheduleWithFixedDelay(
+                    new Flush(),
                     config.getBulkFlushIntervalInMs(),
                     config.getBulkFlushIntervalInMs(),
                     TimeUnit.MILLISECONDS);
@@ -154,7 +161,10 @@ public class ElasticBulkProcessor implements BulkProcessor {
             return true;
         } else {
             return this.bulkSize > 0L
-                    && pendingOperations.stream().mapToLong(op -> op.getEstimatedSizeInBytes()).sum() >= this.bulkSize;
+                    && pendingOperations.stream()
+                                    .mapToLong(op -> op.getEstimatedSizeInBytes())
+                                    .sum()
+                            >= this.bulkSize;
         }
     }
 
@@ -212,23 +222,22 @@ public class ElasticBulkProcessor implements BulkProcessor {
          */
         private static final int REQUEST_OVERHEAD = 50;
 
-        public static BulkOperationWithPulsarRecord indexOperation(IndexOperation indexOperation,
-                                                                   Record pulsarRecord,
-                                                                   long sourceLength) {
+        public static BulkOperationWithPulsarRecord indexOperation(
+                IndexOperation indexOperation, Record pulsarRecord, long sourceLength) {
             long estimatedSizeInBytes = REQUEST_OVERHEAD + sourceLength;
             return new BulkOperationWithPulsarRecord(indexOperation, pulsarRecord, estimatedSizeInBytes);
         }
 
-        public static BulkOperationWithPulsarRecord deleteOperation(DeleteOperation indexOperation,
-                                                                    Record pulsarRecord) {
+        public static BulkOperationWithPulsarRecord deleteOperation(
+                DeleteOperation indexOperation, Record pulsarRecord) {
             return new BulkOperationWithPulsarRecord(indexOperation, pulsarRecord, REQUEST_OVERHEAD);
         }
 
         private final Record pulsarRecord;
         private final long estimatedSizeInBytes;
 
-        public BulkOperationWithPulsarRecord(BulkOperationVariant value,
-                                             Record pulsarRecord, long estimatedSizeInBytes) {
+        public BulkOperationWithPulsarRecord(
+                BulkOperationVariant value, Record pulsarRecord, long estimatedSizeInBytes) {
             super(value);
             this.pulsarRecord = pulsarRecord;
             this.estimatedSizeInBytes = estimatedSizeInBytes;
@@ -244,8 +253,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
     }
 
     class Flush implements Runnable {
-        Flush() {
-        }
+        Flush() {}
 
         public void run() {
             if (!closed) {
@@ -286,8 +294,8 @@ public class ElasticBulkProcessor implements BulkProcessor {
                     if (log.isDebugEnabled()) {
                         log.debug("Sending bulk {}", executionId);
                     }
-                    final BulkResponse bulkResponse = retry.retry(callable, config.getMaxRetries(),
-                            config.getRetryBackoffInMs(), "bulk");
+                    final BulkResponse bulkResponse =
+                            retry.retry(callable, config.getMaxRetries(), config.getRetryBackoffInMs(), "bulk");
                     if (log.isDebugEnabled()) {
                         log.debug("Sending bulk {} completed", executionId);
                     }
@@ -302,17 +310,19 @@ public class ElasticBulkProcessor implements BulkProcessor {
             CompletableFuture<Void> listenerCalledPromise = new CompletableFuture();
 
             promise.thenApply((bulkResponse) -> {
-                this.semaphore.release();
-                listener.afterBulk(executionId, convertBulkRequest(bulkRequest), convertBulkResponse(bulkResponse));
-                listenerCalledPromise.complete(null);
-                return null;
-            }).exceptionally(ex -> {
-                this.semaphore.release();
-                listener.afterBulk(executionId, convertBulkRequest(bulkRequest), ex);
-                log.warn("Failed to execute bulk request " + executionId, ex);
-                listenerCalledPromise.complete(null);
-                return null;
-            });
+                        this.semaphore.release();
+                        listener.afterBulk(
+                                executionId, convertBulkRequest(bulkRequest), convertBulkResponse(bulkResponse));
+                        listenerCalledPromise.complete(null);
+                        return null;
+                    })
+                    .exceptionally(ex -> {
+                        this.semaphore.release();
+                        listener.afterBulk(executionId, convertBulkRequest(bulkRequest), ex);
+                        log.warn("Failed to execute bulk request " + executionId, ex);
+                        listenerCalledPromise.complete(null);
+                        return null;
+                    });
             if (config.getBulkConcurrentRequests() == 0) {
                 // keep the execution sync in case of non-concurrent bulk requests configuration
                 listenerCalledPromise.join();
@@ -329,25 +339,29 @@ public class ElasticBulkProcessor implements BulkProcessor {
         }
 
         private List<BulkOperationRequest> convertBulkRequest(BulkRequest bulkRequest) {
-            return bulkRequest.operations().stream().map(op -> {
+            return bulkRequest.operations().stream()
+                    .map(op -> {
                         BulkOperationWithPulsarRecord opWithRecord = (BulkOperationWithPulsarRecord) op;
                         return BulkOperationRequest.builder()
                                 .pulsarRecord(opWithRecord.getPulsarRecord())
                                 .build();
-                    }).collect(Collectors.toList());
+                    })
+                    .collect(Collectors.toList());
         }
 
         private List<BulkOperationResult> convertBulkResponse(BulkResponse bulkResponse) {
-            return bulkResponse.items().stream().map(responseItem -> {
-                final String error = responseItem.error() != null ? responseItem.error().type() : null;
-                return BulkOperationResult.builder()
-                        .error(error)
-                        .index(responseItem.index())
-                        .documentId(responseItem.id())
-                        .build();
-            }).collect(Collectors.toList());
+            return bulkResponse.items().stream()
+                    .map(responseItem -> {
+                        final String error = responseItem.error() != null
+                                ? responseItem.error().type()
+                                : null;
+                        return BulkOperationResult.builder()
+                                .error(error)
+                                .index(responseItem.index())
+                                .documentId(responseItem.id())
+                                .build();
+                    })
+                    .collect(Collectors.toList());
         }
     }
-
-
 }

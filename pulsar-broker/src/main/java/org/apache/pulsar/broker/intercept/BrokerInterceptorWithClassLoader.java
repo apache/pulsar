@@ -54,92 +54,78 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     private final NarClassLoader classLoader;
 
     @Override
-    public void beforeSendMessage(Subscription subscription,
-                                  Entry entry,
-                                  long[] ackSet,
-                                  MessageMetadata msgMetadata) {
+    public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            this.interceptor.beforeSendMessage(
-                    subscription, entry, ackSet, msgMetadata);
+            this.interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata);
         }
     }
 
     @Override
-    public void beforeSendMessage(Subscription subscription,
-                                  Entry entry,
-                                  long[] ackSet,
-                                  MessageMetadata msgMetadata,
-                                  Consumer consumer) {
+    public void beforeSendMessage(
+            Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            this.interceptor.beforeSendMessage(
-                    subscription, entry, ackSet, msgMetadata, consumer);
+            this.interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata, consumer);
         }
     }
 
     @Override
-    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload,
-                                 Topic.PublishContext publishContext) {
+    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.onMessagePublish(producer, headersAndPayload, publishContext);
         }
     }
 
     @Override
-    public void producerCreated(ServerCnx cnx, Producer producer,
-                                Map<String, String> metadata){
+    public void producerCreated(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.producerCreated(cnx, producer, metadata);
         }
     }
 
     @Override
-    public void producerClosed(ServerCnx cnx,
-                               Producer producer,
-                               Map<String, String> metadata) {
+    public void producerClosed(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.producerClosed(cnx, producer, metadata);
         }
     }
 
     @Override
-    public void consumerCreated(ServerCnx cnx,
-                                Consumer consumer,
-                                Map<String, String> metadata) {
+    public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            this.interceptor.consumerCreated(
-                    cnx, consumer, metadata);
+            this.interceptor.consumerCreated(cnx, consumer, metadata);
         }
     }
 
     @Override
-    public void consumerClosed(ServerCnx cnx,
-                               Consumer consumer,
-                               Map<String, String> metadata) {
+    public void consumerClosed(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.consumerClosed(cnx, consumer, metadata);
         }
     }
 
-
     @Override
-    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
-                                long entryId, Topic.PublishContext publishContext) {
+    public void messageProduced(
+            ServerCnx cnx,
+            Producer producer,
+            long startTimeNs,
+            long ledgerId,
+            long entryId,
+            Topic.PublishContext publishContext) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
         }
     }
 
     @Override
-    public  void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
-                                   long entryId, ByteBuf headersAndPayload) {
+    public void messageDispatched(
+            ServerCnx cnx, Consumer consumer, long ledgerId, long entryId, ByteBuf headersAndPayload) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
         }
     }
 
     @Override
-    public void messageAcked(ServerCnx cnx, Consumer consumer,
-                             CommandAck ackCmd) {
+    public void messageAcked(ServerCnx cnx, Consumer consumer, CommandAck ackCmd) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.messageAcked(cnx, consumer, ackCmd);
         }

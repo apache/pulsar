@@ -44,15 +44,13 @@ public class AuthenticationFilter implements Filter {
     public static final String AuthenticatedDataAttributeName = AuthenticationFilter.class.getName() + "-data";
     public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
 
-
     public AuthenticationFilter(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
     }
 
     @Override
-    public void doFilter(
-            ServletRequest request, ServletResponse response, FilterChain chain
-    ) throws IOException, ServletException {
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
         final HttpServletRequest httpRequest = (HttpServletRequest) request;
         final HttpServletResponse httpResponse = (HttpServletResponse) response;
 

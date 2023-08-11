@@ -36,10 +36,12 @@ public class NamespaceEphemeralDataTest {
         ned.setDisabled(false);
 
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        advertisedListeners.put("test-listener", AdvertisedListener.builder()
-                .brokerServiceUrl(new URI("pulsar://adv-addr:6650"))
-                .brokerServiceUrlTls(new URI("pulsar+ssl://adv-addr:6651"))
-                .build());
+        advertisedListeners.put(
+                "test-listener",
+                AdvertisedListener.builder()
+                        .brokerServiceUrl(new URI("pulsar://adv-addr:6650"))
+                        .brokerServiceUrlTls(new URI("pulsar+ssl://adv-addr:6651"))
+                        .build());
         ned.setAdvertisedListeners(advertisedListeners);
     }
 
@@ -58,5 +60,4 @@ public class NamespaceEphemeralDataTest {
         assertEquals(ned1.hashCode(), ned2.hashCode());
         assertEquals(ned1, ned2);
     }
-
 }

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.hbase;
 
+import java.io.IOException;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
@@ -26,9 +28,6 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Table;
 
-import java.io.IOException;
-import java.util.Map;
-
 /**
  * hbase connection Table
  */
@@ -36,9 +35,13 @@ public class TableUtils {
 
     public static Table getTable(Map<String, Object> config) throws IOException {
         Configuration configuration = HBaseConfiguration.create();
-        configuration.set("hbase.zookeeper.quorum", config.get("zookeeperQuorum").toString());
-        configuration.set("hbase.zookeeper.property.clientPort", config.get("zookeeperClientPort").toString());
-        configuration.set("zookeeper.znode.parent", config.get("zookeeperZnodeParent").toString());
+        configuration.set(
+                "hbase.zookeeper.quorum", config.get("zookeeperQuorum").toString());
+        configuration.set(
+                "hbase.zookeeper.property.clientPort",
+                config.get("zookeeperClientPort").toString());
+        configuration.set(
+                "zookeeper.znode.parent", config.get("zookeeperZnodeParent").toString());
 
         Connection connection = ConnectionFactory.createConnection(configuration);
         Admin admin = connection.getAdmin();
@@ -48,5 +51,4 @@ public class TableUtils {
         }
         return connection.getTable(tableName);
     }
-
 }

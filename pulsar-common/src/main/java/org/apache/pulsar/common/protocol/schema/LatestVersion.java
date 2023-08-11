@@ -22,7 +22,7 @@ package org.apache.pulsar.common.protocol.schema;
  * Latest schema version.
  */
 public final class LatestVersion implements SchemaVersion {
-    private static final byte[] EMPTY = new byte[]{};
+    private static final byte[] EMPTY = new byte[] {};
 
     @Override
     public byte[] bytes() {

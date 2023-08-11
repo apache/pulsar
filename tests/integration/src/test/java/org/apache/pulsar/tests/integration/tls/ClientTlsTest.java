@@ -33,9 +33,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ClientTlsTest extends PulsarTestSuite {
-    private final static String tlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
-    private final static String tlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
-    private final static String tlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
+    private static final String tlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
+    private static final String tlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
+    private static final String tlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
 
     private static String loadCertificateAuthorityFile(String name) {
         return Resources.getResource("certificate-authority/" + name).getPath();
@@ -43,23 +43,24 @@ public class ClientTlsTest extends PulsarTestSuite {
 
     @DataProvider(name = "adminUrls")
     public Object[][] adminUrls() {
-        return new Object[][]{
-                {stringSupplier(() -> getPulsarCluster().getAnyBrokersHttpsServiceUrl())},
-                {stringSupplier(() -> getPulsarCluster().getProxy().getHttpsServiceUrl())}
+        return new Object[][] {
+            {stringSupplier(() -> getPulsarCluster().getAnyBrokersHttpsServiceUrl())},
+            {stringSupplier(() -> getPulsarCluster().getProxy().getHttpsServiceUrl())}
         };
     }
 
     @DataProvider(name = "serviceUrls")
     public Object[][] serviceUrls() {
-        return new Object[][]{
-                {stringSupplier(() -> getPulsarCluster().getProxy().getServiceUrlTls())},
+        return new Object[][] {
+            {stringSupplier(() -> getPulsarCluster().getProxy().getServiceUrlTls())},
         };
     }
 
     @Test(dataProvider = "adminUrls")
     public void testAdmin(Supplier<String> urlSupplier) throws PulsarAdminException, PulsarClientException {
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(urlSupplier.get())
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(urlSupplier.get())
                 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
                 .tlsKeyFilePath(tlsKeyFilePath)
                 .tlsCertificateFilePath(tlsCertificateFilePath)
@@ -70,13 +71,15 @@ public class ClientTlsTest extends PulsarTestSuite {
     @Test(dataProvider = "serviceUrls")
     public void testClient(Supplier<String> urlSupplier) throws PulsarClientException {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(urlSupplier.get())
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(urlSupplier.get())
                 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
                 .tlsKeyFilePath(tlsKeyFilePath)
                 .tlsCertificateFilePath(tlsCertificateFilePath)
                 .build();
         @Cleanup
-        Producer<byte[]> producer = client.newProducer().topic(UUID.randomUUID().toString()).create();
+        Producer<byte[]> producer =
+                client.newProducer().topic(UUID.randomUUID().toString()).create();
         producer.send("Hello".getBytes(StandardCharsets.UTF_8));
     }
 }

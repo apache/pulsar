@@ -40,9 +40,7 @@ import java.util.Map;
  */
 public abstract class DecoderTestUtil {
 
-    protected DecoderTestUtil() {
-
-    }
+    protected DecoderTestUtil() {}
 
     public abstract void checkArrayValues(Block block, Type type, Object value);
 
@@ -70,10 +68,7 @@ public abstract class DecoderTestUtil {
     }
 
     public boolean isIntegralType(Object value) {
-        return value instanceof Long
-                || value instanceof Integer
-                || value instanceof Short
-                || value instanceof Byte;
+        return value instanceof Long || value instanceof Integer || value instanceof Short || value instanceof Byte;
     }
 
     public boolean isRealType(Object value) {
@@ -87,37 +82,43 @@ public abstract class DecoderTestUtil {
         return type.getObjectValue(SESSION, block, position);
     }
 
-    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, Slice value) {
+    public void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, Slice value) {
         FieldValueProvider provider = decodedRow.get(handle);
         assertNotNull(provider);
         assertEquals(provider.getSlice(), value);
     }
 
-    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, String value) {
+    public void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, String value) {
         FieldValueProvider provider = decodedRow.get(handle);
         assertNotNull(provider);
         assertEquals(provider.getSlice().toStringUtf8(), value);
     }
 
-    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, long value) {
+    public void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, long value) {
         FieldValueProvider provider = decodedRow.get(handle);
         assertNotNull(provider);
         assertEquals(provider.getLong(), value);
     }
 
-    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, double value) {
+    public void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, double value) {
         FieldValueProvider provider = decodedRow.get(handle);
         assertNotNull(provider);
         assertEquals(provider.getDouble(), value, 0.0001);
     }
 
-    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, boolean value) {
+    public void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, boolean value) {
         FieldValueProvider provider = decodedRow.get(handle);
         assertNotNull(provider);
         assertEquals(provider.getBoolean(), value);
     }
 
-    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
+    public void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
         FieldValueProvider provider = decodedRow.get(handle);
         DecimalType decimalType = (DecimalType) handle.getType();
         BigDecimal actualDecimal;

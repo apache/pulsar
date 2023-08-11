@@ -52,5 +52,4 @@ public class TransactionUtil {
                 throw new IllegalArgumentException("Unknown txn status : " + newStatus);
         }
     }
-
 }

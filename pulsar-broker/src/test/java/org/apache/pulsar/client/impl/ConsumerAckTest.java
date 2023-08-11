@@ -26,7 +26,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -88,12 +87,14 @@ public class ConsumerAckTest extends ProducerConsumerBase {
     public void testAckResponse() throws PulsarClientException, InterruptedException {
         String topic = "testAckResponse";
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
                 .topic(topic)
                 .enableBatching(false)
                 .create();
         @Cleanup
-        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Shared)
@@ -142,8 +143,8 @@ public class ConsumerAckTest extends ProducerConsumerBase {
         @Cleanup AckTestData data = prepareDataForAck("test-cumulative-ack");
         System.out.println(data.size());
         data.consumer.acknowledgeCumulative(data.messageIds.get(data.size() - 1));
-        assertEquals(data.interceptor.cumulativeAckedMessageIdList.get(0),
-                data.messageIds.get(data.messageIds.size() - 1));
+        assertEquals(
+                data.interceptor.cumulativeAckedMessageIdList.get(0), data.messageIds.get(data.messageIds.size() - 1));
         assertEquals(data.consumer.getStats().getNumAcksSent(), 2);
         assertTrue(data.consumer.getUnAckedMessageTracker().isEmpty());
     }
@@ -151,19 +152,28 @@ public class ConsumerAckTest extends ProducerConsumerBase {
     // Send 1 non-batched message, then send N-1 messages that are in the same batch
     private AckTestData prepareDataForAck(String topic) throws PulsarClientException {
         final int numMessages = 10;
-        @Cleanup Producer<String> batchProducer = pulsarClient.newProducer(Schema.STRING)
+        @Cleanup
+        Producer<String> batchProducer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxMessages(numMessages - 1)
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
                 .create();
-        @Cleanup Producer<String> nonBatchProducer = pulsarClient.newProducer(Schema.STRING)
+        @Cleanup
+        Producer<String> nonBatchProducer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(false)
                 .create();
         AckStatsInterceptor interceptor = new AckStatsInterceptor();
-        ConsumerImpl<String> consumer = (ConsumerImpl<String>) clientWithStats.newConsumer(Schema.STRING).topic(topic)
-                .subscriptionName("sub").intercept(interceptor).ackTimeout(10, TimeUnit.SECONDS).subscribe();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) clientWithStats
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .intercept(interceptor)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
 
         nonBatchProducer.send("msg-0");
         for (int i = 1; i < numMessages; i++) {
@@ -186,7 +196,8 @@ public class ConsumerAckTest extends ProducerConsumerBase {
         assertTrue(interceptor.cumulativeAckedMessageIdList.isEmpty());
         assertEquals(consumer.getStats().getNumAcksSent(), 0);
         assertNotNull(consumer.getUnAckedMessageTracker().messageIdPartitionMap);
-        assertEquals(consumer.getUnAckedMessageTracker().messageIdPartitionMap.keySet(),
+        assertEquals(
+                consumer.getUnAckedMessageTracker().messageIdPartitionMap.keySet(),
                 Sets.newHashSet(firstEntryMessageId, secondEntryMessageId));
         return new AckTestData(consumer, interceptor, messageIds);
     }

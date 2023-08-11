@@ -42,7 +42,8 @@ public final class MockitoThreadLocalStateCleaner {
         try {
             Field profilerField = FieldUtils.getDeclaredField(
                     ClassUtils.getClass("org.mockito.internal.progress.ThreadSafeMockingProgress"),
-                    "MOCKING_PROGRESS_PROVIDER", true);
+                    "MOCKING_PROGRESS_PROVIDER",
+                    true);
             if (profilerField != null) {
                 return (ThreadLocal<?>) profilerField.get(null);
             } else {
@@ -57,23 +58,27 @@ public final class MockitoThreadLocalStateCleaner {
     }
 
     // force singleton
-    private MockitoThreadLocalStateCleaner() {
-
-    }
+    private MockitoThreadLocalStateCleaner() {}
 
     public void cleanup() {
         ThreadLocalStateCleaner.INSTANCE.cleanupThreadLocal(MOCKING_PROGRESS_PROVIDER, (thread, mockingProgress) -> {
             try {
-                LOG.info("Removing {} instance from thread {}", mockingProgress.getClass().getName(), thread);
+                LOG.info(
+                        "Removing {} instance from thread {}",
+                        mockingProgress.getClass().getName(),
+                        thread);
                 LOG.info("Calling MockingProgress.validateState() method on instance (toString={})", mockingProgress);
                 MethodUtils.invokeMethod(mockingProgress, "validateState");
                 Object ongoingStubbing = MethodUtils.invokeMethod(mockingProgress, "pullOngoingStubbing");
                 if (ongoingStubbing != null) {
                     Object mock = MethodUtils.invokeMethod(ongoingStubbing, "getMock");
                     if (mock != null && MockUtil.isMock(mock)) {
-                        LOG.warn("Invalid usage of Mockito detected on thread {}."
+                        LOG.warn(
+                                "Invalid usage of Mockito detected on thread {}."
                                         + " There is ongoing stubbing on mock of class={} instance={}",
-                                thread, mock.getClass().getName(), mock);
+                                thread,
+                                mock.getClass().getName(),
+                                mock);
                         try {
                             clearInvocations(thread, mock);
                         } catch (Exception e) {
@@ -86,7 +91,11 @@ public final class MockitoThreadLocalStateCleaner {
             } catch (InvocationTargetException e) {
                 LOG.warn("Invalid usage of Mockito detected on thread {}", thread, e.getCause());
             } catch (Exception e) {
-                LOG.warn("Removing {} instance from thread {} failed", mockingProgress.getClass().getName(), thread, e);
+                LOG.warn(
+                        "Removing {} instance from thread {} failed",
+                        mockingProgress.getClass().getName(),
+                        thread,
+                        e);
             }
         });
     }
@@ -94,9 +103,11 @@ public final class MockitoThreadLocalStateCleaner {
     private static void clearInvocations(Thread thread, Object mock) {
         InvocationContainerImpl invocationContainer = MockUtil.getInvocationContainer(mock);
         if (invocationContainer.hasInvocationForPotentialStubbing()) {
-            LOG.warn("Mock contains registered invocations that should be cleared. thread {} class={} "
-                            + "instance={}",
-                    thread, mock.getClass().getName(), mock);
+            LOG.warn(
+                    "Mock contains registered invocations that should be cleared. thread {} class={} " + "instance={}",
+                    thread,
+                    mock.getClass().getName(),
+                    mock);
             invocationContainer.clearInvocations();
         }
     }

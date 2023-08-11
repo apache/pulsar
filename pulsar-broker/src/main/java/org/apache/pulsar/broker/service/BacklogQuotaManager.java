@@ -47,8 +47,10 @@ public class BacklogQuotaManager {
     public BacklogQuotaManager(PulsarService pulsar) {
         double backlogQuotaGB = pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB();
         this.defaultQuota = BacklogQuotaImpl.builder()
-                .limitSize(backlogQuotaGB > 0 ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
-                        : pulsar.getConfiguration().getBacklogQuotaDefaultLimitBytes())
+                .limitSize(
+                        backlogQuotaGB > 0
+                                ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                                : pulsar.getConfiguration().getBacklogQuotaDefaultLimitBytes())
                 .limitTime(pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond())
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
@@ -62,18 +64,23 @@ public class BacklogQuotaManager {
     public BacklogQuotaImpl getBacklogQuota(NamespaceName namespace, BacklogQuotaType backlogQuotaType) {
         try {
             if (namespaceResources == null) {
-                log.warn("Failed to read policies data from metadata store because namespaceResources is null."
-                        + "default backlog quota will be applied: namespace={}", namespace);
+                log.warn(
+                        "Failed to read policies data from metadata store because namespaceResources is null."
+                                + "default backlog quota will be applied: namespace={}",
+                        namespace);
                 return this.defaultQuota;
             } else {
-                return namespaceResources.getPolicies(namespace)
-                        .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
-                                .getOrDefault(backlogQuotaType, defaultQuota))
+                return namespaceResources
+                        .getPolicies(namespace)
+                        .map(p -> (BacklogQuotaImpl) p.backlog_quota_map.getOrDefault(backlogQuotaType, defaultQuota))
                         .orElse(defaultQuota);
             }
         } catch (MetadataStoreException e) {
-            log.warn("Failed to read policies data from metadata store,"
-                    + " will apply the default backlog quota: namespace={}", namespace, e);
+            log.warn(
+                    "Failed to read policies data from metadata store,"
+                            + " will apply the default backlog quota: namespace={}",
+                    namespace,
+                    e);
             return this.defaultQuota;
         }
     }
@@ -83,30 +90,35 @@ public class BacklogQuotaManager {
      *
      * @param persistentTopic Topic on which backlog has been exceeded
      */
-    public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType,
-                                           boolean preciseTimeBasedBacklogQuotaCheck) {
+    public void handleExceededBacklogQuota(
+            PersistentTopic persistentTopic,
+            BacklogQuotaType backlogQuotaType,
+            boolean preciseTimeBasedBacklogQuotaCheck) {
         BacklogQuota quota = persistentTopic.getBacklogQuota(backlogQuotaType);
-        log.info("Backlog quota type {} exceeded for topic [{}]. Applying [{}] policy", backlogQuotaType,
-                persistentTopic.getName(), quota.getPolicy());
+        log.info(
+                "Backlog quota type {} exceeded for topic [{}]. Applying [{}] policy",
+                backlogQuotaType,
+                persistentTopic.getName(),
+                quota.getPolicy());
         switch (quota.getPolicy()) {
-        case consumer_backlog_eviction:
-            switch (backlogQuotaType) {
-                case destination_storage:
+            case consumer_backlog_eviction:
+                switch (backlogQuotaType) {
+                    case destination_storage:
                         dropBacklogForSizeLimit(persistentTopic, quota);
                         break;
-                case message_age:
+                    case message_age:
                         dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck);
                         break;
-                default:
-                    break;
-            }
-            break;
-        case producer_exception:
-        case producer_request_hold:
-            disconnectProducers(persistentTopic);
-            break;
-        default:
-            break;
+                    default:
+                        break;
+                }
+                break;
+            case producer_exception:
+            case producer_request_hold:
+                disconnectProducers(persistentTopic);
+                break;
+            default:
+                break;
         }
     }
 
@@ -129,8 +141,12 @@ public class BacklogQuotaManager {
         long backlogSize = mLedger.getEstimatedBacklogSize();
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] target size is [{}] for quota limit [{}], backlog size is [{}]", persistentTopic.getName(),
-                    targetSize, targetSize / reductionFactor, backlogSize);
+            log.debug(
+                    "[{}] target size is [{}] for quota limit [{}], backlog size is [{}]",
+                    persistentTopic.getName(),
+                    targetSize,
+                    targetSize / reductionFactor,
+                    backlogSize);
         }
         ManagedCursor previousSlowestConsumer = null;
         while (backlogSize > targetSize) {
@@ -146,8 +162,12 @@ public class BacklogQuotaManager {
             double messageSkipFactor = ((backlogSize - targetSize) / backlogSize);
 
             if (slowestConsumer == previousSlowestConsumer) {
-                log.info("[{}] Cursors not progressing, target size is [{}] for quota limit [{}], backlog size is [{}]",
-                        persistentTopic.getName(), targetSize, targetSize / reductionFactor, backlogSize);
+                log.info(
+                        "[{}] Cursors not progressing, target size is [{}] for quota limit [{}], backlog size is [{}]",
+                        persistentTopic.getName(),
+                        targetSize,
+                        targetSize / reductionFactor,
+                        backlogSize);
                 break;
             }
 
@@ -164,21 +184,32 @@ public class BacklogQuotaManager {
                 }
                 // Skip messages on the slowest consumer
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Skipping [{}] messages on slowest consumer [{}] having backlog entries : [{}]",
-                            persistentTopic.getName(), messagesToSkip, slowestConsumer.getName(), entriesInBacklog);
+                    log.debug(
+                            "[{}] Skipping [{}] messages on slowest consumer [{}] having backlog entries : [{}]",
+                            persistentTopic.getName(),
+                            messagesToSkip,
+                            slowestConsumer.getName(),
+                            entriesInBacklog);
                 }
                 slowestConsumer.skipEntries(messagesToSkip, IndividualDeletedEntries.Include);
             } catch (Exception e) {
-                log.error("[{}] Error skipping [{}] messages from slowest consumer [{}]", persistentTopic.getName(),
-                        messagesToSkip, slowestConsumer.getName(), e);
+                log.error(
+                        "[{}] Error skipping [{}] messages from slowest consumer [{}]",
+                        persistentTopic.getName(),
+                        messagesToSkip,
+                        slowestConsumer.getName(),
+                        e);
             }
 
             // Make sure that unconsumed size is updated every time when we skip the messages.
             backlogSize = mLedger.getEstimatedBacklogSize();
             previousSlowestConsumer = slowestConsumer;
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Updated unconsumed size = [{}]. skipFactor: [{}]", persistentTopic.getName(),
-                        backlogSize, messageSkipFactor);
+                log.debug(
+                        "[{}] Updated unconsumed size = [{}]. skipFactor: [{}]",
+                        persistentTopic.getName(),
+                        backlogSize,
+                        messageSkipFactor);
             }
         }
     }
@@ -191,8 +222,8 @@ public class BacklogQuotaManager {
      * @param quota
      *            Backlog quota set for the topic
      */
-    private void dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota,
-                                         boolean preciseTimeBasedBacklogQuotaCheck) {
+    private void dropBacklogForTimeLimit(
+            PersistentTopic persistentTopic, BacklogQuota quota, boolean preciseTimeBasedBacklogQuotaCheck) {
         // If enabled precise time based backlog quota check, will expire message based on the timeBaseQuota
         if (preciseTimeBasedBacklogQuotaCheck) {
             // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
@@ -202,22 +233,28 @@ public class BacklogQuotaManager {
                 log.debug("[{}] target backlog expire time is [{}]", persistentTopic.getName(), target);
             }
 
-            persistentTopic.getSubscriptions().forEach((__, subscription) ->
-                    subscription.getExpiryMonitor().expireMessages(target)
-            );
+            persistentTopic.getSubscriptions().forEach((__, subscription) -> subscription
+                    .getExpiryMonitor()
+                    .expireMessages(target));
         } else {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
-            Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
+            Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger())
+                    .getClock()
+                    .millis();
             ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
             try {
                 for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
-                                slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
+                        log.debug(
+                                "[{}] slowest consumer mark delete position is [{}], read position is [{}]",
+                                slowestConsumer.getName(),
+                                oldestPosition,
+                                slowestConsumer.getReadPosition());
                     }
-                    ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
+                    ManagedLedgerInfo.LedgerInfo ledgerInfo =
+                            mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
                     if (ledgerInfo == null) {
                         PositionImpl nextPosition =
                                 PositionImpl.get(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
@@ -238,8 +275,11 @@ public class BacklogQuotaManager {
                     break;
                 }
             } catch (Exception e) {
-                log.error("[{}] Error resetting cursor for slowest consumer [{}]", persistentTopic.getName(),
-                        mLedger.getSlowestConsumer().getName(), e);
+                log.error(
+                        "[{}] Error resetting cursor for slowest consumer [{}]",
+                        persistentTopic.getName(),
+                        mLedger.getSlowestConsumer().getName(),
+                        e);
             }
         }
     }
@@ -255,17 +295,23 @@ public class BacklogQuotaManager {
         Map<String, Producer> producers = persistentTopic.getProducers();
 
         producers.values().forEach(producer -> {
-            log.info("Producer [{}] has exceeded backlog quota on topic [{}]. Disconnecting producer",
-                    producer.getProducerName(), persistentTopic.getName());
+            log.info(
+                    "Producer [{}] has exceeded backlog quota on topic [{}]. Disconnecting producer",
+                    producer.getProducerName(),
+                    persistentTopic.getName());
             futures.add(producer.disconnect());
         });
 
-        FutureUtil.waitForAll(futures).thenRun(() -> {
-            log.info("All producers on topic [{}] are disconnected", persistentTopic.getName());
-        }).exceptionally(exception -> {
-            log.error("Error in disconnecting producers on topic [{}] [{}]", persistentTopic.getName(), exception);
-            return null;
-
-        });
+        FutureUtil.waitForAll(futures)
+                .thenRun(() -> {
+                    log.info("All producers on topic [{}] are disconnected", persistentTopic.getName());
+                })
+                .exceptionally(exception -> {
+                    log.error(
+                            "Error in disconnecting producers on topic [{}] [{}]",
+                            persistentTopic.getName(),
+                            exception);
+                    return null;
+                });
     }
 }

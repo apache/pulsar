@@ -69,8 +69,8 @@ public class WorkerUtilsTest {
 
         Producer<byte[]> p = null;
         try {
-            p = WorkerUtils
-                    .createExclusiveProducerWithRetry(pulsarClient, "test-topic", "test-producer", () -> true, 0);
+            p = WorkerUtils.createExclusiveProducerWithRetry(
+                    pulsarClient, "test-topic", "test-producer", () -> true, 0);
         } catch (WorkerUtils.NotLeaderAnymore notLeaderAnymore) {
             fail();
         }
@@ -91,17 +91,21 @@ public class WorkerUtilsTest {
 
         AtomicInteger i = new AtomicInteger();
         try {
-            WorkerUtils.createExclusiveProducerWithRetry(pulsarClient, "test-topic", "test-producer",
+            WorkerUtils.createExclusiveProducerWithRetry(
+                    pulsarClient,
+                    "test-topic",
+                    "test-producer",
                     new Supplier<Boolean>() {
 
-                @Override
-                public Boolean get() {
-                    if (i.getAndIncrement() < 6) {
-                        return true;
-                    }
-                    return false;
-                }
-            }, 0);
+                        @Override
+                        public Boolean get() {
+                            if (i.getAndIncrement() < 6) {
+                                return true;
+                            }
+                            return false;
+                        }
+                    },
+                    0);
             fail();
         } catch (WorkerUtils.NotLeaderAnymore notLeaderAnymore) {
 
@@ -118,8 +122,8 @@ public class WorkerUtilsTest {
         DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(config);
 
         // Verify the outcome.
-        assertEquals(dlogConf.getString("bkc.testKey"), "fakeValue",
-                "The bookkeeper client config mapping should apply.");
+        assertEquals(
+                dlogConf.getString("bkc.testKey"), "fakeValue", "The bookkeeper client config mapping should apply.");
     }
 
     @Test

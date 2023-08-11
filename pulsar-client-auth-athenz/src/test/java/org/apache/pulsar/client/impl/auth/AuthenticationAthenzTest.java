@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import static org.apache.pulsar.common.util.Codec.encode;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import org.testng.annotations.Test;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import static org.apache.pulsar.common.util.Codec.encode;
-import org.testng.annotations.BeforeClass;
-
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yahoo.athenz.auth.util.Crypto;
+import com.yahoo.athenz.zts.RoleToken;
+import com.yahoo.athenz.zts.ZTSClient;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -38,14 +39,10 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yahoo.athenz.auth.util.Crypto;
-import com.yahoo.athenz.zts.RoleToken;
-import com.yahoo.athenz.zts.ZTSClient;
-
 import lombok.Cleanup;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 public class AuthenticationAthenzTest {
 
@@ -59,20 +56,21 @@ public class AuthenticationAthenzTest {
         }
 
         @Override
-        public RoleToken getRoleToken(String domainName, String roleName, Integer minExpiryTime, Integer maxExpiryTime,
-                boolean ignoreCache) {
+        public RoleToken getRoleToken(
+                String domainName, String roleName, Integer minExpiryTime, Integer maxExpiryTime, boolean ignoreCache) {
             List<String> roles = new ArrayList<String>() {
                 {
                     add("test_role");
                 }
             };
             com.yahoo.athenz.auth.token.RoleToken roleToken = new com.yahoo.athenz.auth.token.RoleToken.Builder(
-                    "Z1", domainName, roles).principal(String.format("%s.%s", TENANT_DOMAIN, TENANT_SERVICE))
-                            .build();
+                            "Z1", domainName, roles)
+                    .principal(String.format("%s.%s", TENANT_DOMAIN, TENANT_SERVICE))
+                    .build();
 
             try {
-                String ztsPrivateKey = new String(
-                        Files.readAllBytes(Paths.get("./src/test/resources/zts_private.pem")));
+                String ztsPrivateKey =
+                        new String(Files.readAllBytes(Paths.get("./src/test/resources/zts_private.pem")));
                 roleToken.sign(ztsPrivateKey);
             } catch (IOException e) {
                 return null;
@@ -99,15 +97,15 @@ public class AuthenticationAthenzTest {
     @Test
     public void testGetAuthData() throws Exception {
 
-        com.yahoo.athenz.auth.token.RoleToken roleToken = new com.yahoo.athenz.auth.token.RoleToken(
-                auth.getAuthData().getCommandData());
+        com.yahoo.athenz.auth.token.RoleToken roleToken =
+                new com.yahoo.athenz.auth.token.RoleToken(auth.getAuthData().getCommandData());
         assertEquals(roleToken.getPrincipal(), String.format("%s.%s", TENANT_DOMAIN, TENANT_SERVICE));
 
         int count = 0;
         for (Map.Entry<String, String> header : auth.getAuthData().getHttpHeaders()) {
             if (header.getKey().equals(ZTSClient.getHeader())) {
-                com.yahoo.athenz.auth.token.RoleToken roleTokenFromHeader = new com.yahoo.athenz.auth.token.RoleToken(
-                        header.getValue());
+                com.yahoo.athenz.auth.token.RoleToken roleTokenFromHeader =
+                        new com.yahoo.athenz.auth.token.RoleToken(header.getValue());
                 assertEquals(roleTokenFromHeader.getPrincipal(), String.format("%s.%s", TENANT_DOMAIN, TENANT_SERVICE));
                 count++;
             }
@@ -130,12 +128,13 @@ public class AuthenticationAthenzTest {
 
             // load privatekey and encode it using base64
             ObjectMapper jsonMapper = ObjectMapperFactory.create();
-            Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
-                    new TypeReference<HashMap<String, String>>() {
-                    });
+            Map<String, String> authParamsMap =
+                    jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() {});
             String privateKeyContents = new String(Files.readAllBytes(Paths.get(authParamsMap.get("privateKey"))));
-            authParamsMap.put("privateKey", "data:application/x-pem-file;base64,"
-                    + new String(Base64.getEncoder().encode(privateKeyContents.getBytes())));
+            authParamsMap.put(
+                    "privateKey",
+                    "data:application/x-pem-file;base64,"
+                            + new String(Base64.getEncoder().encode(privateKeyContents.getBytes())));
 
             AuthenticationAthenz authBase64 = new AuthenticationAthenz();
             authBase64.configure(jsonMapper.writeValueAsString(authParamsMap));
@@ -157,11 +156,11 @@ public class AuthenticationAthenzTest {
 
             // load privatekey and encode it using url encoding
             ObjectMapper jsonMapper = ObjectMapperFactory.create();
-            Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
-                    new TypeReference<HashMap<String, String>>() {
-                    });
+            Map<String, String> authParamsMap =
+                    jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() {});
             String privateKeyContents = new String(Files.readAllBytes(Paths.get(authParamsMap.get("privateKey"))));
-            authParamsMap.put("privateKey",
+            authParamsMap.put(
+                    "privateKey",
                     "data:application/x-pem-file," + encode(privateKeyContents).replace("+", "%20"));
 
             AuthenticationAthenz authEncode = new AuthenticationAthenz();
@@ -179,8 +178,7 @@ public class AuthenticationAthenzTest {
 
     @Test
     public void testCopperArgos() throws Exception {
-        @Cleanup
-        AuthenticationAthenz caAuth = new AuthenticationAthenz();
+        @Cleanup AuthenticationAthenz caAuth = new AuthenticationAthenz();
         Field ztsClientField = caAuth.getClass().getDeclaredField("ztsClient");
         ztsClientField.setAccessible(true);
         ztsClientField.set(caAuth, new MockZTSClient("dummy"));
@@ -247,7 +245,8 @@ public class AuthenticationAthenzTest {
 
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+        Map<String, String> authParamsMap =
+                jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() {});
 
         authParamsMap.put("autoPrefetchEnabled", "true");
         AuthenticationAthenz auth1 = new AuthenticationAthenz();
@@ -271,7 +270,8 @@ public class AuthenticationAthenzTest {
 
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+        Map<String, String> authParamsMap =
+                jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() {});
 
         authParamsMap.put("roleHeader", "");
         AuthenticationAthenz auth1 = new AuthenticationAthenz();

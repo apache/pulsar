@@ -26,16 +26,18 @@ import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
  */
 public interface BundlesData {
     List<String> getBoundaries();
+
     int getNumBundles();
 
     interface Builder {
         Builder boundaries(List<String> boundaries);
+
         Builder numBundles(int numBundles);
+
         BundlesData build();
     }
 
     static Builder builder() {
         return BundlesDataImpl.builder();
     }
-
 }

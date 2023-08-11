@@ -41,16 +41,17 @@ public class NetSslContextBuilder extends SslContextAutoRefreshBuilder<SSLContex
     protected final String tlsTrustStorePassword;
     protected final FileModifiedTimeUpdater tlsTrustStore;
 
-    public NetSslContextBuilder(String sslProviderString,
-                                String keyStoreTypeString,
-                                String keyStore,
-                                String keyStorePasswordPath,
-                                boolean allowInsecureConnection,
-                                String trustStoreTypeString,
-                                String trustStore,
-                                String trustStorePasswordPath,
-                                boolean requireTrustedClientCertOnConnect,
-                                long certRefreshInSec) {
+    public NetSslContextBuilder(
+            String sslProviderString,
+            String keyStoreTypeString,
+            String keyStore,
+            String keyStorePasswordPath,
+            boolean allowInsecureConnection,
+            String trustStoreTypeString,
+            String trustStore,
+            String trustStorePasswordPath,
+            boolean requireTrustedClientCertOnConnect,
+            long certRefreshInSec) {
         super(certRefreshInSec);
 
         this.tlsAllowInsecureConnection = allowInsecureConnection;
@@ -67,12 +68,16 @@ public class NetSslContextBuilder extends SslContextAutoRefreshBuilder<SSLContex
     }
 
     @Override
-    public synchronized SSLContext update()
-            throws GeneralSecurityException, IOException {
-        this.sslContext = KeyStoreSSLContext.createServerSslContext(tlsProvider,
-                tlsKeyStoreType, tlsKeyStore.getFileName(), tlsKeyStorePassword,
+    public synchronized SSLContext update() throws GeneralSecurityException, IOException {
+        this.sslContext = KeyStoreSSLContext.createServerSslContext(
+                tlsProvider,
+                tlsKeyStoreType,
+                tlsKeyStore.getFileName(),
+                tlsKeyStorePassword,
                 tlsAllowInsecureConnection,
-                tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
+                tlsTrustStoreType,
+                tlsTrustStore.getFileName(),
+                tlsTrustStorePassword,
                 tlsRequireTrustedClientCertOnConnect);
         return this.sslContext;
     }
@@ -84,7 +89,6 @@ public class NetSslContextBuilder extends SslContextAutoRefreshBuilder<SSLContex
 
     @Override
     public boolean needUpdate() {
-        return  tlsKeyStore.checkAndRefresh()
-                || tlsTrustStore.checkAndRefresh();
+        return tlsKeyStore.checkAndRefresh() || tlsTrustStore.checkAndRefresh();
     }
 }

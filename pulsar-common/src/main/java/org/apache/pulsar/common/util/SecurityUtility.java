@@ -95,13 +95,11 @@ public class SecurityUtility {
      *  2. try get from Nar.
      */
     public static Provider getProvider() {
-        boolean isProviderInstalled =
-                Security.getProvider(BC) != null || Security.getProvider(BC_FIPS) != null;
+        boolean isProviderInstalled = Security.getProvider(BC) != null || Security.getProvider(BC_FIPS) != null;
 
         if (isProviderInstalled) {
-            Provider provider = Security.getProvider(BC) != null
-                    ? Security.getProvider(BC)
-                    : Security.getProvider(BC_FIPS);
+            Provider provider =
+                    Security.getProvider(BC) != null ? Security.getProvider(BC) : Security.getProvider(BC_FIPS);
             if (log.isDebugEnabled()) {
                 log.debug("Already instantiated Bouncy Castle provider {}", provider.getName());
             }
@@ -127,18 +125,24 @@ public class SecurityUtility {
             if (e instanceof ClassNotFoundException) {
                 log.warn("Conscrypt isn't available in the classpath. Using JDK default security provider.");
             } else if (e.getCause() instanceof UnsatisfiedLinkError) {
-                log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
-                        System.getProperty("os.name"), System.getProperty("os.arch"));
+                log.warn(
+                        "Conscrypt isn't available for {} {}. Using JDK default security provider.",
+                        System.getProperty("os.name"),
+                        System.getProperty("os.arch"));
             } else {
-                log.warn("Conscrypt isn't available. Using JDK default security provider."
-                        + " Cause : {}, Reason : {}", e.getCause(), e.getMessage());
+                log.warn(
+                        "Conscrypt isn't available. Using JDK default security provider." + " Cause : {}, Reason : {}",
+                        e.getCause(),
+                        e.getMessage());
             }
             return null;
         }
 
         Provider provider;
         try {
-            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
+            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS)
+                    .getDeclaredConstructor()
+                    .newInstance();
         } catch (ReflectiveOperationException e) {
             log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
             return null;
@@ -164,12 +168,11 @@ public class SecurityUtility {
         try {
             HostnameVerifier hostnameVerifier = new TlsHostnameVerifier();
             Object wrappedHostnameVerifier = conscryptClazz
-                    .getMethod("wrapHostnameVerifier",
-                            new Class[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
-            Method setDefaultHostnameVerifierMethod =
-                    conscryptClazz
-                            .getMethod("setDefaultHostnameVerifier",
-                                    new Class[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
+                    .getMethod("wrapHostnameVerifier", new Class[] {HostnameVerifier.class})
+                    .invoke(null, hostnameVerifier);
+            Method setDefaultHostnameVerifierMethod = conscryptClazz.getMethod(
+                    "setDefaultHostnameVerifier",
+                    new Class[] {Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
             setDefaultHostnameVerifierMethod.invoke(null, wrappedHostnameVerifier);
         } catch (Exception e) {
             log.warn("Unable to set default hostname verifier for Conscrypt", e);
@@ -192,8 +195,10 @@ public class SecurityUtility {
             // prefer non FIPS, for backward compatibility concern.
             clazz = Class.forName(BC_NON_FIPS_PROVIDER_CLASS);
         } catch (ClassNotFoundException cnf) {
-            log.warn("Not able to get Bouncy Castle provider: {}, try to get FIPS provider {}",
-                    BC_NON_FIPS_PROVIDER_CLASS, BC_FIPS_PROVIDER_CLASS);
+            log.warn(
+                    "Not able to get Bouncy Castle provider: {}, try to get FIPS provider {}",
+                    BC_NON_FIPS_PROVIDER_CLASS,
+                    BC_FIPS_PROVIDER_CLASS);
             // attempt to use the FIPS provider.
             clazz = Class.forName(BC_FIPS_PROVIDER_CLASS);
         }
@@ -206,23 +211,36 @@ public class SecurityUtility {
         return provider;
     }
 
-    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates,
-                                              String providerName)
+    public static SSLContext createSslContext(
+            boolean allowInsecureConnection, Certificate[] trustCertificates, String providerName)
             throws GeneralSecurityException {
         return createSslContext(allowInsecureConnection, trustCertificates, null, null, providerName);
     }
 
-    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
-                                                            String trustCertsFilePath, Set<String> ciphers,
-                                                            Set<String> protocols)
+    public static SslContext createNettySslContextForClient(
+            SslProvider sslProvider,
+            boolean allowInsecureConnection,
+            String trustCertsFilePath,
+            Set<String> ciphers,
+            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        return createNettySslContextForClient(sslProvider, allowInsecureConnection, trustCertsFilePath,
+        return createNettySslContextForClient(
+                sslProvider,
+                allowInsecureConnection,
+                trustCertsFilePath,
                 (Certificate[]) null,
-                (PrivateKey) null, ciphers, protocols);
+                (PrivateKey) null,
+                ciphers,
+                protocols);
     }
 
-    public static SSLContext createSslContext(boolean allowInsecureConnection, String trustCertsFilePath,
-            String certFilePath, String keyFilePath, String providerName) throws GeneralSecurityException {
+    public static SSLContext createSslContext(
+            boolean allowInsecureConnection,
+            String trustCertsFilePath,
+            String certFilePath,
+            String keyFilePath,
+            String providerName)
+            throws GeneralSecurityException {
         X509Certificate[] trustCertificates = loadCertificatesFromPemFile(trustCertsFilePath);
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
@@ -244,12 +262,15 @@ public class SecurityUtility {
      * @throws FileNotFoundException
      * @throws IOException
      */
-    public static SslContext createAutoRefreshSslContextForClient(SslProvider sslProvider,
-                                                                  boolean allowInsecureConnection,
-                                                                  String trustCertsFilePath, String certFilePath,
-                                                                  String keyFilePath, String sslContextAlgorithm,
-                                                                  int refreshDurationSec,
-                                                                  ScheduledExecutorService executor)
+    public static SslContext createAutoRefreshSslContextForClient(
+            SslProvider sslProvider,
+            boolean allowInsecureConnection,
+            String trustCertsFilePath,
+            String certFilePath,
+            String keyFilePath,
+            String sslContextAlgorithm,
+            int refreshDurationSec,
+            ScheduledExecutorService executor)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         KeyManagerProxy keyManager = new KeyManagerProxy(certFilePath, keyFilePath, refreshDurationSec, executor);
         SslContextBuilder sslContexBuilder = SslContextBuilder.forClient().sslProvider(sslProvider);
@@ -266,42 +287,62 @@ public class SecurityUtility {
         return sslContexBuilder.build();
     }
 
-    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
-                                                            String trustCertsFilePath,
-                                                            String certFilePath, String keyFilePath,
-                                                            Set<String> ciphers,
-                                                            Set<String> protocols)
+    public static SslContext createNettySslContextForClient(
+            SslProvider sslProvider,
+            boolean allowInsecureConnection,
+            String trustCertsFilePath,
+            String certFilePath,
+            String keyFilePath,
+            Set<String> ciphers,
+            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
-        return createNettySslContextForClient(sslProvider, allowInsecureConnection, trustCertsFilePath, certificates,
-                privateKey, ciphers, protocols);
+        return createNettySslContextForClient(
+                sslProvider, allowInsecureConnection, trustCertsFilePath, certificates, privateKey, ciphers, protocols);
     }
 
-    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
-                                                            String trustCertsFilePath,
-                                                            Certificate[] certificates, PrivateKey privateKey,
-                                                            Set<String> ciphers,
-                                                            Set<String> protocols)
+    public static SslContext createNettySslContextForClient(
+            SslProvider sslProvider,
+            boolean allowInsecureConnection,
+            String trustCertsFilePath,
+            Certificate[] certificates,
+            PrivateKey privateKey,
+            Set<String> ciphers,
+            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
 
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
             try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
-                return createNettySslContextForClient(sslProvider, allowInsecureConnection, trustCertsStream,
+                return createNettySslContextForClient(
+                        sslProvider,
+                        allowInsecureConnection,
+                        trustCertsStream,
                         certificates,
-                        privateKey, ciphers, protocols);
+                        privateKey,
+                        ciphers,
+                        protocols);
             }
         } else {
-            return createNettySslContextForClient(sslProvider, allowInsecureConnection, (InputStream) null,
+            return createNettySslContextForClient(
+                    sslProvider,
+                    allowInsecureConnection,
+                    (InputStream) null,
                     certificates,
-                    privateKey, ciphers, protocols);
+                    privateKey,
+                    ciphers,
+                    protocols);
         }
     }
 
-    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
-                                                            InputStream trustCertsStream, Certificate[] certificates,
-                                                            PrivateKey privateKey, Set<String> ciphers,
-                                                            Set<String> protocols)
+    public static SslContext createNettySslContextForClient(
+            SslProvider sslProvider,
+            boolean allowInsecureConnection,
+            InputStream trustCertsStream,
+            Certificate[] certificates,
+            PrivateKey privateKey,
+            Set<String> ciphers,
+            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         SslContextBuilder builder = SslContextBuilder.forClient().sslProvider(sslProvider);
         setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
@@ -311,17 +352,21 @@ public class SecurityUtility {
         return builder.build();
     }
 
-    public static SslContext createNettySslContextForServer(SslProvider sslProvider, boolean allowInsecureConnection,
-                                                            String trustCertsFilePath,
-                                                            String certFilePath, String keyFilePath,
-                                                            Set<String> ciphers, Set<String> protocols,
-                                                            boolean requireTrustedClientCertOnConnect)
+    public static SslContext createNettySslContextForServer(
+            SslProvider sslProvider,
+            boolean allowInsecureConnection,
+            String trustCertsFilePath,
+            String certFilePath,
+            String keyFilePath,
+            Set<String> ciphers,
+            Set<String> protocols,
+            boolean requireTrustedClientCertOnConnect)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
 
-        SslContextBuilder builder =
-                SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates).sslProvider(sslProvider);
+        SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates)
+                .sslProvider(sslProvider);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
@@ -336,14 +381,21 @@ public class SecurityUtility {
         return builder.build();
     }
 
-    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertficates,
-                                              Certificate[] certificates, PrivateKey privateKey)
+    public static SSLContext createSslContext(
+            boolean allowInsecureConnection,
+            Certificate[] trustCertficates,
+            Certificate[] certificates,
+            PrivateKey privateKey)
             throws GeneralSecurityException {
         return createSslContext(allowInsecureConnection, trustCertficates, certificates, privateKey, null);
     }
 
-    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertficates,
-                                              Certificate[] certificates, PrivateKey privateKey, String providerName)
+    public static SSLContext createSslContext(
+            boolean allowInsecureConnection,
+            Certificate[] trustCertficates,
+            Certificate[] certificates,
+            PrivateKey privateKey,
+            String providerName)
             throws GeneralSecurityException {
         KeyStoreHolder ksh = new KeyStoreHolder();
         TrustManager[] trustManagers = null;
@@ -353,8 +405,7 @@ public class SecurityUtility {
         trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, provider);
         keyManagers = setupKeyManager(ksh, privateKey, certificates);
 
-        SSLContext sslCtx = provider != null ? SSLContext.getInstance("TLS", provider)
-                : SSLContext.getInstance("TLS");
+        SSLContext sslCtx = provider != null ? SSLContext.getInstance("TLS", provider) : SSLContext.getInstance("TLS");
         sslCtx.init(keyManagers, trustManagers, new SecureRandom());
         return sslCtx;
     }
@@ -371,8 +422,11 @@ public class SecurityUtility {
         return keyManagers;
     }
 
-    private static TrustManager[] setupTrustCerts(KeyStoreHolder ksh, boolean allowInsecureConnection,
-                                                  Certificate[] trustCertficates, Provider securityProvider)
+    private static TrustManager[] setupTrustCerts(
+            KeyStoreHolder ksh,
+            boolean allowInsecureConnection,
+            Certificate[] trustCertficates,
+            Provider securityProvider)
             throws NoSuchAlgorithmException, KeyStoreException {
         TrustManager[] trustManagers;
         if (allowInsecureConnection) {
@@ -422,16 +476,19 @@ public class SecurityUtility {
         if (trustManager.getClass().getName().equals("org.conscrypt.TrustManagerImpl")) {
             try {
                 Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
-                Object hostnameVerifier = conscryptClazz.getMethod("getHostnameVerifier",
-                        new Class[]{TrustManager.class}).invoke(null, trustManager);
+                Object hostnameVerifier = conscryptClazz
+                        .getMethod("getHostnameVerifier", new Class[] {TrustManager.class})
+                        .invoke(null, trustManager);
                 if (hostnameVerifier == null) {
-                    Object defaultHostnameVerifier = conscryptClazz.getMethod("getDefaultHostnameVerifier",
-                            new Class[]{TrustManager.class}).invoke(null, trustManager);
+                    Object defaultHostnameVerifier = conscryptClazz
+                            .getMethod("getDefaultHostnameVerifier", new Class[] {TrustManager.class})
+                            .invoke(null, trustManager);
                     if (defaultHostnameVerifier != null) {
-                        conscryptClazz.getMethod("setHostnameVerifier", new Class[]{
-                                TrustManager.class,
-                                Class.forName("org.conscrypt.ConscryptHostnameVerifier")
-                        }).invoke(null, trustManager, defaultHostnameVerifier);
+                        conscryptClazz
+                                .getMethod("setHostnameVerifier", new Class[] {
+                                    TrustManager.class, Class.forName("org.conscrypt.ConscryptHostnameVerifier")
+                                })
+                                .invoke(null, trustManager, defaultHostnameVerifier);
                     }
                 }
             } catch (ReflectiveOperationException e) {
@@ -456,7 +513,7 @@ public class SecurityUtility {
         return certificates;
     }
 
-    public static X509Certificate[] loadCertificatesFromPemStream(InputStream inStream) throws KeyManagementException  {
+    public static X509Certificate[] loadCertificatesFromPemStream(InputStream inStream) throws KeyManagementException {
         if (inStream == null) {
             return null;
         }
@@ -523,8 +580,9 @@ public class SecurityUtility {
         return privateKey;
     }
 
-    private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
-            InputStream trustCertsStream) throws IOException, FileNotFoundException {
+    private static void setupTrustCerts(
+            SslContextBuilder builder, boolean allowInsecureConnection, InputStream trustCertsStream)
+            throws IOException, FileNotFoundException {
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
@@ -536,8 +594,8 @@ public class SecurityUtility {
         }
     }
 
-    private static void setupKeyManager(SslContextBuilder builder, PrivateKey privateKey,
-            X509Certificate[] certificates) {
+    private static void setupKeyManager(
+            SslContextBuilder builder, PrivateKey privateKey, X509Certificate[] certificates) {
         builder.keyManager(privateKey, (X509Certificate[]) certificates);
     }
 
@@ -553,8 +611,8 @@ public class SecurityUtility {
         }
     }
 
-    private static void setupClientAuthentication(SslContextBuilder builder,
-        boolean requireTrustedClientCertOnConnect) {
+    private static void setupClientAuthentication(
+            SslContextBuilder builder, boolean requireTrustedClientCertOnConnect) {
         if (requireTrustedClientCertOnConnect) {
             builder.clientAuth(ClientAuth.REQUIRE);
         } else {

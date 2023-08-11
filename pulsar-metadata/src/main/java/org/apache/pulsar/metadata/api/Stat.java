@@ -28,8 +28,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class Stat {
 
-    public Stat(String path, long version, long creationTimestamp, long modificationTimestamp, boolean ephemeral,
-                boolean createdBySelf) {
+    public Stat(
+            String path,
+            long version,
+            long creationTimestamp,
+            long modificationTimestamp,
+            boolean ephemeral,
+            boolean createdBySelf) {
         this(path, version, creationTimestamp, modificationTimestamp, ephemeral, createdBySelf, version == 0);
     }
 

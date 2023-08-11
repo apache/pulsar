@@ -39,8 +39,10 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     @Override
     public void initialize(PulsarService pulsarService) {
         ServiceConfiguration config = pulsarService.getConfig();
-        this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
-                config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
+        this.timer = new HashedWheelTimer(
+                new DefaultThreadFactory("pulsar-delayed-delivery"),
+                config.getDelayedDeliveryTickTimeMillis(),
+                TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
         this.isDelayedDeliveryDeliverAtTimeStrict = config.isDelayedDeliveryDeliverAtTimeStrict();
         this.fixedDelayDetectionLookahead = config.getDelayedDeliveryFixedDelayDetectionLookahead();
@@ -48,8 +50,8 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
 
     @Override
     public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+        return new InMemoryDelayedDeliveryTracker(
+                dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
     }
 
     @Override
@@ -58,5 +60,4 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
             timer.stop();
         }
     }
-
 }

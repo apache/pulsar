@@ -37,5 +37,4 @@ public interface LoadDataReporter<T> {
      * Report the load data to load data store async.
      */
     CompletableFuture<Void> reportAsync(boolean force);
-
 }

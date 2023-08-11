@@ -56,8 +56,8 @@ public interface MetaStore {
      *            whether the managed ledger metadata should be created if it doesn't exist already
      * @throws MetaStoreException
      */
-    default void getManagedLedgerInfo(String ledgerName, boolean createIfMissing,
-                              MetaStoreCallback<ManagedLedgerInfo> callback) {
+    default void getManagedLedgerInfo(
+            String ledgerName, boolean createIfMissing, MetaStoreCallback<ManagedLedgerInfo> callback) {
         getManagedLedgerInfo(ledgerName, createIfMissing, null, callback);
     }
 
@@ -72,8 +72,11 @@ public interface MetaStore {
      *            ledger properties
      * @throws MetaStoreException
      */
-    void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, Map<String, String> properties,
-                              MetaStoreCallback<ManagedLedgerInfo> callback);
+    void getManagedLedgerInfo(
+            String ledgerName,
+            boolean createIfMissing,
+            Map<String, String> properties,
+            MetaStoreCallback<ManagedLedgerInfo> callback);
 
     /**
      * Watch the metadata used by the ManagedLedger.
@@ -99,8 +102,7 @@ public interface MetaStore {
      * @param callback
      *            callback object
      */
-    void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat stat,
-            MetaStoreCallback<Void> callback);
+    void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat stat, MetaStoreCallback<Void> callback);
 
     /**
      * Get the list of cursors registered on a ManagedLedger.
@@ -133,8 +135,8 @@ public interface MetaStore {
      *            the callback
      * @throws MetaStoreException
      */
-    void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
-            MetaStoreCallback<Void> callback);
+    void asyncUpdateCursorInfo(
+            String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat, MetaStoreCallback<Void> callback);
 
     /**
      * Drop the persistent state of a consumer from the metadata store.
@@ -175,7 +177,6 @@ public interface MetaStore {
      *         if the operation succeeds.
      */
     CompletableFuture<Boolean> asyncExists(String ledgerName);
-
 
     /**
      * Get managed ledger properties from meta store.

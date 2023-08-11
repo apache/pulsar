@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
  * Test the implementation of {@link KafkaConnectSource}.
  */
 @Slf4j
-public class KafkaConnectSourceTest extends ProducerConsumerBase  {
+public class KafkaConnectSourceTest extends ProducerConsumerBase {
 
     private String offsetTopicName;
     // The topic to publish data to, for kafkaSource
@@ -66,9 +66,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         tempFile.deleteOnExit();
 
         this.context = mock(SourceContext.class);
-        this.client = PulsarClient.builder()
-                .serviceUrl(brokerUrl.toString())
-                .build();
+        this.client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         when(context.getPulsarClient()).thenReturn(this.client);
     }
 
@@ -85,8 +83,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     @Test
     public void testOpenAndReadConnectorConfig() throws Exception {
         Map<String, Object> config = getConfig();
-        config.put(AbstractKafkaConnectSource.CONNECTOR_CLASS,
-                "org.apache.kafka.connect.file.FileStreamSourceConnector");
+        config.put(
+                AbstractKafkaConnectSource.CONNECTOR_CLASS, "org.apache.kafka.connect.file.FileStreamSourceConnector");
 
         testOpenAndReadTask(config);
     }
@@ -95,8 +93,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     public void testOpenAndReadTaskDirect() throws Exception {
         Map<String, Object> config = getConfig();
 
-        config.put(TaskConfig.TASK_CLASS_CONFIG,
-                "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
 
         testOpenAndReadTask(config);
     }
@@ -104,16 +101,20 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     private Map<String, Object> getConfig() {
         Map<String, Object> config = new HashMap<>();
 
-        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG,
-                "org.apache.kafka.connect.storage.StringConverter");
-        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG,
+        config.put(
+                PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
+        config.put(
+                PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG,
                 "org.apache.kafka.connect.storage.StringConverter");
 
         config.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
 
         config.put(FileStreamSourceConnector.TOPIC_CONFIG, topicName);
-        config.put(FileStreamSourceConnector.FILE_CONFIG, tempFile.getAbsoluteFile().toString());
-        config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG,
+        config.put(
+                FileStreamSourceConnector.FILE_CONFIG,
+                tempFile.getAbsoluteFile().toString());
+        config.put(
+                FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG,
                 String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
         return config;
     }

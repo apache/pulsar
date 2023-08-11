@@ -31,11 +31,10 @@ import org.apache.solr.common.SolrInputDocument;
  * A simple Solr sink, which interprets input Record in generic record.
  */
 @Connector(
-    name = "solr",
-    type = IOType.SINK,
-    help = "The SolrGenericRecordSink is used for moving messages from Pulsar to Solr.",
-    configClass = SolrSinkConfig.class
-)
+        name = "solr",
+        type = IOType.SINK,
+        help = "The SolrGenericRecordSink is used for moving messages from Pulsar to Solr.",
+        configClass = SolrSinkConfig.class)
 @Slf4j
 public class SolrGenericRecordSink extends SolrAbstractSink<GenericRecord> {
     @Override

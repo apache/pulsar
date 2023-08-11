@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import com.google.common.collect.Multimap;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.policies.data.loadbalancer.*;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 
 @Test(groups = "broker")
 public class UniformLoadShedderTest {
@@ -43,7 +43,7 @@ public class UniformLoadShedderTest {
     }
 
     @Test
-    public void testMaxUnloadBundleNumPerShedding(){
+    public void testMaxUnloadBundleNumPerShedding() {
         conf.setMaxUnloadBundleNumPerShedding(2);
         int numBundles = 20;
         LoadData loadData = new LoadData();
@@ -78,7 +78,7 @@ public class UniformLoadShedderTest {
         loadData.getBrokerData().put(broker2Name, new BrokerData(broker2));
 
         Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(),2);
+        assertEquals(bundlesToUnload.size(), 2);
     }
 
     @Test
@@ -118,5 +118,4 @@ public class UniformLoadShedderTest {
         Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
     }
-
 }

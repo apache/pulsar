@@ -60,427 +60,807 @@ public class KeyValueSchemaCompatibilityCheckTest {
 
     @Test
     public void testCheckKeyValueAvroCompatibilityFull() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyValueAvroInCompatibilityFull() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyValueAvroCompatibilityBackward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
     public void testCheckKeyValueAvroInCompatibilityBackward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
     public void testCheckKeyValueAvroCompatibilityForward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyValueAvroInCompatibilityForward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyValueJsonCompatibilityFull() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyValueJsonInCompatibilityFull() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyValueJsonCompatibilityBackward() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
     public void testCheckKeyValueJsonInCompatibilityBackWard() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
     public void testCheckKeyValueJsonCompatibilityForward() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyValueJsonInCompatibilityForward() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyAvroValueJsonCompatibilityFull() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyAvroValueJsonInCompatibilityFull() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyAvroValueJsonCompatibilityBackward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
     public void testCheckKeyAvroValueJsonInCompatibilityBackward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
     public void testCheckKeyAvroValueJsonCompatibilityForward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyAvroValueJsonInCompatibilityForward() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        JSONSchema<Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         properties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyJsonValueAvroCompatibilityFull() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyJsonValueAvroInCompatibilityFull() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckKeyJsonValueAvroCompatibilityBackward() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Test
     public void testCheckKeyJsonValueAvroInCompatibilityBackward() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
-
 
     @Test
     public void testCheckKeyJsonValueAvroCompatibilityForward() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyJsonValueAvroInCompatibilityForward() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> properties = new HashMap<>();
         properties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         properties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, fooSchema).getSchemaInfo().getSchema()).props(properties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(properties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(properties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyJsonValueAvroKeyTypeInCompatibility() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> fromProperties = new HashMap<>();
         fromProperties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
         Map<String, String> toProperties = new HashMap<>();
         toProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         toProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(barSchema, barSchema).getSchemaInfo().getSchema()).props(toProperties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(fromProperties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(barSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(toProperties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckKeyJsonValueAvroValueTypeInCompatibility() {
-        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> fromProperties = new HashMap<>();
         fromProperties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
         Map<String, String> toProperties = new HashMap<>();
         toProperties.put("key.schema.type", String.valueOf(SchemaType.JSON));
         toProperties.put("value.schema.type", String.valueOf(SchemaType.JSON));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, fooSchema).getSchemaInfo().getSchema()).props(toProperties).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(fromProperties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, fooSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(toProperties)
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
     @Test
     public void testCheckPropertiesNullTypeCompatibility() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> fromProperties = new HashMap<>();
         fromProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
         Map<String, String> toProperties = new HashMap<>();
         toProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         toProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(toProperties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(fromProperties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(toProperties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckSchemaTypeNullCompatibility() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> fromProperties = new HashMap<>();
         Map<String, String> toProperties = new HashMap<>();
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(toProperties).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(fromProperties)
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .props(toProperties)
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
     @Test
     public void testCheckSchemaTypeAlwaysCompatibility() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         StringSchema stringSchema = new StringSchema();
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.STRING)
-                .data(stringSchema.getSchemaInfo().getSchema()).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).build();
-        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.STRING)
+                .data(stringSchema.getSchemaInfo().getSchema())
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .build();
+        Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
     }
 
     @Test
     public void testCheckSchemaTypeOtherCompatibility() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         StringSchema stringSchema = new StringSchema();
-        SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.STRING)
-                .data(stringSchema.getSchemaInfo().getSchema()).build();
-        SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
-                .data(KeyValueSchemaImpl.of(fooSchema, barSchema).getSchemaInfo().getSchema()).build();
-        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
+        SchemaData fromSchemaData = SchemaData.builder()
+                .type(SchemaType.STRING)
+                .data(stringSchema.getSchemaInfo().getSchema())
+                .build();
+        SchemaData toSchemaData = SchemaData.builder()
+                .type(SchemaType.KEY_VALUE)
+                .data(KeyValueSchemaImpl.of(fooSchema, barSchema)
+                        .getSchemaInfo()
+                        .getSchema())
+                .build();
+        Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE)
+                .isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
     }
-
 }

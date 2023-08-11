@@ -62,9 +62,9 @@ public class FunctionActionerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -76,17 +76,28 @@ public class FunctionActionerTest {
         doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
+        FunctionActioner actioner = new FunctionActioner(
+                workerConfig,
+                factory,
+                dlogNamespace,
+                new ConnectorsManager(workerConfig),
+                new FunctionsManager(workerConfig),
+                mock(PulsarAdmin.class));
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-1"))
                 .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+        Function.Instance instance = Function.Instance.newBuilder()
+                .setFunctionMetaData(function1)
+                .setInstanceId(0)
                 .build();
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+        doThrow(new IllegalStateException("StartupException"))
+                .when(functionRuntimeInfo)
+                .setStartupException(any());
 
         // actioner should try to download file from bk-dlogNamespace and fails with exception
         try {
@@ -103,13 +114,17 @@ public class FunctionActionerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
-        String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+        String downloadDir = this.getClass()
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .getPath();
         workerConfig.setDownloadDirectory(downloadDir);
 
         RuntimeFactory factory = mock(RuntimeFactory.class);
@@ -121,8 +136,13 @@ public class FunctionActionerTest {
         doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
+        FunctionActioner actioner = new FunctionActioner(
+                workerConfig,
+                factory,
+                dlogNamespace,
+                new ConnectorsManager(workerConfig),
+                new FunctionsManager(workerConfig),
+                mock(PulsarAdmin.class));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
@@ -156,16 +176,22 @@ public class FunctionActionerTest {
                 .setPackagePath(extraPkgPathLocation)
                 .build();
         Function.FunctionMetaData function = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-1"))
                 .setPackageLocation(packageLocation)
                 .setTransformFunctionPackageLocation(extraPackageLocation)
                 .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function).setInstanceId(0)
+        Function.Instance instance = Function.Instance.newBuilder()
+                .setFunctionMetaData(function)
+                .setInstanceId(0)
                 .build();
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+        doThrow(new IllegalStateException("StartupException"))
+                .when(functionRuntimeInfo)
+                .setStartupException(any());
 
         actioner.startFunction(functionRuntimeInfo);
     }
@@ -175,13 +201,17 @@ public class FunctionActionerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
-        String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+        String downloadDir = this.getClass()
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .getPath();
         workerConfig.setDownloadDirectory(downloadDir);
 
         RuntimeFactory factory = mock(RuntimeFactory.class);
@@ -193,19 +223,27 @@ public class FunctionActionerTest {
         doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
-
+        FunctionActioner actioner = new FunctionActioner(
+                workerConfig,
+                factory,
+                dlogNamespace,
+                new ConnectorsManager(workerConfig),
+                new FunctionsManager(workerConfig),
+                mock(PulsarAdmin.class));
 
         String pkgPathLocation = "http://invalid/my-file.jar";
         Function.FunctionMetaData functionMeta = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-1"))
+                .setPackageLocation(PackageLocationMetaData.newBuilder()
+                        .setPackagePath(pkgPathLocation)
+                        .build())
                 .build();
 
-        Function.Instance instance = Function.Instance.newBuilder()
-                .setFunctionMetaData(functionMeta).build();
+        Function.Instance instance =
+                Function.Instance.newBuilder().setFunctionMetaData(functionMeta).build();
 
         RuntimeSpawner runtimeSpawner = spy(actioner.getRuntimeSpawner(instance, "foo", "bar"));
 
@@ -234,13 +272,17 @@ public class FunctionActionerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
-        String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+        String downloadDir = this.getClass()
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .getPath();
         workerConfig.setDownloadDirectory(downloadDir);
 
         RuntimeFactory factory = mock(RuntimeFactory.class);
@@ -256,8 +298,13 @@ public class FunctionActionerTest {
         doNothing().when(packages).download(any(), any());
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), pulsarAdmin);
+        FunctionActioner actioner = new FunctionActioner(
+                workerConfig,
+                factory,
+                dlogNamespace,
+                new ConnectorsManager(workerConfig),
+                new FunctionsManager(workerConfig),
+                pulsarAdmin);
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
@@ -265,5 +312,4 @@ public class FunctionActionerTest {
         startFunction(actioner, pkgPathLocation, pkgPathLocation);
         verify(runtime, times(1)).start();
     }
-
 }

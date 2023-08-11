@@ -42,10 +42,12 @@ public class PulsarMetadataClientDriver extends AbstractMetadataDriver implement
     }
 
     @Override
-    public MetadataClientDriver initialize(ClientConfiguration clientConfiguration,
-                                           ScheduledExecutorService scheduledExecutorService,
-                                           StatsLogger statsLogger,
-                                           Optional<Object> optionalCtx) throws MetadataException {
+    public MetadataClientDriver initialize(
+            ClientConfiguration clientConfiguration,
+            ScheduledExecutorService scheduledExecutorService,
+            StatsLogger statsLogger,
+            Optional<Object> optionalCtx)
+            throws MetadataException {
         super.initialize(clientConfiguration);
         return this;
     }

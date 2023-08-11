@@ -69,7 +69,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @DataProvider(name = "batchedMessageAck")
@@ -77,11 +77,11 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         // When batch index ack is disabled (by default), only after all single messages were sent would the pending
         // ACK be added into the ACK tracker.
         return new Object[][] {
-                // numAcked, batchSize, ack type
-                { 3, 5, CommandAck.AckType.Individual },
-                { 5, 5, CommandAck.AckType.Individual },
-                { 3, 5, CommandAck.AckType.Cumulative },
-                { 5, 5, CommandAck.AckType.Cumulative }
+            // numAcked, batchSize, ack type
+            {3, 5, CommandAck.AckType.Individual},
+            {5, 5, CommandAck.AckType.Individual},
+            {3, 5, CommandAck.AckType.Cumulative},
+            {5, 5, CommandAck.AckType.Cumulative}
         };
     }
 
@@ -103,11 +103,15 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .producerName("my-producer-name")
                 .create();
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("s1")
                 .subscriptionType(SubscriptionType.Shared)
                 .isAckReceiptEnabled(ackReceiptEnabled);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
@@ -118,7 +122,6 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-
 
         int consumedCount = 0;
         Set<MessageId> messageIds = new HashSet<>();
@@ -141,7 +144,9 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
             MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
             if (lastMsgId != null) {
-                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId(), "lastMsgId: " + lastMsgId + " -- msgId: " + msgId);
+                assertTrue(
+                        lastMsgId.getLedgerId() <= msgId.getLedgerId(),
+                        "lastMsgId: " + lastMsgId + " -- msgId: " + msgId);
             }
             lastMsgId = msgId;
         }
@@ -149,8 +154,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         // close consumer so, this consumer's unack messages will be redelivered to new consumer
         consumer1.close();
 
-        @Cleanup
-        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+        @Cleanup Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
         lastMsgId = null;
         for (int i = 0; i < totalMsgs / 2; i++) {
             Message<byte[]> message = consumer2.receive(5, TimeUnit.SECONDS);
@@ -163,9 +167,11 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled)
+            throws PulsarClientException, ExecutionException, InterruptedException {
         String topic = "persistent://my-property/my-ns/async-unack-redelivery";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
                 .isAckReceiptEnabled(ackReceiptEnabled)
@@ -173,7 +179,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
                 .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxMessages(5)
@@ -214,7 +221,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
     /**
      * Validates broker should dispatch messages to consumer which still has the permit to consume more messages.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -225,9 +232,13 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         final int queueSize = 10;
         int batchSize = 100;
         String subName = "my-subscriber-name";
-        String topicName = "permitReceiveBatchMessages"+(UUID.randomUUID().toString());
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
+        String topicName = "permitReceiveBatchMessages" + (UUID.randomUUID().toString());
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .receiverQueueSize(queueSize)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
                 .subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
@@ -249,19 +260,29 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
         producer.flush();
 
-        retryStrategically((test) -> {
-            return consumer1.getTotalIncomingMessages() == batchSize;
-        }, 5, 2000);
+        retryStrategically(
+                (test) -> {
+                    return consumer1.getTotalIncomingMessages() == batchSize;
+                },
+                5,
+                2000);
 
         assertEquals(consumer1.getTotalIncomingMessages(), batchSize);
 
-        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .receiverQueueSize(queueSize)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
                 .subscribe();
 
-        retryStrategically((test) -> {
-            return consumer2.getTotalIncomingMessages() == queueSize;
-        }, 5, 2000);
+        retryStrategically(
+                (test) -> {
+                    return consumer2.getTotalIncomingMessages() == queueSize;
+                },
+                5,
+                2000);
         assertEquals(consumer2.getTotalIncomingMessages(), queueSize);
         log.info("-- Exiting {} test --", methodName);
     }
@@ -274,7 +295,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         final int messages = 10;
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(false)
                 .create();
@@ -295,7 +317,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         };
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -327,7 +350,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         final String topicName = "testMessageRedeliveryAfterUnloadedWithEarliestPosition" + UUID.randomUUID();
         final int messages = 100;
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(false)
                 .create();
@@ -340,7 +364,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
         FutureUtil.waitForAll(sendResults).get();
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(subName)
@@ -374,15 +399,19 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000, dataProvider = "batchedMessageAck")
     public void testAckNotSent(int numAcked, int batchSize, CommandAck.AckType ackType) throws Exception {
-        String topic = "persistent://my-property/my-ns/test-ack-not-sent-"
-                + numAcked + "-" + batchSize + "-" + ackType.getValue();
-        @Cleanup Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        String topic = "persistent://my-property/my-ns/test-ack-not-sent-" + numAcked + "-" + batchSize + "-"
+                + ackType.getValue();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .enableBatchIndexAcknowledgment(false)
                 .acknowledgmentGroupTime(1, TimeUnit.HOURS) // ACK won't be sent
                 .subscribe();
-        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        @Cleanup
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxMessages(batchSize)
@@ -419,7 +448,9 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         // All messages are redelivered because only if the whole batch are acknowledged would the message ID be
         // added into the ACK tracker.
         if (numAcked < batchSize) {
-            assertEquals(values, IntStream.range(0, batchSize).mapToObj(i -> "msg-" + i).collect(Collectors.toList()));
+            assertEquals(
+                    values,
+                    IntStream.range(0, batchSize).mapToObj(i -> "msg-" + i).collect(Collectors.toList()));
         } else {
             assertTrue(values.isEmpty());
         }

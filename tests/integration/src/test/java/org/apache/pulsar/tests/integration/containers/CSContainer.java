@@ -26,13 +26,7 @@ public class CSContainer extends PulsarContainer<CSContainer> {
     public static final String NAME = "configuration-store";
 
     public CSContainer(String clusterName) {
-        super(
-            clusterName,
-            NAME,
-            NAME,
-            "bin/run-global-zk.sh",
-            CS_PORT,
-            INVALID_PORT);
+        super(clusterName, NAME, NAME, "bin/run-global-zk.sh", CS_PORT, INVALID_PORT);
     }
 
     @Override

@@ -42,8 +42,10 @@ class TripleLongPriorityDelayedIndexQueue implements DelayedIndexQueue {
 
     @Override
     public DelayedIndex peek() {
-        DelayedIndex delayedIndex = new DelayedIndex().setTimestamp(queue.peekN1())
-                .setLedgerId(queue.peekN2()).setEntryId(queue.peekN3());
+        DelayedIndex delayedIndex = new DelayedIndex()
+                .setTimestamp(queue.peekN1())
+                .setLedgerId(queue.peekN2())
+                .setEntryId(queue.peekN3());
         return delayedIndex;
     }
 
@@ -56,8 +58,7 @@ class TripleLongPriorityDelayedIndexQueue implements DelayedIndexQueue {
 
     @Override
     public void popToObject(DelayedIndex delayedIndex) {
-        delayedIndex.setTimestamp(queue.peekN1())
-                .setLedgerId(queue.peekN2()).setEntryId(queue.peekN3());
+        delayedIndex.setTimestamp(queue.peekN1()).setLedgerId(queue.peekN2()).setEntryId(queue.peekN3());
         queue.pop();
     }
 

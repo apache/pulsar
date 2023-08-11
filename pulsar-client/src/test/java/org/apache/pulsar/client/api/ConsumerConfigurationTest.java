@@ -20,15 +20,13 @@ package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.databind.SerializationFeature;
 
 /**
  * Unit test of {@link ConsumerConfiguration}.
@@ -37,7 +35,7 @@ public class ConsumerConfigurationTest {
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerConfigurationTest.class);
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     public void testJsonIgnore() throws Exception {
 
@@ -45,16 +43,13 @@ public class ConsumerConfigurationTest {
         conf.setConsumerEventListener(new ConsumerEventListener() {
 
             @Override
-            public void becameActive(Consumer<?> consumer, int partitionId) {
-            }
+            public void becameActive(Consumer<?> consumer, int partitionId) {}
 
             @Override
-            public void becameInactive(Consumer<?> consumer, int partitionId) {
-            }
+            public void becameInactive(Consumer<?> consumer, int partitionId) {}
         });
 
-        conf.setMessageListener((MessageListener) (consumer, msg) -> {
-        });
+        conf.setMessageListener((MessageListener) (consumer, msg) -> {});
 
         conf.setCryptoKeyReader(mock(CryptoKeyReader.class));
 
@@ -69,5 +64,4 @@ public class ConsumerConfigurationTest {
         assertFalse(confAsString.contains("consumerEventListener"));
         assertFalse(confAsString.contains("cryptoKeyReader"));
     }
-
 }

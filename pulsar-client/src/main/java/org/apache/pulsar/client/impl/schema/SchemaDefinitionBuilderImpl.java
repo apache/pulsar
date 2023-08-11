@@ -38,7 +38,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     /**
      * the schema definition class.
      */
-    private  Class<T> clazz;
+    private Class<T> clazz;
 
     /**
      * the classLoader definition class.
@@ -148,20 +148,30 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     }
 
     @Override
-    public  SchemaDefinition<T> build() {
-        checkArgument(StringUtils.isNotBlank(jsonDef) || clazz != null,
+    public SchemaDefinition<T> build() {
+        checkArgument(
+                StringUtils.isNotBlank(jsonDef) || clazz != null,
                 "Must specify one of the pojo or jsonDef for the schema definition.");
 
-        checkArgument(!(StringUtils.isNotBlank(jsonDef) && clazz != null),
+        checkArgument(
+                !(StringUtils.isNotBlank(jsonDef) && clazz != null),
                 "Not allowed to set pojo and jsonDef both for the schema definition.");
 
-        checkArgument((reader != null && writer != null) || (reader == null && writer == null),
+        checkArgument(
+                (reader != null && writer != null) || (reader == null && writer == null),
                 "Must specify reader and writer or none of them.");
 
         properties.put(ALWAYS_ALLOW_NULL, String.valueOf(this.alwaysAllowNull));
         properties.put(JSR310_CONVERSION_ENABLED, String.valueOf(this.jsr310ConversionEnabled));
-        return new SchemaDefinitionImpl(clazz, jsonDef, classLoader,
-                alwaysAllowNull, properties, supportSchemaVersioning, jsr310ConversionEnabled, reader, writer);
-
+        return new SchemaDefinitionImpl(
+                clazz,
+                jsonDef,
+                classLoader,
+                alwaysAllowNull,
+                properties,
+                supportSchemaVersioning,
+                jsr310ConversionEnabled,
+                reader,
+                writer);
     }
 }

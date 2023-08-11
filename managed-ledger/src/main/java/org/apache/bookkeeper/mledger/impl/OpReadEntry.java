@@ -48,8 +48,14 @@ class OpReadEntry implements ReadEntriesCallback {
 
     Predicate<PositionImpl> skipCondition;
 
-    public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+    public static OpReadEntry create(
+            ManagedCursorImpl cursor,
+            PositionImpl readPositionRef,
+            int count,
+            ReadEntriesCallback callback,
+            Object ctx,
+            PositionImpl maxPosition,
+            Predicate<PositionImpl> skipCondition) {
         OpReadEntry op = RECYCLER.get();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
@@ -79,8 +85,13 @@ class OpReadEntry implements ReadEntriesCallback {
             lastPosition = (PositionImpl) returnedEntries.get(entriesCount - 1).getPosition();
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
-                    cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
+            log.debug(
+                    "[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
+                    cursor.ledger.getName(),
+                    cursor.getName(),
+                    returnedEntries.size(),
+                    entries.size(),
+                    count);
         }
 
         List<Entry> filteredEntries = Collections.emptyList();
@@ -91,7 +102,8 @@ class OpReadEntry implements ReadEntriesCallback {
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
         final Position nexReadPosition = entriesCount != filteredEntries.size()
-                ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
+                ? cursor.getNextAvailablePosition(lastPosition)
+                : lastPosition.getNext();
         updateReadPosition(nexReadPosition);
         checkReadCompletion();
     }
@@ -112,8 +124,12 @@ class OpReadEntry implements ReadEntriesCallback {
                 recycle();
             });
         } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
-            log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
-                    readPosition, exception.getMessage());
+            log.warn(
+                    "[{}][{}] read failed from ledger at position:{} : {}",
+                    cursor.ledger.getName(),
+                    cursor.getName(),
+                    readPosition,
+                    exception.getMessage());
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             Position nexReadPosition;
             Long lostLedger = null;
@@ -139,12 +155,19 @@ class OpReadEntry implements ReadEntriesCallback {
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
-                log.warn("[{}][{}] read failed from ledger at position:{}", cursor.ledger.getName(),
-                        cursor.getName(), readPosition, exception);
+                log.warn(
+                        "[{}][{}] read failed from ledger at position:{}",
+                        cursor.ledger.getName(),
+                        cursor.getName(),
+                        readPosition,
+                        exception);
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] read throttled failed from ledger at position:{}", cursor.ledger.getName(),
-                            cursor.getName(), readPosition);
+                    log.debug(
+                            "[{}][{}] read throttled failed from ledger at position:{}",
+                            cursor.ledger.getName(),
+                            cursor.getName(),
+                            readPosition);
                 }
             }
 
@@ -161,8 +184,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
     void checkReadCompletion() {
         // op readPosition is smaller or equals maxPosition then can read again
-        if (entries.size() < count && cursor.hasMoreEntries()
-                && maxPosition.compareTo(readPosition) > 0) {
+        if (entries.size() < count && cursor.hasMoreEntries() && maxPosition.compareTo(readPosition) > 0) {
 
             // We still have more entries to read from the next ledger, schedule a new async operation
             cursor.ledger.getExecutor().execute(() -> {

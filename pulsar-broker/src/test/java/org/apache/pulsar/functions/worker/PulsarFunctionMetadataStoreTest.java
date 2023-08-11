@@ -30,7 +30,6 @@ import org.testng.annotations.Test;
 @Test
 public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest {
 
-
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
         WorkerConfig wc = super.createWorkerConfig(config);
         wc.setStateStorageProviderImplementation(PulsarMetadataStateStoreProviderImpl.class.getName());

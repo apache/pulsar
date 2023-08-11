@@ -34,23 +34,14 @@ public class PrimitiveDecoderTestUtil extends DecoderTestUtil {
     }
 
     @Override
-    public void checkArrayValues(Block block, Type type, Object value) {
-
-    }
+    public void checkArrayValues(Block block, Type type, Object value) {}
 
     @Override
-    public void checkMapValues(Block block, Type type, Object value) {
-
-    }
+    public void checkMapValues(Block block, Type type, Object value) {}
 
     @Override
-    public void checkRowValues(Block block, Type type, Object value) {
-
-    }
+    public void checkRowValues(Block block, Type type, Object value) {}
 
     @Override
-    public void checkPrimitiveValue(Object actual, Object expected) {
-
-    }
-
+    public void checkPrimitiveValue(Object actual, Object expected) {}
 }

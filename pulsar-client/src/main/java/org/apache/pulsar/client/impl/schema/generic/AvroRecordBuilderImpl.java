@@ -22,7 +22,6 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 
-
 /**
  * Builder to build {@link org.apache.pulsar.client.api.schema.GenericRecord}.
  */
@@ -33,8 +32,7 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
 
     AvroRecordBuilderImpl(GenericSchemaImpl genericSchema) {
         this.genericSchema = genericSchema;
-        this.avroRecordBuilder =
-            new org.apache.avro.generic.GenericRecordBuilder(genericSchema.getAvroSchema());
+        this.avroRecordBuilder = new org.apache.avro.generic.GenericRecordBuilder(genericSchema.getAvroSchema());
     }
 
     /**
@@ -81,16 +79,14 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
     protected GenericRecordBuilder set(int index, Object value) {
         if (value instanceof GenericRecord) {
             if (value instanceof GenericAvroRecord) {
-                avroRecordBuilder.set(genericSchema.getAvroSchema().getFields().get(index),
+                avroRecordBuilder.set(
+                        genericSchema.getAvroSchema().getFields().get(index),
                         ((GenericAvroRecord) value).getAvroRecord());
             } else {
                 throw new IllegalArgumentException("Avro Record Builder doesn't support non-avro record as a field");
             }
         } else {
-            avroRecordBuilder.set(
-                    genericSchema.getAvroSchema().getFields().get(index),
-                    value
-            );
+            avroRecordBuilder.set(genericSchema.getAvroSchema().getFields().get(index), value);
         }
         return this;
     }
@@ -125,18 +121,13 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
      * @return a reference to the RecordBuilder.
      */
     protected GenericRecordBuilder clear(int index) {
-        avroRecordBuilder.clear(
-            genericSchema.getAvroSchema().getFields().get(index));
+        avroRecordBuilder.clear(genericSchema.getAvroSchema().getFields().get(index));
         return this;
     }
 
     @Override
     public GenericRecord build() {
         return new GenericAvroRecord(
-            null,
-            genericSchema.getAvroSchema(),
-            genericSchema.getFields(),
-            avroRecordBuilder.build()
-        );
+                null, genericSchema.getAvroSchema(), genericSchema.getFields(), avroRecordBuilder.build());
     }
 }

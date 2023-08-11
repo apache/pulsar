@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see PulsarService
  */
-public class ResourceGroupService implements AutoCloseable{
+public class ResourceGroupService implements AutoCloseable {
     /**
      * Default constructor.
      */
@@ -67,9 +67,11 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     // For testing only.
-    public ResourceGroupService(PulsarService pulsar, TimeUnit timescale,
-                                ResourceUsageTopicTransportManager transportMgr,
-                                ResourceQuotaCalculator quotaCalc) {
+    public ResourceGroupService(
+            PulsarService pulsar,
+            TimeUnit timescale,
+            ResourceUsageTopicTransportManager transportMgr,
+            ResourceQuotaCalculator quotaCalc) {
         this.pulsar = pulsar;
         this.timeUnitScale = timescale;
         this.resourceUsageTransportManagerMgr = transportMgr;
@@ -87,9 +89,9 @@ public class ResourceGroupService implements AutoCloseable{
 
     // Types of RG-usage stats that UTs may ask for
     protected enum ResourceGroupUsageStatsType {
-        Cumulative,   // Cumulative usage, since the RG was instantiated
-        LocalSinceLastReported,  // Incremental usage since last report to the transport-manager
-        ReportFromTransportMgr   // Last reported stats for this broker, as provided by transport-manager
+        Cumulative, // Cumulative usage, since the RG was instantiated
+        LocalSinceLastReported, // Incremental usage since last report to the transport-manager
+        ReportFromTransportMgr // Last reported stats for this broker, as provided by transport-manager
     }
 
     /**
@@ -98,7 +100,7 @@ public class ResourceGroupService implements AutoCloseable{
      * @throws if RG with that name already exists.
      */
     public void resourceGroupCreate(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
-      throws PulsarAdminException {
+            throws PulsarAdminException {
         this.checkRGCreateParams(rgName, rgConfig);
         ResourceGroup rg = new ResourceGroup(this, rgName, rgConfig);
         resourceGroupsMap.put(rgName, rg);
@@ -109,10 +111,12 @@ public class ResourceGroupService implements AutoCloseable{
      *
      * @throws if RG with that name already exists (even if the resource usage handlers are different).
      */
-    public void resourceGroupCreate(String rgName,
-                                    org.apache.pulsar.common.policies.data.ResourceGroup rgConfig,
-                                    ResourceUsagePublisher rgPublisher,
-                                    ResourceUsageConsumer rgConsumer) throws PulsarAdminException {
+    public void resourceGroupCreate(
+            String rgName,
+            org.apache.pulsar.common.policies.data.ResourceGroup rgConfig,
+            ResourceUsagePublisher rgPublisher,
+            ResourceUsageConsumer rgConsumer)
+            throws PulsarAdminException {
         this.checkRGCreateParams(rgName, rgConfig);
         ResourceGroup rg = new ResourceGroup(this, rgName, rgConfig, rgPublisher, rgConsumer);
         resourceGroupsMap.put(rgName, rg);
@@ -137,7 +141,7 @@ public class ResourceGroupService implements AutoCloseable{
      * @throws if RG with that name does not exist.
      */
     public void resourceGroupUpdate(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
-      throws PulsarAdminException {
+            throws PulsarAdminException {
         if (rgConfig == null) {
             throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroup config");
         }
@@ -203,8 +207,8 @@ public class ResourceGroupService implements AutoCloseable{
             throw new PulsarAdminException(errMesg);
         }
 
-        ResourceGroupOpStatus status = rg.registerUsage(tenantName, ResourceGroupRefTypes.Tenants, true,
-                                                        this.resourceUsageTransportManagerMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(
+                tenantName, ResourceGroupRefTypes.Tenants, true, this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
             String errMesg = "Tenant " + tenantName + " already references the resource group " + resourceGroupName;
             errMesg += "; this is unexpected";
@@ -226,8 +230,8 @@ public class ResourceGroupService implements AutoCloseable{
     public void unRegisterTenant(String resourceGroupName, String tenantName) throws PulsarAdminException {
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
-        ResourceGroupOpStatus status = rg.registerUsage(tenantName, ResourceGroupRefTypes.Tenants, false,
-                                                        this.resourceUsageTransportManagerMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(
+                tenantName, ResourceGroupRefTypes.Tenants, false, this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
             String errMesg = "Tenant " + tenantName + " does not yet reference resource group " + resourceGroupName;
             throw new PulsarAdminException(errMesg);
@@ -256,11 +260,14 @@ public class ResourceGroupService implements AutoCloseable{
             throw new PulsarAdminException(errMesg);
         }
 
-        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName.toString(), ResourceGroupRefTypes.Namespaces,
-                true, this.resourceUsageTransportManagerMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(
+                fqNamespaceName.toString(),
+                ResourceGroupRefTypes.Namespaces,
+                true,
+                this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
-            String errMesg = String.format("Namespace %s already references the target resource group %s",
-                    fqNamespaceName, resourceGroupName);
+            String errMesg = String.format(
+                    "Namespace %s already references the target resource group %s", fqNamespaceName, resourceGroupName);
             throw new PulsarAdminException(errMesg);
         }
 
@@ -280,11 +287,14 @@ public class ResourceGroupService implements AutoCloseable{
             throws PulsarAdminException {
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
-        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName.toString(), ResourceGroupRefTypes.Namespaces,
-                false, this.resourceUsageTransportManagerMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(
+                fqNamespaceName.toString(),
+                ResourceGroupRefTypes.Namespaces,
+                false,
+                this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
-            String errMesg = String.format("Namespace %s does not yet reference resource group %s",
-                    fqNamespaceName, resourceGroupName);
+            String errMesg = String.format(
+                    "Namespace %s does not yet reference resource group %s", fqNamespaceName, resourceGroupName);
             throw new PulsarAdminException(errMesg);
         }
 
@@ -337,9 +347,9 @@ public class ResourceGroupService implements AutoCloseable{
      * @param incStats
      * @returns true if the stats were updated; false if nothing was updated.
      */
-    protected boolean incrementUsage(String tenantName, String nsName,
-                                  ResourceGroupMonitoringClass monClass,
-                                  BytesAndMessagesCount incStats) throws PulsarAdminException {
+    protected boolean incrementUsage(
+            String tenantName, String nsName, ResourceGroupMonitoringClass monClass, BytesAndMessagesCount incStats)
+            throws PulsarAdminException {
         final ResourceGroup nsRG = this.namespaceToRGsMap.get(NamespaceName.get(tenantName, nsName));
         final ResourceGroup tenantRG = this.tenantToRGsMap.get(tenantName);
         if (tenantRG == null && nsRG == null) {
@@ -348,7 +358,8 @@ public class ResourceGroupService implements AutoCloseable{
 
         // Expect stats to increase monotonically.
         if (incStats.bytes < 0 || incStats.messages < 0) {
-            String errMesg = String.format("incrementUsage on tenant=%s, NS=%s: bytes (%s) or mesgs (%s) is negative",
+            String errMesg = String.format(
+                    "incrementUsage on tenant=%s, NS=%s: bytes (%s) or mesgs (%s) is negative",
                     tenantName, nsName, incStats.bytes, incStats.messages);
             throw new PulsarAdminException(errMesg);
         }
@@ -364,8 +375,12 @@ public class ResourceGroupService implements AutoCloseable{
 
         if (tenantRG != null) {
             tenantRG.incrementLocalUsageStats(monClass, incStats);
-            rgLocalUsageMessages.labels(tenantRG.resourceGroupName, monClass.name()).inc(incStats.messages);
-            rgLocalUsageBytes.labels(tenantRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
+            rgLocalUsageMessages
+                    .labels(tenantRG.resourceGroupName, monClass.name())
+                    .inc(incStats.messages);
+            rgLocalUsageBytes
+                    .labels(tenantRG.resourceGroupName, monClass.name())
+                    .inc(incStats.bytes);
         }
         if (nsRG != null) {
             nsRG.incrementLocalUsageStats(monClass, incStats);
@@ -377,8 +392,9 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     // Visibility for testing.
-    protected BytesAndMessagesCount getRGUsage(String rgName, ResourceGroupMonitoringClass monClass,
-                                               ResourceGroupUsageStatsType statsType) throws PulsarAdminException {
+    protected BytesAndMessagesCount getRGUsage(
+            String rgName, ResourceGroupMonitoringClass monClass, ResourceGroupUsageStatsType statsType)
+            throws PulsarAdminException {
         final ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg != null) {
             switch (statsType) {
@@ -421,8 +437,13 @@ public class ResourceGroupService implements AutoCloseable{
 
     // Find the difference between the last time stats were updated for this topic, and the current
     // time. If the difference is positive, update the stats.
-    private void updateStatsWithDiff(String topicName, String tenantString, String nsString,
-                                     long accByteCount, long accMesgCount, ResourceGroupMonitoringClass monClass) {
+    private void updateStatsWithDiff(
+            String topicName,
+            String tenantString,
+            String nsString,
+            long accByteCount,
+            long accMesgCount,
+            ResourceGroupMonitoringClass monClass) {
         ConcurrentHashMap<String, BytesAndMessagesCount> hm;
         switch (monClass) {
             default:
@@ -461,20 +482,25 @@ public class ResourceGroupService implements AutoCloseable{
         try {
             boolean statsUpdated = this.incrementUsage(tenantString, nsString, monClass, bmDiff);
             if (log.isDebugEnabled()) {
-                log.debug("updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
+                log.debug(
+                        "updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
                                 + "by {} bytes, {} mesgs",
-                        topicName, monClass, statsUpdated, tenantString, nsString,
-                        bmDiff.bytes, bmDiff.messages);
+                        topicName,
+                        monClass,
+                        statsUpdated,
+                        tenantString,
+                        nsString,
+                        bmDiff.bytes,
+                        bmDiff.messages);
             }
             hm.put(topicName, bmNewCount);
         } catch (Throwable t) {
-            log.error("updateStatsWithDiff: got ex={} while aggregating for {} side",
-                    t.getMessage(), monClass);
+            log.error("updateStatsWithDiff: got ex={} while aggregating for {} side", t.getMessage(), monClass);
         }
     }
 
     // Visibility for testing.
-    protected BytesAndMessagesCount getPublishRateLimiters (String rgName) throws PulsarAdminException {
+    protected BytesAndMessagesCount getPublishRateLimiters(String rgName) throws PulsarAdminException {
         ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg == null) {
             throw new PulsarAdminException("Resource group does not exist: " + rgName);
@@ -484,47 +510,47 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaByteCount (String rgName, String monClassName) {
+    protected static double getRgQuotaByteCount(String rgName, String monClassName) {
         return rgCalculatedQuotaBytes.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaMessageCount (String rgName, String monClassName) {
+    protected static double getRgQuotaMessageCount(String rgName, String monClassName) {
         return rgCalculatedQuotaMessages.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgLocalUsageByteCount (String rgName, String monClassName) {
+    protected static double getRgLocalUsageByteCount(String rgName, String monClassName) {
         return rgLocalUsageBytes.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgLocalUsageMessageCount (String rgName, String monClassName) {
+    protected static double getRgLocalUsageMessageCount(String rgName, String monClassName) {
         return rgLocalUsageMessages.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgUpdatesCount (String rgName) {
+    protected static double getRgUpdatesCount(String rgName) {
         return rgUpdates.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgTenantRegistersCount (String rgName) {
+    protected static double getRgTenantRegistersCount(String rgName) {
         return rgTenantRegisters.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgTenantUnRegistersCount (String rgName) {
+    protected static double getRgTenantUnRegistersCount(String rgName) {
         return rgTenantUnRegisters.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgNamespaceRegistersCount (String rgName) {
+    protected static double getRgNamespaceRegistersCount(String rgName) {
         return rgNamespaceRegisters.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgNamespaceUnRegistersCount (String rgName) {
+    protected static double getRgNamespaceUnRegistersCount(String rgName) {
         return rgNamespaceUnRegisters.labels(rgName).get();
     }
 
@@ -562,11 +588,19 @@ public class ResourceGroupService implements AutoCloseable{
                 continue;
             }
 
-            this.updateStatsWithDiff(topicName, tenantString, nsString,
-                    topicStats.getBytesInCounter(), topicStats.getMsgInCounter(),
+            this.updateStatsWithDiff(
+                    topicName,
+                    tenantString,
+                    nsString,
+                    topicStats.getBytesInCounter(),
+                    topicStats.getMsgInCounter(),
                     ResourceGroupMonitoringClass.Publish);
-            this.updateStatsWithDiff(topicName, tenantString, nsString,
-                    topicStats.getBytesOutCounter(), topicStats.getMsgOutCounter(),
+            this.updateStatsWithDiff(
+                    topicName,
+                    tenantString,
+                    nsString,
+                    topicStats.getBytesOutCounter(),
+                    topicStats.getMsgOutCounter(),
                     ResourceGroupMonitoringClass.Dispatch);
         }
         double diffTimeSeconds = aggrUsageTimer.observeDuration();
@@ -581,20 +615,28 @@ public class ResourceGroupService implements AutoCloseable{
         long newPeriodInSeconds = config.getResourceUsageTransportPublishIntervalInSecs();
         if (newPeriodInSeconds != this.aggregateLocalUsagePeriodInSeconds) {
             if (this.aggregateLocalUsagePeriodicTask == null) {
-                log.error("aggregateResourceGroupLocalUsages: Unable to find running task to cancel when "
+                log.error(
+                        "aggregateResourceGroupLocalUsages: Unable to find running task to cancel when "
                                 + "publish period changed from {} to {} {}",
-                        this.aggregateLocalUsagePeriodInSeconds, newPeriodInSeconds, timeUnitScale);
+                        this.aggregateLocalUsagePeriodInSeconds,
+                        newPeriodInSeconds,
+                        timeUnitScale);
             } else {
                 boolean cancelStatus = this.aggregateLocalUsagePeriodicTask.cancel(true);
-                log.info("aggregateResourceGroupLocalUsages: Got status={} in cancel of periodic "
+                log.info(
+                        "aggregateResourceGroupLocalUsages: Got status={} in cancel of periodic "
                                 + "when publish period changed from {} to {} {}",
-                        cancelStatus, this.aggregateLocalUsagePeriodInSeconds, newPeriodInSeconds, timeUnitScale);
+                        cancelStatus,
+                        this.aggregateLocalUsagePeriodInSeconds,
+                        newPeriodInSeconds,
+                        timeUnitScale);
             }
-            this.aggregateLocalUsagePeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
-                    catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
-                    newPeriodInSeconds,
-                    newPeriodInSeconds,
-                    timeUnitScale);
+            this.aggregateLocalUsagePeriodicTask = pulsar.getExecutor()
+                    .scheduleAtFixedRate(
+                            catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
+                            newPeriodInSeconds,
+                            newPeriodInSeconds,
+                            timeUnitScale);
             this.aggregateLocalUsagePeriodInSeconds = newPeriodInSeconds;
         }
     }
@@ -616,22 +658,20 @@ public class ResourceGroupService implements AutoCloseable{
                     localUsageStats = resourceGroup.getLocalUsageStatsFromBrokerReports(monClass);
                     confCounts = resourceGroup.getConfLimits(monClass);
 
-                    long[] globUsageBytesArray = new long[] { globalUsageStats.bytes };
+                    long[] globUsageBytesArray = new long[] {globalUsageStats.bytes};
                     updatedQuota.bytes = this.quotaCalculator.computeLocalQuota(
-                            confCounts.bytes,
-                            localUsageStats.bytes,
-                            globUsageBytesArray);
+                            confCounts.bytes, localUsageStats.bytes, globUsageBytesArray);
 
-                    long[] globUsageMessagesArray = new long[] {globalUsageStats.messages };
+                    long[] globUsageMessagesArray = new long[] {globalUsageStats.messages};
                     updatedQuota.messages = this.quotaCalculator.computeLocalQuota(
-                            confCounts.messages,
-                            localUsageStats.messages,
-                            globUsageMessagesArray);
+                            confCounts.messages, localUsageStats.messages, globUsageMessagesArray);
 
                     BytesAndMessagesCount oldBMCount = resourceGroup.updateLocalQuota(monClass, updatedQuota);
                     // Guard against unconfigured quota settings, for which computeLocalQuota will return negative.
                     if (updatedQuota.messages >= 0) {
-                        rgCalculatedQuotaMessages.labels(rgName, monClass.name()).inc(updatedQuota.messages);
+                        rgCalculatedQuotaMessages
+                                .labels(rgName, monClass.name())
+                                .inc(updatedQuota.messages);
                     }
                     if (updatedQuota.bytes >= 0) {
                         rgCalculatedQuotaBytes.labels(rgName, monClass.name()).inc(updatedQuota.bytes);
@@ -640,22 +680,33 @@ public class ResourceGroupService implements AutoCloseable{
                         long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
                         long bytesIncrement = updatedQuota.bytes - oldBMCount.bytes;
                         if (log.isDebugEnabled()) {
-                            log.debug("calculateQuota for RG={} [class {}]: "
+                            log.debug(
+                                    "calculateQuota for RG={} [class {}]: "
                                             + "updatedlocalBytes={}, updatedlocalMesgs={}; "
                                             + "old bytes={}, old mesgs={};  incremented bytes by {}, messages by {}",
-                                    rgName, monClass, updatedQuota.bytes, updatedQuota.messages,
-                                    oldBMCount.bytes, oldBMCount.messages,
-                                    bytesIncrement, messagesIncrement);
+                                    rgName,
+                                    monClass,
+                                    updatedQuota.bytes,
+                                    updatedQuota.messages,
+                                    oldBMCount.bytes,
+                                    oldBMCount.messages,
+                                    bytesIncrement,
+                                    messagesIncrement);
                         }
                     } else {
                         if (log.isDebugEnabled()) {
-                            log.debug("calculateQuota for RG={} [class {}]: got back null from updateLocalQuota",
-                                    rgName, monClass);
+                            log.debug(
+                                    "calculateQuota for RG={} [class {}]: got back null from updateLocalQuota",
+                                    rgName,
+                                    monClass);
                         }
                     }
                 } catch (Throwable t) {
-                    log.error("Got exception={} while calculating new quota for monitoring-class={} of RG={}",
-                            t.getMessage(), monClass, rgName);
+                    log.error(
+                            "Got exception={} while calculating new quota for monitoring-class={} of RG={}",
+                            t.getMessage(),
+                            monClass,
+                            rgName);
                 }
             }
         });
@@ -671,20 +722,28 @@ public class ResourceGroupService implements AutoCloseable{
         long newPeriodInSeconds = config.getResourceUsageTransportPublishIntervalInSecs();
         if (newPeriodInSeconds != this.resourceUsagePublishPeriodInSeconds) {
             if (this.calculateQuotaPeriodicTask == null) {
-                log.error("calculateQuotaForAllResourceGroups: Unable to find running task to cancel when "
+                log.error(
+                        "calculateQuotaForAllResourceGroups: Unable to find running task to cancel when "
                                 + "publish period changed from {} to {} {}",
-                        this.resourceUsagePublishPeriodInSeconds, newPeriodInSeconds, timeUnitScale);
-            } else {
-                boolean cancelStatus = this.calculateQuotaPeriodicTask.cancel(true);
-                log.info("calculateQuotaForAllResourceGroups: Got status={} in cancel of periodic "
-                        + " when publish period changed from {} to {} {}",
-                        cancelStatus, this.resourceUsagePublishPeriodInSeconds, newPeriodInSeconds, timeUnitScale);
-            }
-            this.calculateQuotaPeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
-                        catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
-                        newPeriodInSeconds,
+                        this.resourceUsagePublishPeriodInSeconds,
                         newPeriodInSeconds,
                         timeUnitScale);
+            } else {
+                boolean cancelStatus = this.calculateQuotaPeriodicTask.cancel(true);
+                log.info(
+                        "calculateQuotaForAllResourceGroups: Got status={} in cancel of periodic "
+                                + " when publish period changed from {} to {} {}",
+                        cancelStatus,
+                        this.resourceUsagePublishPeriodInSeconds,
+                        newPeriodInSeconds,
+                        timeUnitScale);
+            }
+            this.calculateQuotaPeriodicTask = pulsar.getExecutor()
+                    .scheduleAtFixedRate(
+                            catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
+                            newPeriodInSeconds,
+                            newPeriodInSeconds,
+                            timeUnitScale);
             this.resourceUsagePublishPeriodInSeconds = newPeriodInSeconds;
             maxIntervalForSuppressingReportsMSecs =
                     this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
@@ -695,23 +754,25 @@ public class ResourceGroupService implements AutoCloseable{
         ServiceConfiguration config = this.pulsar.getConfiguration();
         long periodInSecs = config.getResourceUsageTransportPublishIntervalInSecs();
         this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
-        this.aggregateLocalUsagePeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
-                    catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
-                    periodInSecs,
-                    periodInSecs,
-                    this.timeUnitScale);
-        this.calculateQuotaPeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
-                    catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
-                    periodInSecs,
-                    periodInSecs,
-                    this.timeUnitScale);
-        maxIntervalForSuppressingReportsMSecs =
-                this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
-
+        this.aggregateLocalUsagePeriodicTask = this.pulsar
+                .getExecutor()
+                .scheduleAtFixedRate(
+                        catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
+                        periodInSecs,
+                        periodInSecs,
+                        this.timeUnitScale);
+        this.calculateQuotaPeriodicTask = this.pulsar
+                .getExecutor()
+                .scheduleAtFixedRate(
+                        catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
+                        periodInSecs,
+                        periodInSecs,
+                        this.timeUnitScale);
+        maxIntervalForSuppressingReportsMSecs = this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
     }
 
     private void checkRGCreateParams(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
-      throws PulsarAdminException {
+            throws PulsarAdminException {
         if (rgConfig == null) {
             throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroup config");
         }
@@ -749,7 +810,6 @@ public class ResourceGroupService implements AutoCloseable{
     // Maps to maintain the usage per topic, in produce/consume directions.
     private ConcurrentHashMap<String, BytesAndMessagesCount> topicProduceStats = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, BytesAndMessagesCount> topicConsumeStats = new ConcurrentHashMap<>();
-
 
     // The task that periodically re-calculates the quota budget for local usage.
     private ScheduledFuture<?> aggregateLocalUsagePeriodicTask;

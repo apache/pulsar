@@ -79,10 +79,16 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
@@ -109,7 +115,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         try (Producer<byte[]> producer = builder.create()) {
             Future<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
-                String key = "key"+i;
+                String key = "key" + i;
                 byte[] data = ("my-message-" + i).getBytes();
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
@@ -131,8 +137,13 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive";
         Set<String> keys = publishMessages(topic, 10, false);
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
-                                            .startMessageIdInclusive().readerName(subscription).create();
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .startMessageIdInclusive()
+                .readerName(subscription)
+                .create();
 
         Assert.assertTrue(reader.hasMessageAvailable());
         Assert.assertTrue(keys.remove(reader.readNext().getKey()));
@@ -150,8 +161,13 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         Set<String> keys = publishMessages(topic, 10, true);
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
-                                            .startMessageIdInclusive().readerName(subscription).create();
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .startMessageIdInclusive()
+                .readerName(subscription)
+                .create();
 
         while (reader.hasMessageAvailable()) {
             Assert.assertTrue(keys.remove(reader.readNext().getKey()));
@@ -166,7 +182,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         int numKeys = 10;
 
         Set<String> keys = publishMessages(topic, numKeys, enableBatch);
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .readerName(subscription)
@@ -178,8 +195,12 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertTrue(keys.isEmpty());
 
-        Reader<byte[]> readLatest = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
-                                                .readerName(subscription + "latest").create();
+        Reader<byte[]> readLatest = pulsarClient
+                .newReader()
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .readerName(subscription + "latest")
+                .create();
         Assert.assertFalse(readLatest.hasMessageAvailable());
     }
 
@@ -189,8 +210,12 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         int msgNum = 10;
         publishMessages(topicName, msgNum, false);
         Reader<byte[]> reader = pulsarClient
-                .newReader().startMessageIdInclusive().startMessageId(MessageId.latest)
-                .topic(topicName).subscriptionName("my-sub").create();
+                .newReader()
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.latest)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .create();
         long now = System.currentTimeMillis();
         reader.seek((topic) -> now);
         assertNull(reader.readNext(1, TimeUnit.SECONDS));
@@ -232,7 +257,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         int numKeys = 10;
 
         Set<String> keys = publishMessages(partition0, numKeys, false);
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(partition0)
                 .startMessageId(MessageId.earliest)
                 .create();
@@ -270,13 +296,13 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         // (1) Publish 10 messages with publish-time 5 HOUR back
         long oldMsgPublishTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(5); // 5 hours old
         for (int i = 0; i < totalMsg; i++) {
-            TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
-                    .value(("old" + i).getBytes());
+            TypedMessageBuilderImpl<byte[]> msg =
+                    (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value(("old" + i).getBytes());
             msg.getMetadataBuilder()
-                .setPublishTime(oldMsgPublishTime)
-                .setSequenceId(i)
-                .setProducerName(producer.getProducerName())
-                .setReplicatedFrom("us-west1");
+                    .setPublishTime(oldMsgPublishTime)
+                    .setSequenceId(i)
+                    .setProducerName(producer.getProducerName())
+                    .setReplicatedFrom("us-west1");
             lastMsgId = msg.send();
         }
 
@@ -284,8 +310,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         long newMsgPublishTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1); // 1 hour old
         MessageId firstMsgId = null;
         for (int i = 0; i < totalMsg; i++) {
-            TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
-                    .value(("new" + i).getBytes());
+            TypedMessageBuilderImpl<byte[]> msg =
+                    (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value(("new" + i).getBytes());
             msg.getMetadataBuilder()
                     .setPublishTime(newMsgPublishTime)
                     .setProducerName(producer.getProducerName())
@@ -298,8 +324,11 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         // (3) Create reader and set position 1 hour back so, it should only read messages which are 2 hours old which
         // published on step 2
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
-                .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
+                .topic(topic)
+                .startMessageFromRollbackDuration(2, TimeUnit.HOURS)
+                .create();
 
         List<MessageId> receivedMessageIds = new ArrayList<>();
 
@@ -330,37 +359,43 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://my-property/my-ns/testRemoveSubscriptionForReaderNeedRemoveCursor";
 
         @Cleanup
-        Reader<byte[]> reader1 = pulsarClient.newReader()
+        Reader<byte[]> reader1 = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
-            .create();
+                .create();
 
         @Cleanup
-        Reader<byte[]> reader2 = pulsarClient.newReader()
+        Reader<byte[]> reader2 = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
-            .create();
+                .create();
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 2);
-        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 2);
+        Assert.assertEquals(
+                admin.topics().getInternalStats(topic, false).cursors.size(), 2);
 
         reader1.close();
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 1);
-        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 1);
+        Assert.assertEquals(
+                admin.topics().getInternalStats(topic, false).cursors.size(), 1);
 
         reader2.close();
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 0);
-        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 0);
-
+        Assert.assertEquals(
+                admin.topics().getInternalStats(topic, false).cursors.size(), 0);
     }
 
     @Test
     public void testReaderHasMessageAvailable() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
+        final String topic =
+                "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
         @Cleanup
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.latest)
                 .startMessageIdInclusive()
@@ -370,11 +405,12 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testKeyHashRangeReader() throws IOException {
-         final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
+        final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
         final String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";
 
         try {
-            pulsarClient.newReader()
+            pulsarClient
+                    .newReader()
                     .topic(topic)
                     .startMessageId(MessageId.earliest)
                     .keyHashRange(Range.of(0, 10000), Range.of(8000, 12000))
@@ -385,7 +421,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            pulsarClient.newReader()
+            pulsarClient
+                    .newReader()
                     .topic(topic)
                     .startMessageId(MessageId.earliest)
                     .keyHashRange(Range.of(30000, 20000))
@@ -396,7 +433,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            pulsarClient.newReader()
+            pulsarClient
+                    .newReader()
                     .topic(topic)
                     .startMessageId(MessageId.earliest)
                     .keyHashRange(Range.of(80000, 90000))
@@ -407,14 +445,16 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
 
         @Cleanup
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .keyHashRange(Range.of(0, StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2))
                 .create();
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(false)
                 .create();
@@ -426,10 +466,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             if (slot <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2) {
                 expectedMessages++;
             }
-            producer.newMessage()
-                    .key(key)
-                    .value(key)
-                    .send();
+            producer.newMessage().key(key).value(key).send();
             log.info("Publish message to slot {}", slot);
         }
 
@@ -449,7 +486,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             log.info("Receive message {}", receivedMessage);
             assertTrue(Integer.parseInt(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
-
     }
 
     @Test
@@ -462,7 +498,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://my-property/my-ns/testReaderSubName" + System.currentTimeMillis();
         final String subName = "my-sub-name";
 
-        ReaderBuilder<String> builder = pulsarClient.newReader(Schema.STRING)
+        ReaderBuilder<String> builder = pulsarClient
+                .newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
                 .startMessageId(MessageId.earliest);
@@ -476,7 +513,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         final String topic2 = "persistent://my-property/my-ns/testReaderSubName2" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic2, 3);
-        builder = pulsarClient.newReader(Schema.STRING)
+        builder = pulsarClient
+                .newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic2)
                 .startMessageId(MessageId.earliest);
@@ -485,7 +523,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
         reader = builder.create();
         MultiTopicsReaderImpl<String> multiTopicsReader = (MultiTopicsReaderImpl<String>) reader;
-        multiTopicsReader.getMultiTopicsConsumer().getConsumers()
+        multiTopicsReader
+                .getMultiTopicsConsumer()
+                .getConsumers()
                 .forEach(consumerImpl -> assertEquals(consumerImpl.getSubscription(), subName));
         multiTopicsReader.close();
     }
@@ -495,27 +535,33 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://my-property/my-ns/testSameSubName";
         final String subName = "my-sub-name";
 
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.earliest).create();
-        //We can not create a new reader with the same subscription name
-        try (Reader<String> ignored = pulsarClient.newReader(Schema.STRING)
+                .startMessageId(MessageId.earliest)
+                .create();
+        // We can not create a new reader with the same subscription name
+        try (Reader<String> ignored = pulsarClient
+                .newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.earliest).create()) {
+                .startMessageId(MessageId.earliest)
+                .create()) {
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e instanceof PulsarClientException.ConsumerBusyException);
             assertTrue(e.getMessage().contains("Exclusive consumer is already connected"));
         }
-        //It is possible to create a new reader with the same subscription name after closing the first reader
+        // It is possible to create a new reader with the same subscription name after closing the first reader
         reader.close();
-        pulsarClient.newReader(Schema.STRING)
+        pulsarClient
+                .newReader(Schema.STRING)
                 .subscriptionName(subName)
                 .topic(topic)
-                .startMessageId(MessageId.earliest).create().close();
-
+                .startMessageId(MessageId.earliest)
+                .create()
+                .close();
     }
 
     @Test(timeOut = 30000)
@@ -523,14 +569,16 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://my-property/my-ns/testAvoidUsingIoThreadToGetValueOfMessage";
 
         @Cleanup
-        Producer<Schemas.PersonOne> producer = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+        Producer<Schemas.PersonOne> producer = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(topic)
                 .create();
 
         producer.send(new Schemas.PersonOne(1));
 
         @Cleanup
-        Reader<Schemas.PersonOne> reader = pulsarClient.newReader(Schema.AVRO(Schemas.PersonOne.class))
+        Reader<Schemas.PersonOne> reader = pulsarClient
+                .newReader(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .create();
@@ -538,8 +586,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         CountDownLatch latch = new CountDownLatch(1);
         List<Schemas.PersonOne> received = new ArrayList<>(1);
         // Make sure the message is added to the incoming queue
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(((ReaderImpl<?>) reader).getConsumer().incomingMessages.size() > 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(
+                        ((ReaderImpl<?>) reader).getConsumer().incomingMessages.size() > 0));
         reader.hasMessageAvailableAsync().whenComplete((has, e) -> {
             if (e == null && has) {
                 CompletableFuture<Message<Schemas.PersonOne>> future = reader.readNextAsync();
@@ -563,43 +612,42 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     public void removeNonPersistentTopicReaderTest() throws Exception {
         final String topic = "non-persistent://my-property/my-ns/non-topic";
 
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .create();
-        Reader<byte[]> reader2 = pulsarClient.newReader()
+        Reader<byte[]> reader2 = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .create();
 
-        Awaitility.await()
-                .pollDelay(3, TimeUnit.SECONDS)
-                .until(() -> {
-                    TopicStats topicStats = admin.topics().getStats(topic);
-                    System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
-                    return topicStats.getSubscriptions().size() == 2;
-                });
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() -> {
+            TopicStats topicStats = admin.topics().getStats(topic);
+            System.out.println(
+                    "subscriptions size: " + topicStats.getSubscriptions().size());
+            return topicStats.getSubscriptions().size() == 2;
+        });
 
         reader.close();
         reader2.close();
 
         Awaitility.await().until(() -> {
             TopicStats topicStats = admin.topics().getStats(topic);
-            System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
+            System.out.println(
+                    "subscriptions size: " + topicStats.getSubscriptions().size());
             return topicStats.getSubscriptions().size() == 0;
         });
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscribe();
+        Consumer<byte[]> consumer =
+                pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe();
         consumer.close();
 
-        Awaitility.await()
-                .pollDelay(3, TimeUnit.SECONDS)
-                .until(() -> {
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() -> {
             TopicStats topicStats = admin.topics().getStats(topic);
-            System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
+            System.out.println(
+                    "subscriptions size: " + topicStats.getSubscriptions().size());
             return topicStats.getSubscriptions().size() == 0;
         });
     }
@@ -608,7 +656,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     public void testReaderCursorStatsCorrect() throws Exception {
         final String readerNotAckTopic = "persistent://my-property/my-ns/testReaderCursorStatsCorrect";
         @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(readerNotAckTopic)
                 .startMessageId(MessageId.earliest)
                 .create();
@@ -623,25 +672,25 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testReaderListenerAcknowledgement()
-            throws IOException, InterruptedException, PulsarAdminException {
+    public void testReaderListenerAcknowledgement() throws IOException, InterruptedException, PulsarAdminException {
         // non-partitioned topic
         final String topic = "persistent://my-property/my-ns/" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
-        final Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        final Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topic).create();
         producer.send("0".getBytes(StandardCharsets.UTF_8));
         // non-pool
         final CountDownLatch readerNonPoolLatch = new CountDownLatch(1);
-        final Reader<byte[]> readerNonPool = pulsarClient.newReader()
+        final Reader<byte[]> readerNonPool = pulsarClient
+                .newReader()
                 .topic(topic)
                 .subscriptionName("reader-non-pool")
                 .startMessageId(MessageId.earliest)
                 .readerListener((innerReader, message) -> {
                     // no operation
                     readerNonPoolLatch.countDown();
-                }).create();
+                })
+                .create();
         readerNonPoolLatch.await();
         Awaitility.await().untilAsserted(() -> {
             final PersistentTopicInternalStats internal = admin.topics().getInternalStats(topic);
@@ -651,7 +700,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         });
         // pooled
         final CountDownLatch readerPooledLatch = new CountDownLatch(1);
-        final Reader<byte[]> readerPooled = pulsarClient.newReader()
+        final Reader<byte[]> readerPooled = pulsarClient
+                .newReader()
                 .topic(topic)
                 .subscriptionName("reader-pooled")
                 .startMessageId(MessageId.earliest)
@@ -663,7 +713,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                     } finally {
                         message.release();
                     }
-                }).create();
+                })
+                .create();
         readerPooledLatch.await();
         Awaitility.await().untilAsserted(() -> {
             final PersistentTopicInternalStats internal = admin.topics().getInternalStats(topic);
@@ -678,20 +729,21 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         // ---- partitioned topic
         final String partitionedTopic = "persistent://my-property/my-ns/" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(partitionedTopic, 2);
-        final Producer<byte[]> producer2 = pulsarClient.newProducer()
-                .topic(partitionedTopic)
-                .create();
+        final Producer<byte[]> producer2 =
+                pulsarClient.newProducer().topic(partitionedTopic).create();
         producer2.send("0".getBytes(StandardCharsets.UTF_8));
         // non-pool
         final CountDownLatch readerNonPoolLatch2 = new CountDownLatch(1);
-        final Reader<byte[]> readerNonPool2 = pulsarClient.newReader()
+        final Reader<byte[]> readerNonPool2 = pulsarClient
+                .newReader()
                 .topic(partitionedTopic)
                 .subscriptionName("reader-non-pool")
                 .startMessageId(MessageId.earliest)
                 .readerListener((innerReader, message) -> {
                     // no operation
                     readerNonPoolLatch2.countDown();
-                }).create();
+                })
+                .create();
         readerNonPoolLatch2.await();
         Awaitility.await().untilAsserted(() -> {
             PartitionedTopicInternalStats partitionedInternal =
@@ -704,7 +756,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         });
         // pooled
         final CountDownLatch readerPooledLatch2 = new CountDownLatch(1);
-        final Reader<byte[]> readerPooled2 = pulsarClient.newReader()
+        final Reader<byte[]> readerPooled2 = pulsarClient
+                .newReader()
                 .topic(partitionedTopic)
                 .subscriptionName("reader-pooled")
                 .startMessageId(MessageId.earliest)
@@ -716,7 +769,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                     } finally {
                         message.release();
                     }
-                }).create();
+                })
+                .create();
         readerPooledLatch2.await();
         Awaitility.await().untilAsserted(() -> {
             PartitionedTopicInternalStats partitionedInternal =
@@ -732,5 +786,4 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         readerPooled2.close();
         admin.topics().deletePartitionedTopic(partitionedTopic);
     }
-
 }

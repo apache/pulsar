@@ -36,9 +36,7 @@ public class MockedPackagesStorage implements PackagesStorage {
     }
 
     @Override
-    public void initialize() {
-
-    }
+    public void initialize() {}
 
     @Override
     public CompletableFuture<Void> writeAsync(String path, InputStream inputStream) {
@@ -62,8 +60,7 @@ public class MockedPackagesStorage implements PackagesStorage {
         CompletableFuture.runAsync(() -> {
             byte[] bytes = storage.get(path);
             if (bytes == null) {
-                future.completeExceptionally(
-                    new Exception(String.format("Path '%s' does not exist", path)));
+                future.completeExceptionally(new Exception(String.format("Path '%s' does not exist", path)));
                 return;
             }
             try {
@@ -86,19 +83,19 @@ public class MockedPackagesStorage implements PackagesStorage {
     @Override
     public CompletableFuture<List<String>> listAsync(String path) {
         return CompletableFuture.completedFuture(storage.keySet().stream()
-            .filter(s -> s.startsWith(path))
-            .map(s -> s.substring(path.length()))
-            .map(s -> s.split("/")[1])
-            .distinct()
-            .collect(Collectors.toList()));
+                .filter(s -> s.startsWith(path))
+                .map(s -> s.substring(path.length()))
+                .map(s -> s.split("/")[1])
+                .distinct()
+                .collect(Collectors.toList()));
     }
 
     @Override
     public CompletableFuture<Boolean> existAsync(String path) {
         return CompletableFuture.completedFuture(storage.keySet().stream()
-            .filter(s -> s.startsWith(path))
-            .collect(Collectors.toList()))
-            .thenApply(paths -> !paths.isEmpty());
+                        .filter(s -> s.startsWith(path))
+                        .collect(Collectors.toList()))
+                .thenApply(paths -> !paths.isEmpty());
     }
 
     @Override

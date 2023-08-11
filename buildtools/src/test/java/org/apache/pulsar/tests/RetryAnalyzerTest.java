@@ -28,6 +28,7 @@ public class RetryAnalyzerTest {
             setCount(RETRY_COUNT);
         }
     }
+
     int invocationCountA;
     int invocationCountB;
     int invocationCountC;

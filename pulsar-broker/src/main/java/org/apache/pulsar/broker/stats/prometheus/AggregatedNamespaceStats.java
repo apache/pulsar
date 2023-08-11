@@ -87,8 +87,7 @@ public class AggregatedNamespaceStats {
         delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
 
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
-            TopicMetricBean topicMetricBean =
-                    bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+            TopicMetricBean topicMetricBean = bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
             topicMetricBean.name = v.name;
             topicMetricBean.labelsAndValues = v.labelsAndValues;
             topicMetricBean.value += v.value;
@@ -112,8 +111,8 @@ public class AggregatedNamespaceStats {
         msgBacklog += stats.msgBacklog;
 
         managedLedgerStats.storageWriteLatencyBuckets.addAll(stats.managedLedgerStats.storageWriteLatencyBuckets);
-        managedLedgerStats.storageLedgerWriteLatencyBuckets
-                .addAll(stats.managedLedgerStats.storageLedgerWriteLatencyBuckets);
+        managedLedgerStats.storageLedgerWriteLatencyBuckets.addAll(
+                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets);
         managedLedgerStats.entrySizeBuckets.addAll(stats.managedLedgerStats.entrySizeBuckets);
 
         stats.replicationStats.forEach((n, as) -> {

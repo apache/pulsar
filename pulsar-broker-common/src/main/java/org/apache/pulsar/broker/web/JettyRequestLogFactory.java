@@ -39,9 +39,8 @@ public class JettyRequestLogFactory {
      * As the javadoc for {@link CustomRequestLog} describes, the time code can take two arguments to
      * configure the format and the time zone. They must be in the form: "%{format|timeZone}t".
      */
-    private static final String TIME_FORMAT = String.format(" %%{%s|%s}t ",
-            "dd/MMM/yyyy:HH:mm:ss Z",
-            TimeZone.getDefault().getID());
+    private static final String TIME_FORMAT = String.format(
+            " %%{%s|%s}t ", "dd/MMM/yyyy:HH:mm:ss Z", TimeZone.getDefault().getID());
 
     /**
      * This format is essentially the {@link CustomRequestLog#EXTENDED_NCSA_FORMAT} with three modifications:

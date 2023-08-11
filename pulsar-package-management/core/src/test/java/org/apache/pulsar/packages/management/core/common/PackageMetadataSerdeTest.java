@@ -29,11 +29,12 @@ public class PackageMetadataSerdeTest {
         HashMap<String, String> properties = new HashMap<>();
         properties.put("testKey", "testValue");
         PackageMetadata metadata = PackageMetadata.builder()
-            .description("test package metadata serialize and deserialize flow")
-            .createTime(System.currentTimeMillis())
-            .contact("test@apache.org")
-            .modificationTime(System.currentTimeMillis() + 1000)
-            .properties(properties).build();
+                .description("test package metadata serialize and deserialize flow")
+                .createTime(System.currentTimeMillis())
+                .contact("test@apache.org")
+                .modificationTime(System.currentTimeMillis() + 1000)
+                .properties(properties)
+                .build();
 
         byte[] metadataSerialized = PackageMetadataUtil.toBytes(metadata);
 

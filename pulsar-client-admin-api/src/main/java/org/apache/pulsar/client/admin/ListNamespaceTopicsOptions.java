@@ -25,7 +25,8 @@ import lombok.Data;
 @Builder
 public class ListNamespaceTopicsOptions {
 
-    public static final ListNamespaceTopicsOptions EMPTY = ListNamespaceTopicsOptions.builder().build();
+    public static final ListNamespaceTopicsOptions EMPTY =
+            ListNamespaceTopicsOptions.builder().build();
 
     /**
      * Set to true to get topics including system topic, otherwise not.

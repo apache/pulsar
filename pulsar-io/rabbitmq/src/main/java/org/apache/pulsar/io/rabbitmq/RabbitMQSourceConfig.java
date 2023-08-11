@@ -38,21 +38,21 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The RabbitMQ queue name from which messages should be read from or written to")
+            required = true,
+            defaultValue = "",
+            help = "The RabbitMQ queue name from which messages should be read from or written to")
     private String queueName;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "0",
-        help = "Maximum number of messages that the server will deliver, 0 for unlimited")
+            required = false,
+            defaultValue = "0",
+            help = "Maximum number of messages that the server will deliver, 0 for unlimited")
     private int prefetchCount = 0;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "false",
-        help = "Set true if the settings should be applied to the entire channel rather than each consumer")
+            required = false,
+            defaultValue = "false",
+            help = "Set true if the settings should be applied to the entire channel rather than each consumer")
     private boolean prefetchGlobal = false;
 
     @FieldDoc(

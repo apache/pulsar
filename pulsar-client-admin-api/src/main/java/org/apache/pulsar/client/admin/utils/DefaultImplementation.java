@@ -31,22 +31,24 @@ import org.apache.pulsar.client.api.MessageId;
 @SuppressWarnings("unchecked")
 @UtilityClass
 public class DefaultImplementation {
-    private static final Class<PulsarAdminBuilder> ADMIN_CLIENT_BUILDER_IMPL = ReflectionUtils.newClassInstance(
-            "org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl");
+    private static final Class<PulsarAdminBuilder> ADMIN_CLIENT_BUILDER_IMPL =
+            ReflectionUtils.newClassInstance("org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl");
 
     private static final Constructor<OffloadProcessStatus> OFFLOAD_PROCESS_STATUS_IMPL_status_string_messageid =
             ReflectionUtils.getConstructor(
-            "org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl",
-                    LongRunningProcessStatus.Status.class, String.class, MessageId.class);
+                    "org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl",
+                    LongRunningProcessStatus.Status.class,
+                    String.class,
+                    MessageId.class);
 
     public static PulsarAdminBuilder newAdminClientBuilder() {
-        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.getDeclaredConstructor().newInstance());
+        return ReflectionUtils.catchExceptions(
+                () -> ADMIN_CLIENT_BUILDER_IMPL.getDeclaredConstructor().newInstance());
     }
 
-    public static OffloadProcessStatus newOffloadProcessStatus(LongRunningProcessStatus.Status status, String lastError
-            , MessageId messageId) {
-        return ReflectionUtils.catchExceptions(() -> OFFLOAD_PROCESS_STATUS_IMPL_status_string_messageid.newInstance(
-                status, lastError, messageId));
+    public static OffloadProcessStatus newOffloadProcessStatus(
+            LongRunningProcessStatus.Status status, String lastError, MessageId messageId) {
+        return ReflectionUtils.catchExceptions(
+                () -> OFFLOAD_PROCESS_STATUS_IMPL_status_string_messageid.newInstance(status, lastError, messageId));
     }
-
 }

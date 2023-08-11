@@ -122,5 +122,4 @@ public interface TransactionMeta {
      * @return
      */
     CompletableFuture<TransactionMeta> abortTxn();
-
 }

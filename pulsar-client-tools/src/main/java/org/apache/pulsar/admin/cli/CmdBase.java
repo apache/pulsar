@@ -49,7 +49,10 @@ public abstract class CmdBase {
      */
     private static final long DEFAULT_READ_TIMEOUT_MILLIS = 60000;
 
-    @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
+    @Parameter(
+            names = {"--help", "-h"},
+            help = true,
+            hidden = true)
     private boolean help = false;
 
     public boolean isHelp() {
@@ -66,7 +69,7 @@ public abstract class CmdBase {
 
     protected IUsageFormatter getUsageFormatter() {
         if (usageFormatter == null) {
-             usageFormatter = new DefaultUsageFormatter(jcommander);
+            usageFormatter = new DefaultUsageFormatter(jcommander);
         }
         return usageFormatter;
     }
@@ -166,8 +169,8 @@ public abstract class CmdBase {
             for (String property : metadata) {
                 int pos = property.indexOf('=');
                 if (pos <= 0) {
-                    throw new ParameterException(String.format("Invalid key value pair '%s', "
-                            + "valid format like 'a=b'.", property));
+                    throw new ParameterException(
+                            String.format("Invalid key value pair '%s', " + "valid format like 'a=b'.", property));
                 }
                 map.put(property.substring(0, pos), property.substring(pos + 1));
             }

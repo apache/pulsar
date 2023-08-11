@@ -33,7 +33,6 @@ import org.testng.annotations.Test;
 /**
  * ManagedLedgerInfo compression configuration test.
  */
-
 @Test(groups = {"broker"})
 public class ManagedLedgerCompressionTest extends BrokerTestBase {
 
@@ -54,14 +53,10 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
     public void testRestartBrokerEnableManagedLedgerInfoCompression() throws Exception {
         String topic = newTopicName();
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("test")
-                .subscribe();
+        Consumer<byte[]> consumer =
+                pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe();
 
         int messageCnt = 100;
         produceAndConsume(producer, consumer, messageCnt);
@@ -94,8 +89,8 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         produceAndConsume(producer, consumer, messageCnt);
     }
 
-    private void produceAndConsume(Producer<byte[]> producer,
-                                   Consumer<byte[]> consumer, int messageCnt) throws PulsarClientException {
+    private void produceAndConsume(Producer<byte[]> producer, Consumer<byte[]> consumer, int messageCnt)
+            throws PulsarClientException {
         for (int i = 0; i < messageCnt; i++) {
             producer.newMessage().value("test".getBytes()).send();
         }
@@ -105,5 +100,4 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
             Assert.assertNotNull(message);
         }
     }
-
 }

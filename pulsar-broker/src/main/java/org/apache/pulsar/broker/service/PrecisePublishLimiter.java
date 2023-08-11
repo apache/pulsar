@@ -43,8 +43,10 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
         this(publishRate, rateLimitFunction, null);
     }
 
-    public PrecisePublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction,
-                                 ScheduledExecutorService scheduledExecutorService) {
+    public PrecisePublishLimiter(
+            PublishRate publishRate,
+            RateLimitFunction rateLimitFunction,
+            ScheduledExecutorService scheduledExecutorService) {
         this.rateLimitFunction = rateLimitFunction;
         update(publishRate);
         this.scheduledExecutorService = scheduledExecutorService;
@@ -75,9 +77,9 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
         RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
         RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
         if ((currentTopicPublishRateLimiterOnMessage != null
-                && currentTopicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
+                        && currentTopicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
                 || (currentTopicPublishRateLimiterOnByte != null
-                && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
+                        && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
             return;
         }
         this.rateLimitFunction.apply();
@@ -85,9 +87,8 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
 
     @Override
     public void update(Policies policies, String clusterName) {
-        final PublishRate maxPublishRate = policies.publishMaxMessageRate != null
-                ? policies.publishMaxMessageRate.get(clusterName)
-                : null;
+        final PublishRate maxPublishRate =
+                policies.publishMaxMessageRate != null ? policies.publishMaxMessageRate.get(clusterName) : null;
         this.update(maxPublishRate);
     }
 
@@ -95,17 +96,16 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
         replaceLimiters(() -> {
             if (maxPublishRate != null
                     && (maxPublishRate.publishThrottlingRateInMsg > 0
-                    || maxPublishRate.publishThrottlingRateInByte > 0)) {
+                            || maxPublishRate.publishThrottlingRateInByte > 0)) {
                 this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
                 this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
                 if (this.publishMaxMessageRate > 0) {
-                    topicPublishRateLimiterOnMessage =
-                            RateLimiter.builder()
-                                    .scheduledExecutorService(scheduledExecutorService)
-                                    .permits(publishMaxMessageRate)
-                                    .rateLimitFunction(this::tryReleaseConnectionThrottle)
-                                    .isDispatchOrPrecisePublishRateLimiter(true)
-                                    .build();
+                    topicPublishRateLimiterOnMessage = RateLimiter.builder()
+                            .scheduledExecutorService(scheduledExecutorService)
+                            .permits(publishMaxMessageRate)
+                            .rateLimitFunction(this::tryReleaseConnectionThrottle)
+                            .isDispatchOrPrecisePublishRateLimiter(true)
+                            .build();
                 }
                 if (this.publishMaxByteRate > 0) {
                     topicPublishRateLimiterOnByte = RateLimiter.builder()
@@ -127,9 +127,9 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
         RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
         RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
         return (currentTopicPublishRateLimiterOnMessage == null
-                || currentTopicPublishRateLimiterOnMessage.tryAcquire(numbers))
+                        || currentTopicPublishRateLimiterOnMessage.tryAcquire(numbers))
                 && (currentTopicPublishRateLimiterOnByte == null
-                || currentTopicPublishRateLimiterOnByte.tryAcquire(bytes));
+                        || currentTopicPublishRateLimiterOnByte.tryAcquire(bytes));
     }
 
     @Override

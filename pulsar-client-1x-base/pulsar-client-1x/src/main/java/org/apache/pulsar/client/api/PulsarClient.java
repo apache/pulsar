@@ -41,7 +41,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated use {@link #builder()} to construct a client instance
      */
     @Deprecated
-     static PulsarClient create(String serviceUrl) throws PulsarClientException {
+    static PulsarClient create(String serviceUrl) throws PulsarClientException {
         return create(serviceUrl, new ClientConfiguration());
     }
 

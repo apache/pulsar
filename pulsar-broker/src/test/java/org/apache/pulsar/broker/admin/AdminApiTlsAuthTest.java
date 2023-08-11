@@ -75,15 +75,15 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setAuthenticationEnabled(true);
-        conf.setAuthenticationProviders(
-                Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
+        conf.setAuthenticationProviders(Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
         conf.setSuperUserRoles(Set.of("admin", "superproxy"));
         conf.setProxyRoles(Set.of("proxy", "superproxy"));
         conf.setAuthorizationEnabled(true);
 
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
-        conf.setBrokerClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
+        conf.setBrokerClientAuthenticationParameters(String.format(
+                "tlsCertFile:%s,tlsKeyFile:%s",
+                getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
         conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setBrokerClientTlsEnabled(true);
         conf.setNumExecutorThreadPoolSize(5);
@@ -91,7 +91,12 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         PulsarAdmin admin = buildAdminClient("admin");
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         admin.close();
     }
 
@@ -107,13 +112,15 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
-            .register(JacksonConfigurator.class).register(JacksonFeature.class);
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
+                .withConfig(httpConfig)
+                .register(JacksonConfigurator.class)
+                .register(JacksonFeature.class);
 
-        X509Certificate trustCertificates[] = SecurityUtility.loadCertificatesFromPemFile(
-                CA_CERT_FILE_PATH);
+        X509Certificate trustCertificates[] = SecurityUtility.loadCertificatesFromPemFile(CA_CERT_FILE_PATH);
         SSLContext sslCtx = SecurityUtility.createSslContext(
-                false, trustCertificates,
+                false,
+                trustCertificates,
                 SecurityUtility.loadCertificatesFromPemFile(getTlsFileForClient(user + ".cert")),
                 SecurityUtility.loadPrivateKeyFromPemFile(getTlsFileForClient(user + ".key-pk8")));
         clientBuilder.sslContext(sslCtx).hostnameVerifier(NoopHostnameVerifier.INSTANCE);
@@ -124,31 +131,35 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
     PulsarAdmin buildAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
-            .allowTlsInsecureConnection(false)
-            .enableTlsHostnameVerification(false)
-            .serviceHttpUrl(brokerUrlTls.toString())
-            .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
-                            String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                                          getTlsFileForClient(user + ".cert"), getTlsFileForClient(user + ".key-pk8")))
-            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
+                .allowTlsInsecureConnection(false)
+                .enableTlsHostnameVerification(false)
+                .serviceHttpUrl(brokerUrlTls.toString())
+                .authentication(
+                        "org.apache.pulsar.client.impl.auth.AuthenticationTls",
+                        String.format(
+                                "tlsCertFile:%s,tlsKeyFile:%s",
+                                getTlsFileForClient(user + ".cert"), getTlsFileForClient(user + ".key-pk8")))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .build();
     }
 
     PulsarClient buildClient(String user) throws Exception {
         return PulsarClient.builder()
-            .serviceUrl(pulsar.getBrokerServiceUrlTls())
-            .enableTlsHostnameVerification(false)
-            .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
-                            String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                                          getTlsFileForClient(user + ".cert"), getTlsFileForClient(user + ".key-pk8")))
-            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
+                .serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .enableTlsHostnameVerification(false)
+                .authentication(
+                        "org.apache.pulsar.client.impl.auth.AuthenticationTls",
+                        String.format(
+                                "tlsCertFile:%s,tlsKeyFile:%s",
+                                getTlsFileForClient(user + ".cert"), getTlsFileForClient(user + ".key-pk8")))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .build();
     }
 
     @Test
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("foobar"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
             Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
         }
     }
@@ -156,9 +167,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProxyRoleCantListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("foobar"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
         }
         try (PulsarAdmin admin = buildAdminClient("proxy")) {
             admin.tenants().getTenants();
@@ -171,11 +180,10 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSuperUserCanGetResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.resourcegroups().createResourceGroup("test-resource-group",
-                    new ResourceGroup());
+            admin.resourcegroups().createResourceGroup("test-resource-group", new ResourceGroup());
             admin.resourcegroups().getResourceGroup("test-resource-group");
-            Assert.assertEquals(Set.of("test-resource-group"),
-                            admin.resourcegroups().getResourceGroups());
+            Assert.assertEquals(
+                    Set.of("test-resource-group"), admin.resourcegroups().getResourceGroups());
             admin.resourcegroups().getResourceGroup("test-resource-group");
         }
     }
@@ -183,8 +191,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSuperUserCanDeleteResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.resourcegroups().createResourceGroup("test-resource-group",
-                    new ResourceGroup());
+            admin.resourcegroups().createResourceGroup("test-resource-group", new ResourceGroup());
             admin.resourcegroups().deleteResourceGroup("test-resource-group");
         }
     }
@@ -195,23 +202,24 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         pulsar.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()
-                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                        new PartitionedTopicMetadata(3));
+                .createPartitionedTopic(
+                        SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, new PartitionedTopicMetadata(3));
         PulsarAdmin admin = buildAdminClient("admin");
         admin.transactions().scaleTransactionCoordinators(4);
         int partitions = pulsar.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()
                 .getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
-                .get().get().partitions;
+                .get()
+                .get()
+                .partitions;
         Assert.assertEquals(partitions, 4);
     }
 
     @Test
     public void testProxyRoleCantDeleteResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.resourcegroups().createResourceGroup("test-resource-group",
-                    new ResourceGroup());
+            admin.resourcegroups().createResourceGroup("test-resource-group", new ResourceGroup());
         }
         try (PulsarAdmin admin = buildAdminClient("proxy")) {
             admin.resourcegroups().deleteResourceGroup("test-resource-group");
@@ -224,8 +232,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProxyRoleCantCreateResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("proxy")) {
-            admin.resourcegroups().createResourceGroup("test-resource-group",
-                    new ResourceGroup());
+            admin.resourcegroups().createResourceGroup("test-resource-group", new ResourceGroup());
             Assert.fail("Shouldn't be able to create ResourceGroup");
         } catch (PulsarAdminException.NotAuthorizedException e) {
             // expected
@@ -235,8 +242,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProxyRoleCantGetResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.resourcegroups().createResourceGroup("test-resource-group",
-                    new ResourceGroup());
+            admin.resourcegroups().createResourceGroup("test-resource-group", new ResourceGroup());
         }
         try (PulsarAdmin admin = buildAdminClient("proxy")) {
             admin.resourcegroups().getResourceGroups();
@@ -255,9 +261,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProxyRoleCantListNamespacesEvenWithAccess() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("proxy"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("proxy"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         try (PulsarAdmin admin = buildAdminClient("proxy")) {
@@ -271,33 +275,32 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("proxy", "user1"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("proxy", "user1"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient("proxy");
-        Assert.assertEquals(Set.of("tenant1/ns1"),
-                            root.path("/admin/v2/namespaces").path("tenant1")
-                            .request(MediaType.APPLICATION_JSON)
-                            .header("X-Original-Principal", "user1")
-                            .get(new GenericType<List<String>>() {}));
+        Assert.assertEquals(
+                Set.of("tenant1/ns1"),
+                root.path("/admin/v2/namespaces")
+                        .path("tenant1")
+                        .request(MediaType.APPLICATION_JSON)
+                        .header("X-Original-Principal", "user1")
+                        .get(new GenericType<List<String>>() {}));
     }
 
     @Test
     public void testUnauthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("proxy", "user1"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("proxy", "user1"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient("proxy");
         try {
-            root.path("/admin/v2/namespaces").path("tenant1")
-                .request(MediaType.APPLICATION_JSON)
-                .header("X-Original-Principal", "user2")
-                .get(new GenericType<List<String>>() {});
+            root.path("/admin/v2/namespaces")
+                    .path("tenant1")
+                    .request(MediaType.APPLICATION_JSON)
+                    .header("X-Original-Principal", "user2")
+                    .get(new GenericType<List<String>>() {});
             Assert.fail("user2 should not be authorized");
         } catch (NotAuthorizedException e) {
             // expected
@@ -307,17 +310,16 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testAuthorizedUserAsOriginalPrincipalButProxyNotAuthorized() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("user1"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("user1"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient("proxy");
         try {
-            root.path("/admin/v2/namespaces").path("tenant1")
-                .request(MediaType.APPLICATION_JSON)
-                .header("X-Original-Principal", "user1")
-                .get(new GenericType<List<String>>() {});
+            root.path("/admin/v2/namespaces")
+                    .path("tenant1")
+                    .request(MediaType.APPLICATION_JSON)
+                    .header("X-Original-Principal", "user1")
+                    .get(new GenericType<List<String>>() {});
             Assert.fail("Shouldn't be able to list namespaces");
         } catch (NotAuthorizedException e) {
             // expected
@@ -327,33 +329,32 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testAuthorizedUserAsOriginalPrincipalProxyIsSuperUser() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("user1"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("user1"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient("superproxy");
-        Assert.assertEquals(Set.of("tenant1/ns1"),
-                            root.path("/admin/v2/namespaces").path("tenant1")
-                            .request(MediaType.APPLICATION_JSON)
-                            .header("X-Original-Principal", "user1")
-                            .get(new GenericType<List<String>>() {}));
+        Assert.assertEquals(
+                Set.of("tenant1/ns1"),
+                root.path("/admin/v2/namespaces")
+                        .path("tenant1")
+                        .request(MediaType.APPLICATION_JSON)
+                        .header("X-Original-Principal", "user1")
+                        .get(new GenericType<List<String>>() {}));
     }
 
     @Test
     public void testUnauthorizedUserAsOriginalPrincipalProxyIsSuperUser() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("user1"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("user1"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient("superproxy");
         try {
-            root.path("/admin/v2/namespaces").path("tenant1")
-                .request(MediaType.APPLICATION_JSON)
-                .header("X-Original-Principal", "user2")
-                .get(new GenericType<List<String>>() {});
+            root.path("/admin/v2/namespaces")
+                    .path("tenant1")
+                    .request(MediaType.APPLICATION_JSON)
+                    .header("X-Original-Principal", "user2")
+                    .get(new GenericType<List<String>>() {});
             Assert.fail("user2 should not be authorized");
         } catch (NotAuthorizedException e) {
             // expected
@@ -363,17 +364,16 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProxyUserViaProxy() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("proxy"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("proxy"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient("superproxy");
         try {
-            root.path("/admin/v2/namespaces").path("tenant1")
-                .request(MediaType.APPLICATION_JSON)
-                .header("X-Original-Principal", "proxy")
-                .get(new GenericType<List<String>>() {});
+            root.path("/admin/v2/namespaces")
+                    .path("tenant1")
+                    .request(MediaType.APPLICATION_JSON)
+                    .header("X-Original-Principal", "proxy")
+                    .get(new GenericType<List<String>>() {});
             Assert.fail("proxy should not be authorized");
         } catch (NotAuthorizedException e) {
             // expected
@@ -383,31 +383,28 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSuperProxyUserAndAdminCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("user1"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("user1"), Set.of("test")));
         }
         WebTarget root = buildWebClient("superproxy");
-        Assert.assertEquals(Set.of("tenant1"),
-                            root.path("/admin/v2/tenants")
-                            .request(MediaType.APPLICATION_JSON)
-                            .header("X-Original-Principal", "admin")
-                            .get(new GenericType<List<String>>() {}));
+        Assert.assertEquals(
+                Set.of("tenant1"),
+                root.path("/admin/v2/tenants")
+                        .request(MediaType.APPLICATION_JSON)
+                        .header("X-Original-Principal", "admin")
+                        .get(new GenericType<List<String>>() {}));
     }
 
     @Test
     public void testSuperProxyUserAndNonAdminCannotListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("proxy"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("proxy"), Set.of("test")));
         }
         WebTarget root = buildWebClient("superproxy");
         try {
             root.path("/admin/v2/tenants")
-                .request(MediaType.APPLICATION_JSON)
-                .header("X-Original-Principal", "user1")
-                .get(new GenericType<List<String>>() {});
+                    .request(MediaType.APPLICATION_JSON)
+                    .header("X-Original-Principal", "user1")
+                    .get(new GenericType<List<String>>() {});
             Assert.fail("user1 should not be authorized");
         } catch (NotAuthorizedException e) {
             // expected
@@ -417,17 +414,16 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProxyCannotSetOriginalPrincipalAsEmpty() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("user1"),
-                                                        Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("user1"), Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient("proxy");
         try {
-            root.path("/admin/v2/namespaces").path("tenant1")
-                .request(MediaType.APPLICATION_JSON)
-                .header("X-Original-Principal", "")
-                .get(new GenericType<List<String>>() {});
+            root.path("/admin/v2/namespaces")
+                    .path("tenant1")
+                    .request(MediaType.APPLICATION_JSON)
+                    .header("X-Original-Principal", "")
+                    .get(new GenericType<List<String>>() {});
             Assert.fail("Proxy shouldn't be able to set original principal.");
         } catch (NotAuthorizedException e) {
             // expected
@@ -439,15 +435,16 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     public void testDeleteNamespace() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             log.info("Creating tenant");
-            admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("admin"), Set.of("test")));
+            admin.tenants().createTenant("tenant1", new TenantInfoImpl(Set.of("admin"), Set.of("test")));
             log.info("Creating namespace, and granting perms to user1");
             admin.namespaces().createNamespace("tenant1/ns1", Set.of("test"));
             admin.namespaces().grantPermissionOnNamespace("tenant1/ns1", "user1", Set.of(AuthAction.produce));
 
             log.info("user1 produces some messages");
             try (PulsarClient client = buildClient("user1");
-                 Producer<String> producer = client.newProducer(Schema.STRING).topic("tenant1/ns1/foobar").create()) {
+                    Producer<String> producer = client.newProducer(Schema.STRING)
+                            .topic("tenant1/ns1/foobar")
+                            .create()) {
                 producer.send("foobar");
             }
 
@@ -471,43 +468,50 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         Path keyFilePath = Paths.get(keyFile.getAbsolutePath());
         int autoCertRefreshTimeSec = 1;
         try {
-            Files.copy(Paths.get(getTlsFileForClient(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(
+                    Paths.get(getTlsFileForClient(user2 + ".key-pk8")),
+                    keyFilePath,
+                    StandardCopyOption.REPLACE_EXISTING);
             PulsarAdmin admin = PulsarAdmin.builder()
                     .allowTlsInsecureConnection(false)
                     .enableTlsHostnameVerification(false)
                     .serviceHttpUrl(brokerUrlTls.toString())
                     .autoCertRefreshTime(autoCertRefreshTimeSec, TimeUnit.SECONDS)
-                    .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
-                                    String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                                                  getTlsFileForClient(adminUser + ".cert"), keyFile))
-                    .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
+                    .authentication(
+                            "org.apache.pulsar.client.impl.auth.AuthenticationTls",
+                            String.format(
+                                    "tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient(adminUser + ".cert"), keyFile))
+                    .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                    .build();
             // try to call admin-api which should fail due to incorrect key-cert
             try {
-                admin.tenants().createTenant("tenantX",
-                        new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
+                admin.tenants().createTenant("tenantX", new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
                 Assert.fail("should have failed due to invalid key file");
             } catch (Exception e) {
-                //OK
+                // OK
             }
             // replace correct key file
             Files.delete(keyFile.toPath());
             Thread.sleep(2 * autoCertRefreshTimeSec * 1000);
             Files.copy(Paths.get(getTlsFileForClient(adminUser + ".key-pk8")), keyFilePath);
             MutableBoolean success = new MutableBoolean(false);
-            retryStrategically((test) -> {
-                try {
-                    admin.tenants().createTenant("tenantX",
-                            new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
-                    success.setValue(true);
-                    return true;
-                }catch(Exception e) {
-                    return false;
-                }
-            }, 5, 1000);
+            retryStrategically(
+                    (test) -> {
+                        try {
+                            admin.tenants()
+                                    .createTenant("tenantX", new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
+                            success.setValue(true);
+                            return true;
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    },
+                    5,
+                    1000);
             Assert.assertTrue(success.booleanValue());
             Assert.assertEquals(Set.of("tenantX"), admin.tenants().getTenants());
             admin.close();
-        }finally {
+        } finally {
             Files.delete(keyFile.toPath());
         }
     }

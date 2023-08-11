@@ -19,7 +19,6 @@
 /**
  * From Apache HTTP client
  */
-
 package org.apache.pulsar.common.tls;
 
 import java.net.InetAddress;
@@ -50,8 +49,9 @@ import lombok.extern.slf4j.Slf4j;
 public class TlsHostnameVerifier implements HostnameVerifier {
 
     enum HostNameType {
-
-        IPv4(7), IPv6(7), DNS(2);
+        IPv4(7),
+        IPv6(7),
+        DNS(2);
 
         final int subjectType;
 
@@ -85,20 +85,19 @@ public class TlsHostnameVerifier implements HostnameVerifier {
         }
     }
 
-    public void verify(
-            final String host, final X509Certificate cert) throws SSLException {
+    public void verify(final String host, final X509Certificate cert) throws SSLException {
         final HostNameType hostType = determineHostFormat(host);
         final List<SubjectName> subjectAlts = getSubjectAltNames(cert);
         if (subjectAlts != null && !subjectAlts.isEmpty()) {
             switch (hostType) {
-            case IPv4:
-                matchIPAddress(host, subjectAlts);
-                break;
-            case IPv6:
-                matchIPv6Address(host, subjectAlts);
-                break;
-            default:
-                matchDNSName(host, subjectAlts, this.publicSuffixMatcher);
+                case IPv4:
+                    matchIPAddress(host, subjectAlts);
+                    break;
+                case IPv6:
+                    matchIPv6Address(host, subjectAlts);
+                    break;
+                default:
+                    matchDNSName(host, subjectAlts, this.publicSuffixMatcher);
             }
         } else {
             // CN matching has been deprecated by rfc2818 and can be used
@@ -141,8 +140,9 @@ public class TlsHostnameVerifier implements HostnameVerifier {
                 + "of the subject alternative names: " + subjectAlts);
     }
 
-    static void matchDNSName(final String host, final List<SubjectName> subjectAlts,
-            final PublicSuffixMatcher publicSuffixMatcher) throws SSLException {
+    static void matchDNSName(
+            final String host, final List<SubjectName> subjectAlts, final PublicSuffixMatcher publicSuffixMatcher)
+            throws SSLException {
         final String normalizedHost = host.toLowerCase(Locale.ROOT);
         for (int i = 0; i < subjectAlts.size(); i++) {
             final SubjectName subjectAlt = subjectAlts.get(i);
@@ -157,13 +157,13 @@ public class TlsHostnameVerifier implements HostnameVerifier {
                 + "of the subject alternative names: " + subjectAlts);
     }
 
-    static void matchCN(final String host, final String cn,
-            final PublicSuffixMatcher publicSuffixMatcher) throws SSLException {
+    static void matchCN(final String host, final String cn, final PublicSuffixMatcher publicSuffixMatcher)
+            throws SSLException {
         final String normalizedHost = host.toLowerCase(Locale.ROOT);
         final String normalizedCn = cn.toLowerCase(Locale.ROOT);
         if (!matchIdentityStrict(normalizedHost, normalizedCn, publicSuffixMatcher)) {
-            throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match "
-                    + "common name of the certificate subject: " + cn);
+            throw new SSLPeerUnverifiedException(
+                    "Certificate for <" + host + "> doesn't match " + "common name of the certificate subject: " + cn);
         }
     }
 
@@ -171,11 +171,14 @@ public class TlsHostnameVerifier implements HostnameVerifier {
         if (domainRoot == null) {
             return false;
         }
-        return host.endsWith(domainRoot) && (host.length() == domainRoot.length()
-                || host.charAt(host.length() - domainRoot.length() - 1) == '.');
+        return host.endsWith(domainRoot)
+                && (host.length() == domainRoot.length()
+                        || host.charAt(host.length() - domainRoot.length() - 1) == '.');
     }
 
-    private static boolean matchIdentity(final String host, final String identity,
+    private static boolean matchIdentity(
+            final String host,
+            final String identity,
             final PublicSuffixMatcher publicSuffixMatcher,
             final boolean strict) {
         if (publicSuffixMatcher != null && host.contains(".")) {
@@ -201,8 +204,7 @@ public class TlsHostnameVerifier implements HostnameVerifier {
             }
             // Additional sanity checks on content selected by wildcard can be done here
             if (strict) {
-                final String remainder = host.substring(
-                        prefix.length(), host.length() - suffix.length());
+                final String remainder = host.substring(prefix.length(), host.length() - suffix.length());
                 return !remainder.contains(".");
             }
             return true;
@@ -210,8 +212,8 @@ public class TlsHostnameVerifier implements HostnameVerifier {
         return host.equalsIgnoreCase(identity);
     }
 
-    static boolean matchIdentity(final String host, final String identity,
-            final PublicSuffixMatcher publicSuffixMatcher) {
+    static boolean matchIdentity(
+            final String host, final String identity, final PublicSuffixMatcher publicSuffixMatcher) {
         return matchIdentity(host, identity, publicSuffixMatcher, false);
     }
 
@@ -219,8 +221,8 @@ public class TlsHostnameVerifier implements HostnameVerifier {
         return matchIdentity(host, identity, null, false);
     }
 
-    static boolean matchIdentityStrict(final String host, final String identity,
-            final PublicSuffixMatcher publicSuffixMatcher) {
+    static boolean matchIdentityStrict(
+            final String host, final String identity, final PublicSuffixMatcher publicSuffixMatcher) {
         return matchIdentity(host, identity, publicSuffixMatcher, true);
     }
 
@@ -310,5 +312,4 @@ public class TlsHostnameVerifier implements HostnameVerifier {
             return hostname;
         }
     }
-
 }

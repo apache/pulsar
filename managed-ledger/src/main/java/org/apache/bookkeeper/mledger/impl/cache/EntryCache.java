@@ -98,8 +98,13 @@ public interface EntryCache extends Comparable<EntryCache> {
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
-            ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntry(
+            ReadHandle lh,
+            long firstEntry,
+            long lastEntry,
+            boolean shouldCacheEntry,
+            ReadEntriesCallback callback,
+            Object ctx);
 
     /**
      * Read entry at given position from the cache or from bookkeeper.

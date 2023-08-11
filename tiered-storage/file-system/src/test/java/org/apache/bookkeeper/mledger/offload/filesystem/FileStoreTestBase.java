@@ -18,24 +18,25 @@
  */
 package org.apache.bookkeeper.mledger.offload.filesystem;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.util.Properties;
+import java.util.concurrent.Executors;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.util.Properties;
-import java.util.concurrent.Executors;
-
 public abstract class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
-    protected OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
+    protected OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder()
+            .numThreads(1)
+            .name("offloader")
+            .build();
     protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
@@ -49,12 +50,11 @@ public abstract class FileStoreTestBase {
         MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
         hdfsCluster = builder.build();
 
-        hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
+        hdfsURI = "hdfs://localhost:" + hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
         this.offloaderStats = LedgerOffloaderStats.create(true, true, Executors.newScheduledThreadPool(1), 60);
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
-                OffloadPoliciesImpl.create(properties),
-                scheduler, hdfsURI, basePath, offloaderStats);
+                OffloadPoliciesImpl.create(properties), scheduler, hdfsURI, basePath, offloaderStats);
     }
 
     @AfterMethod(alwaysRun = true)

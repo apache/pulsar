@@ -25,5 +25,4 @@ public class PulsarFunctionsGoProcessTest extends PulsarFunctionsGoTest {
     PulsarFunctionsGoProcessTest() {
         super(FunctionRuntimeType.PROCESS);
     }
-
 }

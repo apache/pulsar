@@ -29,11 +29,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,7 +42,6 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -78,7 +75,14 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-io")
 public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, boolean isBuiltin, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(
+            String tenant,
+            String namespace,
+            String functionName,
+            boolean isBuiltin,
+            String sourceTopic,
+            String sinkTopic,
+            String subscriptionName) {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -121,12 +125,22 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic2).subscriptionName("sub").subscribe();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(sinkTopic2)
+                .subscriptionName("sub")
+                .subscribe();
 
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                jarFilePathUrl.startsWith(Utils.BUILTIN) || jarFilePathUrl.endsWith(".nar"), "my.*",
-                sinkTopic, subscriptionName);
+        FunctionConfig functionConfig = createFunctionConfig(
+                tenant,
+                namespacePortion,
+                functionName,
+                jarFilePathUrl.startsWith(Utils.BUILTIN) || jarFilePathUrl.endsWith(".nar"),
+                "my.*",
+                sinkTopic,
+                subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
@@ -152,7 +166,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
             assertEquals(topicStats.getPublishers().size(), 2);
             assertNotNull(topicStats.getPublishers().get(0).getMetadata());
             assertTrue(topicStats.getPublishers().get(0).getMetadata().containsKey("id"));
-            assertEquals(topicStats.getPublishers().get(0).getMetadata().get("id"),
+            assertEquals(
+                    topicStats.getPublishers().get(0).getMetadata().get("id"),
                     String.format("%s/%s/%s", tenant, namespacePortion, functionName));
         });
 
@@ -164,11 +179,15 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+            producer.newMessage()
+                    .property(propertyKey, propertyValue)
+                    .value(data)
+                    .send();
         }
 
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subStats =
+                    admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
             assertEquals(subStats.getUnackedMessages(), 0);
         });
 
@@ -178,7 +197,14 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+        assertNotEquals(
+                admin.topics()
+                        .getStats(sourceTopic)
+                        .getSubscriptions()
+                        .values()
+                        .iterator()
+                        .next()
+                        .getUnackedMessages(),
                 totalMsgs);
 
         // delete functions
@@ -220,7 +246,11 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         testE2EPulsarFunction(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "No Function foo found")
+    @Test(
+            timeOut = 20000,
+            groups = "builtin",
+            expectedExceptions = {PulsarAdminException.class},
+            expectedExceptionsMessageRegExp = "No Function foo found")
     public void testPulsarFunctionBuiltinDoesNotExist() throws Exception {
         String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
         testE2EPulsarFunction(jarFilePathUrl);
@@ -240,37 +270,47 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         final int messageNum = 20;
         final int maxKeys = 10;
         // 1 Setup producer
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(sourceTopic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
-        pulsarClient.newConsumer().topic(sourceTopic).subscriptionName(subscriptionName).readCompacted(true).subscribe().close();
+        pulsarClient
+                .newConsumer()
+                .topic(sourceTopic)
+                .subscriptionName(subscriptionName)
+                .readCompacted(true)
+                .subscribe()
+                .close();
         // 2 Send messages and record the expected values after compaction
         Map<String, String> expected = new HashMap<>();
         for (int j = 0; j < messageNum; j++) {
             String key = "key" + j % maxKeys;
             String value = "my-message-" + key + j;
             producer.newMessage().key(key).value(value).send();
-            //Duplicate keys will exist, the value of the new key will be retained
+            // Duplicate keys will exist, the value of the new key will be retained
             expected.put(key, value);
         }
         // 3 Trigger compaction
         @Cleanup("shutdownNow")
-        ScheduledExecutorService compactionScheduler = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
-        TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
-                pulsarClient, pulsar.getBookKeeperClient(), compactionScheduler);
+        ScheduledExecutorService compactionScheduler =
+                Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                        .setNameFormat("compactor")
+                        .setDaemon(true)
+                        .build());
+        TwoPhaseCompactor twoPhaseCompactor =
+                new TwoPhaseCompactor(config, pulsarClient, pulsar.getBookKeeperClient(), compactionScheduler);
         twoPhaseCompactor.compact(sourceTopic).get();
 
         // 4 Setup function
         // set source topic to null because we are setting the topic information separately
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
-                null, sinkTopic, subscriptionName);
+        FunctionConfig functionConfig =
+                createFunctionConfig(tenant, namespacePortion, functionName, false, null, sinkTopic, subscriptionName);
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         ConsumerConfig consumerConfig = new ConsumerConfig();
-        Map<String,String> consumerProperties = new HashMap<>();
-        consumerProperties.put("readCompacted","true");
+        Map<String, String> consumerProperties = new HashMap<>();
+        consumerProperties.put("readCompacted", "true");
         consumerConfig.setConsumerProperties(consumerProperties);
         inputSpecs.put(sourceTopic, consumerConfig);
         functionConfig.setInputSpecs(inputSpecs);
@@ -278,7 +318,11 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // 5 Function should only read compacted value, so we will only receive compacted messages
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sink-sub").subscribe();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(sinkTopic)
+                .subscriptionName("sink-sub")
+                .subscribe();
         int count = 0;
         while (true) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
@@ -312,32 +356,40 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
-                "my.*", sinkTopic, subscriptionName);
+        FunctionConfig functionConfig = createFunctionConfig(
+                tenant, namespacePortion, functionName, false, "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         // validate stats are empty
         FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
-        FunctionStatsImpl functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
-                functionName, null);
-        FunctionStatsImpl functionStatsFromAdmin = (FunctionStatsImpl) admin.functions().getFunctionStats(tenant,
-                namespacePortion, functionName);
+        FunctionStatsImpl functionStats =
+                functionRuntimeManager.getFunctionStats(tenant, namespacePortion, functionName, null);
+        FunctionStatsImpl functionStatsFromAdmin =
+                (FunctionStatsImpl) admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
 
         assertEquals(functionStats, functionStatsFromAdmin);
 
@@ -367,13 +419,16 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
         assertNull(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
 
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+        assertEquals(
+                functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
                 functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+        assertEquals(
+                functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
                 functionStats.getAvgProcessLatency());
 
         // validate prometheus metrics empty
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(
+                pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
         Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
@@ -455,39 +510,44 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
 
-
         // validate function instance stats empty
-        FunctionInstanceStatsDataImpl functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant,
-                namespacePortion, functionName, 0,  null);
+        FunctionInstanceStatsDataImpl functionInstanceStats =
+                functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion, functionName, 0, null);
 
-        FunctionInstanceStatsDataImpl functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl) admin.functions().
-                getFunctionStats(tenant, namespacePortion, functionName, 0);
+        FunctionInstanceStatsDataImpl functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl)
+                admin.functions().getFunctionStats(tenant, namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
 
-
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+            producer.newMessage()
+                    .property(propertyKey, propertyValue)
+                    .value(data)
+                    .send();
         }
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 200);
-
+        retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStats = admin.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .get(subscriptionName);
+                        return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                5,
+                200);
 
         // get stats after producing
-        functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
-                functionName, null);
+        functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion, functionName, null);
 
-        functionStatsFromAdmin = (FunctionStatsImpl) admin.functions().getFunctionStats(tenant, namespacePortion,
-                functionName);
+        functionStatsFromAdmin =
+                (FunctionStatsImpl) admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
 
         assertEquals(functionStats, functionStatsFromAdmin);
 
@@ -512,28 +572,32 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
         assertTrue(functionStats.instances.get(0).getMetrics().getAvgProcessLatency() > 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), totalMsgs);
-        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), totalMsgs);
+        assertEquals(
+                functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), totalMsgs);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
         assertTrue(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency() > 0);
 
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+        assertEquals(
+                functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
                 functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+        assertEquals(
+                functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
                 functionStats.getAvgProcessLatency());
 
         // validate function instance stats
-        functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
-                functionName, 0,  null);
+        functionInstanceStats =
+                functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion, functionName, 0, null);
 
-        functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl) admin.functions().getFunctionStats(tenant,
-                namespacePortion, functionName, 0);
+        functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl)
+                admin.functions().getFunctionStats(tenant, namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
 
         // validate prometheus metrics
-        prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(
+                pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
         metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
@@ -618,13 +682,20 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
@@ -648,66 +719,89 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
-                "my.*", sinkTopic, subscriptionName);
+        FunctionConfig functionConfig = createFunctionConfig(
+                tenant, namespacePortion, functionName, false, "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+            producer.newMessage()
+                    .property(propertyKey, propertyValue)
+                    .value(data)
+                    .send();
         }
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 200);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStats = admin.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .get(subscriptionName);
+                        return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                5,
+                200);
 
-        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion,
-                functionName);
+        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion, functionName);
 
         int numInstances = functionStatus.getNumInstances();
         assertEquals(numInstances, 1);
 
-        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status
-                = functionStatus.getInstances().get(0).getStatus();
+        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status =
+                functionStatus.getInstances().get(0).getStatus();
 
         double count = status.getNumReceived();
         double success = status.getNumSuccessfullyProcessed();
         String ownerWorkerId = status.getWorkerId();
-        assertEquals((int)count, totalMsgs);
+        assertEquals((int) count, totalMsgs);
         assertEquals((int) success, totalMsgs);
         assertEquals(ownerWorkerId, workerId);
 
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
@@ -733,14 +827,15 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.tenants().updateTenant(tenant, propAdmin);
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
-                "my.*", sinkTopic, subscriptionName);
+        FunctionConfig functionConfig = createFunctionConfig(
+                tenant, namespacePortion, functionName, false, "my.*", sinkTopic, subscriptionName);
         if (!validRoleName) {
             // create a non-superuser admin to test the api
-            admin = spy(
-                PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
+            admin = spy(PulsarAdmin.builder()
+                    .serviceHttpUrl(pulsar.getWebServiceAddressTls())
                     .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                    .allowTlsInsecureConnection(true).build());
+                    .allowTlsInsecureConnection(true)
+                    .build());
             try {
                 admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
             } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
@@ -754,7 +849,6 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
                 fail();
             }
         }
-
     }
 
     @Test(timeOut = 20000)
@@ -772,36 +866,50 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create source topic
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
-                sourceTopicName, sinkTopic, subscriptionName);
+        FunctionConfig functionConfig = createFunctionConfig(
+                tenant, namespacePortion, functionName, false, sourceTopicName, sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                return subStats != null && subStats.getConsumers().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStats = admin.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .get(subscriptionName);
+                        return subStats != null && subStats.getConsumers().size() == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
-        SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+        SubscriptionStats subStats =
+                admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
         assertEquals(subStats.getConsumers().size(), 1);
 
         // it should stop consumer : so, check none of the consumer connected on subscription
         admin.functions().stopFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStat = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                return subStat != null && subStat.getConsumers().size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStat = admin.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .get(subscriptionName);
+                        return subStat != null && subStat.getConsumers().size() == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
         assertEquals(subStats.getConsumers().size(), 0);
@@ -809,14 +917,20 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         // it should restart consumer : so, check if consumer came up again after restarting function
         admin.functions().restartFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStat = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                return subStat != null && subStat.getConsumers().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStat = admin.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .get(subscriptionName);
+                        return subStat != null && subStat.getConsumers().size() == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
         assertEquals(subStats.getConsumers().size(), 1);
@@ -838,7 +952,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         FunctionConfig functionConfig = new FunctionConfig();
@@ -853,23 +968,36 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-        retryStrategically((test) -> {
-            try {
-                FunctionConfig configure = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return configure != null && configure.getCleanupSubscription() != null;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
-        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+        retryStrategically(
+                (test) -> {
+                    try {
+                        FunctionConfig configure =
+                                admin.functions().getFunction(tenant, namespacePortion, functionName);
+                        return configure != null && configure.getCleanupSubscription() != null;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
+        assertFalse(admin.functions()
+                .getFunction(tenant, namespacePortion, functionName)
+                .getCleanupSubscription());
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
         // validate pulsar source consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
@@ -877,109 +1005,153 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setCleanupSubscription(true);
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
-        assertTrue(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.functions()
+                                .getFunction(tenant, namespacePortion, functionName)
+                                .getCleanupSubscription();
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
+        assertTrue(admin.functions()
+                .getFunction(tenant, namespacePortion, functionName)
+                .getCleanupSubscription());
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+            producer.newMessage()
+                    .property(propertyKey, propertyValue)
+                    .value(data)
+                    .send();
         }
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(
-                        InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
-                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 200);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStats = admin.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .get(InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
+                        return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                5,
+                200);
 
-        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion,
-                functionName);
+        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion, functionName);
 
         int numInstances = functionStatus.getNumInstances();
         assertEquals(numInstances, 1);
 
-        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status
-                = functionStatus.getInstances().get(0).getStatus();
+        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status =
+                functionStatus.getInstances().get(0).getStatus();
 
         double count = status.getNumReceived();
         double success = status.getNumSuccessfullyProcessed();
         String ownerWorkerId = status.getWorkerId();
-        assertEquals((int)count, totalMsgs);
+        assertEquals((int) count, totalMsgs);
         assertEquals((int) success, totalMsgs);
         assertEquals(ownerWorkerId, workerId);
 
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
-
 
         /** test do not cleanup subscription **/
         functionConfig.setCleanupSubscription(false);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
         // validate pulsar source consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
-        retryStrategically((test) -> {
-            try {
-                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return !result.getCleanupSubscription();
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
-        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+        retryStrategically(
+                (test) -> {
+                    try {
+                        FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                        return !result.getCleanupSubscription();
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
+        assertFalse(admin.functions()
+                .getFunction(tenant, namespacePortion, functionName)
+                .getCleanupSubscription());
 
         // test update another config and making sure that subscription cleanup remains unchanged
         functionConfig.setParallelism(2);
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        retryStrategically((test) -> {
-            try {
-                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return result.getParallelism() == 2 && !result.getCleanupSubscription();
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
-        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+        retryStrategically(
+                (test) -> {
+                    try {
+                        FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                        return result.getParallelism() == 2 && !result.getCleanupSubscription();
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
+        assertFalse(admin.functions()
+                .getFunction(tenant, namespacePortion, functionName)
+                .getCleanupSubscription());
 
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
@@ -1001,9 +1173,11 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
         // create a producer that creates a topic at broker
         @Cleanup
-        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic1).create();
+        Producer<String> producer1 =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic1).create();
         @Cleanup
-        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic2).create();
+        Producer<String> producer2 =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic2).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         FunctionConfig functionConfig = new FunctionConfig();
@@ -1020,93 +1194,141 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-        assertTrue(retryStrategically((test) -> {
-            try {
-                admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return true;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150));
+        assertTrue(retryStrategically(
+                (test) -> {
+                    try {
+                        admin.functions().getFunction(tenant, namespacePortion, functionName);
+                        return true;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150));
 
-        assertTrue(retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic1).getSubscriptions().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150));
+        assertTrue(retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic1)
+                                        .getSubscriptions()
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150));
 
-        assertTrue(retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic2).getSubscriptions().size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150));
+        assertTrue(retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic2)
+                                        .getSubscriptions()
+                                        .size()
+                                == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150));
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer1.newMessage().property(propertyKey, propertyValue).value(data).send();
-            producer2.newMessage().property(propertyKey, propertyValue).value(data).send();
+            producer1
+                    .newMessage()
+                    .property(propertyKey, propertyValue)
+                    .value(data)
+                    .send();
+            producer2
+                    .newMessage()
+                    .property(propertyKey, propertyValue)
+                    .value(data)
+                    .send();
         }
 
-        assertTrue(retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic1).getSubscriptions().get(
-                        InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
-                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 200));
+        assertTrue(retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStats = admin.topics()
+                                .getStats(sourceTopic1)
+                                .getSubscriptions()
+                                .get(InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
+                        return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                5,
+                200));
 
-        assertTrue(retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic2).getSubscriptions().get(
-                        InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
-                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 200));
+        assertTrue(retryStrategically(
+                (test) -> {
+                    try {
+                        SubscriptionStats subStats = admin.topics()
+                                .getStats(sourceTopic2)
+                                .getSubscriptions()
+                                .get(InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
+                        return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                5,
+                200));
 
-        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion,
-                functionName);
+        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion, functionName);
 
         int numInstances = functionStatus.getNumInstances();
         assertEquals(numInstances, 1);
 
-        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status
-                = functionStatus.getInstances().get(0).getStatus();
+        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status =
+                functionStatus.getInstances().get(0).getStatus();
 
         double count = status.getNumReceived();
         double success = status.getNumSuccessfullyProcessed();
         String ownerWorkerId = status.getWorkerId();
         // multiply by 2 since function is reading from two topics
-        assertEquals((int)count, totalMsgs * 2);
+        assertEquals((int) count, totalMsgs * 2);
         assertEquals((int) success, totalMsgs * 2);
         assertEquals(ownerWorkerId, workerId);
 
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        assertTrue(retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic1).getSubscriptions().size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150));
+        assertTrue(retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic1)
+                                        .getSubscriptions()
+                                        .size()
+                                == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150));
 
-        assertTrue(retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic2).getSubscriptions().size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150));
+        assertTrue(retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                        .getStats(sourceTopic2)
+                                        .getSubscriptions()
+                                        .size()
+                                == 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150));
     }
 
     @Test(timeOut = 20000)
@@ -1124,8 +1346,13 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(sinkTopic)
+                .subscriptionName("sub")
+                .subscribe();
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -1133,8 +1360,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setName(functionName);
         functionConfig.setParallelism(1);
         functionConfig.setSubName(subscriptionName);
-        functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
-                ConsumerConfig.builder().poolMessages(true).build()));
+        functionConfig.setInputSpecs(Collections.singletonMap(
+                sourceTopic, ConsumerConfig.builder().poolMessages(true).build()));
         functionConfig.setAutoAck(true);
         functionConfig.setClassName(ByteBufferFunction.class.getName());
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
@@ -1142,15 +1369,23 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setCleanupSubscription(true);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
-        admin.functions().createFunctionWithUrl(functionConfig,
-                PulsarFunctionE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString());
+        admin.functions()
+                .createFunctionWithUrl(
+                        functionConfig,
+                        PulsarFunctionE2ETest.class
+                                .getProtectionDomain()
+                                .getCodeSource()
+                                .getLocation()
+                                .toURI()
+                                .toString());
 
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
             TopicStats topicStats = admin.topics().getStats(sinkTopic);
             assertEquals(topicStats.getPublishers().size(), 1);
             assertNotNull(topicStats.getPublishers().get(0).getMetadata());
             assertTrue(topicStats.getPublishers().get(0).getMetadata().containsKey("id"));
-            assertEquals(topicStats.getPublishers().get(0).getMetadata().get("id"),
+            assertEquals(
+                    topicStats.getPublishers().get(0).getMetadata().get("id"),
                     String.format("%s/%s/%s", tenant, namespacePortion, functionName));
         });
 
@@ -1162,11 +1397,15 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+            producer.newMessage()
+                    .property(propertyKey, propertyValue)
+                    .value(data)
+                    .send();
         }
 
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subStats =
+                    admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
             assertEquals(subStats.getUnackedMessages(), 0);
         });
 
@@ -1179,7 +1418,14 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+        assertNotEquals(
+                admin.topics()
+                        .getStats(sourceTopic)
+                        .getSubscriptions()
+                        .values()
+                        .iterator()
+                        .next()
+                        .getUnackedMessages(),
                 totalMsgs);
 
         // delete functions

@@ -25,11 +25,13 @@ import org.testng.annotations.Test;
 
 public abstract class PulsarFunctionsGoTest extends PulsarFunctionsTest {
 
-	PulsarFunctionsGoTest(FunctionRuntimeType functionRuntimeType) {
-		super(functionRuntimeType);
-	}
+    PulsarFunctionsGoTest(FunctionRuntimeType functionRuntimeType) {
+        super(functionRuntimeType);
+    }
 
-    @Test(enabled = false, groups = {"go_function", "function"})
+    @Test(
+            enabled = false,
+            groups = {"go_function", "function"})
     public void testGoFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.GO);
     }
@@ -38,5 +40,4 @@ public abstract class PulsarFunctionsGoTest extends PulsarFunctionsTest {
     public void testGoExclamationMultiInputsFunction() throws Exception {
         testExclamationFunction(Runtime.GO, false, false, true, false);
     }
-
 }

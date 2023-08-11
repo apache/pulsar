@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -39,9 +38,15 @@ public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.clusters()
+                .createCluster(
+                        "use",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
@@ -53,25 +58,49 @@ public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReadCompactPersistentExclusive() throws Exception {
-        pulsarClient.newConsumer().topic(persistentTopic).subscriptionName("sub1").readCompacted(true)
-                .subscriptionType(SubscriptionType.Exclusive).subscribe().close();
+        pulsarClient
+                .newConsumer()
+                .topic(persistentTopic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe()
+                .close();
     }
 
     @Test
     public void testReadCompactPersistentFailover() throws Exception {
-        pulsarClient.newConsumer().topic(persistentTopic).subscriptionName("sub1").readCompacted(true)
-                .subscriptionType(SubscriptionType.Failover).subscribe().close();
+        pulsarClient
+                .newConsumer()
+                .topic(persistentTopic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe()
+                .close();
     }
 
     @Test(expectedExceptions = InvalidConfigurationException.class)
     public void testReadCompactPersistentShared() throws Exception {
-        pulsarClient.newConsumer().topic(persistentTopic).subscriptionName("sub1").readCompacted(true)
-                .subscriptionType(SubscriptionType.Shared).subscribe().close();
+        pulsarClient
+                .newConsumer()
+                .topic(persistentTopic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe()
+                .close();
     }
 
     @Test(expectedExceptions = InvalidConfigurationException.class)
     public void testReadCompactNonPersistentExclusive() throws Exception {
-        pulsarClient.newConsumer().topic(nonPersistentTopic).subscriptionName("sub1").readCompacted(true)
-                .subscriptionType(SubscriptionType.Exclusive).subscribe().close();
+        pulsarClient
+                .newConsumer()
+                .topic(nonPersistentTopic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe()
+                .close();
     }
 }

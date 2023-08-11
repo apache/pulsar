@@ -66,7 +66,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "partitions");
-        return asyncGetRequest(path, new FutureCallback<PartitionedTopicMetadata>(){});
+        return asyncGetRequest(path, new FutureCallback<PartitionedTopicMetadata>() {});
     }
 
     @Override
@@ -90,7 +90,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "internalStats");
-        return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>(){});
+        return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>() {});
     }
 
     @Override
@@ -107,7 +107,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
 
     @Override
     public List<String> getListInBundle(String namespace, String bundleRange) throws PulsarAdminException {
-        return sync(() ->  getListInBundleAsync(namespace, bundleRange));
+        return sync(() -> getListInBundleAsync(namespace, bundleRange));
     }
 
     @Override
@@ -126,7 +126,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<List<String>> getListAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath("non-persistent", ns);
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 
     /*

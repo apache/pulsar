@@ -59,7 +59,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-
 /**
  * Unit test for {@link BrokerRegistry}.
  */
@@ -73,7 +72,6 @@ public class BrokerRegistryTest {
     private ExecutorService executor;
 
     private LocalBookkeeperEnsemble bkEnsemble;
-
 
     // Make sure the load manager don't register itself to `/loadbalance/brokers/{lookupServiceAddress}`
     public static class MockLoadManager implements LoadManager {
@@ -161,8 +159,7 @@ public class BrokerRegistryTest {
 
     @BeforeClass
     void setup() throws Exception {
-        executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>());
+        executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
@@ -240,8 +237,7 @@ public class BrokerRegistryTest {
         brokerRegistry1.start();
         brokerRegistry2.start();
 
-        Awaitility.await().atMost(Duration.ofSeconds(5))
-                .untilAsserted(() -> assertEquals(brokerIds.size(), 2));
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertEquals(brokerIds.size(), 2));
 
         assertEquals(brokerRegistry1.getAvailableBrokersAsync().get().size(), 2);
         assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
@@ -249,15 +245,26 @@ public class BrokerRegistryTest {
         // Check three broker cache are flush successes.
         brokerRegistry3.start();
         assertEquals(brokerRegistry3.getAvailableBrokersAsync().get().size(), 3);
-        Awaitility.await().atMost(Duration.ofSeconds(5))
-                .untilAsserted(() -> assertEquals(brokerIds.size(), 3));
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertEquals(brokerIds.size(), 3));
 
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry2.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry3.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, brokerRegistry1.getAvailableBrokerLookupDataAsync().get().keySet());
-        assertEquals(brokerIds, brokerRegistry2.getAvailableBrokerLookupDataAsync().get().keySet());
-        assertEquals(brokerIds, brokerRegistry3.getAvailableBrokerLookupDataAsync().get().keySet());
+        assertEquals(
+                brokerIds,
+                new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
+        assertEquals(
+                brokerIds,
+                new HashSet<>(brokerRegistry2.getAvailableBrokersAsync().get()));
+        assertEquals(
+                brokerIds,
+                new HashSet<>(brokerRegistry3.getAvailableBrokersAsync().get()));
+        assertEquals(
+                brokerIds,
+                brokerRegistry1.getAvailableBrokerLookupDataAsync().get().keySet());
+        assertEquals(
+                brokerIds,
+                brokerRegistry2.getAvailableBrokerLookupDataAsync().get().keySet());
+        assertEquals(
+                brokerIds,
+                brokerRegistry3.getAvailableBrokerLookupDataAsync().get().keySet());
 
         Optional<BrokerLookupData> lookupDataOpt =
                 brokerRegistry1.lookupAsync(brokerRegistry2.getBrokerId()).get();
@@ -268,10 +275,12 @@ public class BrokerRegistryTest {
         assertEquals(lookupDataOpt.get().getPulsarServiceUrlTls(), pulsar2.getBrokerServiceUrlTls());
         assertEquals(lookupDataOpt.get().advertisedListeners(), pulsar2.getAdvertisedListeners());
         assertEquals(lookupDataOpt.get().protocols(), pulsar2.getProtocolDataToAdvertise());
-        assertEquals(lookupDataOpt.get().persistentTopicsEnabled(), pulsar2.getConfiguration()
-                .isEnablePersistentTopics());
-        assertEquals(lookupDataOpt.get().nonPersistentTopicsEnabled(), pulsar2.getConfiguration()
-                .isEnableNonPersistentTopics());
+        assertEquals(
+                lookupDataOpt.get().persistentTopicsEnabled(),
+                pulsar2.getConfiguration().isEnablePersistentTopics());
+        assertEquals(
+                lookupDataOpt.get().nonPersistentTopicsEnabled(),
+                pulsar2.getConfiguration().isEnableNonPersistentTopics());
         assertEquals(lookupDataOpt.get().brokerVersion(), pulsar2.getBrokerVersion());
 
         // Unregister and see the available brokers.
@@ -378,10 +387,10 @@ public class BrokerRegistryTest {
     @Test
     public void testIsVerifiedNotification() {
         assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created, "/")));
-        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
-                LOADBALANCE_BROKERS_ROOT + "xyz")));
-        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
-                LOADBALANCE_BROKERS_ROOT)));
+        assertFalse(BrokerRegistryImpl.isVerifiedNotification(
+                new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "xyz")));
+        assertFalse(BrokerRegistryImpl.isVerifiedNotification(
+                new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT)));
         assertTrue(BrokerRegistryImpl.isVerifiedNotification(
                 new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "/brokerId")));
         assertTrue(BrokerRegistryImpl.isVerifiedNotification(
@@ -398,4 +407,3 @@ public class BrokerRegistryTest {
         return WhiteboxImpl.getInternalState(brokerRegistry, BrokerRegistryImpl.State.class);
     }
 }
-

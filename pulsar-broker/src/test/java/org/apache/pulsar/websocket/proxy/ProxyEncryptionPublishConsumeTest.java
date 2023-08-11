@@ -74,7 +74,8 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         config.setCryptoKeyReaderFactoryClassName(CryptoKeyReaderFactoryImpl.class.getName());
         WebSocketService service = spy(new WebSocketService(config));
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal))
+                .when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
@@ -95,8 +96,9 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void socketTest() throws Exception {
-        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
-                + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
+        final String consumerUri =
+                "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                        + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
         String readerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/reader/persistent/my-property/my-ns/my-topic1";
         String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
@@ -174,7 +176,6 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
         public CryptoKeyReader create() {
             return reader;
         }
-
     }
 
     public static class EncKeyReader implements CryptoKeyReader {

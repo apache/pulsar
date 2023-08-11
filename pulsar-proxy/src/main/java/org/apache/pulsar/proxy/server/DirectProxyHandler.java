@@ -73,12 +73,17 @@ public class DirectProxyHandler {
 
     @Getter
     private final Channel inboundChannel;
+
     private final ProxyConnection proxyConnection;
+
     @Getter
     Channel outboundChannel;
+
     boolean isTlsOutboundChannel = false;
+
     @Getter
     private final Rate inboundChannelRequestsRate;
+
     private final String originalPrincipal;
     private final AuthData clientAuthData;
     private final String clientAuthMethod;
@@ -114,8 +119,10 @@ public class DirectProxyHandler {
 
             if (!isEmpty(config.getBrokerClientAuthenticationPlugin())) {
                 try {
-                    authData = AuthenticationFactory.create(config.getBrokerClientAuthenticationPlugin(),
-                            config.getBrokerClientAuthenticationParameters()).getAuthData();
+                    authData = AuthenticationFactory.create(
+                                    config.getBrokerClientAuthenticationPlugin(),
+                                    config.getBrokerClientAuthenticationParameters())
+                            .getAuthData();
                 } catch (PulsarClientException e) {
                     throw new RuntimeException(e);
                 }
@@ -148,8 +155,7 @@ public class DirectProxyHandler {
                         authData,
                         config.getBrokerClientTlsCiphers(),
                         config.getBrokerClientTlsProtocols(),
-                        config.getTlsCertRefreshCheckDurationSec()
-                );
+                        config.getTlsCertRefreshCheckDurationSec());
                 clientSSLContextAutoRefreshBuilder = null;
             }
         } else {
@@ -171,8 +177,7 @@ public class DirectProxyHandler {
         if (brokerProxyConnectTimeoutMs > 0) {
             b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, brokerProxyConnectTimeoutMs);
         }
-        b.group(inboundChannel.eventLoop())
-                .channel(inboundChannel.getClass());
+        b.group(inboundChannel.eventLoop()).channel(inboundChannel.getClass());
 
         if (service.proxyZeroCopyModeEnabled && EpollSocketChannel.class.isAssignableFrom(inboundChannel.getClass())) {
             b.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
@@ -190,13 +195,13 @@ public class DirectProxyHandler {
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) {
-                ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024,
-                        true));
+                ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024, true));
                 if (tlsEnabledWithBroker) {
                     String host = targetBrokerAddress.getHostString();
                     int port = targetBrokerAddress.getPort();
                     SslHandler handler = tlsEnabledWithKeyStore
-                            ? new SslHandler(clientSSLContextAutoRefreshBuilder.get().createSSLEngine(host, port))
+                            ? new SslHandler(
+                                    clientSSLContextAutoRefreshBuilder.get().createSSLEngine(host, port))
                             : clientSslCtxRefresher.get().newHandler(ch.alloc(), host, port);
                     if (tlsHostnameVerificationEnabled) {
                         SecurityUtility.configureSSLHandler(handler);
@@ -205,14 +210,23 @@ public class DirectProxyHandler {
                 }
                 int brokerProxyReadTimeoutMs = service.getConfiguration().getBrokerProxyReadTimeoutMs();
                 if (brokerProxyReadTimeoutMs > 0) {
-                    ch.pipeline().addLast("readTimeoutHandler",
-                            new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
+                    ch.pipeline()
+                            .addLast(
+                                    "readTimeoutHandler",
+                                    new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
                 }
-                ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                        service.getConfiguration().getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0,
-                        4));
-                ch.pipeline().addLast("proxyOutboundHandler",
-                        (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost));
+                ch.pipeline()
+                        .addLast(
+                                "frameDecoder",
+                                new LengthFieldBasedFrameDecoder(
+                                        service.getConfiguration().getMaxMessageSize()
+                                                + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                                        0,
+                                        4,
+                                        0,
+                                        4));
+                ch.pipeline().addLast("proxyOutboundHandler", (ChannelHandler)
+                        new ProxyBackendHandler(config, protocolVersion, remoteHost));
             }
         });
 
@@ -221,8 +235,12 @@ public class DirectProxyHandler {
         f.addListener(future -> {
             if (!future.isSuccess()) {
                 // Close the connection if the connection attempt has failed.
-                log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
-                        targetBrokerAddress, brokerHostAndPort, future.cause());
+                log.warn(
+                        "[{}] Establishing connection to {} ({}) failed. Closing inbound channel.",
+                        inboundChannel,
+                        targetBrokerAddress,
+                        brokerHostAndPort,
+                        future.cause());
                 inboundChannel.close();
             }
         });
@@ -250,8 +268,13 @@ public class DirectProxyHandler {
                 InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.localAddress();
                 String destinationAddress = proxyAddress.getAddress().getHostAddress();
                 int destinationPort = proxyAddress.getPort();
-                HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
-                        HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort,
+                HAProxyMessage msg = new HAProxyMessage(
+                        HAProxyProtocolVersion.V1,
+                        HAProxyCommand.PROXY,
+                        HAProxyProxiedProtocol.TCP4,
+                        sourceAddress,
+                        destinationAddress,
+                        sourcePort,
                         destinationPort);
                 final ByteBuf encodedMsg = encodeProxyProtocolMessage(msg);
                 writeAndFlush(encodedMsg);
@@ -259,8 +282,6 @@ public class DirectProxyHandler {
             }
         }
     }
-
-
 
     private ByteBuf encodeProxyProtocolMessage(HAProxyMessage msg) {
         // Max length of v1 version proxy protocol message is 108
@@ -282,11 +303,7 @@ public class DirectProxyHandler {
     }
 
     static final byte[] TEXT_PREFIX = {
-            (byte) 'P',
-            (byte) 'R',
-            (byte) 'O',
-            (byte) 'X',
-            (byte) 'Y',
+        (byte) 'P', (byte) 'R', (byte) 'O', (byte) 'X', (byte) 'Y',
     };
 
     public void close() {
@@ -296,7 +313,8 @@ public class DirectProxyHandler {
     }
 
     enum BackendState {
-        Init, HandshakeCompleted
+        Init,
+        HandshakeCompleted
     }
 
     public class ProxyBackendHandler extends PulsarDecoder {
@@ -325,9 +343,15 @@ public class DirectProxyHandler {
             authenticationDataProvider = authentication.getAuthData(remoteHostName);
             AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             ByteBuf command = Commands.newConnect(
-                    authentication.getAuthMethodName(), authData, protocolVersion,
-                    proxyConnection.clientVersion, null /* target broker */,
-                    originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion());
+                    authentication.getAuthMethodName(),
+                    authData,
+                    protocolVersion,
+                    proxyConnection.clientVersion,
+                    null /* target broker */,
+                    originalPrincipal,
+                    clientAuthData,
+                    clientAuthMethod,
+                    PulsarVersion.getVersion());
             writeAndFlush(command);
             isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
         }
@@ -344,53 +368,60 @@ public class DirectProxyHandler {
         @Override
         public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
             switch (state) {
-            case Init:
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Received msg on broker connection: {}", inboundChannel, outboundChannel,
-                            msg.getClass());
-                }
-
-                // Do the regular decoding for the Connected message
-                super.channelRead(ctx, msg);
-                break;
-
-            case HandshakeCompleted:
-                ProxyService.OPS_COUNTER.inc();
-                if (msg instanceof ByteBuf) {
-                    ProxyService.BYTES_COUNTER.inc(((ByteBuf) msg).readableBytes());
-                }
-                inboundChannel.writeAndFlush(msg, inboundChannel.voidPromise());
-
-                if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
-                    if (!isTlsOutboundChannel && !DirectProxyHandler.this.proxyConnection.isTlsInboundChannel) {
-                        if (ctx.pipeline().get("readTimeoutHandler") != null) {
-                            ctx.pipeline().remove("readTimeoutHandler");
-                        }
-                        ProxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
-                                        (EpollSocketChannel) inboundChannel, ProxyConnection.SPLICE_BYTES)
-                                .addListener(future -> {
-                                    if (future.isSuccess()) {
-                                        ProxyService.OPS_COUNTER.inc();
-                                        ProxyService.BYTES_COUNTER.inc(ProxyConnection.SPLICE_BYTES);
-                                    }
-                                });
+                case Init:
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "[{}] [{}] Received msg on broker connection: {}",
+                                inboundChannel,
+                                outboundChannel,
+                                msg.getClass());
                     }
-                }
 
-                break;
+                    // Do the regular decoding for the Connected message
+                    super.channelRead(ctx, msg);
+                    break;
 
-            default:
-                break;
+                case HandshakeCompleted:
+                    ProxyService.OPS_COUNTER.inc();
+                    if (msg instanceof ByteBuf) {
+                        ProxyService.BYTES_COUNTER.inc(((ByteBuf) msg).readableBytes());
+                    }
+                    inboundChannel.writeAndFlush(msg, inboundChannel.voidPromise());
+
+                    if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
+                        if (!isTlsOutboundChannel && !DirectProxyHandler.this.proxyConnection.isTlsInboundChannel) {
+                            if (ctx.pipeline().get("readTimeoutHandler") != null) {
+                                ctx.pipeline().remove("readTimeoutHandler");
+                            }
+                            ProxyConnection.spliceNIC2NIC(
+                                            (EpollSocketChannel) ctx.channel(),
+                                            (EpollSocketChannel) inboundChannel,
+                                            ProxyConnection.SPLICE_BYTES)
+                                    .addListener(future -> {
+                                        if (future.isSuccess()) {
+                                            ProxyService.OPS_COUNTER.inc();
+                                            ProxyService.BYTES_COUNTER.inc(ProxyConnection.SPLICE_BYTES);
+                                        }
+                                    });
+                        }
+                    }
+
+                    break;
+
+                default:
+                    break;
             }
-
         }
 
         @Override
         protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
             checkArgument(authChallenge.hasChallenge());
-            checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
+            checkArgument(authChallenge.getChallenge().hasAuthData()
+                    && authChallenge.getChallenge().hasAuthData());
 
-            if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
+            if (Arrays.equals(
+                    AuthData.REFRESH_AUTH_DATA_BYTES,
+                    authChallenge.getChallenge().getAuthData())) {
                 try {
                     authenticationDataProvider = authentication.getAuthData(remoteHostName);
                 } catch (PulsarClientException e) {
@@ -401,15 +432,13 @@ public class DirectProxyHandler {
 
             // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
             try {
-                AuthData authData = authenticationDataProvider
-                    .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
+                AuthData authData = authenticationDataProvider.authenticate(
+                        AuthData.of(authChallenge.getChallenge().getAuthData()));
 
                 checkState(!authData.isComplete());
 
-                ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
-                    authData,
-                    this.protocolVersion,
-                    PulsarVersion.getVersion());
+                ByteBuf request = Commands.newAuthResponse(
+                        authentication.getAuthMethodName(), authData, this.protocolVersion, PulsarVersion.getVersion());
 
                 if (log.isDebugEnabled()) {
                     log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
@@ -453,34 +482,70 @@ public class DirectProxyHandler {
                 // Enable parsing feature, proxyLogLevel(1 or 2)
                 // Add parser handler
                 if (connected.hasMaxMessageSize()) {
-                    inboundChannel.pipeline()
-                            .replace("frameDecoder", "newFrameDecoder",
-                                    new LengthFieldBasedFrameDecoder(connected.getMaxMessageSize()
-                                            + Commands.MESSAGE_SIZE_FRAME_PADDING,
-                                            0, 4, 0, 4));
-                    outboundChannel.pipeline().replace("frameDecoder", "newFrameDecoder",
-                            new LengthFieldBasedFrameDecoder(
-                                    connected.getMaxMessageSize()
-                                            + Commands.MESSAGE_SIZE_FRAME_PADDING,
-                                    0, 4, 0, 4));
+                    inboundChannel
+                            .pipeline()
+                            .replace(
+                                    "frameDecoder",
+                                    "newFrameDecoder",
+                                    new LengthFieldBasedFrameDecoder(
+                                            connected.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                                            0,
+                                            4,
+                                            0,
+                                            4));
+                    outboundChannel
+                            .pipeline()
+                            .replace(
+                                    "frameDecoder",
+                                    "newFrameDecoder",
+                                    new LengthFieldBasedFrameDecoder(
+                                            connected.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                                            0,
+                                            4,
+                                            0,
+                                            4));
 
-                    inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service,
-                                    ParserProxyHandler.FRONTEND_CONN,
-                                    connected.getMaxMessageSize(), outboundChannel.id()));
-                    outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service,
-                                    ParserProxyHandler.BACKEND_CONN,
-                                    connected.getMaxMessageSize(), inboundChannel.id()));
+                    inboundChannel
+                            .pipeline()
+                            .addBefore(
+                                    "handler",
+                                    "inboundParser",
+                                    new ParserProxyHandler(
+                                            service,
+                                            ParserProxyHandler.FRONTEND_CONN,
+                                            connected.getMaxMessageSize(),
+                                            outboundChannel.id()));
+                    outboundChannel
+                            .pipeline()
+                            .addBefore(
+                                    "proxyOutboundHandler",
+                                    "outboundParser",
+                                    new ParserProxyHandler(
+                                            service,
+                                            ParserProxyHandler.BACKEND_CONN,
+                                            connected.getMaxMessageSize(),
+                                            inboundChannel.id()));
                 } else {
-                    inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service,
-                                    ParserProxyHandler.FRONTEND_CONN,
-                                    Commands.DEFAULT_MAX_MESSAGE_SIZE, outboundChannel.id()));
-                    outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service,
-                                    ParserProxyHandler.BACKEND_CONN,
-                                    Commands.DEFAULT_MAX_MESSAGE_SIZE, inboundChannel.id()));
+                    inboundChannel
+                            .pipeline()
+                            .addBefore(
+                                    "handler",
+                                    "inboundParser",
+                                    new ParserProxyHandler(
+                                            service,
+                                            ParserProxyHandler.FRONTEND_CONN,
+                                            Commands.DEFAULT_MAX_MESSAGE_SIZE,
+                                            outboundChannel.id()));
+                    outboundChannel
+                            .pipeline()
+                            .addBefore(
+                                    "proxyOutboundHandler",
+                                    "outboundParser",
+                                    new ParserProxyHandler(
+                                            service,
+                                            ParserProxyHandler.BACKEND_CONN,
+                                            Commands.DEFAULT_MAX_MESSAGE_SIZE,
+                                            inboundChannel.id()));
                 }
             }
         }

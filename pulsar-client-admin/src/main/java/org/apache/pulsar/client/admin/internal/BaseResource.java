@@ -82,7 +82,8 @@ public abstract class BaseResource {
         CompletableFuture<Builder> builderFuture = new CompletableFuture<>();
         CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
         try {
-            AuthenticationDataProvider authData = auth.getAuthData(target.getUri().getHost());
+            AuthenticationDataProvider authData =
+                    auth.getAuthData(target.getUri().getHost());
 
             if (authData.hasDataForHttp()) {
                 auth.authenticationStage(target.getUri().toString(), authData, null, authFuture);
@@ -93,8 +94,7 @@ public abstract class BaseResource {
             // auth complete, return a new Builder
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to perform http request at auth stage: {}", target.getUri(),
-                        ex.getMessage());
+                    log.warn("[{}] Failed to perform http request at auth stage: {}", target.getUri(), ex.getMessage());
                     builderFuture.completeExceptionally(new PulsarClientException(ex));
                     return;
                 }
@@ -103,7 +103,7 @@ public abstract class BaseResource {
                     Builder builder = target.request(MediaType.APPLICATION_JSON);
                     if (authData.hasDataForHttp()) {
                         Set<Entry<String, String>> headers =
-                            auth.newRequestHeader(target.getUri().toString(), authData, respHeaders);
+                                auth.newRequestHeader(target.getUri().toString(), authData, respHeaders);
                         if (headers != null) {
                             headers.forEach(entry -> builder.header(entry.getKey(), entry.getValue()));
                         }
@@ -135,7 +135,6 @@ public abstract class BaseResource {
                     log.warn("[{}] Failed to perform http put request: {}", target.getUri(), throwable.getMessage());
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
-
             });
         } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
@@ -143,8 +142,8 @@ public abstract class BaseResource {
         return future;
     }
 
-    public <T, R> void asyncPostRequestWithResponse(final WebTarget target, Entity<T> entity,
-                                                                    InvocationCallback<R> callback) {
+    public <T, R> void asyncPostRequestWithResponse(
+            final WebTarget target, Entity<T> entity, InvocationCallback<R> callback) {
         try {
             request(target).async().post(entity, callback);
         } catch (PulsarAdminException cae) {
@@ -167,7 +166,6 @@ public abstract class BaseResource {
                     log.warn("[{}] Failed to perform http post request: {}", target.getUri(), throwable.getMessage());
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
-
             });
         } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
@@ -198,26 +196,25 @@ public abstract class BaseResource {
 
     private <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, Function<Response, T> readResponse) {
         final CompletableFuture<T> future = new CompletableFuture<>();
-        asyncGetRequest(target,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            try {
-                                future.complete(readResponse.apply(response));
-                            } catch (Exception e) {
-                                future.completeExceptionally(getApiException(e));
-                            }
-                        }
+        asyncGetRequest(target, new InvocationCallback<Response>() {
+            @Override
+            public void completed(Response response) {
+                if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                    future.completeExceptionally(getApiException(response));
+                } else {
+                    try {
+                        future.complete(readResponse.apply(response));
+                    } catch (Exception e) {
+                        future.completeExceptionally(getApiException(e));
                     }
+                }
+            }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
         return future;
     }
 
@@ -323,12 +320,13 @@ public abstract class BaseResource {
             return e.getResponse().readEntity(ErrorData.class).reason.toString();
         } catch (Exception ex) {
             try {
-                return ObjectMapperFactory.getMapper().reader().readValue(
-                        e.getResponse().getEntity().toString(), ErrorData.class).reason;
+                return ObjectMapperFactory.getMapper()
+                        .reader()
+                        .readValue(e.getResponse().getEntity().toString(), ErrorData.class)
+                        .reason;
             } catch (Exception ex1) {
                 try {
-                    return ObjectMapperFactory.getMapper().reader()
-                            .readValue(e.getMessage(), ErrorData.class).reason;
+                    return ObjectMapperFactory.getMapper().reader().readValue(e.getMessage(), ErrorData.class).reason;
                 } catch (Exception ex2) {
                     // could not parse output to ErrorData class
                     return e.getMessage();
@@ -341,10 +339,10 @@ public abstract class BaseResource {
         try {
             return executor.get().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-           Thread.currentThread().interrupt();
-          throw new PulsarAdminException(e);
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
         } catch (TimeoutException e) {
-          throw new PulsarAdminException.TimeoutException(e);
+            throw new PulsarAdminException.TimeoutException(e);
         } catch (ExecutionException e) {
             // we want to have a stacktrace that points to this point, in order to return a meaningful
             // stacktrace to the user, otherwise we will have a stacktrace
@@ -376,6 +374,5 @@ public abstract class BaseResource {
         public CompletableFuture<T> future() {
             return future;
         }
-
     }
 }

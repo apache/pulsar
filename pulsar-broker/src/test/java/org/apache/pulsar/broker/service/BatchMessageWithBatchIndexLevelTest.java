@@ -83,9 +83,10 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             sendFutureList.add(producer.newMessage().value(message).sendAsync());
         }
         FutureUtil.waitForAll(sendFutureList).get();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) topic
-                .getSubscription(subscriptionName).getDispatcher();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers)
+                topic.getSubscription(subscriptionName).getDispatcher();
         Message<byte[]> receive1 = consumer.receive();
         Message<byte[]> receive2 = consumer.receive();
         consumer.acknowledge(receive1);
@@ -116,12 +117,13 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
     }
 
     @Test
-    public void testBatchMessageMultiNegtiveAck() throws Exception{
+    public void testBatchMessageMultiNegtiveAck() throws Exception {
         final String topicName = "persistent://prop/ns-abc/batchMessageMultiNegtiveAck-" + UUID.randomUUID();
         final String subscriptionName = "sub-negtive-1";
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -154,7 +156,10 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             }
         }
         Awaitility.await().untilAsserted(() -> {
-            long unackedMessages = admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName)
+            long unackedMessages = admin.topics()
+                    .getStats(topicName)
+                    .getSubscriptions()
+                    .get(subscriptionName)
                     .getUnackedMessages();
             assertEquals(unackedMessages, 10);
         });
@@ -163,7 +168,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         final String topicName2 = "persistent://prop/ns-abc/batchMessageMultiNegtiveAck2-" + UUID.randomUUID();
         final String subscriptionName2 = "sub-negtive-2";
         @Cleanup
-        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer2 = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName2)
                 .subscriptionName(subscriptionName2)
                 .subscriptionType(SubscriptionType.Shared)
@@ -195,7 +201,10 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             }
         }
         Awaitility.await().untilAsserted(() -> {
-            long unackedMessages = admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName)
+            long unackedMessages = admin.topics()
+                    .getStats(topicName)
+                    .getSubscriptions()
+                    .get(subscriptionName)
                     .getUnackedMessages();
             assertEquals(unackedMessages, 10);
         });
@@ -204,8 +213,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
     @Test
     public void testAckMessageWithNotOwnerConsumerUnAckMessageCount() throws Exception {
         final String subName = "test";
-        final String topicName = "persistent://prop/ns-abc/testAckMessageWithNotOwnerConsumerUnAckMessageCount-"
-                + UUID.randomUUID();
+        final String topicName =
+                "persistent://prop/ns-abc/testAckMessageWithNotOwnerConsumerUnAckMessageCount-" + UUID.randomUUID();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -277,7 +286,16 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         assertNull(message);
 
         // the number of consumer-2's unacked messages is 0
-        Awaitility.await().until(() -> getPulsar().getBrokerService().getTopic(topicName, false)
-                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages() == 0);
+        Awaitility.await()
+                .until(() -> getPulsar()
+                                .getBrokerService()
+                                .getTopic(topicName, false)
+                                .get()
+                                .get()
+                                .getSubscription(subName)
+                                .getConsumers()
+                                .get(0)
+                                .getUnackedMessages()
+                        == 0);
     }
 }

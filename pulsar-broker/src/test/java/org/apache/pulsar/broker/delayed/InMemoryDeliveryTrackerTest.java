@@ -53,10 +53,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
         final String methodName = method.getName();
         return switch (methodName) {
-            case "test" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            false, 0)
-            }};
+            case "test" -> new Object[][] {{new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, false, 0)}};
             case "testWithTimer" -> {
                 Timer timer = mock(Timer.class);
 
@@ -81,40 +78,28 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     return t;
                 });
 
-                yield new Object[][]{{
-                        new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                                false, 0),
-                        tasks
-                }};
+                yield new Object[][] {{new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, false, 0), tasks}
+                };
             }
-            case "testAddWithinTickTime" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                            false, 0)
-            }};
-            case "testAddMessageWithStrictDelay" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                            true, 0)
-            }};
-            case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
-                            true, 0)
-            }};
-            case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
-                            true, 0)
-            }};
-            case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
-                            true, 0)
-            }};
-            case "testWithFixedDelays", "testWithMixedDelays","testWithNoDelays" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
-                            true, 100)
-            }};
-            default -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            true, 0)
-            }};
+            case "testAddWithinTickTime" -> new Object[][] {
+                {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock, false, 0)}
+            };
+            case "testAddMessageWithStrictDelay" -> new Object[][] {
+                {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock, true, 0)}
+            };
+            case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" -> new Object[][] {
+                {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1000, clock, true, 0)}
+            };
+            case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict" -> new Object[][] {
+                {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100000, clock, true, 0)}
+            };
+            case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict" -> new Object[][] {
+                {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock, true, 0)}
+            };
+            case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays" -> new Object[][] {
+                {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock, true, 100)}
+            };
+            default -> new Object[][] {{new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, true, 0)}};
         };
     }
 
@@ -209,8 +194,8 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
     @Test
     public void testClose() throws Exception {
-        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
-                1, TimeUnit.MILLISECONDS);
+        Timer timer = new HashedWheelTimer(
+                new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"), 1, TimeUnit.MILLISECONDS);
 
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
 
@@ -220,22 +205,22 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
         final Exception[] exceptions = new Exception[1];
 
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                true, 0) {
-            @Override
-            public void run(Timeout timeout) throws Exception {
-                super.timeout = timer.newTimeout(this, 1, TimeUnit.MILLISECONDS);
-                if (timeout == null || timeout.isCancelled()) {
-                    return;
-                }
-                try {
-                    this.priorityQueue.peekN1();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    exceptions[0] = e;
-                }
-            }
-        };
+        InMemoryDelayedDeliveryTracker tracker =
+                new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, true, 0) {
+                    @Override
+                    public void run(Timeout timeout) throws Exception {
+                        super.timeout = timer.newTimeout(this, 1, TimeUnit.MILLISECONDS);
+                        if (timeout == null || timeout.isCancelled()) {
+                            return;
+                        }
+                        try {
+                            this.priorityQueue.peekN1();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            exceptions[0] = e;
+                        }
+                    }
+                };
 
         tracker.addMessage(1, 1, 10);
         clockTime.set(10);

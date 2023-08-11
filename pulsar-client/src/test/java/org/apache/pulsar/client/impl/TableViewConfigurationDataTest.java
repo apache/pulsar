@@ -35,11 +35,11 @@ public class TableViewConfigurationDataTest {
         configMap.put("subscriptionName", "test-sub");
         configMap.put("autoUpdatePartitionsSeconds", "60");
         TableViewConfigurationData config = new TableViewConfigurationData();
-        config = ConfigurationDataUtils.loadData(
-                configMap, config, TableViewConfigurationData.class);
+        config = ConfigurationDataUtils.loadData(configMap, config, TableViewConfigurationData.class);
 
         assertEquals(configMap.get("topicName"), config.getTopicName());
         assertEquals(configMap.get("subscriptionName"), config.getSubscriptionName());
-        assertEquals(configMap.get("autoUpdatePartitionsSeconds"), String.valueOf(config.getAutoUpdatePartitionsSeconds()));
+        assertEquals(
+                configMap.get("autoUpdatePartitionsSeconds"), String.valueOf(config.getAutoUpdatePartitionsSeconds()));
     }
 }

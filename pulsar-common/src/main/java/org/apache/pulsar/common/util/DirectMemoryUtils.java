@@ -33,5 +33,4 @@ public class DirectMemoryUtils {
     public static long jvmMaxDirectMemory() {
         return JVM_MAX_DIRECT_MEMORY;
     }
-
 }

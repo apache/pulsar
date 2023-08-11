@@ -46,18 +46,20 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 @Slf4j
 @UtilityClass
 public class InstanceUtils {
-    public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg,
-                                           boolean deser) {
+    public static SerDe<?> initializeSerDe(
+            String serdeClassName, ClassLoader clsLoader, Class<?> typeArg, boolean deser) {
         SerDe<?> serDe = createInstance(serdeClassName, clsLoader, SerDe.class);
 
         Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
         if (deser) {
-            checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
+            checkArgument(
+                    typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
                     "Inconsistent types found between function input type and serde type: "
                             + " function type = " + typeArg + " should be assignable from "
                             + inputSerdeTypeArgs[0]);
         } else {
-            checkArgument(inputSerdeTypeArgs[0].isAssignableFrom(typeArg),
+            checkArgument(
+                    inputSerdeTypeArgs[0].isAssignableFrom(typeArg),
                     "Inconsistent types found between function input type and serde type: "
                             + " serde type = " + inputSerdeTypeArgs[0] + " should be assignable from "
                             + typeArg);
@@ -66,18 +68,20 @@ public class InstanceUtils {
         return serDe;
     }
 
-    public static Schema<?> initializeCustomSchema(String schemaClassName, ClassLoader clsLoader, Class<?> typeArg,
-                                                   boolean input) {
+    public static Schema<?> initializeCustomSchema(
+            String schemaClassName, ClassLoader clsLoader, Class<?> typeArg, boolean input) {
         Schema<?> schema = createInstance(schemaClassName, clsLoader, Schema.class);
 
         Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(Schema.class, schema.getClass());
         if (input) {
-            checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
+            checkArgument(
+                    typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
                     "Inconsistent types found between function type and schema type: "
                             + " function type = " + typeArg + " should be assignable from "
                             + inputSerdeTypeArgs[0]);
         } else {
-            checkArgument(inputSerdeTypeArgs[0].isAssignableFrom(typeArg),
+            checkArgument(
+                    inputSerdeTypeArgs[0].isAssignableFrom(typeArg),
                     "Inconsistent types found between function type and schema type: "
                             + " schema type = " + inputSerdeTypeArgs[0] + " should be assignable from "
                             + typeArg);
@@ -121,13 +125,11 @@ public class InstanceUtils {
 
     public static String getDefaultSubscriptionName(Function.FunctionDetails functionDetails) {
         return getDefaultSubscriptionName(
-                functionDetails.getTenant(),
-                functionDetails.getNamespace(),
-                functionDetails.getName());
+                functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
     }
 
-    public static Map<String, String> getProperties(Function.FunctionDetails.ComponentType componentType,
-                                                    String fullyQualifiedName, int instanceId) {
+    public static Map<String, String> getProperties(
+            Function.FunctionDetails.ComponentType componentType, String fullyQualifiedName, int instanceId) {
         Map<String, String> properties = new HashMap<>();
         switch (componentType) {
             case FUNCTION:
@@ -152,19 +154,18 @@ public class InstanceUtils {
         return properties;
     }
 
-    public static ClientBuilder createPulsarClientBuilder(String pulsarServiceUrl,
-                                                          AuthenticationConfig authConfig,
-                                                          Optional<Long> memoryLimit) throws PulsarClientException {
+    public static ClientBuilder createPulsarClientBuilder(
+            String pulsarServiceUrl, AuthenticationConfig authConfig, Optional<Long> memoryLimit)
+            throws PulsarClientException {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
-            clientBuilder = PulsarClient.builder()
-                    .memoryLimit(0, SizeUnit.BYTES)
-                    .serviceUrl(pulsarServiceUrl);
+            clientBuilder =
+                    PulsarClient.builder().memoryLimit(0, SizeUnit.BYTES).serviceUrl(pulsarServiceUrl);
             if (authConfig != null) {
                 if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                         && isNotBlank(authConfig.getClientAuthenticationParameters())) {
-                    clientBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
-                            authConfig.getClientAuthenticationParameters());
+                    clientBuilder.authentication(
+                            authConfig.getClientAuthenticationPlugin(), authConfig.getClientAuthenticationParameters());
                 }
                 clientBuilder.enableTls(authConfig.isUseTls());
                 clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
@@ -185,10 +186,11 @@ public class InstanceUtils {
         return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
     }
 
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl,
-                                                  AuthenticationConfig authConfig,
-                                                  Optional<Long> memoryLimit) throws PulsarClientException {
-        return createPulsarClientBuilder(pulsarServiceUrl, authConfig, memoryLimit).build();
+    public static PulsarClient createPulsarClient(
+            String pulsarServiceUrl, AuthenticationConfig authConfig, Optional<Long> memoryLimit)
+            throws PulsarClientException {
+        return createPulsarClientBuilder(pulsarServiceUrl, authConfig, memoryLimit)
+                .build();
     }
 
     public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig)
@@ -199,8 +201,8 @@ public class InstanceUtils {
             if (authConfig != null) {
                 if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                         && isNotBlank(authConfig.getClientAuthenticationParameters())) {
-                    pulsarAdminBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
-                            authConfig.getClientAuthenticationParameters());
+                    pulsarAdminBuilder.authentication(
+                            authConfig.getClientAuthenticationPlugin(), authConfig.getClientAuthenticationParameters());
                 }
                 if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
                     pulsarAdminBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());

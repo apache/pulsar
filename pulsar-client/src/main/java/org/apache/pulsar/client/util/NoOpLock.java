@@ -25,8 +25,7 @@ import java.util.concurrent.locks.Lock;
 public class NoOpLock implements Lock {
     public static final NoOpLock INSTANCE = new NoOpLock();
 
-    public void lock() {
-    }
+    public void lock() {}
 
     public void lockInterruptibly() throws InterruptedException {
         if (Thread.interrupted()) {
@@ -46,8 +45,7 @@ public class NoOpLock implements Lock {
         }
     }
 
-    public void unlock() {
-    }
+    public void unlock() {}
 
     public Condition newCondition() {
         throw new UnsupportedOperationException();

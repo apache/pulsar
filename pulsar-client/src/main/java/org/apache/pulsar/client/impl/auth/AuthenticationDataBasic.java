@@ -37,10 +37,12 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
     public AuthenticationDataBasic(String userInfo) {
         String httpAuthToken = "Basic " + Base64.getEncoder().encodeToString(userInfo.getBytes());
         this.commandAuthToken = userInfo;
-        this.headers = Collections.unmodifiableMap(new HashMap<String, String>(){{
-            put(HTTP_HEADER_NAME, httpAuthToken);
-            put(PULSAR_AUTH_METHOD_NAME, AuthenticationBasic.AUTH_METHOD_NAME);
-        }});
+        this.headers = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put(HTTP_HEADER_NAME, httpAuthToken);
+                put(PULSAR_AUTH_METHOD_NAME, AuthenticationBasic.AUTH_METHOD_NAME);
+            }
+        });
     }
 
     @Override

@@ -58,9 +58,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
             }
 
             @Override
-            public void setReadListener(ReadListener readListener) {
-
-            }
+            public void setReadListener(ReadListener readListener) {}
 
             public int read() {
                 return byteArrayInputStream.read();
@@ -73,7 +71,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
         return new BufferedReader(new InputStreamReader(this.getInputStream(), Charset.defaultCharset()));
     }
 
-    //Use this method to read the request body N times
+    // Use this method to read the request body N times
     public byte[] getBody() {
         return this.body;
     }

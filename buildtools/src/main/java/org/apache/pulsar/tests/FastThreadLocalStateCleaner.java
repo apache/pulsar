@@ -52,10 +52,9 @@ public final class FastThreadLocalStateCleaner {
                 clazz = ClassUtils.getClass("io.netty.util.concurrent.FastThreadLocalThread");
                 Class<?> internalThreadLocalMapClass =
                         ClassUtils.getClass("io.netty.util.internal.InternalThreadLocalMap");
-                threadLocalMapField = FieldUtils
-                        .getDeclaredField(clazz, "threadLocalMap", true);
-                indexedVariablesField = FieldUtils.getDeclaredField(internalThreadLocalMapClass,
-                        "indexedVariables", true);
+                threadLocalMapField = FieldUtils.getDeclaredField(clazz, "threadLocalMap", true);
+                indexedVariablesField =
+                        FieldUtils.getDeclaredField(internalThreadLocalMapClass, "indexedVariables", true);
                 Field unsetField = FieldUtils.getField(internalThreadLocalMapClass, "UNSET");
                 unsetObject = unsetField.get(null);
             } catch (ClassNotFoundException | IllegalAccessException e) {
@@ -78,8 +77,7 @@ public final class FastThreadLocalStateCleaner {
     private static ThreadLocal<?> lookupSlowThreadLocalMap() {
         try {
             Field slowThreadLocalMapField = FieldUtils.getDeclaredField(
-                    ClassUtils.getClass("io.netty.util.internal.InternalThreadLocalMap"),
-                    "slowThreadLocalMap", true);
+                    ClassUtils.getClass("io.netty.util.internal.InternalThreadLocalMap"), "slowThreadLocalMap", true);
             if (slowThreadLocalMapField != null) {
                 return (ThreadLocal<?>) slowThreadLocalMapField.get(null);
             } else {
@@ -104,8 +102,8 @@ public final class FastThreadLocalStateCleaner {
             if (FAST_THREAD_LOCAL_CLASS.isInstance(thread)) {
                 internalThreadLocalMap = THREAD_LOCAL_MAP_FIELD.get(thread);
             } else {
-                internalThreadLocalMap = ThreadLocalStateCleaner.INSTANCE
-                        .getThreadLocalValue(SLOW_THREAD_LOCAL_MAP, thread);
+                internalThreadLocalMap =
+                        ThreadLocalStateCleaner.INSTANCE.getThreadLocalValue(SLOW_THREAD_LOCAL_MAP, thread);
             }
             if (internalThreadLocalMap != null) {
                 Object[] indexedVariables = (Object[]) INDEXED_VARIABLES_FIELD.get(internalThreadLocalMap);

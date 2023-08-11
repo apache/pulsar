@@ -33,5 +33,4 @@ import org.apache.pulsar.broker.admin.impl.SinksBase;
 /**
  * @deprecated in favor of {@link Sinks}
  */
-public class Sink extends SinksBase {
-}
+public class Sink extends SinksBase {}

@@ -83,14 +83,19 @@ public class OwnershipCacheTest {
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
         config = new ServiceConfiguration();
-        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
+        executor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(1)
+                .name("test")
+                .build();
         zookeeperServer = new ZookeeperServerTest(0);
         zookeeperServer.start();
 
-        store = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
+        store = MetadataStoreExtended.create(
+                zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         coordinationService = new CoordinationServiceImpl(store);
-        otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
+        otherStore = MetadataStoreExtended.create(
+                zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
 
@@ -101,7 +106,8 @@ public class OwnershipCacheTest {
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
         brokerService = mock(BrokerService.class);
-        doReturn(CompletableFuture.completedFuture(1)).when(brokerService)
+        doReturn(CompletableFuture.completedFuture(1))
+                .when(brokerService)
                 .unloadServiceUnit(any(), anyBoolean(), anyLong(), any());
 
         doReturn(config).when(pulsar).getConfiguration();
@@ -132,9 +138,8 @@ public class OwnershipCacheTest {
     public void testDisableOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
 
-        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-1"),
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle testBundle = new NamespaceBundle(
+                NamespaceName.get("pulsar/test/ns-1"), Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
 
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testBundle).get();
@@ -149,13 +154,13 @@ public class OwnershipCacheTest {
     @Test
     public void testGetOrSetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
-        NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-2"),
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle testFullBundle = new NamespaceBundle(
+                NamespaceName.get("pulsar/test/ns-2"), Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(testFullBundle).get().isPresent());
 
-        NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testFullBundle).get();
+        NamespaceEphemeralData data1 =
+                cache.tryAcquiringOwnership(testFullBundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
         assertFalse(data1.isDisabled());
         // case 2: the local broker owned the namespace and disabled, getOrSetOwner() should not change it
@@ -168,15 +173,22 @@ public class OwnershipCacheTest {
         // The only chance that we lost an already existing ephemeral node is when the broker dies or unload has
         // succeeded in both cases, the ownerInfoCache will be updated (i.e. invalidated the entry)
         @Cleanup
-        MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
+        MetadataStoreExtended otherStore = MetadataStoreExtended.create(
+                zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
-        otherStore.put(ServiceUnitUtils.path(testFullBundle),
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
-                        new NamespaceEphemeralData("pulsar://otherhost:8881",
-                                "pulsar://otherhost:8884",
-                                "http://localhost:8080",
-                                "https://localhost:4443", false)),
-                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
+        otherStore
+                .put(
+                        ServiceUnitUtils.path(testFullBundle),
+                        ObjectMapperFactory.getMapper()
+                                .writer()
+                                .writeValueAsBytes(new NamespaceEphemeralData(
+                                        "pulsar://otherhost:8881",
+                                        "pulsar://otherhost:8884",
+                                        "http://localhost:8080",
+                                        "https://localhost:4443",
+                                        false)),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
                 .join();
 
         try {
@@ -195,23 +207,30 @@ public class OwnershipCacheTest {
     @Test
     public void testGetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
-        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-3"),
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle testBundle = new NamespaceBundle(
+                NamespaceName.get("pulsar/test/ns-3"), Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
         // case 2: someone owns the namespace
 
         @Cleanup
-        MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
+        MetadataStoreExtended otherStore = MetadataStoreExtended.create(
+                zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
-        otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
-                        new NamespaceEphemeralData("pulsar://otherhost:8881",
-                                "pulsar://otherhost:8884",
-                                "http://localhost:8080",
-                                "https://localhost:4443", false)),
-                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
+        otherStore
+                .put(
+                        ServiceUnitUtils.path(testBundle),
+                        ObjectMapperFactory.getMapper()
+                                .writer()
+                                .writeValueAsBytes(new NamespaceEphemeralData(
+                                        "pulsar://otherhost:8881",
+                                        "pulsar://otherhost:8884",
+                                        "http://localhost:8080",
+                                        "https://localhost:4443",
+                                        false)),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
 
         // try to acquire, which will load the read-only cache
         try {
@@ -227,15 +246,15 @@ public class OwnershipCacheTest {
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
         assertFalse(data1.isDisabled());
         // Now do getOwner and compare w/ the returned values
-        NamespaceEphemeralData readOnlyData = cache.getOwnerAsync(testBundle).get().get();
+        NamespaceEphemeralData readOnlyData =
+                cache.getOwnerAsync(testBundle).get().get();
         assertEquals(data1, readOnlyData);
 
-
-        NamespaceBundle noneBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-none"),
+        NamespaceBundle noneBundle = new NamespaceBundle(
+                NamespaceName.get("pulsar/test/ns-none"),
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
-        Optional<NamespaceEphemeralData> res = cache
-                .getOwnerAsync(noneBundle).get();
+        Optional<NamespaceEphemeralData> res = cache.getOwnerAsync(noneBundle).get();
         assertFalse(res.isPresent());
     }
 
@@ -243,9 +262,8 @@ public class OwnershipCacheTest {
     public void testGetOwnedServiceUnit() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-5");
-        NamespaceBundle testBundle = new NamespaceBundle(testNs,
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle testBundle =
+                new NamespaceBundle(testNs, Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
 
@@ -256,13 +274,20 @@ public class OwnershipCacheTest {
             // OK for not owned namespace
         }
         // case 2: someone else owns the namespace
-        otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
-                        new NamespaceEphemeralData("pulsar://otherhost:8881",
-                                "pulsar://otherhost:8884",
-                                "http://localhost:8080",
-                                "https://localhost:4443", false)),
-                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
+        otherStore
+                .put(
+                        ServiceUnitUtils.path(testBundle),
+                        ObjectMapperFactory.getMapper()
+                                .writer()
+                                .writeValueAsBytes(new NamespaceEphemeralData(
+                                        "pulsar://otherhost:8881",
+                                        "pulsar://otherhost:8884",
+                                        "http://localhost:8080",
+                                        "https://localhost:4443",
+                                        false)),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
         try {
             Objects.requireNonNull(cache.getOwnedBundle(testBundle));
             fail("Should have failed");
@@ -303,22 +328,28 @@ public class OwnershipCacheTest {
     public void testGetOwnedServiceUnits() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-6");
-        NamespaceBundle testBundle = new NamespaceBundle(testNs,
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle testBundle =
+                new NamespaceBundle(testNs, Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
 
         assertTrue(cache.getOwnedBundles().isEmpty());
 
         // case 2: someone else owns the namespace
-        otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
-                        new NamespaceEphemeralData("pulsar://otherhost:8881",
-                                "pulsar://otherhost:8884",
-                                "http://otherhost:8080",
-                                "https://otherhost:4443", false)),
-                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
+        otherStore
+                .put(
+                        ServiceUnitUtils.path(testBundle),
+                        ObjectMapperFactory.getMapper()
+                                .writer()
+                                .writeValueAsBytes(new NamespaceEphemeralData(
+                                        "pulsar://otherhost:8881",
+                                        "pulsar://otherhost:8884",
+                                        "http://otherhost:8080",
+                                        "https://otherhost:4443",
+                                        false)),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
         assertTrue(cache.getOwnedBundles().isEmpty());
 
         Thread.sleep(500);
@@ -349,9 +380,8 @@ public class OwnershipCacheTest {
     public void testRemoveOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-7");
-        NamespaceBundle bundle = new NamespaceBundle(testNs,
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle bundle =
+                new NamespaceBundle(testNs, Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(bundle).get().isPresent());
 
@@ -374,9 +404,8 @@ public class OwnershipCacheTest {
     @Test
     public void testReestablishOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
-        NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-8"),
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle testFullBundle = new NamespaceBundle(
+                NamespaceName.get("pulsar/test/ns-8"), Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         String testFullBundlePath = ServiceUnitUtils.path(testFullBundle);
 
         // no one owns the namespace
@@ -384,7 +413,8 @@ public class OwnershipCacheTest {
         assertNull(cache.getOwnedBundle(testFullBundle));
 
         // this broker owns the namespace
-        NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testFullBundle).get();
+        NamespaceEphemeralData data1 =
+                cache.tryAcquiringOwnership(testFullBundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
         assertFalse(data1.isDisabled());
         assertNotNull(cache.getOwnedBundle(testFullBundle));
@@ -398,7 +428,8 @@ public class OwnershipCacheTest {
         // invalidate cache, reestablish ownership through acquire ownership
         cache.invalidateLocalOwnerCache();
         assertNull(cache.getOwnedBundle(testFullBundle));
-        NamespaceEphemeralData data3 = cache.tryAcquiringOwnership(testFullBundle).get();
+        NamespaceEphemeralData data3 =
+                cache.tryAcquiringOwnership(testFullBundle).get();
         assertEquals(data3.getNativeUrl(), selfBrokerUrl);
         assertFalse(data3.isDisabled());
         assertNotNull(cache.getOwnedBundle(testFullBundle));
@@ -408,5 +439,4 @@ public class OwnershipCacheTest {
         assertFalse(data2.isDisabled());
         assertNotNull(cache.getOwnedBundle(testFullBundle));
     }
-
 }

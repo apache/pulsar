@@ -25,8 +25,10 @@ public class NamespaceOwnershipStatus {
 
     @SuppressWarnings("checkstyle:MemberName")
     public BrokerAssignment broker_assignment;
+
     @SuppressWarnings("checkstyle:MemberName")
     public boolean is_controlled;
+
     @SuppressWarnings("checkstyle:MemberName")
     public boolean is_active;
 
@@ -42,7 +44,7 @@ public class NamespaceOwnershipStatus {
 
     @Override
     public String toString() {
-        return String.format("[broker_assignment=%s is_controlled=%s is_active=%s]", broker_assignment, is_controlled,
-                is_active);
+        return String.format(
+                "[broker_assignment=%s is_controlled=%s is_active=%s]", broker_assignment, is_controlled, is_active);
     }
 }

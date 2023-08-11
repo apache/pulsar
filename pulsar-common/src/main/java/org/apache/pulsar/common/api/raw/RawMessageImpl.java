@@ -64,10 +64,13 @@ public class RawMessageImpl implements RawMessage {
         handle.recycle(this);
     }
 
-    public static RawMessage get(ReferenceCountedMessageMetadata msgMetadata,
+    public static RawMessage get(
+            ReferenceCountedMessageMetadata msgMetadata,
             SingleMessageMetadata singleMessageMetadata,
             ByteBuf payload,
-            long ledgerId, long entryId, long batchIndex) {
+            long ledgerId,
+            long entryId,
+            long batchIndex) {
         RawMessageImpl msg = RECYCLER.get();
         msg.msgMetadata = msgMetadata;
         msg.msgMetadata.retain();
@@ -84,7 +87,8 @@ public class RawMessageImpl implements RawMessage {
     }
 
     public RawMessage updatePayloadForChunkedMessage(ByteBuf chunkedTotalPayload) {
-        if (!msgMetadata.getMetadata().hasNumChunksFromMsg() || msgMetadata.getMetadata().getNumChunksFromMsg() <= 1) {
+        if (!msgMetadata.getMetadata().hasNumChunksFromMsg()
+                || msgMetadata.getMetadata().getNumChunksFromMsg() <= 1) {
             throw new RuntimeException("The update payload operation only support multi chunked messages.");
         }
         payload = chunkedTotalPayload;
@@ -95,8 +99,7 @@ public class RawMessageImpl implements RawMessage {
     public Map<String, String> getProperties() {
         if (setSingleMessageMetadata && singleMessageMetadata.getPropertiesCount() > 0) {
             return singleMessageMetadata.getPropertiesList().stream()
-                      .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
-                              (oldValue, newValue) -> newValue));
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (oldValue, newValue) -> newValue));
         } else if (msgMetadata.getMetadata().getPropertiesCount() > 0) {
             return msgMetadata.getMetadata().getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
@@ -145,7 +148,7 @@ public class RawMessageImpl implements RawMessage {
     public Optional<String> getKey() {
         if (setSingleMessageMetadata && singleMessageMetadata.hasPartitionKey()) {
             return Optional.of(singleMessageMetadata.getPartitionKey());
-        } else if (msgMetadata.getMetadata().hasPartitionKey()){
+        } else if (msgMetadata.getMetadata().hasPartitionKey()) {
             return Optional.of(msgMetadata.getMetadata().getPartitionKey());
         } else {
             return Optional.empty();

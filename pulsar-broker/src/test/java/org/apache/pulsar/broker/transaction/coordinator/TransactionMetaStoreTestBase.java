@@ -55,10 +55,11 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
-        String[] args = new String[]{
+        String[] args = new String[] {
             "--cluster", "my-cluster",
             "--configuration-store", "localhost:" + bkEnsemble.getZookeeperPort(),
-            "--initial-num-transaction-coordinators", "16"};
+            "--initial-num-transaction-coordinators", "16"
+        };
 
         PulsarTransactionCoordinatorMetadataSetup.main(args);
 
@@ -93,9 +94,9 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
         if (pulsarClient != null) {
             pulsarClient.shutdown();
         }
-        pulsarClient = PulsarClient.builder().
-            serviceUrl(pulsarServices[0].getBrokerServiceUrl())
-            .build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServices[0].getBrokerServiceUrl())
+                .build();
         transactionCoordinatorClient = new TransactionCoordinatorClientImpl(pulsarClient);
         transactionCoordinatorClient.start();
 
@@ -107,7 +108,6 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
     protected void afterSetup() throws Exception {
         // template methods to override in subclasses
     }
-
 
     protected void afterPulsarStart() throws Exception {
         // template methods to override in subclasses

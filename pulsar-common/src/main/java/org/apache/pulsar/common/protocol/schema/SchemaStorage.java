@@ -38,9 +38,10 @@ public interface SchemaStorage {
      *           The input of the function is all the existing schemas that used to do the schemas compatibility check
      * @return The schema version of the stored schema
      */
-    default CompletableFuture<SchemaVersion> put(String key,
-             Function<CompletableFuture<List<CompletableFuture<StoredSchema>>>,
-                     CompletableFuture<Pair<byte[], byte[]>>> fn) {
+    default CompletableFuture<SchemaVersion> put(
+            String key,
+            Function<CompletableFuture<List<CompletableFuture<StoredSchema>>>, CompletableFuture<Pair<byte[], byte[]>>>
+                    fn) {
         return fn.apply(getAll(key)).thenCompose(pair -> put(key, pair.getLeft(), pair.getRight()));
     }
 
@@ -57,5 +58,4 @@ public interface SchemaStorage {
     void start() throws Exception;
 
     void close() throws Exception;
-
 }

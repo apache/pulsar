@@ -100,8 +100,8 @@ public interface MessageIdAdv extends MessageId {
      */
     default int compareTo(MessageId o) {
         if (!(o instanceof MessageIdAdv)) {
-            throw new UnsupportedOperationException("Unknown MessageId type: "
-                    + ((o != null) ? o.getClass().getName() : "null"));
+            throw new UnsupportedOperationException(
+                    "Unknown MessageId type: " + ((o != null) ? o.getClass().getName() : "null"));
         }
         final MessageIdAdv other = (MessageIdAdv) o;
         int result = Long.compare(this.getLedgerId(), other.getLedgerId());

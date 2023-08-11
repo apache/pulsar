@@ -50,6 +50,5 @@ public class LogIndexLagBackOffTest {
         } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "exponent must be > 0");
         }
-
     }
 }

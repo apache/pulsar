@@ -64,11 +64,11 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
         }
     }
 
-    private void checkRootMessageChange(Descriptor fromDescriptor, Descriptor toDescriptor,
-                                            SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    private void checkRootMessageChange(
+            Descriptor fromDescriptor, Descriptor toDescriptor, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         if (!fromDescriptor.getFullName().equals(toDescriptor.getFullName())) {
             throw new IncompatibleSchemaException("Protobuf root message isn't allow change!");
         }
     }
-
 }

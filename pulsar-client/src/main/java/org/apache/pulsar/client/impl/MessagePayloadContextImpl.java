@@ -59,13 +59,14 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
         this.recyclerHandle = handle;
     }
 
-    public static MessagePayloadContextImpl get(final BrokerEntryMetadata brokerEntryMetadata,
-                                                @NonNull final MessageMetadata messageMetadata,
-                                                @NonNull final MessageIdImpl messageId,
-                                                @NonNull final ConsumerImpl<?> consumer,
-                                                final int redeliveryCount,
-                                                final List<Long> ackSet,
-                                                final long consumerEpoch) {
+    public static MessagePayloadContextImpl get(
+            final BrokerEntryMetadata brokerEntryMetadata,
+            @NonNull final MessageMetadata messageMetadata,
+            @NonNull final MessageIdImpl messageId,
+            @NonNull final ConsumerImpl<?> consumer,
+            final int redeliveryCount,
+            final List<Long> ackSet,
+            final long consumerEpoch) {
         final MessagePayloadContextImpl context = RECYCLER.get();
         context.consumerEpoch = consumerEpoch;
         context.brokerEntryMetadata = brokerEntryMetadata;
@@ -118,14 +119,12 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     }
 
     @Override
-    public <T> Message<T> getMessageAt(int index,
-                                       int numMessages,
-                                       MessagePayload payload,
-                                       boolean containMetadata,
-                                       Schema<T> schema) {
+    public <T> Message<T> getMessageAt(
+            int index, int numMessages, MessagePayload payload, boolean containMetadata, Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
-            return consumer.newSingleMessage(index,
+            return consumer.newSingleMessage(
+                    index,
                     numMessages,
                     brokerEntryMetadata,
                     messageMetadata,
@@ -147,8 +146,14 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     public <T> Message<T> asSingleMessage(MessagePayload payload, Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
-            return consumer.newMessage(messageId, brokerEntryMetadata,
-                    messageMetadata, payloadBuffer, schema, redeliveryCount, consumerEpoch);
+            return consumer.newMessage(
+                    messageId,
+                    brokerEntryMetadata,
+                    messageMetadata,
+                    payloadBuffer,
+                    schema,
+                    redeliveryCount,
+                    consumerEpoch);
         } finally {
             payloadBuffer.release();
         }

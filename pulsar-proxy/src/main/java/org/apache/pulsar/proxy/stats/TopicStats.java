@@ -23,7 +23,7 @@ import lombok.Getter;
 import org.apache.pulsar.common.stats.Rate;
 
 @Getter
-@JsonIgnoreProperties(value = { "msgInRate", "msgOutRate" })
+@JsonIgnoreProperties(value = {"msgInRate", "msgOutRate"})
 public class TopicStats {
 
     double msgRateIn;
@@ -47,5 +47,4 @@ public class TopicStats {
         msgRateOut = msgOutRate.getRate();
         msgByteOut = msgOutRate.getValueRate();
     }
-
 }

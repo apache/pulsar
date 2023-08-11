@@ -32,7 +32,6 @@ public class Range {
     private final int start;
     private final int end;
 
-
     public Range(int start, int end) {
         if (end < start) {
             throw new IllegalArgumentException("Range end must >= range start.");

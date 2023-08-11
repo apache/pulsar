@@ -44,7 +44,12 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
@@ -62,46 +67,63 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
-        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
-                                                                    SchemaAutoUpdateCompatibilityStrategy.Backward);
+        admin.namespaces()
+                .setSchemaAutoUpdateCompatibilityStrategy(namespace, SchemaAutoUpdateCompatibilityStrategy.Backward);
 
-        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
+        try (Producer<V1Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V1Data.class))
+                .topic(topicName)
+                .create()) {
             p.send(new V1Data("test1", 1));
         }
 
         log.info("try with forward compat, should fail");
-        try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
+        try (Producer<V3Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V3Data.class))
+                .topic(topicName)
+                .create()) {
             Assert.fail("Forward compat schema should be rejected");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
         log.info("try with backward compat, should succeed");
-        try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
+        try (Producer<V2Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V2Data.class))
+                .topic(topicName)
+                .create()) {
             p.send(new V2Data("test2"));
         }
-
     }
 
     private void testAutoUpdateForward(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
-        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
-                                                                    SchemaAutoUpdateCompatibilityStrategy.Forward);
+        admin.namespaces()
+                .setSchemaAutoUpdateCompatibilityStrategy(namespace, SchemaAutoUpdateCompatibilityStrategy.Forward);
 
-        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
+        try (Producer<V1Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V1Data.class))
+                .topic(topicName)
+                .create()) {
             p.send(new V1Data("test1", 1));
         }
 
         log.info("try with backward compat, should fail");
-        try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
+        try (Producer<V2Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V2Data.class))
+                .topic(topicName)
+                .create()) {
             Assert.fail("Backward compat schema should be rejected");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
         log.info("try with forward compat, should succeed");
-        try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
+        try (Producer<V3Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V3Data.class))
+                .topic(topicName)
+                .create()) {
             p.send(new V3Data("test2", 1, 2));
         }
     }
@@ -109,79 +131,111 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     private void testAutoUpdateFull(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
-        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
+        try (Producer<V1Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V1Data.class))
+                .topic(topicName)
+                .create()) {
             p.send(new V1Data("test1", 1));
         }
 
         log.info("try with backward compat only, should fail");
-        try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
+        try (Producer<V2Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V2Data.class))
+                .topic(topicName)
+                .create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
         log.info("try with forward compat only, should fail");
-        try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
+        try (Producer<V3Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V3Data.class))
+                .topic(topicName)
+                .create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
         log.info("try with fully compat");
-        try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-            p.send(new V4Data("test2", 1, (short)100));
+        try (Producer<V4Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V4Data.class))
+                .topic(topicName)
+                .create()) {
+            p.send(new V4Data("test2", 1, (short) 100));
         }
     }
 
     private void testAutoUpdateDisabled(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
-        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
-                SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled);
+        admin.namespaces()
+                .setSchemaAutoUpdateCompatibilityStrategy(
+                        namespace, SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled);
 
-        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
+        try (Producer<V1Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V1Data.class))
+                .topic(topicName)
+                .create()) {
             p.send(new V1Data("test1", 1));
         }
         log.info("try with backward compat only, should fail");
-        try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
+        try (Producer<V2Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V2Data.class))
+                .topic(topicName)
+                .create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
         log.info("try with forward compat only, should fail");
-        try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
+        try (Producer<V3Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V3Data.class))
+                .topic(topicName)
+                .create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
         log.info("try with fully compat, should fail");
-        try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
+        try (Producer<V4Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V4Data.class))
+                .topic(topicName)
+                .create()) {
             Assert.fail("Fully compat schema should fail, autoupdate disabled");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
         log.info("Should still be able to connect with original schema");
-        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
+        try (Producer<V1Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V1Data.class))
+                .topic(topicName)
+                .create()) {
             p.send(new V1Data("test2", 2));
         }
 
-        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
-                SchemaAutoUpdateCompatibilityStrategy.Full);
+        admin.namespaces()
+                .setSchemaAutoUpdateCompatibilityStrategy(namespace, SchemaAutoUpdateCompatibilityStrategy.Full);
 
-        Awaitility.await().untilAsserted(
-                () -> Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
                         SchemaAutoUpdateCompatibilityStrategy.Full));
 
         log.info("try with fully compat, again");
-        try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-            p.send(new V4Data("test2", 1, (short)100));
+        try (Producer<V4Data> p = pulsarClient
+                .newProducer(Schema.AVRO(V4Data.class))
+                .topic(topicName)
+                .create()) {
+            p.send(new V4Data("test2", 1, (short) 100));
         }
     }
 
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V1Data {
         String foo;
         int bar;
@@ -193,7 +247,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // backward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V2Data {
         String foo;
 
@@ -203,7 +257,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // forward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V3Data {
         String foo;
         int bar;
@@ -217,10 +271,11 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // fully compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V4Data {
         String foo;
         int bar;
+
         @AvroDefault(value = "10")
         short blah;
 

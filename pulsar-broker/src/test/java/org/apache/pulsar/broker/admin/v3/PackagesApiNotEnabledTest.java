@@ -78,8 +78,10 @@ public class PackagesApiNotEnabledTest extends MockedPulsarServiceBaseTest {
 
         // update metadata api should return 503 Service Unavailable exception
         try {
-            admin.packages().updateMetadata(unknownPackageName,
-                    PackageMetadata.builder().description("unknown").build());
+            admin.packages()
+                    .updateMetadata(
+                            unknownPackageName,
+                            PackageMetadata.builder().description("unknown").build());
             fail("should throw 503 error");
         } catch (PulsarAdminException e) {
             assertEquals(503, e.getStatusCode());

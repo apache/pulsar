@@ -127,6 +127,5 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * @param topicName topic name
      * @param partitions new updated number of partitions
      */
-    default void onPartitionsChange(String topicName, int partitions) {
-    }
+    default void onPartitionsChange(String topicName, int partitions) {}
 }

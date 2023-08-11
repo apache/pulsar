@@ -45,17 +45,18 @@ public class TestRunMain {
         PulsarAdminTool.resetLastExitCode();
         PulsarAdminTool.setAllowSystemExit(false);
         Path dummyEmptyFile = Files.createTempFile("test", ".conf");
-        PulsarAdminTool.main(new String[]{dummyEmptyFile.toAbsolutePath().toString()});
+        PulsarAdminTool.main(new String[] {dummyEmptyFile.toAbsolutePath().toString()});
         assertEquals(PulsarAdminTool.getLastExitCode(), 1);
     }
 
     @Test
     public void testRunWithTlsProviderFlag() throws Exception {
         var pulsarAdminTool = new PulsarAdminTool(new Properties());
-        pulsarAdminTool.run(new String[]{
-                "--admin-url", "https://localhost:8081",
-                "--tls-provider", "JDK",
-                "tenants"});
+        pulsarAdminTool.run(new String[] {
+            "--admin-url", "https://localhost:8081",
+            "--tls-provider", "JDK",
+            "tenants"
+        });
         assertEquals(pulsarAdminTool.rootParams.tlsProvider, "JDK");
     }
 
@@ -64,9 +65,7 @@ public class TestRunMain {
         Properties properties = new Properties();
         properties.setProperty("webserviceTlsProvider", "JDK");
         var pulsarAdminTool = new PulsarAdminTool(properties);
-        pulsarAdminTool.run(new String[]{
-                "--admin-url", "https://localhost:8081",
-                "tenants"});
+        pulsarAdminTool.run(new String[] {"--admin-url", "https://localhost:8081", "tenants"});
         assertEquals(pulsarAdminTool.rootParams.tlsProvider, "JDK");
     }
 
@@ -75,10 +74,11 @@ public class TestRunMain {
         Properties properties = new Properties();
         properties.setProperty("webserviceTlsProvider", "JDK");
         var pulsarAdminTool = new PulsarAdminTool(properties);
-        pulsarAdminTool.run(new String[]{
-                "--admin-url", "https://localhost:8081",
-                "--tls-provider", "OPENSSL",
-                "tenants"});
+        pulsarAdminTool.run(new String[] {
+            "--admin-url", "https://localhost:8081",
+            "--tls-provider", "OPENSSL",
+            "tenants"
+        });
         assertEquals(pulsarAdminTool.rootParams.tlsProvider, "OPENSSL");
     }
 
@@ -102,8 +102,8 @@ public class TestRunMain {
         boolean prevValue = PulsarAdminTool.allowSystemExit;
         PulsarAdminTool.allowSystemExit = false;
 
-        String argStr = argStr = argStrTemp.format(argStrTemp, testConfigFile.getAbsolutePath(),
-                "--tls-trust-cert-path " + tlsTrustCertsFilePathInArg);
+        String argStr = argStr = argStrTemp.format(
+                argStrTemp, testConfigFile.getAbsolutePath(), "--tls-trust-cert-path " + tlsTrustCertsFilePathInArg);
         PulsarAdminTool tool = PulsarAdminTool.execute(argStr.split(" "));
         assertNotNull(tool);
         PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) tool.pulsarAdminSupplier.adminBuilder;

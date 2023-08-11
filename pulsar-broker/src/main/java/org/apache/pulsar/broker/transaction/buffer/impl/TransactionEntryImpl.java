@@ -37,12 +37,13 @@ public class TransactionEntryImpl implements TransactionEntry {
     private final int numMessageInTxn;
     private int startBatchIndex;
 
-    public TransactionEntryImpl(TxnID txnId,
-                                long sequenceId,
-                                Entry entry,
-                                long committedAtLedgerId,
-                                long committedAtEntryId,
-                                int numMessageInTxn) {
+    public TransactionEntryImpl(
+            TxnID txnId,
+            long sequenceId,
+            Entry entry,
+            long committedAtLedgerId,
+            long committedAtEntryId,
+            int numMessageInTxn) {
         this.txnId = txnId;
         this.sequenceId = sequenceId;
         this.entry = entry;

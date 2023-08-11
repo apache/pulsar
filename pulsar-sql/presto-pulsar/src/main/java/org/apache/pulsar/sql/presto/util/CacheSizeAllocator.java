@@ -43,5 +43,4 @@ public interface CacheSizeAllocator {
      * @param size release size
      */
     void release(long size);
-
 }

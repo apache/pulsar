@@ -20,12 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -59,7 +58,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -78,7 +78,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -99,7 +100,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -130,7 +132,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -144,13 +147,15 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         producerImplExclusive.close();
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic(topic)
-                .enableLazyStartPartitionedProducers(true)
-                .enableBatching(false)
-                .accessMode(ProducerAccessMode.WaitForExclusive)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-                .create();
+        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive =
+                (PartitionedProducerImpl<byte[]>) pulsarClient
+                        .newProducer()
+                        .topic(topic)
+                        .enableLazyStartPartitionedProducers(true)
+                        .enableBatching(false)
+                        .accessMode(ProducerAccessMode.WaitForExclusive)
+                        .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                        .create();
 
         assertEquals(producerImplWaitForExclusive.getProducers().size(), 10);
     }
@@ -164,7 +169,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         final Field field = PartitionedProducerImpl.class.getDeclaredField("topicMetadata");
         field.setAccessible(true);
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -175,7 +181,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
                 .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .create();
 
-        final Supplier<Boolean> send = ()-> {
+        final Supplier<Boolean> send = () -> {
             for (int i = 0; i < 10; i++) {
                 try {
                     producerImpl.newMessage().value("msg".getBytes()).send();
@@ -193,16 +199,16 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         assertEquals(producerImpl.getProducers().size(), 2);
 
         admin.topics().updatePartitionedTopic(topic, 3);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(((TopicMetadata) field.get(producerImpl)).numPartitions(), 3));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(((TopicMetadata) field.get(producerImpl)).numPartitions(), 3));
         assertEquals(producerImpl.getProducers().size(), 2);
 
         assertTrue(send.get());
         assertEquals(producerImpl.getProducers().size(), 3);
 
         admin.topics().updatePartitionedTopic(topic, 4);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(((TopicMetadata) field.get(producerImpl)).numPartitions(), 4));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(((TopicMetadata) field.get(producerImpl)).numPartitions(), 4));
         assertTrue(send.get());
         assertEquals(producerImpl.getProducers().size(), 3);
     }
@@ -215,7 +221,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         final Field field = PartitionedProducerImpl.class.getDeclaredField("topicMetadata");
         field.setAccessible(true);
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -228,28 +235,32 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         assertEquals(producerImplExclusive.getProducers().size(), 2);
 
         admin.topics().updatePartitionedTopic(topic, 3);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(((TopicMetadata) field.get(producerImplExclusive)).numPartitions(), 3));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertEquals(((TopicMetadata) field.get(producerImplExclusive)).numPartitions(), 3));
         assertEquals(producerImplExclusive.getProducers().size(), 3);
 
         producerImplExclusive.close();
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic(topic)
-                .enableLazyStartPartitionedProducers(true)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-                .accessMode(ProducerAccessMode.WaitForExclusive)
-                .autoUpdatePartitions(true)
-                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
-                .create();
+        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive =
+                (PartitionedProducerImpl<byte[]>) pulsarClient
+                        .newProducer()
+                        .topic(topic)
+                        .enableLazyStartPartitionedProducers(true)
+                        .enableBatching(false)
+                        .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                        .accessMode(ProducerAccessMode.WaitForExclusive)
+                        .autoUpdatePartitions(true)
+                        .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
+                        .create();
 
         assertEquals(producerImplWaitForExclusive.getProducers().size(), 3);
 
         admin.topics().updatePartitionedTopic(topic, 4);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(((TopicMetadata) field.get(producerImplWaitForExclusive)).numPartitions(), 4));
+        Awaitility.await()
+                .untilAsserted(() ->
+                        assertEquals(((TopicMetadata) field.get(producerImplWaitForExclusive)).numPartitions(), 4));
         assertEquals(producerImplWaitForExclusive.getProducers().size(), 4);
     }
 }

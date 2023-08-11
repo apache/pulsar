@@ -160,9 +160,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             MetaValue metaValue = new MetaValue();
             int headerSize = buffer.getInt();
             if (dataBytes.length < headerSize) {
-                throw new MetadataStoreException(
-                        String.format("Invalid MetaValue data, no enough header data. expect %d, actual %d",
-                                headerSize, dataBytes.length));
+                throw new MetadataStoreException(String.format(
+                        "Invalid MetaValue data, no enough header data. expect %d, actual %d",
+                        headerSize, dataBytes.length));
             }
             int formatVersion = buffer.getInt();
             if (formatVersion >= FORMAT_VERSION_V1) {
@@ -276,11 +276,17 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 ConfigOptions configOptions = new ConfigOptions();
                 List<ColumnFamilyDescriptor> cfDescriptors = new ArrayList<>();
                 OptionsUtil.loadOptionsFromFile(configOptions, configFilePath, dbOptions, cfDescriptors);
-                log.info("Load options from configFile({}), CF.size={},dbConfig={}", configFilePath,
-                        cfDescriptors.size(), dbOptions);
+                log.info(
+                        "Load options from configFile({}), CF.size={},dbConfig={}",
+                        configFilePath,
+                        cfDescriptors.size(),
+                        dbOptions);
                 if (log.isDebugEnabled()) {
                     for (ColumnFamilyDescriptor cfDescriptor : cfDescriptors) {
-                        log.debug("CF={},Options={}", cfDescriptor.getName(), cfDescriptor.getOptions().toString());
+                        log.debug(
+                                "CF={},Options={}",
+                                cfDescriptor.getName(),
+                                cfDescriptor.getOptions().toString());
                     }
                 }
                 List<ColumnFamilyHandle> cfHandles = new ArrayList<>();
@@ -386,8 +392,10 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
 
-            GetResult result = new GetResult(metaValue.getData(),
-                    new Stat(path,
+            GetResult result = new GetResult(
+                    metaValue.getData(),
+                    new Stat(
+                            path,
                             metaValue.getVersion(),
                             metaValue.getCreatedTimestamp(),
                             metaValue.getModifiedTimestamp(),
@@ -415,7 +423,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 for (iterator.seek(toBytes(firstKey)); iterator.isValid(); iterator.next()) {
                     String currentPath = toString(iterator.key());
                     if (lastKey.compareTo(currentPath) <= 0) {
-                        //End of sub paths.
+                        // End of sub paths.
                         break;
                     }
                     byte[] value = iterator.value();
@@ -427,7 +435,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                         delete(currentPath, Optional.empty());
                         continue;
                     }
-                    //check if it's direct child.
+                    // check if it's direct child.
                     String relativePath = currentPath.substring(firstKey.length());
                     String child = relativePath.split("/", 2)[0];
                     result.add(child);
@@ -480,9 +488,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                     throw new MetadataStoreException.NotFoundException(String.format("path %s not found.", path));
                 }
                 if (expectedVersion.isPresent() && !expectedVersion.get().equals(metaValue.getVersion())) {
-                    throw new MetadataStoreException.BadVersionException(
-                            String.format("Version mismatch, actual=%s, expect=%s", metaValue.getVersion(),
-                                    expectedVersion.get()));
+                    throw new MetadataStoreException.BadVersionException(String.format(
+                            "Version mismatch, actual=%s, expect=%s", metaValue.getVersion(), expectedVersion.get()));
                 }
                 transaction.delete(pathBytes);
                 transaction.commit();
@@ -501,8 +508,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
-                                               EnumSet<CreateOption> options) {
+    protected CompletableFuture<Stat> storePut(
+            String path, byte[] data, Optional<Long> expectedVersion, EnumSet<CreateOption> options) {
         if (log.isDebugEnabled()) {
             log.debug("storePut.path={},instanceId={}", path, instanceId);
         }
@@ -515,9 +522,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 if (expectedVersion.isPresent()) {
                     if (metaValue == null && expectedVersion.get() != -1
                             || metaValue != null && !expectedVersion.get().equals(metaValue.getVersion())) {
-                        throw new MetadataStoreException.BadVersionException(
-                                String.format("Version mismatch, actual=%s, expect=%s",
-                                        metaValue == null ? null : metaValue.getVersion(), expectedVersion.get()));
+                        throw new MetadataStoreException.BadVersionException(String.format(
+                                "Version mismatch, actual=%s, expect=%s",
+                                metaValue == null ? null : metaValue.getVersion(), expectedVersion.get()));
                     }
                 }
 
@@ -543,7 +550,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 metaValue.owner = instanceId;
                 metaValue.data = data;
 
-                //handle Sequential
+                // handle Sequential
                 transaction.put(pathBytes, metaValue.serialize());
 
                 transaction.commit();
@@ -554,9 +561,13 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                     notifyParentChildrenChanged(path);
                 }
 
-                return CompletableFuture.completedFuture(
-                        new Stat(path, metaValue.version, metaValue.createdTimestamp, metaValue.modifiedTimestamp,
-                                metaValue.ephemeral, true));
+                return CompletableFuture.completedFuture(new Stat(
+                        path,
+                        metaValue.version,
+                        metaValue.createdTimestamp,
+                        metaValue.modifiedTimestamp,
+                        metaValue.ephemeral,
+                        true));
             }
         } catch (Throwable e) {
             if (log.isDebugEnabled()) {
@@ -582,8 +593,9 @@ class RocksdbMetadataStoreProvider implements MetadataStoreProvider {
     }
 
     @Override
-    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
-                                boolean enableSessionWatcher) throws MetadataStoreException {
+    public MetadataStore create(
+            String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+            throws MetadataStoreException {
         return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
     }
 }

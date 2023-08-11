@@ -18,19 +18,11 @@
  */
 package org.apache.pulsar.io.kinesis.json;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.collect.ImmutableMap;
-import org.apache.avro.LogicalTypes;
-import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.*;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
-import org.testng.annotations.Test;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,30 +33,86 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 import java.util.UUID;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.apache.avro.LogicalTypes;
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.*;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.testng.annotations.Test;
 
 public class JsonConverterTests {
 
     @Test
     public void testAvroToJson() throws IOException {
-        Schema avroArraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
-        Schema schema = SchemaBuilder.record("record").fields()
-                .name("n").type().longType().longDefault(10)
-                .name("l").type().longType().longDefault(10)
-                .name("i").type().intType().intDefault(10)
-                .name("b").type().booleanType().booleanDefault(true)
-                .name("bb").type().bytesType().bytesDefault("10")
-                .name("d").type().doubleType().doubleDefault(10.0)
-                .name("f").type().floatType().floatDefault(10.0f)
-                .name("s").type().stringType().stringDefault("titi")
-                .name("fi").type().fixed("fi").size(3).fixedDefault(new byte[]{1,2,3})
-                .name("en").type().enumeration("en").symbols("a","b","c").enumDefault("b")
-                .name("array").type().optional().array().items(SchemaBuilder.builder().stringType())
-                .name("arrayavro").type().optional().array().items(SchemaBuilder.builder().stringType())
-                .name("map").type().optional().map().values(SchemaBuilder.builder().intType())
-                .name("maputf8").type().optional().map().values(SchemaBuilder.builder().intType())
+        Schema avroArraySchema =
+                SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+        Schema schema = SchemaBuilder.record("record")
+                .fields()
+                .name("n")
+                .type()
+                .longType()
+                .longDefault(10)
+                .name("l")
+                .type()
+                .longType()
+                .longDefault(10)
+                .name("i")
+                .type()
+                .intType()
+                .intDefault(10)
+                .name("b")
+                .type()
+                .booleanType()
+                .booleanDefault(true)
+                .name("bb")
+                .type()
+                .bytesType()
+                .bytesDefault("10")
+                .name("d")
+                .type()
+                .doubleType()
+                .doubleDefault(10.0)
+                .name("f")
+                .type()
+                .floatType()
+                .floatDefault(10.0f)
+                .name("s")
+                .type()
+                .stringType()
+                .stringDefault("titi")
+                .name("fi")
+                .type()
+                .fixed("fi")
+                .size(3)
+                .fixedDefault(new byte[] {1, 2, 3})
+                .name("en")
+                .type()
+                .enumeration("en")
+                .symbols("a", "b", "c")
+                .enumDefault("b")
+                .name("array")
+                .type()
+                .optional()
+                .array()
+                .items(SchemaBuilder.builder().stringType())
+                .name("arrayavro")
+                .type()
+                .optional()
+                .array()
+                .items(SchemaBuilder.builder().stringType())
+                .name("map")
+                .type()
+                .optional()
+                .map()
+                .values(SchemaBuilder.builder().intType())
+                .name("maputf8")
+                .type()
+                .optional()
+                .map()
+                .values(SchemaBuilder.builder().intType())
                 .endRecord();
         GenericRecord genericRecord = new GenericData.Record(schema);
         genericRecord.put("n", null);
@@ -75,12 +123,19 @@ public class JsonConverterTests {
         genericRecord.put("d", 10.0);
         genericRecord.put("f", 10.0f);
         genericRecord.put("s", "toto");
-        genericRecord.put("fi", GenericData.get().createFixed(null, new byte[]{'a','b','c'}, schema.getField("fi").schema()));
-        genericRecord.put("en", GenericData.get().createEnum("b", schema.getField("en").schema()));
+        genericRecord.put(
+                "fi",
+                GenericData.get()
+                        .createFixed(
+                                null,
+                                new byte[] {'a', 'b', 'c'},
+                                schema.getField("fi").schema()));
+        genericRecord.put(
+                "en", GenericData.get().createEnum("b", schema.getField("en").schema()));
         genericRecord.put("array", new String[] {"toto"});
         genericRecord.put("arrayavro", new GenericData.Array<>(avroArraySchema, Arrays.asList("toto")));
-        genericRecord.put("map", ImmutableMap.of("a",10));
-        genericRecord.put("maputf8", ImmutableMap.of(new org.apache.avro.util.Utf8("a"),10));
+        genericRecord.put("map", ImmutableMap.of("a", 10));
+        genericRecord.put("maputf8", ImmutableMap.of(new org.apache.avro.util.Utf8("a"), 10));
         JsonNode jsonNode = JsonConverter.toJson(genericRecord);
         assertEquals(jsonNode.get("n"), NullNode.getInstance());
         assertEquals(jsonNode.get("l").asLong(), 1L);
@@ -114,12 +169,24 @@ public class JsonConverterTests {
         Schema uuidType = LogicalTypes.uuid().addToSchema(Schema.create(Schema.Type.STRING));
         Schema schema = SchemaBuilder.record("record")
                 .fields()
-                .name("mydate").type(dateType).noDefault()
-                .name("tsmillis").type(timestampMillisType).noDefault()
-                .name("tsmicros").type(timestampMicrosType).noDefault()
-                .name("timemillis").type(timeMillisType).noDefault()
-                .name("timemicros").type(timeMicrosType).noDefault()
-                .name("myuuid").type(uuidType).noDefault()
+                .name("mydate")
+                .type(dateType)
+                .noDefault()
+                .name("tsmillis")
+                .type(timestampMillisType)
+                .noDefault()
+                .name("tsmicros")
+                .type(timestampMicrosType)
+                .noDefault()
+                .name("timemillis")
+                .type(timeMillisType)
+                .noDefault()
+                .name("timemicros")
+                .type(timeMicrosType)
+                .noDefault()
+                .name("myuuid")
+                .type(uuidType)
+                .noDefault()
                 .endRecord();
 
         final long MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -127,20 +194,20 @@ public class JsonConverterTests {
         UUID myUuid = UUID.randomUUID();
         Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("Europe/Copenhagen"));
         GenericRecord genericRecord = new GenericData.Record(schema);
-        genericRecord.put("mydate", (int)calendar.toInstant().getEpochSecond());
+        genericRecord.put("mydate", (int) calendar.toInstant().getEpochSecond());
         genericRecord.put("tsmillis", calendar.getTimeInMillis());
         genericRecord.put("tsmicros", calendar.getTimeInMillis() * 1000);
-        genericRecord.put("timemillis", (int)(calendar.getTimeInMillis() % MILLIS_PER_DAY));
-        genericRecord.put("timemicros", (calendar.getTimeInMillis() %MILLIS_PER_DAY) * 1000);
+        genericRecord.put("timemillis", (int) (calendar.getTimeInMillis() % MILLIS_PER_DAY));
+        genericRecord.put("timemicros", (calendar.getTimeInMillis() % MILLIS_PER_DAY) * 1000);
         genericRecord.put("myuuid", myUuid.toString());
 
         GenericRecord genericRecord2 = deserialize(serialize(genericRecord, schema), schema);
         JsonNode jsonNode = JsonConverter.toJson(genericRecord2);
         assertEquals(jsonNode.get("mydate").asInt(), calendar.toInstant().getEpochSecond());
-        assertEquals(jsonNode.get("tsmillis").asInt(), (int)calendar.getTimeInMillis());
+        assertEquals(jsonNode.get("tsmillis").asInt(), (int) calendar.getTimeInMillis());
         assertEquals(jsonNode.get("tsmicros").asLong(), calendar.getTimeInMillis() * 1000);
-        assertEquals(jsonNode.get("timemillis").asInt(), (int)(calendar.getTimeInMillis() % MILLIS_PER_DAY));
-        assertEquals(jsonNode.get("timemicros").asLong(), (calendar.getTimeInMillis() %MILLIS_PER_DAY) * 1000);
+        assertEquals(jsonNode.get("timemillis").asInt(), (int) (calendar.getTimeInMillis() % MILLIS_PER_DAY));
+        assertEquals(jsonNode.get("timemicros").asLong(), (calendar.getTimeInMillis() % MILLIS_PER_DAY) * 1000);
         assertEquals(UUID.fromString(jsonNode.get("myuuid").asText()), myUuid);
     }
 
@@ -153,7 +220,7 @@ public class JsonConverterTests {
         return byteArrayOutputStream.toByteArray();
     }
 
-    public static GenericRecord  deserialize(byte[] recordBytes, Schema schema) throws IOException {
+    public static GenericRecord deserialize(byte[] recordBytes, Schema schema) throws IOException {
         DatumReader<GenericRecord> datumReader = new SpecificDatumReader<>(schema);
         ByteArrayInputStream stream = new ByteArrayInputStream(recordBytes);
         BinaryDecoder binaryDecoder = new DecoderFactory().binaryDecoder(stream, null);

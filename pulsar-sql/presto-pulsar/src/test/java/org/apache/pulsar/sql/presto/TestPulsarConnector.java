@@ -131,23 +131,21 @@ public abstract class TestPulsarConnector {
     protected static final TopicName TOPIC_4 = TopicName.get("persistent", NAMESPACE_NAME_3, "topic-1");
     protected static final TopicName TOPIC_5 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-1");
     protected static final TopicName TOPIC_6 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-2");
-    protected static final TopicName NON_SCHEMA_TOPIC = TopicName.get(
-        "persistent", NAMESPACE_NAME_2, "non-schema-topic");
+    protected static final TopicName NON_SCHEMA_TOPIC =
+            TopicName.get("persistent", NAMESPACE_NAME_2, "non-schema-topic");
 
-
-    protected static final TopicName PARTITIONED_TOPIC_1 = TopicName.get("persistent", NAMESPACE_NAME_1,
-            "partitioned-topic-1");
-    protected static final TopicName PARTITIONED_TOPIC_2 = TopicName.get("persistent", NAMESPACE_NAME_1,
-            "partitioned-topic-2");
-    protected static final TopicName PARTITIONED_TOPIC_3 = TopicName.get("persistent", NAMESPACE_NAME_2,
-            "partitioned-topic-1");
-    protected static final TopicName PARTITIONED_TOPIC_4 = TopicName.get("persistent", NAMESPACE_NAME_3,
-            "partitioned-topic-1");
-    protected static final TopicName PARTITIONED_TOPIC_5 = TopicName.get("persistent", NAMESPACE_NAME_4,
-            "partitioned-topic-1");
-    protected static final TopicName PARTITIONED_TOPIC_6 = TopicName.get("persistent", NAMESPACE_NAME_4,
-            "partitioned-topic-2");
-
+    protected static final TopicName PARTITIONED_TOPIC_1 =
+            TopicName.get("persistent", NAMESPACE_NAME_1, "partitioned-topic-1");
+    protected static final TopicName PARTITIONED_TOPIC_2 =
+            TopicName.get("persistent", NAMESPACE_NAME_1, "partitioned-topic-2");
+    protected static final TopicName PARTITIONED_TOPIC_3 =
+            TopicName.get("persistent", NAMESPACE_NAME_2, "partitioned-topic-1");
+    protected static final TopicName PARTITIONED_TOPIC_4 =
+            TopicName.get("persistent", NAMESPACE_NAME_3, "partitioned-topic-1");
+    protected static final TopicName PARTITIONED_TOPIC_5 =
+            TopicName.get("persistent", NAMESPACE_NAME_4, "partitioned-topic-1");
+    protected static final TopicName PARTITIONED_TOPIC_6 =
+            TopicName.get("persistent", NAMESPACE_NAME_4, "partitioned-topic-2");
 
     public static class Foo {
         public enum TestEnum {
@@ -162,14 +160,20 @@ public abstract class TestPulsarConnector {
         public double field4;
         public boolean field5;
         public long field6;
+
         @org.apache.avro.reflect.AvroSchema("{ \"type\": \"long\", \"logicalType\": \"timestamp-millis\" }")
         public long timestamp;
+
         @org.apache.avro.reflect.AvroSchema("{ \"type\": \"int\", \"logicalType\": \"time-millis\" }")
         public int time;
+
         @org.apache.avro.reflect.AvroSchema("{ \"type\": \"int\", \"logicalType\": \"date\" }")
         public int date;
-        @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
+
+        @org.apache.avro.reflect.AvroSchema(
+                "{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
         public BigDecimal decimal;
+
         public TestPulsarConnector.Bar bar;
         public TestEnum field7;
     }
@@ -179,7 +183,6 @@ public abstract class TestPulsarConnector {
         public String field2;
         public float field3;
     }
-
 
     protected static Map<TopicName, List<PulsarColumnHandle>> topicsToColumnHandles = new HashMap<>();
 
@@ -205,7 +208,6 @@ public abstract class TestPulsarConnector {
             partitionedTopicNames.add(PARTITIONED_TOPIC_5);
             partitionedTopicNames.add(PARTITIONED_TOPIC_6);
 
-
             partitionedTopicsToPartitions = new HashMap<>();
             partitionedTopicsToPartitions.put(PARTITIONED_TOPIC_1.toString(), 2);
             partitionedTopicsToPartitions.put(PARTITIONED_TOPIC_2.toString(), 3);
@@ -215,19 +217,43 @@ public abstract class TestPulsarConnector {
             partitionedTopicsToPartitions.put(PARTITIONED_TOPIC_6.toString(), 7);
 
             topicsToSchemas = new HashMap<>();
-            topicsToSchemas.put(TOPIC_1.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(TOPIC_2.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(TOPIC_3.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(TOPIC_4.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(TOPIC_5.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(TOPIC_6.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    TOPIC_1.getSchemaName(),
+                    Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    TOPIC_2.getSchemaName(),
+                    Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    TOPIC_3.getSchemaName(),
+                    Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    TOPIC_4.getSchemaName(),
+                    Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    TOPIC_5.getSchemaName(),
+                    Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    TOPIC_6.getSchemaName(),
+                    Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
 
-            topicsToSchemas.put(PARTITIONED_TOPIC_1.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(PARTITIONED_TOPIC_2.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(PARTITIONED_TOPIC_3.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(PARTITIONED_TOPIC_4.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(PARTITIONED_TOPIC_5.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
-            topicsToSchemas.put(PARTITIONED_TOPIC_6.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    PARTITIONED_TOPIC_1.getSchemaName(),
+                    Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    PARTITIONED_TOPIC_2.getSchemaName(),
+                    Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    PARTITIONED_TOPIC_3.getSchemaName(),
+                    Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    PARTITIONED_TOPIC_4.getSchemaName(),
+                    Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    PARTITIONED_TOPIC_5.getSchemaName(),
+                    Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(
+                    PARTITIONED_TOPIC_6.getSchemaName(),
+                    Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
 
             topicsToNumEntries = new HashMap<>();
             topicsToNumEntries.put(TOPIC_1.getSchemaName(), 1233L);
@@ -245,7 +271,6 @@ public abstract class TestPulsarConnector {
             topicsToNumEntries.put(PARTITIONED_TOPIC_5.getSchemaName(), 800L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_6.getSchemaName(), 1L);
 
-
             fooFieldNames.add("field1");
             fooFieldNames.add("field2");
             fooFieldNames.add("field3");
@@ -259,25 +284,95 @@ public abstract class TestPulsarConnector {
             fooFieldNames.add("field7");
             fooFieldNames.add("decimal");
 
-
             ConnectorContext prestoConnectorContext = new TestingConnectorContext();
-            dispatchingRowDecoderFactory = new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
+            dispatchingRowDecoderFactory =
+                    new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
 
-            topicsToColumnHandles.put(PARTITIONED_TOPIC_1, getColumnColumnHandles(PARTITIONED_TOPIC_1,topicsToSchemas.get(PARTITIONED_TOPIC_1.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(PARTITIONED_TOPIC_2, getColumnColumnHandles(PARTITIONED_TOPIC_2,topicsToSchemas.get(PARTITIONED_TOPIC_2.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(PARTITIONED_TOPIC_3, getColumnColumnHandles(PARTITIONED_TOPIC_3,topicsToSchemas.get(PARTITIONED_TOPIC_3.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(PARTITIONED_TOPIC_4, getColumnColumnHandles(PARTITIONED_TOPIC_4,topicsToSchemas.get(PARTITIONED_TOPIC_4.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(PARTITIONED_TOPIC_5, getColumnColumnHandles(PARTITIONED_TOPIC_5,topicsToSchemas.get(PARTITIONED_TOPIC_5.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(PARTITIONED_TOPIC_6, getColumnColumnHandles(PARTITIONED_TOPIC_6,topicsToSchemas.get(PARTITIONED_TOPIC_6.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(
+                    PARTITIONED_TOPIC_1,
+                    getColumnColumnHandles(
+                            PARTITIONED_TOPIC_1,
+                            topicsToSchemas.get(PARTITIONED_TOPIC_1.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    PARTITIONED_TOPIC_2,
+                    getColumnColumnHandles(
+                            PARTITIONED_TOPIC_2,
+                            topicsToSchemas.get(PARTITIONED_TOPIC_2.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    PARTITIONED_TOPIC_3,
+                    getColumnColumnHandles(
+                            PARTITIONED_TOPIC_3,
+                            topicsToSchemas.get(PARTITIONED_TOPIC_3.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    PARTITIONED_TOPIC_4,
+                    getColumnColumnHandles(
+                            PARTITIONED_TOPIC_4,
+                            topicsToSchemas.get(PARTITIONED_TOPIC_4.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    PARTITIONED_TOPIC_5,
+                    getColumnColumnHandles(
+                            PARTITIONED_TOPIC_5,
+                            topicsToSchemas.get(PARTITIONED_TOPIC_5.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    PARTITIONED_TOPIC_6,
+                    getColumnColumnHandles(
+                            PARTITIONED_TOPIC_6,
+                            topicsToSchemas.get(PARTITIONED_TOPIC_6.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
 
-
-            topicsToColumnHandles.put(TOPIC_1, getColumnColumnHandles(TOPIC_1,topicsToSchemas.get(TOPIC_1.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(TOPIC_2, getColumnColumnHandles(TOPIC_2,topicsToSchemas.get(TOPIC_2.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(TOPIC_3, getColumnColumnHandles(TOPIC_3,topicsToSchemas.get(TOPIC_3.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(TOPIC_4, getColumnColumnHandles(TOPIC_4,topicsToSchemas.get(TOPIC_4.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(TOPIC_5, getColumnColumnHandles(TOPIC_5,topicsToSchemas.get(TOPIC_5.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-            topicsToColumnHandles.put(TOPIC_6, getColumnColumnHandles(TOPIC_6,topicsToSchemas.get(TOPIC_6.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
-
+            topicsToColumnHandles.put(
+                    TOPIC_1,
+                    getColumnColumnHandles(
+                            TOPIC_1,
+                            topicsToSchemas.get(TOPIC_1.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    TOPIC_2,
+                    getColumnColumnHandles(
+                            TOPIC_2,
+                            topicsToSchemas.get(TOPIC_2.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    TOPIC_3,
+                    getColumnColumnHandles(
+                            TOPIC_3,
+                            topicsToSchemas.get(TOPIC_3.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    TOPIC_4,
+                    getColumnColumnHandles(
+                            TOPIC_4,
+                            topicsToSchemas.get(TOPIC_4.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    TOPIC_5,
+                    getColumnColumnHandles(
+                            TOPIC_5,
+                            topicsToSchemas.get(TOPIC_5.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
+            topicsToColumnHandles.put(
+                    TOPIC_6,
+                    getColumnColumnHandles(
+                            TOPIC_6,
+                            topicsToSchemas.get(TOPIC_6.getSchemaName()),
+                            PulsarColumnHandle.HandleKeyValueType.NONE,
+                            true));
 
             splits = new HashMap<>();
 
@@ -285,18 +380,32 @@ public abstract class TestPulsarConnector {
             allTopics.addAll(topicNames);
             allTopics.addAll(partitionedTopicNames);
 
-
             for (TopicName topicName : allTopics) {
                 if (topicsToSchemas.containsKey(topicName.getSchemaName())) {
-                    splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
-                        topicName.getNamespace(), topicName.getLocalName(), topicName.getLocalName(),
-                        topicsToNumEntries.get(topicName.getSchemaName()),
-                        new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()),
-                        topicsToSchemas.get(topicName.getSchemaName()).getType(),
-                        0, topicsToNumEntries.get(topicName.getSchemaName()),
-                        0, 0, TupleDomain.all(),
-                            objectMapper.writeValueAsString(
-                                    topicsToSchemas.get(topicName.getSchemaName()).getProperties()), null));
+                    splits.put(
+                            topicName,
+                            new PulsarSplit(
+                                    0,
+                                    pulsarConnectorId.toString(),
+                                    topicName.getNamespace(),
+                                    topicName.getLocalName(),
+                                    topicName.getLocalName(),
+                                    topicsToNumEntries.get(topicName.getSchemaName()),
+                                    new String(topicsToSchemas
+                                            .get(topicName.getSchemaName())
+                                            .getSchema()),
+                                    topicsToSchemas
+                                            .get(topicName.getSchemaName())
+                                            .getType(),
+                                    0,
+                                    topicsToNumEntries.get(topicName.getSchemaName()),
+                                    0,
+                                    0,
+                                    TupleDomain.all(),
+                                    objectMapper.writeValueAsString(topicsToSchemas
+                                            .get(topicName.getSchemaName())
+                                            .getProperties()),
+                                    null));
                 }
             }
 
@@ -331,7 +440,6 @@ public abstract class TestPulsarConnector {
         }
     }
 
-
     /**
      * Parse PulsarColumnMetadata to PulsarColumnHandle Util
      * @param schemaInfo
@@ -339,11 +447,14 @@ public abstract class TestPulsarConnector {
      * @param includeInternalColumn
      * @return
      */
-    protected static List<PulsarColumnHandle> getColumnColumnHandles(TopicName topicName, SchemaInfo schemaInfo,
-                                                                     PulsarColumnHandle.HandleKeyValueType handleKeyValueType, boolean includeInternalColumn) {
+    protected static List<PulsarColumnHandle> getColumnColumnHandles(
+            TopicName topicName,
+            SchemaInfo schemaInfo,
+            PulsarColumnHandle.HandleKeyValueType handleKeyValueType,
+            boolean includeInternalColumn) {
         List<PulsarColumnHandle> columnHandles = new ArrayList<>();
-        List<ColumnMetadata> columnMetadata = mockColumnMetadata().getPulsarColumns(topicName, schemaInfo,
-                includeInternalColumn, handleKeyValueType);
+        List<ColumnMetadata> columnMetadata =
+                mockColumnMetadata().getPulsarColumns(topicName, schemaInfo, includeInternalColumn, handleKeyValueType);
         columnMetadata.forEach(column -> {
             PulsarColumnMetadata pulsarColumnMetadata = (PulsarColumnMetadata) column;
             columnHandles.add(new PulsarColumnHandle(
@@ -353,9 +464,9 @@ public abstract class TestPulsarConnector {
                     pulsarColumnMetadata.isHidden(),
                     pulsarColumnMetadata.isInternal(),
                     pulsarColumnMetadata.getDecoderExtraInfo().getMapping(),
-                    pulsarColumnMetadata.getDecoderExtraInfo().getDataFormat(), pulsarColumnMetadata.getDecoderExtraInfo().getFormatHint(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getDataFormat(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getFormatHint(),
                     pulsarColumnMetadata.getHandleKeyValueType()));
-
         });
         return columnHandles;
     }
@@ -383,7 +494,7 @@ public abstract class TestPulsarConnector {
         List<Entry> entries = new LinkedList<>();
 
         long count = topicsToNumEntries.get(topicSchemaName);
-        for (int i=0 ; i < count; i++) {
+        for (int i = 0; i < count; i++) {
 
             Foo foo = new Foo();
             foo.field1 = (int) count;
@@ -400,19 +511,22 @@ public abstract class TestPulsarConnector {
             LocalDate localDate = LocalDate.now();
             LocalDate epoch = LocalDate.ofEpochDay(0);
             foo.date = Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
-            foo.decimal= BigDecimal.valueOf(count, 2);
+            foo.decimal = BigDecimal.valueOf(count, 2);
 
             MessageMetadata messageMetadata = new MessageMetadata()
-                    .setProducerName("test-producer").setSequenceId(i)
+                    .setProducerName("test-producer")
+                    .setSequenceId(i)
                     .setPublishTime(currentTimeMicros / 1000 + i);
 
-            Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+            Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO
+                    ? AvroSchema.of(
+                            SchemaDefinition.<Foo>builder().withPojo(Foo.class).build())
+                    : JSONSchema.of(
+                            SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
-            ByteBuf payload = io.netty.buffer.Unpooled
-                    .copiedBuffer(schema.encode(foo));
+            ByteBuf payload = io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
 
-            ByteBuf byteBuf = serializeMetadataAndPayload(
-                    Commands.ChecksumType.Crc32c, messageMetadata, payload);
+            ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
             Entry entry = EntryImpl.create(0, i, byteBuf);
             log.info("create entry: %s", entry.getEntryId());
@@ -427,29 +541,32 @@ public abstract class TestPulsarConnector {
 
     protected static List<String> getNamespace(String tenant) {
         return topicNames.stream()
-            .filter(topicName -> topicName.getTenant().equals(tenant))
-            .map(TopicName::getNamespace)
-            .distinct()
-            .collect(Collectors.toCollection(LinkedList::new));
+                .filter(topicName -> topicName.getTenant().equals(tenant))
+                .map(TopicName::getNamespace)
+                .distinct()
+                .collect(Collectors.toCollection(LinkedList::new));
     }
 
     protected static List<String> getTopics(String ns) {
         List<String> topics = new ArrayList<>(topicNames.stream()
-            .filter(topicName -> topicName.getNamespace().equals(ns))
-            .map(TopicName::toString).collect(Collectors.toList()));
-        partitionedTopicNames.stream().filter(topicName -> topicName.getNamespace().equals(ns)).forEach(topicName -> {
-            for (Integer i = 0; i < partitionedTopicsToPartitions.get(topicName.toString()); i++) {
-                topics.add(TopicName.get(topicName + "-partition-" + i).toString());
-            }
-        });
+                .filter(topicName -> topicName.getNamespace().equals(ns))
+                .map(TopicName::toString)
+                .collect(Collectors.toList()));
+        partitionedTopicNames.stream()
+                .filter(topicName -> topicName.getNamespace().equals(ns))
+                .forEach(topicName -> {
+                    for (Integer i = 0; i < partitionedTopicsToPartitions.get(topicName.toString()); i++) {
+                        topics.add(TopicName.get(topicName + "-partition-" + i).toString());
+                    }
+                });
         return topics;
     }
 
     protected static List<String> getPartitionedTopics(String ns) {
         return partitionedTopicNames.stream()
-            .filter(topicName -> topicName.getNamespace().equals(ns))
-            .map(TopicName::toString)
-            .collect(Collectors.toList());
+                .filter(topicName -> topicName.getNamespace().equals(ns))
+                .map(TopicName::toString)
+                .collect(Collectors.toList());
     }
 
     @BeforeMethod
@@ -460,9 +577,9 @@ public abstract class TestPulsarConnector {
         this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
 
         Tenants tenants = mock(Tenants.class);
-        doReturn(new LinkedList<>(topicNames.stream()
-            .map(TopicName::getTenant)
-            .collect(Collectors.toSet()))).when(tenants).getTenants();
+        doReturn(new LinkedList<>(topicNames.stream().map(TopicName::getTenant).collect(Collectors.toSet())))
+                .when(tenants)
+                .getTenants();
 
         Namespaces namespaces = mock(Namespaces.class);
 
@@ -473,8 +590,10 @@ public abstract class TestPulsarConnector {
                 String tenant = (String) args[0];
                 List<String> ns = getNamespace(tenant);
                 if (ns.isEmpty()) {
-                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
-                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
+                    ClientErrorException cee =
+                            new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(
+                            cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
                 return ns;
             }
@@ -488,8 +607,10 @@ public abstract class TestPulsarConnector {
                 String ns = (String) args[0];
                 List<String> topics = getTopics(ns);
                 if (topics.isEmpty()) {
-                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
-                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
+                    ClientErrorException cee =
+                            new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(
+                            cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
                 return topics;
             }
@@ -502,8 +623,10 @@ public abstract class TestPulsarConnector {
                 String ns = (String) args[0];
                 List<String> topics = getPartitionedTopics(ns);
                 if (topics.isEmpty()) {
-                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
-                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
+                    ClientErrorException cee =
+                            new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(
+                            cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
                 return topics;
             }
@@ -514,8 +637,8 @@ public abstract class TestPulsarConnector {
             public PartitionedTopicMetadata answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Object[] args = invocationOnMock.getArguments();
                 String topic = (String) args[0];
-                int partitions = partitionedTopicsToPartitions.get(topic) == null
-                        ? 0 : partitionedTopicsToPartitions.get(topic);
+                int partitions =
+                        partitionedTopicsToPartitions.get(topic) == null ? 0 : partitionedTopicsToPartitions.get(topic);
                 return new PartitionedTopicMetadata(partitions);
             }
         });
@@ -529,8 +652,10 @@ public abstract class TestPulsarConnector {
                 if (topicsToSchemas.get(topic) != null) {
                     return topicsToSchemas.get(topic);
                 } else {
-                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
-                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
+                    ClientErrorException cee =
+                            new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(
+                            cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
             }
         });
@@ -544,9 +669,8 @@ public abstract class TestPulsarConnector {
 
         this.pulsarAuth = mock(PulsarAuth.class);
 
-        this.pulsarMetadata =
-                new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory,
-                        this.pulsarAuth);
+        this.pulsarMetadata = new PulsarMetadata(
+                pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory, this.pulsarAuth);
         this.pulsarSplitManager = Mockito.spy(new PulsarSplitManager(pulsarConnectorId, this.pulsarConnectorConfig));
 
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
@@ -555,6 +679,7 @@ public abstract class TestPulsarConnector {
             private Map<String, Integer> positions = new HashMap<>();
 
             private int count = 0;
+
             @Override
             public ReadOnlyCursor answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Object[] args = invocationOnMock.getArguments();
@@ -564,25 +689,25 @@ public abstract class TestPulsarConnector {
                 int position = positionImpl.getEntryId() == -1 ? 0 : (int) positionImpl.getEntryId();
 
                 positions.put(topic, position);
-                String schemaName = TopicName.get(
-                        TopicName.get(
-                                topic.replaceAll("/persistent", ""))
-                                .getPartitionedTopicName()).getSchemaName();
+                String schemaName = TopicName.get(TopicName.get(topic.replaceAll("/persistent", ""))
+                                .getPartitionedTopicName())
+                        .getSchemaName();
                 long entries = topicsToNumEntries.get(schemaName);
-
 
                 ReadOnlyCursorImpl readOnlyCursor = mock(ReadOnlyCursorImpl.class);
                 doReturn(entries).when(readOnlyCursor).getNumberOfEntries();
 
                 doAnswer(new Answer<Void>() {
-                    @Override
-                    public Void answer(InvocationOnMock invocation) throws Throwable {
-                        Object[] args = invocation.getArguments();
-                        Integer skipEntries = (Integer) args[0];
-                        positions.put(topic, positions.get(topic) + skipEntries);
-                        return null;
-                    }
-                }).when(readOnlyCursor).skipEntries(anyInt());
+                            @Override
+                            public Void answer(InvocationOnMock invocation) throws Throwable {
+                                Object[] args = invocation.getArguments();
+                                Integer skipEntries = (Integer) args[0];
+                                positions.put(topic, positions.get(topic) + skipEntries);
+                                return null;
+                            }
+                        })
+                        .when(readOnlyCursor)
+                        .skipEntries(anyInt());
 
                 when(readOnlyCursor.getReadPosition()).thenAnswer(new Answer<PositionImpl>() {
                     @Override
@@ -592,65 +717,112 @@ public abstract class TestPulsarConnector {
                 });
 
                 doAnswer(new Answer() {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                        Object[] args = invocationOnMock.getArguments();
-                        Integer readEntries = (Integer) args[0];
-                        AsyncCallbacks.ReadEntriesCallback callback = (AsyncCallbacks.ReadEntriesCallback) args[2];
-                        Object ctx = args[3];
-
-                        new Thread(new Runnable() {
                             @Override
-                            public void run() {
-                                List <Entry> entries = new LinkedList<>();
-                                for (int i = 0; i < readEntries; i++) {
+                            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                                Object[] args = invocationOnMock.getArguments();
+                                Integer readEntries = (Integer) args[0];
+                                AsyncCallbacks.ReadEntriesCallback callback =
+                                        (AsyncCallbacks.ReadEntriesCallback) args[2];
+                                Object ctx = args[3];
 
-                                    TestPulsarConnector.Bar bar = new TestPulsarConnector.Bar();
-                                    bar.field1 = fooFunctions.get("bar.field1").apply(count) == null ? null : (int) fooFunctions.get("bar.field1").apply(count);
-                                    bar.field2 = fooFunctions.get("bar.field2").apply(count) == null ? null : (String) fooFunctions.get("bar.field2").apply(count);
-                                    bar.field3 = (float) fooFunctions.get("bar.field3").apply(count);
+                                new Thread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                List<Entry> entries = new LinkedList<>();
+                                                for (int i = 0; i < readEntries; i++) {
 
+                                                    TestPulsarConnector.Bar bar = new TestPulsarConnector.Bar();
+                                                    bar.field1 = fooFunctions
+                                                                            .get("bar.field1")
+                                                                            .apply(count)
+                                                                    == null
+                                                            ? null
+                                                            : (int) fooFunctions
+                                                                    .get("bar.field1")
+                                                                    .apply(count);
+                                                    bar.field2 = fooFunctions
+                                                                            .get("bar.field2")
+                                                                            .apply(count)
+                                                                    == null
+                                                            ? null
+                                                            : (String) fooFunctions
+                                                                    .get("bar.field2")
+                                                                    .apply(count);
+                                                    bar.field3 = (float) fooFunctions
+                                                            .get("bar.field3")
+                                                            .apply(count);
 
-                                    Foo foo = new Foo();
-                                    foo.field1 = (int) fooFunctions.get("field1").apply(count);
-                                    foo.field2 = (String) fooFunctions.get("field2").apply(count);
-                                    foo.field3 = (float) fooFunctions.get("field3").apply(count);
-                                    foo.field4 = (double) fooFunctions.get("field4").apply(count);
-                                    foo.field5 = (boolean) fooFunctions.get("field5").apply(count);
-                                    foo.field6 = (long) fooFunctions.get("field6").apply(count);
-                                    foo.timestamp = (long) fooFunctions.get("timestamp").apply(count);
-                                    foo.time = (int) fooFunctions.get("time").apply(count);
-                                    foo.date = (int) fooFunctions.get("date").apply(count);
-                                    foo.decimal = (BigDecimal) fooFunctions.get("decimal").apply(count);
-                                    foo.bar = bar;
-                                    foo.field7 = (Foo.TestEnum) fooFunctions.get("field7").apply(count);
+                                                    Foo foo = new Foo();
+                                                    foo.field1 = (int) fooFunctions
+                                                            .get("field1")
+                                                            .apply(count);
+                                                    foo.field2 = (String) fooFunctions
+                                                            .get("field2")
+                                                            .apply(count);
+                                                    foo.field3 = (float) fooFunctions
+                                                            .get("field3")
+                                                            .apply(count);
+                                                    foo.field4 = (double) fooFunctions
+                                                            .get("field4")
+                                                            .apply(count);
+                                                    foo.field5 = (boolean) fooFunctions
+                                                            .get("field5")
+                                                            .apply(count);
+                                                    foo.field6 = (long) fooFunctions
+                                                            .get("field6")
+                                                            .apply(count);
+                                                    foo.timestamp = (long) fooFunctions
+                                                            .get("timestamp")
+                                                            .apply(count);
+                                                    foo.time = (int) fooFunctions
+                                                            .get("time")
+                                                            .apply(count);
+                                                    foo.date = (int) fooFunctions
+                                                            .get("date")
+                                                            .apply(count);
+                                                    foo.decimal = (BigDecimal) fooFunctions
+                                                            .get("decimal")
+                                                            .apply(count);
+                                                    foo.bar = bar;
+                                                    foo.field7 = (Foo.TestEnum) fooFunctions
+                                                            .get("field7")
+                                                            .apply(count);
 
-                                    MessageMetadata messageMetadata = new MessageMetadata()
-                                            .setProducerName("test-producer").setSequenceId(positions.get(topic))
-                                            .setPublishTime(System.currentTimeMillis());
+                                                    MessageMetadata messageMetadata = new MessageMetadata()
+                                                            .setProducerName("test-producer")
+                                                            .setSequenceId(positions.get(topic))
+                                                            .setPublishTime(System.currentTimeMillis());
 
-                                    Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
+                                                    Schema schema = topicsToSchemas
+                                                                            .get(schemaName)
+                                                                            .getType()
+                                                                    == SchemaType.AVRO
+                                                            ? AvroSchema.of(Foo.class)
+                                                            : JSONSchema.of(Foo.class);
 
-                                    ByteBuf payload = io.netty.buffer.Unpooled
-                                            .copiedBuffer(schema.encode(foo));
+                                                    ByteBuf payload =
+                                                            io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
 
-                                    ByteBuf byteBuf = serializeMetadataAndPayload(
-                                            Commands.ChecksumType.Crc32c, messageMetadata, payload);
+                                                    ByteBuf byteBuf = serializeMetadataAndPayload(
+                                                            Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
-                                    completedBytes += byteBuf.readableBytes();
+                                                    completedBytes += byteBuf.readableBytes();
 
-                                    entries.add(EntryImpl.create(0, positions.get(topic), byteBuf));
-                                    positions.put(topic, positions.get(topic) + 1);
-                                    count++;
-                                }
+                                                    entries.add(EntryImpl.create(0, positions.get(topic), byteBuf));
+                                                    positions.put(topic, positions.get(topic) + 1);
+                                                    count++;
+                                                }
 
-                                callback.readEntriesComplete(entries, ctx);
+                                                callback.readEntriesComplete(entries, ctx);
+                                            }
+                                        })
+                                        .start();
+
+                                return null;
                             }
-                        }).start();
-
-                        return null;
-                    }
-                }).when(readOnlyCursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
+                        })
+                        .when(readOnlyCursor)
+                        .asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
 
                 when(readOnlyCursor.hasMoreEntries()).thenAnswer(new Answer<Boolean>() {
                     @Override
@@ -663,17 +835,15 @@ public abstract class TestPulsarConnector {
                     @Override
                     public Position answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
-                        Predicate<Entry> predicate
-                                = (Predicate<Entry>) args[1];
+                        Predicate<Entry> predicate = (Predicate<Entry>) args[1];
 
-                        String schemaName = TopicName.get(
-                                TopicName.get(
-                                        topic.replaceAll("/persistent", ""))
-                                        .getPartitionedTopicName()).getSchemaName();
+                        String schemaName = TopicName.get(TopicName.get(topic.replaceAll("/persistent", ""))
+                                        .getPartitionedTopicName())
+                                .getSchemaName();
                         List<Entry> entries = getTopicEntries(schemaName);
 
                         Integer target = null;
-                        for (int i=entries.size() - 1; i >= 0; i--) {
+                        for (int i = entries.size() - 1; i >= 0; i--) {
                             Entry entry = entries.get(i);
                             if (predicate.test(entry)) {
                                 target = i;
@@ -689,14 +859,18 @@ public abstract class TestPulsarConnector {
                     @Override
                     public Long answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
-                        com.google.common.collect.Range<PositionImpl>  range
-                                = (com.google.common.collect.Range<PositionImpl> ) args[0];
+                        com.google.common.collect.Range<PositionImpl> range =
+                                (com.google.common.collect.Range<PositionImpl>) args[0];
 
-                        return (range.upperEndpoint().getEntryId() + 1) - range.lowerEndpoint().getEntryId();
+                        return (range.upperEndpoint().getEntryId() + 1)
+                                - range.lowerEndpoint().getEntryId();
                     }
                 });
 
-                when(readOnlyCursor.getCurrentLedgerInfo()).thenReturn(MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder().setLedgerId(0).build());
+                when(readOnlyCursor.getCurrentLedgerInfo())
+                        .thenReturn(MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder()
+                                .setLedgerId(0)
+                                .build());
 
                 return readOnlyCursor;
             }
@@ -707,9 +881,13 @@ public abstract class TestPulsarConnector {
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
             PulsarRecordCursor pulsarRecordCursor = new PulsarRecordCursor(
-                    topicsToColumnHandles.get(split.getKey()), split.getValue(),
-                    pulsarConnectorConfig, managedLedgerFactory, new ManagedLedgerConfig(),
-                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory);
+                    topicsToColumnHandles.get(split.getKey()),
+                    split.getValue(),
+                    pulsarConnectorConfig,
+                    managedLedgerFactory,
+                    new ManagedLedgerConfig(),
+                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),
+                    dispatchingRowDecoderFactory);
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }
@@ -721,9 +899,7 @@ public abstract class TestPulsarConnector {
 
     @DataProvider(name = "rewriteNamespaceDelimiter")
     public static Object[][] serviceUrls() {
-        return new Object[][] {
-                { "|" }, { null }
-        };
+        return new Object[][] {{"|"}, {null}};
     }
 
     protected void updateRewriteNamespaceDelimiterIfNeeded(String delimiter) {

@@ -71,8 +71,7 @@ import org.apache.zookeeper.KeeperException.Code;
 @Slf4j
 public final class WorkerUtils {
 
-    private WorkerUtils() {
-    }
+    private WorkerUtils() {}
 
     public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace)
             throws IOException {
@@ -81,9 +80,7 @@ public final class WorkerUtils {
         }
     }
 
-    public static void uploadToBookKeeper(Namespace dlogNamespace,
-                                          InputStream uploadedInputStream,
-                                          String destPkgPath)
+    public static void uploadToBookKeeper(Namespace dlogNamespace, InputStream uploadedInputStream, String destPkgPath)
             throws IOException {
 
         // if the dest directory does not exist, create it.
@@ -110,15 +107,13 @@ public final class WorkerUtils {
         }
     }
 
-    public static void downloadFromBookkeeper(Namespace namespace,
-                                              File outputFile,
-                                              String packagePath) throws IOException {
+    public static void downloadFromBookkeeper(Namespace namespace, File outputFile, String packagePath)
+            throws IOException {
         downloadFromBookkeeper(namespace, new FileOutputStream(outputFile), packagePath);
     }
 
-    public static void downloadFromBookkeeper(Namespace namespace,
-                                              OutputStream outputStream,
-                                              String packagePath) throws IOException {
+    public static void downloadFromBookkeeper(Namespace namespace, OutputStream outputStream, String packagePath)
+            throws IOException {
         log.info("Downloading {} from BK...", packagePath);
         DistributedLogManager dlm = namespace.openLog(packagePath);
         try (InputStream in = new DLInputStream(dlm)) {
@@ -141,24 +136,25 @@ public final class WorkerUtils {
 
         DistributedLogConfiguration conf = new DistributedLogConfiguration()
                 .setWriteLockEnabled(false)
-                .setOutputBufferSize(256 * 1024)                  // 256k
-                .setPeriodicFlushFrequencyMilliSeconds(0)         // disable periodical flush
-                .setImmediateFlushEnabled(false)                  // disable immediate flush
-                .setLogSegmentRollingIntervalMinutes(0)           // disable time-based rolling
-                .setMaxLogSegmentBytes(Long.MAX_VALUE)            // disable size-based rolling
-                .setExplicitTruncationByApplication(true)         // no auto-truncation
-                .setRetentionPeriodHours(Integer.MAX_VALUE)       // long retention
-                .setEnsembleSize(numReplicas)                     // replica settings
+                .setOutputBufferSize(256 * 1024) // 256k
+                .setPeriodicFlushFrequencyMilliSeconds(0) // disable periodical flush
+                .setImmediateFlushEnabled(false) // disable immediate flush
+                .setLogSegmentRollingIntervalMinutes(0) // disable time-based rolling
+                .setMaxLogSegmentBytes(Long.MAX_VALUE) // disable size-based rolling
+                .setExplicitTruncationByApplication(true) // no auto-truncation
+                .setRetentionPeriodHours(Integer.MAX_VALUE) // long retention
+                .setEnsembleSize(numReplicas) // replica settings
                 .setWriteQuorumSize(numReplicas)
                 .setAckQuorumSize(numReplicas)
                 .setUseDaemonThread(true);
         conf.setProperty("bkc.allowShadedLedgerManagerFactoryClass", true);
         conf.setProperty("bkc.shadedLedgerManagerFactoryClassPrefix", "dlshade.");
         if (isNotBlank(workerConfig.getBookkeeperClientAuthenticationPlugin())) {
-            conf.setProperty("bkc.clientAuthProviderFactoryClass",
-                    workerConfig.getBookkeeperClientAuthenticationPlugin());
+            conf.setProperty(
+                    "bkc.clientAuthProviderFactoryClass", workerConfig.getBookkeeperClientAuthenticationPlugin());
             if (isNotBlank(workerConfig.getBookkeeperClientAuthenticationParametersName())) {
-                conf.setProperty("bkc." + workerConfig.getBookkeeperClientAuthenticationParametersName(),
+                conf.setProperty(
+                        "bkc." + workerConfig.getBookkeeperClientAuthenticationParametersName(),
                         workerConfig.getBookkeeperClientAuthenticationParameters());
             }
         }
@@ -215,8 +211,11 @@ public final class WorkerUtils {
 
         final URI dlogUri = newDlogNamespaceURI(ledgersStoreServers + chrootPath);
 
-        log.info("initialize DistributedLog Namespace with ledgersStoreServers: {} "
-                + "ledgersRootPath: {} uri: {}", ledgersStoreServers, ledgersRootPath, dlogUri);
+        log.info(
+                "initialize DistributedLog Namespace with ledgersStoreServers: {} " + "ledgersRootPath: {} uri: {}",
+                ledgersStoreServers,
+                ledgersRootPath,
+                dlogUri);
         try {
             dlMetadata.create(dlogUri);
         } catch (ZKException e) {
@@ -228,15 +227,24 @@ public final class WorkerUtils {
         return dlogUri;
     }
 
-    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams,
-                                                   String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
-                                                   Boolean enableTlsHostnameVerification,
-                                                   WorkerConfig workerConfig) {
-        log.info("Create Pulsar Admin to service url {}: "
+    public static PulsarAdmin getPulsarAdminClient(
+            String pulsarWebServiceUrl,
+            String authPlugin,
+            String authParams,
+            String tlsTrustCertsFilePath,
+            Boolean allowTlsInsecureConnection,
+            Boolean enableTlsHostnameVerification,
+            WorkerConfig workerConfig) {
+        log.info(
+                "Create Pulsar Admin to service url {}: "
                         + "authPlugin = {}, authParams = {}, "
                         + "tlsTrustCerts = {}, allowTlsInsecureConnection = {}, enableTlsHostnameVerification = {}",
-                pulsarWebServiceUrl, authPlugin, authParams,
-                tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerification);
+                pulsarWebServiceUrl,
+                authPlugin,
+                authParams,
+                tlsTrustCertsFilePath,
+                allowTlsInsecureConnection,
+                enableTlsHostnameVerification);
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (workerConfig != null) {
@@ -266,24 +274,38 @@ public final class WorkerUtils {
         }
     }
 
-    public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
-                                               Boolean useTls, String tlsTrustCertsFilePath,
-                                               Boolean allowTlsInsecureConnection,
-                                               Boolean enableTlsHostnameVerificationEnable) {
-        return getPulsarClient(pulsarServiceUrl, authPlugin, authParams, useTls, tlsTrustCertsFilePath,
-                allowTlsInsecureConnection, enableTlsHostnameVerificationEnable, null);
+    public static PulsarClient getPulsarClient(
+            String pulsarServiceUrl,
+            String authPlugin,
+            String authParams,
+            Boolean useTls,
+            String tlsTrustCertsFilePath,
+            Boolean allowTlsInsecureConnection,
+            Boolean enableTlsHostnameVerificationEnable) {
+        return getPulsarClient(
+                pulsarServiceUrl,
+                authPlugin,
+                authParams,
+                useTls,
+                tlsTrustCertsFilePath,
+                allowTlsInsecureConnection,
+                enableTlsHostnameVerificationEnable,
+                null);
     }
 
-    public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
-                                               Boolean useTls, String tlsTrustCertsFilePath,
-                                               Boolean allowTlsInsecureConnection,
-                                               Boolean enableTlsHostnameVerificationEnable,
-                                               WorkerConfig workerConfig) {
+    public static PulsarClient getPulsarClient(
+            String pulsarServiceUrl,
+            String authPlugin,
+            String authParams,
+            Boolean useTls,
+            String tlsTrustCertsFilePath,
+            Boolean allowTlsInsecureConnection,
+            Boolean enableTlsHostnameVerificationEnable,
+            WorkerConfig workerConfig) {
 
         try {
-            ClientBuilder clientBuilder = PulsarClient.builder()
-                    .memoryLimit(0, SizeUnit.BYTES)
-                    .serviceUrl(pulsarServiceUrl);
+            ClientBuilder clientBuilder =
+                    PulsarClient.builder().memoryLimit(0, SizeUnit.BYTES).serviceUrl(pulsarServiceUrl);
 
             if (workerConfig != null) {
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
@@ -292,8 +314,7 @@ public final class WorkerUtils {
                 clientBuilder.loadConf(
                         PropertiesUtils.filterAndMapProperties(workerConfig.getProperties(), "brokerClient_"));
             }
-            if (isNotBlank(authPlugin)
-                    && isNotBlank(authParams)) {
+            if (isNotBlank(authPlugin) && isNotBlank(authParams)) {
                 clientBuilder.authentication(authPlugin, authParams);
             }
             if (useTls != null) {
@@ -315,9 +336,8 @@ public final class WorkerUtils {
         }
     }
 
-    public static FunctionInstanceStatsImpl getFunctionInstanceStats(String fullyQualifiedInstanceName,
-                                                                     FunctionRuntimeInfo functionRuntimeInfo,
-                                                                     int instanceId) {
+    public static FunctionInstanceStatsImpl getFunctionInstanceStats(
+            String fullyQualifiedInstanceName, FunctionRuntimeInfo functionRuntimeInfo, int instanceId) {
         RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 
         FunctionInstanceStatsImpl functionInstanceStats = new FunctionInstanceStatsImpl();
@@ -326,14 +346,15 @@ public final class WorkerUtils {
             if (functionRuntime != null) {
                 try {
 
-                    InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics(instanceId).get();
+                    InstanceCommunication.MetricsData metricsData =
+                            functionRuntime.getMetrics(instanceId).get();
                     functionInstanceStats.setInstanceId(instanceId);
 
                     FunctionInstanceStatsDataImpl functionInstanceStatsData = new FunctionInstanceStatsDataImpl();
 
                     functionInstanceStatsData.setReceivedTotal(metricsData.getReceivedTotal());
-                    functionInstanceStatsData
-                            .setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal());
+                    functionInstanceStatsData.setProcessedSuccessfullyTotal(
+                            metricsData.getProcessedSuccessfullyTotal());
                     functionInstanceStatsData.setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal());
                     functionInstanceStatsData.setUserExceptionsTotal(metricsData.getUserExceptionsTotal());
                     functionInstanceStatsData.setAvgProcessLatency(
@@ -342,18 +363,20 @@ public final class WorkerUtils {
                             metricsData.getLastInvocation() == 0 ? null : metricsData.getLastInvocation());
 
                     functionInstanceStatsData.oneMin.setReceivedTotal(metricsData.getReceivedTotal1Min());
-                    functionInstanceStatsData.oneMin
-                            .setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal1Min());
-                    functionInstanceStatsData.oneMin
-                            .setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal1Min());
+                    functionInstanceStatsData.oneMin.setProcessedSuccessfullyTotal(
+                            metricsData.getProcessedSuccessfullyTotal1Min());
+                    functionInstanceStatsData.oneMin.setSystemExceptionsTotal(
+                            metricsData.getSystemExceptionsTotal1Min());
                     functionInstanceStatsData.oneMin.setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
                     functionInstanceStatsData.oneMin.setAvgProcessLatency(
-                            metricsData.getAvgProcessLatency1Min() == 0.0 ? null :
-                                    metricsData.getAvgProcessLatency1Min());
+                            metricsData.getAvgProcessLatency1Min() == 0.0
+                                    ? null
+                                    : metricsData.getAvgProcessLatency1Min());
 
                     // Filter out values that are NaN
                     Map<String, Double> statsDataMap = metricsData.getUserMetricsMap().entrySet().stream()
-                            .filter(stringDoubleEntry -> !stringDoubleEntry.getValue().isNaN())
+                            .filter(stringDoubleEntry ->
+                                    !stringDoubleEntry.getValue().isNaN())
                             .collect(Collectors.toMap(x -> x.getKey(), x -> x.getValue()));
 
                     functionInstanceStatsData.setUserMetrics(statsDataMap);
@@ -378,10 +401,9 @@ public final class WorkerUtils {
         }
     }
 
-    public static Reader<byte[]> createReader(ReaderBuilder readerBuilder,
-                                              String readerName,
-                                              String topic,
-                                              MessageId startMessageId) throws PulsarClientException {
+    public static Reader<byte[]> createReader(
+            ReaderBuilder readerBuilder, String readerName, String topic, MessageId startMessageId)
+            throws PulsarClientException {
         return readerBuilder
                 .subscriptionRolePrefix(readerName)
                 .readerName(readerName)
@@ -391,22 +413,22 @@ public final class WorkerUtils {
                 .create();
     }
 
-    public static Producer<byte[]> createExclusiveProducerWithRetry(PulsarClient client,
-                                                                    String topic,
-                                                                    String producerName,
-                                                                    Supplier<Boolean> isLeader,
-                                                                    int sleepInBetweenMs) throws NotLeaderAnymore {
+    public static Producer<byte[]> createExclusiveProducerWithRetry(
+            PulsarClient client, String topic, String producerName, Supplier<Boolean> isLeader, int sleepInBetweenMs)
+            throws NotLeaderAnymore {
         try {
             int tries = 0;
             do {
                 try {
-                    return client.newProducer().topic(topic)
+                    return client.newProducer()
+                            .topic(topic)
                             .accessMode(ProducerAccessMode.Exclusive)
                             .enableBatching(false)
                             .blockIfQueueFull(true)
                             .compressionType(CompressionType.LZ4)
                             .producerName(producerName)
-                            .createAsync().get(10, TimeUnit.SECONDS);
+                            .createAsync()
+                            .get(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     log.info("Encountered exception while at creating exclusive producer to topic {}", topic, e);
                 }
@@ -415,7 +437,9 @@ public final class WorkerUtils {
                     if (log.isDebugEnabled()) {
                         log.debug(
                                 "Failed to acquire exclusive producer to topic {} after {} attempts. "
-                                        + "Will retry if we are still the leader.", topic, tries);
+                                        + "Will retry if we are still the leader.",
+                                topic,
+                                tries);
                     }
                 }
                 Thread.sleep(sleepInBetweenMs);
@@ -427,12 +451,10 @@ public final class WorkerUtils {
         throw new NotLeaderAnymore();
     }
 
-    public static class NotLeaderAnymore extends Exception {
+    public static class NotLeaderAnymore extends Exception {}
 
-    }
-
-    public static Supplier<Boolean> getIsStillLeaderSupplier(final MembershipManager membershipManager,
-                                                             final String workerId) {
+    public static Supplier<Boolean> getIsStillLeaderSupplier(
+            final MembershipManager membershipManager, final String workerId) {
         return () -> {
             WorkerInfo workerInfo = membershipManager.getLeader();
             return workerInfo != null && workerInfo.getWorkerId().equals(workerId);

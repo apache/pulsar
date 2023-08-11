@@ -32,8 +32,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class AuthenticationUtil {
     private static final ObjectReader HASHMAP_READER =
-            ObjectMapperFactory.getMapper().reader().forType(new TypeReference<HashMap<String, String>>() {
-            });
+            ObjectMapperFactory.getMapper().reader().forType(new TypeReference<HashMap<String, String>>() {});
 
     public static Map<String, String> configureFromJsonString(String authParamsString) throws IOException {
         return HASHMAP_READER.readValue(authParamsString);
@@ -75,7 +74,8 @@ public class AuthenticationUtil {
         try {
             if (isNotBlank(authPluginClassName)) {
                 Class<?> authClass = Class.forName(authPluginClassName);
-                Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
+                Authentication auth =
+                        (Authentication) authClass.getDeclaredConstructor().newInstance();
                 if (auth instanceof EncodedAuthenticationParameterSupport) {
                     // Parse parameters on plugin side.
                     ((EncodedAuthenticationParameterSupport) auth).configure(authParamsString);
@@ -108,7 +108,8 @@ public class AuthenticationUtil {
         try {
             if (isNotBlank(authPluginClassName)) {
                 Class<?> authClass = Class.forName(authPluginClassName);
-                Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
+                Authentication auth =
+                        (Authentication) authClass.getDeclaredConstructor().newInstance();
                 auth.configure(authParams);
                 return auth;
             } else {

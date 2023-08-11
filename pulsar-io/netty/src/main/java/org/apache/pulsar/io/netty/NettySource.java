@@ -29,10 +29,10 @@ import org.apache.pulsar.io.netty.server.NettyServer;
  * A simple Netty Source connector to listen for incoming messages and write to user-defined Pulsar topic.
  */
 @Connector(
-    name = "netty",
-    type = IOType.SOURCE,
-    help = "A simple Netty Source connector to listen for incoming messages and write to user-defined Pulsar topic",
-    configClass = NettySourceConfig.class)
+        name = "netty",
+        type = IOType.SOURCE,
+        help = "A simple Netty Source connector to listen for incoming messages and write to user-defined Pulsar topic",
+        configClass = NettySourceConfig.class)
 public class NettySource extends PushSource<byte[]> {
 
     private NettyServer nettyServer;
@@ -69,7 +69,8 @@ public class NettySource extends PushSource<byte[]> {
         @Override
         public void run() {
             nettyServer = new NettyServer.Builder()
-                    .setType(NettyServer.Type.valueOf(nettySourceConfig.getType().toUpperCase()))
+                    .setType(
+                            NettyServer.Type.valueOf(nettySourceConfig.getType().toUpperCase()))
                     .setHost(nettySourceConfig.getHost())
                     .setPort(nettySourceConfig.getPort())
                     .setNumberOfThreads(nettySourceConfig.getNumberOfThreads())
@@ -79,5 +80,4 @@ public class NettySource extends PushSource<byte[]> {
             nettyServer.run();
         }
     }
-
 }

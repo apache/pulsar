@@ -35,9 +35,11 @@ public abstract class AbstractPushSource<T> {
 
     private static class ErrorNotifierRecord implements Record {
         private final Exception e;
+
         public ErrorNotifierRecord(Exception e) {
             this.e = e;
         }
+
         @Override
         public Object getValue() {
             return null;

@@ -45,7 +45,8 @@ public class PackagesManagementImplTest {
 
     @BeforeMethod
     public static void setup() throws IOException {
-        PackagesStorageProvider storageProvider = PackagesStorageProvider.newProvider(MockedPackagesStorageProvider.class.getName());
+        PackagesStorageProvider storageProvider =
+                PackagesStorageProvider.newProvider(MockedPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration packagesStorageConfiguration = new DefaultPackagesStorageConfiguration();
         storage = storageProvider.getStorage(packagesStorageConfiguration);
 
@@ -57,7 +58,6 @@ public class PackagesManagementImplTest {
     public static void teardown() throws ExecutionException, InterruptedException {
         storage.closeAsync().get();
     }
-
 
     @Test
     public void testPackagesManagementFlow() {
@@ -73,7 +73,8 @@ public class PackagesManagementImplTest {
 
         // update a non-existent package metadata should fail
         PackageMetadata failedUpdateMetadata = PackageMetadata.builder()
-            .description("Failed update package metadata").build();
+                .description("Failed update package metadata")
+                .build();
         try {
             packagesManagement.updateMeta(packageName, failedUpdateMetadata).get();
         } catch (Exception e) {
@@ -111,7 +112,9 @@ public class PackagesManagementImplTest {
 
         // list the packages in a non-existent namespace should fail
         try {
-            packagesManagement.list(packageName.getPkgType(), packageName.getTenant(), packageName.getNamespace()).get();
+            packagesManagement
+                    .list(packageName.getPkgType(), packageName.getTenant(), packageName.getNamespace())
+                    .get();
         } catch (Exception e) {
             if (!(e.getCause() instanceof PackagesManagementException.NotFoundException)) {
                 Assert.fail("should not throw any exception");
@@ -120,10 +123,11 @@ public class PackagesManagementImplTest {
 
         // upload a package
         PackageMetadata metadata = PackageMetadata.builder()
-            .contact("test@apache.org")
-            .description("A mocked test package")
-            .createTime(System.currentTimeMillis()).build();
-        try (ByteArrayInputStream inputStream= new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+                .contact("test@apache.org")
+                .description("A mocked test package")
+                .createTime(System.currentTimeMillis())
+                .build();
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
             packagesManagement.upload(packageName, metadata, inputStream).get();
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
@@ -131,7 +135,8 @@ public class PackagesManagementImplTest {
 
         // get an existent package metadata should succeed
         try {
-            PackageMetadata getPackageMetadata = packagesManagement.getMeta(packageName).get();
+            PackageMetadata getPackageMetadata =
+                    packagesManagement.getMeta(packageName).get();
             Assert.assertEquals(metadata, getPackageMetadata);
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
@@ -158,7 +163,8 @@ public class PackagesManagementImplTest {
 
         // get the updated metadata
         try {
-            PackageMetadata updatedMetadata = packagesManagement.getMeta(packageName).get();
+            PackageMetadata updatedMetadata =
+                    packagesManagement.getMeta(packageName).get();
             Assert.assertEquals(metadata, updatedMetadata);
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
@@ -178,7 +184,8 @@ public class PackagesManagementImplTest {
         // list the packages in a non-existent namespace should fail
         try {
             List<String> packageNames = packagesManagement
-                .list(packageName.getPkgType(), packageName.getTenant(), packageName.getNamespace()).get();
+                    .list(packageName.getPkgType(), packageName.getTenant(), packageName.getNamespace())
+                    .get();
             Assert.assertEquals(1, packageNames.size());
             Assert.assertEquals(packageName.getName(), packageNames.get(0));
         } catch (Exception e) {
@@ -186,7 +193,6 @@ public class PackagesManagementImplTest {
                 Assert.fail("should not throw any exception");
             }
         }
-
 
         // delete an existent package should succeed
         try {
@@ -207,9 +213,7 @@ public class PackagesManagementImplTest {
 
         impl.initialize(new PackagesStorage() {
             @Override
-            public void initialize() {
-
-            }
+            public void initialize() {}
 
             @Override
             public CompletableFuture<Void> writeAsync(String path, InputStream inputStream) {
@@ -246,7 +250,6 @@ public class PackagesManagementImplTest {
                 return "/tmp";
             }
         });
-
 
         metaPath = impl.metadataPath(pn);
         Assert.assertEquals(metaPath, "function/public/default/test/v1/meta");

@@ -55,8 +55,7 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
 
-        when(client.createProducerAsync(
-                any(ProducerConfigurationData.class), any(Schema.class), eq(null)))
+        when(client.createProducerAsync(any(ProducerConfigurationData.class), any(Schema.class), eq(null)))
                 .thenReturn(CompletableFuture.completedFuture(producer));
     }
 
@@ -66,7 +65,8 @@ public class ProducerBuilderImplTest {
         properties.put("Test-Key2", "Test-Value2");
 
         producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
-        Producer<?> producer = producerBuilderImpl.topic(TOPIC_NAME)
+        Producer<?> producer = producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .producerName("Test-Producer")
                 .maxPendingMessages(2)
                 .addEncryptionKey("Test-EncryptionKey")
@@ -88,15 +88,15 @@ public class ProducerBuilderImplTest {
     @Test
     public void testProducerBuilderImplWhenMessageRoutingModeAndMessageRouterAreNotSet() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
-                .create();
+        Producer producer = producerBuilderImpl.topic(TOPIC_NAME).create();
         assertNotNull(producer);
     }
 
     @Test
     public void testProducerBuilderImplWhenMessageRoutingModeIsSinglePartition() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+        Producer producer = producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
         assertNotNull(producer);
@@ -105,7 +105,8 @@ public class ProducerBuilderImplTest {
     @Test
     public void testProducerBuilderImplWhenMessageRoutingModeIsRoundRobinPartition() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+        Producer producer = producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
         assertNotNull(producer);
@@ -114,7 +115,8 @@ public class ProducerBuilderImplTest {
     @Test
     public void testProducerBuilderImplWhenMessageRoutingIsSetImplicitly() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+        Producer producer = producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .messageRouter(new CustomMessageRouter())
                 .create();
         assertNotNull(producer);
@@ -123,29 +125,33 @@ public class ProducerBuilderImplTest {
     @Test
     public void testProducerBuilderImplWhenMessageRoutingIsCustomPartition() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+        Producer producer = producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .messageRoutingMode(MessageRoutingMode.CustomPartition)
                 .messageRouter(new CustomMessageRouter())
                 .create();
         assertNotNull(producer);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class,
-        expectedExceptionsMessageRegExp =
-            ".*When 'messageRoutingMode' is CustomPartition, 'messageRouter' should be set")
+    @Test(
+            expectedExceptions = PulsarClientException.class,
+            expectedExceptionsMessageRegExp =
+                    ".*When 'messageRoutingMode' is CustomPartition, 'messageRouter' should be set")
     public void testProducerBuilderImplWhenMessageRoutingIsCustomPartitionAndMessageRouterNotSet()
-        throws PulsarClientException {
+            throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-            .messageRoutingMode(MessageRoutingMode.CustomPartition)
-            .create();
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .create();
     }
 
     @Test(expectedExceptions = PulsarClientException.class)
     public void testProducerBuilderImplWhenMessageRoutingModeIsSinglePartitionAndMessageRouterIsSet()
             throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .messageRouter(new CustomMessageRouter())
                 .create();
@@ -155,7 +161,8 @@ public class ProducerBuilderImplTest {
     public void testProducerBuilderImplWhenMessageRoutingModeIsRoundRobinPartitionAndMessageRouterIsSet()
             throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .messageRouter(new CustomMessageRouter())
                 .create();
@@ -165,7 +172,8 @@ public class ProducerBuilderImplTest {
     public void testProducerBuilderImplWhenMessageRoutingModeIsCustomPartitionAndMessageRouterIsNotSet()
             throws PulsarClientException {
         ProducerBuilderImpl producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .messageRoutingMode(MessageRoutingMode.CustomPartition)
                 .create();
     }
@@ -173,37 +181,32 @@ public class ProducerBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenTopicNameIsNull() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(null)
-                .create();
+        producerBuilderImpl.topic(null).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenTopicNameIsBlank() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic("   ")
-                .create();
+        producerBuilderImpl.topic("   ").create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenProducerNameIsNull() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .producerName(null)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).producerName(null).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenProducerNameIsBlank() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .producerName("   ")
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).producerName("   ").create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenSendTimeoutIsNegative() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .producerName("Test-Producer")
                 .sendTimeout(-1, TimeUnit.MILLISECONDS)
                 .create();
@@ -212,7 +215,8 @@ public class ProducerBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenMaxPendingMessagesIsNegative() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
                 .producerName("Test-Producer")
                 .maxPendingMessages(-1)
                 .create();
@@ -221,7 +225,10 @@ public class ProducerBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenDefaultCryptoKeyReaderIsNullString() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader((String) null).create();
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
+                .defaultCryptoKeyReader((String) null)
+                .create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -233,69 +240,61 @@ public class ProducerBuilderImplTest {
     @Test(expectedExceptions = NullPointerException.class)
     public void testProducerBuilderImplWhenDefaultCryptoKeyReaderIsNullMap() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader((Map<String, String>) null).create();
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
+                .defaultCryptoKeyReader((Map<String, String>) null)
+                .create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyMap() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader(new HashMap<String, String>()).create();
+        producerBuilderImpl
+                .topic(TOPIC_NAME)
+                .defaultCryptoKeyReader(new HashMap<String, String>())
+                .create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenEncryptionKeyIsNull() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .addEncryptionKey(null)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).addEncryptionKey(null).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenEncryptionKeyIsBlank() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .addEncryptionKey("   ")
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).addEncryptionKey("   ").create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenPropertyKeyIsNull() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .property(null, "Test-Value")
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).property(null, "Test-Value").create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenPropertyKeyIsBlank() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .property("   ", "Test-Value")
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).property("   ", "Test-Value").create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenPropertyValueIsNull() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .property("Test-Key", null)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).property("Test-Key", null).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenPropertyValueIsBlank() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .property("Test-Key", "   ")
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).property("Test-Key", "   ").create();
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testProducerBuilderImplWhenPropertiesIsNull() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .properties(null)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).properties(null).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -304,9 +303,7 @@ public class ProducerBuilderImplTest {
         properties.put(null, "Test-Value");
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).properties(properties).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -315,9 +312,7 @@ public class ProducerBuilderImplTest {
         properties.put("   ", "Test-Value");
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).properties(properties).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -326,9 +321,7 @@ public class ProducerBuilderImplTest {
         properties.put("Test-Key", null);
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).properties(properties).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -337,9 +330,7 @@ public class ProducerBuilderImplTest {
         properties.put("Test-Key", "   ");
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).properties(properties).create();
     }
 
     @Test
@@ -347,9 +338,7 @@ public class ProducerBuilderImplTest {
         Map<String, String> properties = new HashMap<>();
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        producerBuilderImpl.topic(TOPIC_NAME)
-                .properties(properties)
-                .create();
+        producerBuilderImpl.topic(TOPIC_NAME).properties(properties).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -367,7 +356,9 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }

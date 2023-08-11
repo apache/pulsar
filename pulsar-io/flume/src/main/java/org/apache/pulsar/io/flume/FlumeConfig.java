@@ -34,36 +34,28 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
 @Accessors(chain = true)
 public class FlumeConfig {
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "the name of this agent")
+    @FieldDoc(required = true, defaultValue = "", help = "the name of this agent")
     private String name;
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "specify a config file (required if -z missing)")
+
+    @FieldDoc(required = true, defaultValue = "", help = "specify a config file (required if -z missing)")
     private String confFile;
-    @FieldDoc(
-            defaultValue = "false",
-            help = "do not reload config file if changed")
+
+    @FieldDoc(defaultValue = "false", help = "do not reload config file if changed")
     private Boolean noReloadConf;
+
     @FieldDoc(
             required = true,
             defaultValue = "",
             help = "specify the ZooKeeper connection to use (required if -f missing)")
     private String zkConnString;
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "specify the base path in ZooKeeper for agent configs")
+
+    @FieldDoc(required = true, defaultValue = "", help = "specify the base path in ZooKeeper for agent configs")
     private String zkBasePath;
 
     public static FlumeConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), FlumeConfig.class);
     }
-
 
     public static FlumeConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();

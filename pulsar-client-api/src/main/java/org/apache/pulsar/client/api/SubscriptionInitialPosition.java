@@ -40,7 +40,6 @@ public enum SubscriptionInitialPosition {
      */
     Earliest(1);
 
-
     private final int value;
 
     SubscriptionInitialPosition(int value) {
@@ -50,5 +49,4 @@ public enum SubscriptionInitialPosition {
     public final int getValue() {
         return value;
     }
-
 }

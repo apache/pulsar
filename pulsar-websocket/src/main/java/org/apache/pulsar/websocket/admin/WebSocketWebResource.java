@@ -71,12 +71,15 @@ public class WebSocketWebResource {
             try {
                 String authMethodName = httpRequest.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
                 if (authMethodName != null
-                    && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
-                    authenticationDataSource = service().getAuthenticationService()
+                        && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
+                    authenticationDataSource = service()
+                            .getAuthenticationService()
                             .getAuthenticationProvider(authMethodName)
-                            .newHttpAuthState(httpRequest).getAuthDataSource();
-                    clientId = service().getAuthenticationService().authenticateHttpRequest(
-                            httpRequest, authenticationDataSource);
+                            .newHttpAuthState(httpRequest)
+                            .getAuthDataSource();
+                    clientId = service()
+                            .getAuthenticationService()
+                            .authenticateHttpRequest(httpRequest, authenticationDataSource);
                 } else {
                     clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
                     authenticationDataSource = new AuthenticationDataHttps(httpRequest);
@@ -108,8 +111,11 @@ public class WebSocketWebResource {
         if (service().getConfig().isAuthenticationEnabled()) {
             String appId = clientAppId();
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
-                        clientAppId(), appId);
+                log.debug(
+                        "[{}] Check super user access: Authenticated: {} -- Role: {}",
+                        uri.getRequestUri(),
+                        clientAppId(),
+                        appId);
             }
             if (!service().getConfig().getSuperUserRoles().contains(appId)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");

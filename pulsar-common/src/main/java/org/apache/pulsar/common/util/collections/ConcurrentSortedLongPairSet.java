@@ -56,6 +56,7 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
      * situation, avoid removing empty LogPairSet until it reaches max limit.
      */
     private final int maxAllowedSetOnRemove;
+
     private final boolean autoShrink;
     private static final int DEFAULT_MAX_ALLOWED_SET_ON_REMOVE = 10;
 
@@ -79,8 +80,8 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
         this(expectedItems, concurrencyLevel, maxAllowedSetOnRemove, false);
     }
 
-    public ConcurrentSortedLongPairSet(int expectedItems, int concurrencyLevel, int maxAllowedSetOnRemove,
-                                       boolean autoShrink) {
+    public ConcurrentSortedLongPairSet(
+            int expectedItems, int concurrencyLevel, int maxAllowedSetOnRemove, boolean autoShrink) {
         this.expectedItems = expectedItems;
         this.concurrencyLevel = concurrencyLevel;
         this.maxAllowedSetOnRemove = maxAllowedSetOnRemove;
@@ -89,8 +90,8 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public boolean add(long item1, long item2) {
-        ConcurrentLongPairSet messagesToReplay = longPairSets.computeIfAbsent(item1,
-                (key) -> ConcurrentLongPairSet.newBuilder()
+        ConcurrentLongPairSet messagesToReplay =
+                longPairSets.computeIfAbsent(item1, (key) -> ConcurrentLongPairSet.newBuilder()
                         .expectedItems(expectedItems)
                         .concurrencyLevel(concurrencyLevel)
                         .autoShrink(autoShrink)
@@ -211,5 +212,4 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
         }
         return false;
     }
-
 }

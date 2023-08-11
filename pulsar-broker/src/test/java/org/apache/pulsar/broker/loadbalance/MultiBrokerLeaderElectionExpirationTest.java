@@ -64,11 +64,11 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
 
     MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {
         MetadataStoreExtended spy = spy(metadataStore);
-        when(spy.getDefaultMetadataCacheConfig()).thenReturn(MetadataCacheConfig
-                .builder()
-                .refreshAfterWriteMillis(REFRESH_AFTER_WRITE_MILLIS_IN_TEST)
-                .expireAfterWriteMillis(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST)
-                .build());
+        when(spy.getDefaultMetadataCacheConfig())
+                .thenReturn(MetadataCacheConfig.builder()
+                        .refreshAfterWriteMillis(REFRESH_AFTER_WRITE_MILLIS_IN_TEST)
+                        .expireAfterWriteMillis(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST)
+                        .build());
         return spy;
     }
 
@@ -83,7 +83,8 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
         // Given that all brokers have the leader elected
         Awaitility.await().untilAsserted(() -> {
             for (PulsarService broker : getAllBrokers()) {
-                Optional<LeaderBroker> currentLeader = broker.getLeaderElectionService().getCurrentLeader();
+                Optional<LeaderBroker> currentLeader =
+                        broker.getLeaderElectionService().getCurrentLeader();
                 assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
             }
         });
@@ -98,8 +99,7 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
                     broker.getLeaderElectionService().readCurrentLeader().get(1, TimeUnit.SECONDS);
             assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
             if (leader != null) {
-                assertEquals(currentLeader.get(), leader,
-                        "Different leader on broker " + broker.getBrokerServiceUrl());
+                assertEquals(currentLeader.get(), leader, "Different leader on broker " + broker.getBrokerServiceUrl());
             } else {
                 leader = currentLeader.get();
             }

@@ -22,12 +22,11 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 public class ThrowableToStringUtil {
 
-    public static String toString(Throwable throwable){
+    public static String toString(Throwable throwable) {
         Throwable unwrapThrowable = FutureUtil.unwrapCompletionException(throwable);
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(unwrapThrowable.getClass().getName())
-                .append(": ").append(unwrapThrowable.getMessage());
-        for (StackTraceElement stackTraceElement : unwrapThrowable.getStackTrace()){
+        stringBuilder.append(unwrapThrowable.getClass().getName()).append(": ").append(unwrapThrowable.getMessage());
+        for (StackTraceElement stackTraceElement : unwrapThrowable.getStackTrace()) {
             stringBuilder.append("    at: ");
             stringBuilder.append(stackTraceElement.toString());
         }

@@ -27,5 +27,4 @@ import org.apache.pulsar.broker.admin.impl.BrokersBase;
 @Path("/brokers")
 @Api(value = "/brokers", description = "BrokersBase admin apis", tags = "brokers")
 @Produces(MediaType.APPLICATION_JSON)
-public class Brokers extends BrokersBase {
-}
+public class Brokers extends BrokersBase {}

@@ -20,7 +20,6 @@
  * This file is derived from IOUtils from Apache BookKeeper
  * http://bookkeeper.apache.org
  */
-
 package org.apache.pulsar.admin.cli.utils;
 
 import java.io.IOException;

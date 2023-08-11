@@ -45,7 +45,10 @@ public class ReplicatedSubscriptionSnapshotCache {
         PositionImpl position = new PositionImpl(msgId.getLedgerId(), msgId.getEntryId());
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Added new replicated-subscription snapshot at {} -- {}", subscription, position,
+            log.debug(
+                    "[{}] Added new replicated-subscription snapshot at {} -- {}",
+                    subscription,
+                    position,
                     snapshot.getSnapshotId());
         }
 
@@ -77,7 +80,10 @@ public class ReplicatedSubscriptionSnapshotCache {
 
         if (log.isDebugEnabled()) {
             if (snapshot != null) {
-                log.debug("[{}] Advanced mark-delete position to {} -- found snapshot {} at {}:{}", subscription, pos,
+                log.debug(
+                        "[{}] Advanced mark-delete position to {} -- found snapshot {} at {}:{}",
+                        subscription,
+                        pos,
                         snapshot.getSnapshotId(),
                         snapshot.getLocalMessageId().getLedgerId(),
                         snapshot.getLocalMessageId().getEntryId());

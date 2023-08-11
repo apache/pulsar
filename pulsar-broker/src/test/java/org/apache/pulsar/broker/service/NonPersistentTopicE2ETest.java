@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
 import lombok.Data;
-
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -42,10 +44,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.assertTrue;
 
 public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
@@ -77,7 +75,8 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
     private boolean topicHasSchema(String topicName) {
         String base = TopicName.get(topicName).getPartitionedTopicName();
         String schemaName = TopicName.get(base).getSchemaName();
-        SchemaRegistry.SchemaAndMetadata result = pulsar.getSchemaRegistryService().getSchema(schemaName).join();
+        SchemaRegistry.SchemaAndMetadata result =
+                pulsar.getSchemaRegistryService().getSchema(schemaName).join();
         return result != null && !result.schema.isDeleted();
     }
 
@@ -91,12 +90,15 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         Optional<Topic> topic = getTopic(topicName);
         assertTrue(topic.isPresent());
 
-        byte[] data = JSONSchema.of(SchemaDefinition.builder()
-                .withPojo(Foo.class).build()).getSchemaInfo().getSchema();
+        byte[] data = JSONSchema.of(
+                        SchemaDefinition.builder().withPojo(Foo.class).build())
+                .getSchemaInfo()
+                .getSchema();
         SchemaData schemaData = SchemaData.builder()
                 .data(data)
                 .type(SchemaType.BYTES)
-                .user("foo").build();
+                .user("foo")
+                .build();
         topic.get().addSchema(schemaData).join();
         assertTrue(topicHasSchema(topicName));
         runGC();
@@ -109,7 +111,11 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         // 1a. Topic that add/removes subscription can be GC'd
         final String topicName2 = "non-persistent://prop/ns-abc/topic-1a";
         String subName = "sub1";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName2).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName2)
+                .subscriptionName(subName)
+                .subscribe();
         topic = getTopic(topicName2);
         assertTrue(topic.isPresent());
         topic.get().addSchema(schemaData).join();
@@ -127,7 +133,11 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         // 2. Topic is not GCed with live connection
         final String topicName3 = "non-persistent://prop/ns-abc/topic-2";
         String subName2 = "sub1";
-        consumer = pulsarClient.newConsumer().topic(topicName3).subscriptionName(subName2).subscribe();
+        consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName3)
+                .subscriptionName(subName2)
+                .subscribe();
         topic = getTopic(topicName3);
         assertTrue(topic.isPresent());
         topic.get().addSchema(schemaData).join();
@@ -148,7 +158,6 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         assertFalse(topicHasSchema(topicName3));
     }
 
-
     @Test
     public void testCloseConsumerWillDeleteSchema() throws Exception {
         // 1. Simple successful GC
@@ -159,17 +168,24 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         Optional<Topic> topic = getTopic(topicName);
         assertTrue(topic.isPresent());
 
-        byte[] data = JSONSchema.of(SchemaDefinition.builder()
-                .withPojo(Foo.class).build()).getSchemaInfo().getSchema();
+        byte[] data = JSONSchema.of(
+                        SchemaDefinition.builder().withPojo(Foo.class).build())
+                .getSchemaInfo()
+                .getSchema();
         SchemaData schemaData = SchemaData.builder()
                 .data(data)
                 .type(SchemaType.BYTES)
-                .user("foo").build();
+                .user("foo")
+                .build();
         topic.get().addSchema(schemaData).join();
 
         final String topicName3 = "non-persistent://prop/ns-abc/topic-2";
         String subName = "sub1";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName3).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName3)
+                .subscriptionName(subName)
+                .subscribe();
         topic = getTopic(topicName3);
         assertTrue(topic.isPresent());
         topic.get().addSchema(schemaData).join();
@@ -185,27 +201,28 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         runGC();
         assertFalse(getTopic(topicName3).isPresent());
         assertFalse(topicHasSchema(topicName3));
-
     }
+
     @Test(groups = "broker")
     public void testPatternTopic() throws PulsarClientException, InterruptedException {
-        final String topic1 = "non-persistent://prop/ns-abc/testPatternTopic1-" + UUID.randomUUID().toString();
-        final String topic2 = "non-persistent://prop/ns-abc/testPatternTopic2-" + UUID.randomUUID().toString();
+        final String topic1 = "non-persistent://prop/ns-abc/testPatternTopic1-"
+                + UUID.randomUUID().toString();
+        final String topic2 = "non-persistent://prop/ns-abc/testPatternTopic2-"
+                + UUID.randomUUID().toString();
         Pattern pattern = Pattern.compile("prop/ns-abc/test.*");
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topicsPattern(pattern)
                 .subscriptionName("my-sub")
                 .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
                 .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
                 .subscribe();
 
-        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic1)
-                .create();
+        Producer<String> producer1 =
+                pulsarClient.newProducer(Schema.STRING).topic(topic1).create();
 
-        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic2)
-                .create();
+        Producer<String> producer2 =
+                pulsarClient.newProducer(Schema.STRING).topic(topic2).create();
 
         Thread.sleep(2000);
         final int messages = 10;
@@ -233,13 +250,17 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        Awaitility.await().untilAsserted(() ->
-                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
-        );
+        Awaitility.await()
+                .untilAsserted(() -> assertFalse(
+                        pulsar.getBrokerService().getTopicReference(topicName).isPresent()));
 
         // 2. Topic is not GCed with live connection
         String subName = "sub1";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
 
         runGC();
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -251,9 +272,10 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
-        //4. Get the topic and make sure it doesn't come back
+        // 4. Get the topic and make sure it doesn't come back
         admin.lookups().lookupTopic(topicName);
-        Optional<Topic> topic = pulsar.getBrokerService().getTopicIfExists(topicName).join();
+        Optional<Topic> topic =
+                pulsar.getBrokerService().getTopicIfExists(topicName).join();
         assertFalse(topic.isPresent());
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
@@ -269,12 +291,20 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topicGc, partitions);
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicGc).create();
         producer3.close();
-        assertEquals(partitions, pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
-                TopicName.get(topicGc)).join().partitions);
+        assertEquals(
+                partitions,
+                pulsar.getBrokerService()
+                        .fetchPartitionedTopicMetadataAsync(TopicName.get(topicGc))
+                        .join()
+                        .partitions);
         runGC();
-        Awaitility.await().untilAsserted(()->
-                assertEquals(pulsar.getBrokerService().
-                        fetchPartitionedTopicMetadataAsync(TopicName.get(topicGc)).join().partitions, 0));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        pulsar.getBrokerService()
+                                .fetchPartitionedTopicMetadataAsync(TopicName.get(topicGc))
+                                .join()
+                                .partitions,
+                        0));
     }
 
     @Test
@@ -286,13 +316,17 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        Awaitility.await().untilAsserted(() ->
-                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
-        );
+        Awaitility.await()
+                .untilAsserted(() -> assertFalse(
+                        pulsar.getBrokerService().getTopicReference(topicName).isPresent()));
 
         // 2. Topic is not GCed with live connection
         String subName = "sub1";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
 
         runGC();
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());

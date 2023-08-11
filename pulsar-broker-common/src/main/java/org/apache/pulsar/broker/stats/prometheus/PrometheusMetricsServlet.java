@@ -72,9 +72,12 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 long time = end - start;
                 if (e instanceof EOFException) {
                     // NO STACKTRACE
-                    log.error("Failed to send metrics, "
-                            + "likely the client or this server closed "
-                            + "the connection due to a timeout ({} ms elapsed): {}", time, e + "");
+                    log.error(
+                            "Failed to send metrics, "
+                                    + "likely the client or this server closed "
+                                    + "the connection due to a timeout ({} ms elapsed): {}",
+                            time,
+                            e + "");
                 } else {
                     log.error("Failed to generate prometheus stats, {} ms elapsed", time, e);
                 }
@@ -87,8 +90,11 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 } catch (IllegalStateException e) {
                     // this happens when metricsServletTimeoutMs expires
                     // java.lang.IllegalStateException: AsyncContext completed and/or Request lifecycle recycled
-                    log.error("Failed to generate prometheus stats, "
-                            + "this is likely due to metricsServletTimeoutMs: {} ms elapsed: {}", time, e + "");
+                    log.error(
+                            "Failed to generate prometheus stats, "
+                                    + "this is likely due to metricsServletTimeoutMs: {} ms elapsed: {}",
+                            time,
+                            e + "");
                 }
             }
         });

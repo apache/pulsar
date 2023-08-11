@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.config.validation;
 
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -68,14 +67,14 @@ public class ConfigValidation {
         processAnnotations(field.getAnnotations(), field.getName(), value, annotationClass);
     }
 
-    private static void processAnnotations(Annotation[] annotations, String fieldName, Object value,
-                                           Class annotationClass) {
+    private static void processAnnotations(
+            Annotation[] annotations, String fieldName, Object value, Class annotationClass) {
         try {
             for (Annotation annotation : annotations) {
                 String type = annotation.annotationType().getName();
                 Class<?> validatorClass = null;
                 Class<?>[] classes = annotationClass.getDeclaredClasses();
-                //check if annotation is one of our
+                // check if annotation is one of our
                 for (Class<?> clazz : classes) {
                     if (clazz.getName().equals(type)) {
                         validatorClass = clazz;
@@ -86,23 +85,26 @@ public class ConfigValidation {
                     Object v = validatorClass.cast(annotation);
                     @SuppressWarnings("unchecked")
                     Class<Validator> clazz = (Class<Validator>) validatorClass
-                            .getMethod(ConfigValidationAnnotations.ValidatorParams.VALIDATOR_CLASS).invoke(v);
+                            .getMethod(ConfigValidationAnnotations.ValidatorParams.VALIDATOR_CLASS)
+                            .invoke(v);
                     Validator o = null;
                     Map<String, Object> params = getParamsFromAnnotation(validatorClass, v);
-                    //two constructor signatures used to initialize validators.
-                    //One constructor takes input a Map of arguments, the other doesn't take any
-                    //arguments (default constructor)
-                    //If validator has a constructor that takes a Map as an argument call that constructor
+                    // two constructor signatures used to initialize validators.
+                    // One constructor takes input a Map of arguments, the other doesn't take any
+                    // arguments (default constructor)
+                    // If validator has a constructor that takes a Map as an argument call that constructor
                     if (hasConstructor(clazz, Map.class)) {
                         o = clazz.getConstructor(Map.class).newInstance(params);
-                    } else { //If not call default constructor
+                    } else { // If not call default constructor
                         o = clazz.getDeclaredConstructor().newInstance();
                     }
                     o.validateField(fieldName, value);
                 }
             }
-        } catch (NoSuchMethodException | IllegalAccessException
-                | InstantiationException | InvocationTargetException e) {
+        } catch (NoSuchMethodException
+                | IllegalAccessException
+                | InstantiationException
+                | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
     }
@@ -126,7 +128,7 @@ public class ConfigValidation {
     }
 
     public static boolean hasConstructor(Class<?> clazz, Class<?> paramClass) {
-        Class<?>[] classes = { paramClass };
+        Class<?>[] classes = {paramClass};
         try {
             clazz.getConstructor(classes);
         } catch (NoSuchMethodException e) {

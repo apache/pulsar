@@ -26,5 +26,4 @@ public class SinkStatusUtil {
     public static SinkStatus decode(String json) throws IOException {
         return ObjectMapperFactory.getMapper().reader().readValue(json, SinkStatus.class);
     }
-
 }

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.alluxio.sink;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import alluxio.AlluxioURI;
 import alluxio.client.WriteType;
 import alluxio.client.file.FileSystem;
@@ -25,6 +27,11 @@ import alluxio.client.file.URIStatus;
 import alluxio.conf.PropertyKey;
 import alluxio.conf.ServerConfiguration;
 import alluxio.master.LocalAlluxioCluster;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.pulsar.client.api.Schema;
@@ -44,15 +51,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Alluxio Sink test
@@ -79,7 +77,8 @@ public class AlluxioSinkTest {
     public static void init() {
         valueSchema = Schema.JSON(Foobar.class);
         genericSchema = Schema.generic(valueSchema.getSchemaInfo());
-        fooBar = genericSchema.newRecordBuilder()
+        fooBar = genericSchema
+                .newRecordBuilder()
                 .set("name", "foo")
                 .set("address", "foobar")
                 .set("age", 20)
@@ -107,9 +106,11 @@ public class AlluxioSinkTest {
 
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             int count = 0;
+
             public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
-                return Optional.of( "key-" + count++);
-            }});
+                return Optional.of("key-" + count++);
+            }
+        });
 
         when(mockRecord.getValue()).thenAnswer((Answer<GenericObject>) invocation -> new GenericObject() {
             @Override
@@ -193,7 +194,8 @@ public class AlluxioSinkTest {
         Assert.assertTrue(client.exists(alluxioTmpURI));
 
         List<URIStatus> listAlluxioDirStatus = client.listStatus(alluxioURI);
-        List<String> pathList = listAlluxioDirStatus.stream().map(URIStatus::getPath).collect(Collectors.toList());
+        List<String> pathList =
+                listAlluxioDirStatus.stream().map(URIStatus::getPath).collect(Collectors.toList());
         Assert.assertEquals(pathList.size(), 2);
 
         for (String path : pathList) {

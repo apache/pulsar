@@ -55,8 +55,12 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
-                .build());
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
 
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))
@@ -75,29 +79,35 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
     public void testSetAlwaysInCompatibleStrategyOnTopicLevelAndCheckAlwaysInCompatible()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testSetAlwaysInCompatibleStrategyOnTopicLevelAndCheckAlwaysInCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "testSetAlwaysInCompatibleStrategyOnTopicLevelAndCheckAlwaysInCompatible")
+                .toString();
 
         pulsar.getAdminClient().topics().createNonPartitionedTopic(topicName);
-        pulsar.getAdminClient().topicPolicies().setSchemaCompatibilityStrategy(topicName,
-                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        pulsar.getAdminClient()
+                .topicPolicies()
+                .setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
 
         Awaitility.await()
                 .untilAsserted(() -> assertEquals(
                         pulsar.getAdminClient().topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
-                        withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
                 .topic(topicName)
                 .create();
 
-        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonThree.class).build()))
+        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
@@ -110,33 +120,38 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testSetAlwaysCompatibleOnNamespaceLevelAndCheckAlwaysInCompatible"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "testSetAlwaysCompatibleOnNamespaceLevelAndCheckAlwaysInCompatible")
+                .toString();
 
         pulsar.getAdminClient().topics().createNonPartitionedTopic(topicName);
-        pulsar.getAdminClient().topicPolicies().setSchemaCompatibilityStrategy(topicName,
-                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        pulsar.getAdminClient()
+                .topicPolicies()
+                .setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
 
         Awaitility.await()
                 .untilAsserted(() -> assertEquals(
                         pulsar.getAdminClient().topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
-                        withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
                 .topic(topicName)
                 .create();
 
-        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonThree.class).build()))
+        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
                 .topic(topicName);
 
-        Throwable t =
-                expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
+        Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
@@ -150,26 +165,30 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
                 .setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
 
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testDisableTopicPoliciesAndSetAlwaysInCompatibleOnNamespaceLevel"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "testDisableTopicPoliciesAndSetAlwaysInCompatibleOnNamespaceLevel")
+                .toString();
 
         pulsar.getAdminClient().topics().createNonPartitionedTopic(topicName);
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
-                        withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
                 .topic(topicName)
                 .create();
 
-        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonThree.class).build()))
+        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
                 .topic(topicName);
 
-        Throwable t =
-                expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
+        Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
@@ -180,46 +199,53 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         conf.setSystemTopicEnabled(false);
 
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testDisableTopicPoliciesWithDefaultConfig"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "testDisableTopicPoliciesWithDefaultConfig")
+                .toString();
 
         pulsar.getAdminClient().topics().createNonPartitionedTopic(topicName);
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
-                        withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
                 .topic(topicName)
                 .create();
 
-        pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonThree.class).build()))
-                .topic(topicName).create();
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
+                .topic(topicName)
+                .create();
     }
 
     @Test
-    public void testDefaultConfig()
-            throws PulsarClientException, PulsarServerException, PulsarAdminException {
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testDefaultConfig"
-        ).toString();
+    public void testDefaultConfig() throws PulsarClientException, PulsarServerException, PulsarAdminException {
+        String topicName = TopicName.get(TopicDomain.persistent.value(), PUBLIC_TENANT, namespace, "testDefaultConfig")
+                .toString();
 
         pulsar.getAdminClient().topics().createNonPartitionedTopic(topicName);
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
-                        withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
                 .topic(topicName)
                 .create();
 
-        pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonThree.class).build()))
-                .topic(topicName).create();
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
+                .topic(topicName)
+                .create();
     }
 
     @Test
@@ -228,97 +254,129 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         assertEquals(conf.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL);
 
         String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "testUpdateSchemaCompatibilityStrategyRepeatedly"
-        ).toString();
+                        TopicDomain.persistent.value(),
+                        PUBLIC_TENANT,
+                        namespace,
+                        "testUpdateSchemaCompatibilityStrategyRepeatedly")
+                .toString();
 
         pulsar.getAdminClient().topics().createNonPartitionedTopic(topicName);
 
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.FULL));
-        Awaitility.await().untilAsserted(
-                () -> assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespaceName)));
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
+        Awaitility.await()
+                .untilAsserted(
+                        () -> assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespaceName)));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
                         SchemaCompatibilityStrategy.UNDEFINED));
 
-        pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonOne.class).build()))
-                .topic(topicName).create();
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
+                .topic(topicName)
+                .create();
 
         // Set SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE to schema_auto_update_compatibility_strategy on
         // namespace level.
-        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespaceName,
-                SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled);
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespaceName),
+        admin.namespaces()
+                .setSchemaAutoUpdateCompatibilityStrategy(
+                        namespaceName, SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled);
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespaceName),
                         SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled));
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
                         SchemaCompatibilityStrategy.UNDEFINED));
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
 
-        ProducerBuilder<Schemas.PersonThree> producerBuilder =
-                pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().
-                                withAlwaysAllowNull(true).withPojo(Schemas.PersonThree.class).build()))
-                        .topic(topicName);
+        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
+                .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
 
         // Set SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE to schema_compatibility_strategy on namespace level.
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespaceName),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespaceName),
                         SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled));
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
                         SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
-        pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonOne.class).build()))
-                .topic(topicName).create();
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
+                .topic(topicName)
+                .create();
 
         // Set SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE on topic level.
-        admin.topicPolicies().setSchemaCompatibilityStrategy(topicName,SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+        admin.topicPolicies()
+                .setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
-        producerBuilder = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().
-                        withAlwaysAllowNull(true).withPojo(Schemas.PersonThree.class).build()))
+        producerBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
                 .topic(topicName);
         t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
 
         // Remove schema compatibility strategy on topic level.
         admin.topicPolicies().removeSchemaCompatibilityStrategy(topicName);
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
-        pulsarClient.newProducer(
-                        Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().withAlwaysAllowNull(true)
-                                .withPojo(Schemas.PersonOne.class).build()))
-                .topic(topicName).create();
+        pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonOne.class)
+                        .build()))
+                .topic(topicName)
+                .create();
 
         // Remove schema_compatibility_strategy on namespace level.
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.namespaces().getSchemaCompatibilityStrategy(namespaceName),
                         SchemaCompatibilityStrategy.UNDEFINED));
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(
+                        admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
-        producerBuilder = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().
-                        withAlwaysAllowNull(true).withPojo(Schemas.PersonThree.class).build()))
+        producerBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder()
+                        .withAlwaysAllowNull(true)
+                        .withPojo(Schemas.PersonThree.class)
+                        .build()))
                 .topic(topicName);
         t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));

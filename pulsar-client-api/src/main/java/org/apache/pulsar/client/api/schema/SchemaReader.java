@@ -85,8 +85,7 @@ public interface SchemaReader<T> {
      *
      * @param schemaInfoProvider the stream of message
      */
-    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
-    }
+    default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {}
 
     /**
      * Returns the underling Schema if possible.

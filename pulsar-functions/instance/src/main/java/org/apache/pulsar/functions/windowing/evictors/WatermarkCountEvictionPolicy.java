@@ -31,8 +31,7 @@ import org.apache.pulsar.functions.windowing.EvictionPolicy;
  *
  * @param <T> the type of event tracked by this policy.
  */
-public class WatermarkCountEvictionPolicy<T>
-        implements EvictionPolicy<T, Pair<Long, Long>> {
+public class WatermarkCountEvictionPolicy<T> implements EvictionPolicy<T, Pair<Long, Long>> {
     protected final int threshold;
     protected final AtomicLong currentCount;
     private EvictionContext context;
@@ -48,11 +47,11 @@ public class WatermarkCountEvictionPolicy<T>
 
     public EvictionPolicy.Action evict(Event<T> event) {
         if (getContext() == null) {
-            //It is possible to get asked about eviction before we have a context, due to WindowManager
+            // It is possible to get asked about eviction before we have a context, due to WindowManager
             // .compactWindow.
-            //In this case we should hold on to all the events. When the first watermark is received,
+            // In this case we should hold on to all the events. When the first watermark is received,
             // the context will be set,
-            //and the events will be reevaluated for eviction
+            // and the events will be reevaluated for eviction
             return Action.STOP;
         }
 

@@ -57,14 +57,17 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     public SingleSnapshotAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
-        this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
+        this.takeSnapshotWriter = this.topic
+                .getBrokerService()
+                .getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotService().getReferenceWriter(TopicName.get(topic.getName()).getNamespaceObject());
+                .getTxnBufferSnapshotService()
+                .getReferenceWriter(TopicName.get(topic.getName()).getNamespaceObject());
         this.takeSnapshotWriter.getFuture().exceptionally((ex) -> {
-                    log.error("{} Failed to create snapshot writer", topic.getName());
-                    topic.close();
-                    return null;
-                });
+            log.error("{} Failed to create snapshot writer", topic.getName());
+            topic.close();
+            return null;
+        });
     }
 
     @Override
@@ -72,14 +75,18 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         aborts.put(abortedTxnId, abortedMarkerPersistentPosition);
     }
 
-    //In this implementation we clear the invalid aborted txn ID one by one.
+    // In this implementation we clear the invalid aborted txn ID one by one.
     @Override
     public void trimExpiredAbortedTxns() {
-        while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
-                .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
+        while (!aborts.isEmpty()
+                && !((ManagedLedgerImpl) topic.getManagedLedger())
+                        .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Topic transaction buffer clear aborted transaction, TxnId : {}, Position : {}",
-                        topic.getName(), aborts.firstKey(), aborts.get(aborts.firstKey()));
+                log.debug(
+                        "[{}] Topic transaction buffer clear aborted transaction, TxnId : {}, Position : {}",
+                        topic.getName(),
+                        aborts.firstKey(),
+                        aborts.get(aborts.firstKey()));
             }
             aborts.remove(aborts.firstKey());
         }
@@ -91,56 +98,72 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     private long getSystemClientOperationTimeoutMs() throws Exception {
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) topic.getBrokerService().getPulsar().getClient();
+        PulsarClientImpl pulsarClient =
+                (PulsarClientImpl) topic.getBrokerService().getPulsar().getClient();
         return pulsarClient.getConfiguration().getOperationTimeoutMs();
     }
 
     @Override
     public CompletableFuture<PositionImpl> recoverFromSnapshot() {
-        return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
+        return topic.getBrokerService()
+                .getPulsar()
+                .getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService()
-                .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
-                    try {
-                    PositionImpl startReadCursorPosition = null;
-                        while (reader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshot> message = reader.readNextAsync()
-                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
-                            if (topic.getName().equals(message.getKey())) {
-                                TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
-                                if (transactionBufferSnapshot != null) {
-                                    handleSnapshot(transactionBufferSnapshot);
-                                    startReadCursorPosition = PositionImpl.get(
-                                            transactionBufferSnapshot.getMaxReadPositionLedgerId(),
-                                            transactionBufferSnapshot.getMaxReadPositionEntryId());
+                .createReader(TopicName.get(topic.getName()))
+                .thenComposeAsync(
+                        reader -> {
+                            try {
+                                PositionImpl startReadCursorPosition = null;
+                                while (reader.hasMoreEvents()) {
+                                    Message<TransactionBufferSnapshot> message = reader.readNextAsync()
+                                            .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+                                    if (topic.getName().equals(message.getKey())) {
+                                        TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
+                                        if (transactionBufferSnapshot != null) {
+                                            handleSnapshot(transactionBufferSnapshot);
+                                            startReadCursorPosition = PositionImpl.get(
+                                                    transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                                    transactionBufferSnapshot.getMaxReadPositionEntryId());
+                                        }
+                                    }
                                 }
+                                return CompletableFuture.completedFuture(startReadCursorPosition);
+                            } catch (TimeoutException ex) {
+                                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                String errorMessage = String.format(
+                                        "[%s] Transaction buffer recover fail by read "
+                                                + "transactionBufferSnapshot timeout!",
+                                        topic.getName());
+                                log.error(errorMessage, t);
+                                return FutureUtil.failedFuture(
+                                        new BrokerServiceException.ServiceUnitNotReadyException(errorMessage, t));
+                            } catch (Exception ex) {
+                                log.error(
+                                        "[{}] Transaction buffer recover fail when read "
+                                                + "transactionBufferSnapshot!",
+                                        topic.getName(),
+                                        ex);
+                                return FutureUtil.failedFuture(ex);
+                            } finally {
+                                closeReader(reader);
                             }
-                        }
-                        return CompletableFuture.completedFuture(startReadCursorPosition);
-                    } catch (TimeoutException ex) {
-                        Throwable t = FutureUtil.unwrapCompletionException(ex);
-                        String errorMessage = String.format("[%s] Transaction buffer recover fail by read "
-                                + "transactionBufferSnapshot timeout!", topic.getName());
-                        log.error(errorMessage, t);
-                        return FutureUtil.failedFuture(
-                                new BrokerServiceException.ServiceUnitNotReadyException(errorMessage, t));
-                    } catch (Exception ex) {
-                        log.error("[{}] Transaction buffer recover fail when read "
-                                + "transactionBufferSnapshot!", topic.getName(), ex);
-                        return FutureUtil.failedFuture(ex);
-                    } finally {
-                        closeReader(reader);
-                    }
-                },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
-                        .getExecutor(this));
+                        },
+                        topic.getBrokerService()
+                                .getPulsar()
+                                .getTransactionExecutorProvider()
+                                .getExecutor(this));
     }
 
     @Override
     public CompletableFuture<Void> clearAbortedTxnSnapshot() {
-        return this.takeSnapshotWriter.getFuture().thenCompose(writer -> {
-            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
-            snapshot.setTopicName(topic.getName());
-            return writer.deleteAsync(snapshot.getTopicName(), snapshot);
-        }).thenRun(() -> log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic));
+        return this.takeSnapshotWriter
+                .getFuture()
+                .thenCompose(writer -> {
+                    TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+                    snapshot.setTopicName(topic.getName());
+                    return writer.deleteAsync(snapshot.getTopicName(), snapshot);
+                })
+                .thenRun(() -> log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic));
     }
 
     @Override
@@ -160,16 +183,20 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                 list.add(abortTxnMetadata);
             });
             snapshot.setAborts(list);
-            return writer.writeAsync(snapshot.getTopicName(), snapshot).thenAccept(messageId -> {
-                this.lastSnapshotTimestamps = System.currentTimeMillis();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}]Transaction buffer take snapshot success! "
-                            + "messageId : {}", topic.getName(), messageId);
-                }
-            }).exceptionally(e -> {
-                log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e.getCause());
-                return null;
-            });
+            return writer.writeAsync(snapshot.getTopicName(), snapshot)
+                    .thenAccept(messageId -> {
+                        this.lastSnapshotTimestamps = System.currentTimeMillis();
+                        if (log.isDebugEnabled()) {
+                            log.debug(
+                                    "[{}]Transaction buffer take snapshot success! " + "messageId : {}",
+                                    topic.getName(),
+                                    messageId);
+                        }
+                    })
+                    .exceptionally(e -> {
+                        log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e.getCause());
+                        return null;
+                    });
         });
     }
 
@@ -199,12 +226,10 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     private void handleSnapshot(TransactionBufferSnapshot snapshot) {
         if (snapshot.getAborts() != null) {
-            snapshot.getAborts().forEach(abortTxnMetadata ->
-                    aborts.put(new TxnID(abortTxnMetadata.getTxnIdMostBits(),
-                                    abortTxnMetadata.getTxnIdLeastBits()),
-                            PositionImpl.get(abortTxnMetadata.getLedgerId(),
-                                    abortTxnMetadata.getEntryId())));
+            snapshot.getAborts()
+                    .forEach(abortTxnMetadata -> aborts.put(
+                            new TxnID(abortTxnMetadata.getTxnIdMostBits(), abortTxnMetadata.getTxnIdLeastBits()),
+                            PositionImpl.get(abortTxnMetadata.getLedgerId(), abortTxnMetadata.getEntryId())));
         }
     }
-
 }

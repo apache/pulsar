@@ -20,18 +20,16 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -188,7 +186,8 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         Random random = new Random();
         for (int i = 0; i < 20; i++) {
             if (random.nextBoolean()) {
-                (entries.get(i).getDataBuffer()).readBytes(new byte[entries.get(i).getDataBuffer().readableBytes()]);
+                (entries.get(i).getDataBuffer())
+                        .readBytes(new byte[entries.get(i).getDataBuffer().readableBytes()]);
             }
         }
 
@@ -198,7 +197,6 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(factory2.getMbean().getCacheEntriesCount(), 0);
         assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 20);
     }
-
 
     @Test
     public void cacheDisabled() throws Exception {
@@ -390,21 +388,24 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         EntryCache entryCache = cacheManager.getEntryCache(ml1);
 
         final CountDownLatch counter = new CountDownLatch(1);
-        entryCache.asyncReadEntry(lh, new PositionImpl(1L,1L), new AsyncCallbacks.ReadEntryCallback() {
-            public void readEntryComplete(Entry entry, Object ctx) {
-                Assert.assertNotEquals(entry, null);
-                entry.release();
-                counter.countDown();
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                new PositionImpl(1L, 1L),
+                new AsyncCallbacks.ReadEntryCallback() {
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        Assert.assertNotEquals(entry, null);
+                        entry.release();
+                        counter.countDown();
+                    }
 
-            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                Assert.fail("should not have failed");
-                counter.countDown();
-            }
-        }, null);
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        Assert.fail("should not have failed");
+                        counter.countDown();
+                    }
+                },
+                null);
         counter.await();
 
         verify(lh).readAsync(anyLong(), anyLong());
     }
-
 }

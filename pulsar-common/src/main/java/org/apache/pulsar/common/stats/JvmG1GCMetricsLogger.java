@@ -85,7 +85,6 @@ public class JvmG1GCMetricsLogger implements JvmGCMetricsLogger {
         } catch (Exception e) {
             log.error("Failed to collect GC stats: {}", e.getMessage());
         }
-
     }
 
     private static final Logger log = LoggerFactory.getLogger(JvmG1GCMetricsLogger.class);

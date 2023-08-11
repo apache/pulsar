@@ -128,25 +128,32 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
         log.info("Credentials File path: {}", path);
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl.toString())
                 .authentication(authenticationPlugin, authenticationParameters)
                 .build());
 
-
         // Setup namespaces
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                        new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         pulsar.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()
-                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                        new PartitionedTopicMetadata(1));
+                .createPartitionedTopic(
+                        SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, new PartitionedTopicMetadata(1));
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .authentication(authenticationPlugin, authenticationParameters));
@@ -159,16 +166,24 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         String testConsumeTopic = testTopic + UUID.randomUUID();
         String testProduceTopic = testTopic + UUID.randomUUID();
         String testSub = "testSub";
-        String args = String.format(argString, testConsumeTopic, testProduceTopic,
-                pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()),
-                authenticationPlugin, authenticationParameters);
+        String args = String.format(
+                argString,
+                testConsumeTopic,
+                testProduceTopic,
+                pulsar.getBrokerServiceUrl(),
+                testSub,
+                new URL(pulsar.getWebServiceAddress()),
+                authenticationPlugin,
+                authenticationParameters);
 
-        Producer<byte[]> produceToConsumeTopic = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> produceToConsumeTopic = pulsarClient
+                .newProducer(Schema.BYTES)
                 .producerName("perf-transaction-producer")
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(testConsumeTopic)
                 .create();
-        pulsarClient.newConsumer(Schema.BYTES)
+        pulsarClient
+                .newConsumer(Schema.BYTES)
                 .consumerName("perf-transaction-consumeVerify")
                 .topic(testConsumeTopic)
                 .subscriptionType(SubscriptionType.Shared)
@@ -176,10 +191,12 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         CountDownLatch countDownLatch = new CountDownLatch(50);
-        for (int i = 0; i < 50
-                ; i++) {
-            produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(
-                    countDownLatch::countDown);
+        for (int i = 0; i < 50; i++) {
+            produceToConsumeTopic
+                    .newMessage()
+                    .value(("testConsume " + i).getBytes())
+                    .sendAsync()
+                    .thenRun(countDownLatch::countDown);
         }
 
         countDownLatch.await();
@@ -193,14 +210,16 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         });
         thread.start();
         thread.join();
-        Consumer<byte[]> consumeFromConsumeTopic = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumeFromConsumeTopic = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .consumerName("perf-transaction-consumeVerify")
                 .topic(testConsumeTopic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(testSub)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        Consumer<byte[]> consumeFromProduceTopic = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumeFromProduceTopic = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .consumerName("perf-transaction-produceVerify")
                 .topic(testProduceTopic)
                 .subscriptionName(testSub)
@@ -215,7 +234,5 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         Assert.assertNull(message);
         message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-
     }
-
 }

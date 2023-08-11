@@ -42,7 +42,7 @@ public class ZipFiles {
      * Returns true if the given file is a gzip file.
      */
     public static boolean isZip(File f) {
-        try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(f)))){
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(f)))) {
             int test = in.readInt();
             return test == 0x504b0304;
         } catch (final Exception e) {
@@ -62,10 +62,10 @@ public class ZipFiles {
         ZipInputStream zipStream = null;
 
         try {
-          zipStream = new ZipInputStream(Files.newInputStream(path));
+            zipStream = new ZipInputStream(Files.newInputStream(path));
         } catch (IOException e) {
-          closeSafely(zipStream);
-          throw new UncheckedIOException(e);
+            closeSafely(zipStream);
+            throw new UncheckedIOException(e);
         }
         // Reader decoder = new InputStreamReader(gzipStream, Charset.defaultCharset());
         BufferedReader reader = new BufferedReader(new InputStreamReader(zipStream));
@@ -74,11 +74,11 @@ public class ZipFiles {
 
     private static void closeSafely(Closeable closeable) {
         if (closeable != null) {
-          try {
-            closeable.close();
-          } catch (IOException e) {
-            // Ignore
-          }
+            try {
+                closeable.close();
+            } catch (IOException e) {
+                // Ignore
+            }
         }
     }
 }

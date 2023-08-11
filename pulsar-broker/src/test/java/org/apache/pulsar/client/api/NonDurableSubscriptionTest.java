@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 @Slf4j
-public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
+public class NonDurableSubscriptionTest extends ProducerConsumerBase {
 
     private final AtomicInteger numFlow = new AtomicInteger(0);
 
@@ -83,10 +83,12 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         String topicName = "persistent://my-property/my-ns/nonDurable-topic1";
         // 1 setup producer、consumer
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
-                .create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topicName)
                 .readCompacted(true)
                 .subscriptionMode(SubscriptionMode.NonDurable)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -106,14 +108,13 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
         // 4 trigger reconnect
-        ((ConsumerImpl)consumer).getClientCnx().close();
+        ((ConsumerImpl) consumer).getClientCnx().close();
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < messageNum; i++) {
             Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
-
     }
 
     @Test
@@ -122,7 +123,9 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         // first test for create Durable subscription and then create NonDurable subscription
         // 1. create a subscription with SubscriptionMode.Durable
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topicName)
                 .readCompacted(true)
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -134,8 +137,9 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         // 2. create a subscription with SubscriptionMode.NonDurable
         try {
             @Cleanup
-            Consumer<String> consumerNoDurable =
-                    pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+            Consumer<String> consumerNoDurable = pulsarClient
+                    .newConsumer(Schema.STRING)
+                    .topic(topicName)
                     .readCompacted(true)
                     .subscriptionMode(SubscriptionMode.NonDurable)
                     .subscriptionType(SubscriptionType.Exclusive)
@@ -144,28 +148,31 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
                     .subscribe();
             Assert.fail("should fail since durable subscription already exist.");
         } catch (PulsarClientException.NotAllowedException exception) {
-            //ignore
+            // ignore
         }
 
         // second test for create NonDurable subscription and then create Durable subscription
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
-                .create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
         // 1. create a subscription with SubscriptionMode.NonDurable
         @Cleanup
-        Consumer<String> noDurableConsumer =
-                pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                        .subscriptionMode(SubscriptionMode.NonDurable)
-                        .subscriptionType(SubscriptionType.Shared)
-                        .subscriptionName("mix-subscription-01")
-                        .receiverQueueSize(1)
-                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                        .subscribe();
+        Consumer<String> noDurableConsumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("mix-subscription-01")
+                .receiverQueueSize(1)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
         // 2. create a subscription with SubscriptionMode.Durable
         try {
             @Cleanup
-            Consumer<String> durableConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+            Consumer<String> durableConsumer = pulsarClient
+                    .newConsumer(Schema.STRING)
+                    .topic(topicName)
                     .subscriptionMode(SubscriptionMode.Durable)
                     .subscriptionType(SubscriptionType.Shared)
                     .subscriptionName("mix-subscription-01")
@@ -174,7 +181,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .subscribe();
         } catch (PulsarClientException.NotAllowedException exception) {
-            //ignore
+            // ignore
         }
     }
 
@@ -191,13 +198,15 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
     @Test(dataProvider = "subscriptionTypes")
     public void testNonDurableSubscriptionRecovery(SubscriptionType subscriptionType) throws Exception {
         log.info("testing {}", subscriptionType);
-        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-"+subscriptionType;
+        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-" + subscriptionType;
         // 1 setup producer、consumer
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
-                .create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topicName)
                 .subscriptionMode(SubscriptionMode.NonDurable)
                 .subscriptionType(subscriptionType)
                 .subscriptionName("my-nonDurable-subscriber")
@@ -216,7 +225,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
         // 4 trigger reconnect
-        ((ConsumerImpl)consumer).getClientCnx().close();
+        ((ConsumerImpl) consumer).getClientCnx().close();
 
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < 10; i++) {
@@ -234,7 +243,6 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
-
     }
 
     @Test
@@ -244,7 +252,8 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName, numPartitions);
         numFlow.set(0);
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("my-nonDurable-subscriber")
                 .subscriptionMode(SubscriptionMode.NonDurable)

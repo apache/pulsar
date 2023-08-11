@@ -32,8 +32,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 public class ProducerInterceptorWrapper implements ProducerInterceptor {
     private final org.apache.pulsar.client.api.ProducerInterceptor<?> innerInterceptor;
 
-    public ProducerInterceptorWrapper(
-            org.apache.pulsar.client.api.ProducerInterceptor<?> innerInterceptor) {
+    public ProducerInterceptorWrapper(org.apache.pulsar.client.api.ProducerInterceptor<?> innerInterceptor) {
         this.innerInterceptor = innerInterceptor;
     }
 
@@ -53,8 +52,7 @@ public class ProducerInterceptorWrapper implements ProducerInterceptor {
     }
 
     @Override
-    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
-                                      Throwable exception) {
+    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
         innerInterceptor.onSendAcknowledgement(producer, message, msgId, exception);
     }
 

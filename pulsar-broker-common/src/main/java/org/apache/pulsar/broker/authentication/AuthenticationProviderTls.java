@@ -82,7 +82,8 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                     errorCode = ErrorCode.INVALID_CERTS;
                     throw new AuthenticationException("Failed to get TLS certificates from client");
                 }
-                String distinguishedName = ((X509Certificate) certs[0]).getSubjectX500Principal().getName();
+                String distinguishedName =
+                        ((X509Certificate) certs[0]).getSubjectX500Principal().getName();
                 for (String keyValueStr : distinguishedName.split(",")) {
                     String[] keyValue = keyValueStr.split("=", 2);
                     if (keyValue.length == 2 && "CN".equals(keyValue[0]) && !keyValue[1].isEmpty()) {
@@ -103,5 +104,4 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
         }
         return commonName;
     }
-
 }

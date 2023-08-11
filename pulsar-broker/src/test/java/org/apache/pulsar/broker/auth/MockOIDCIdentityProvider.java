@@ -51,25 +51,27 @@ public class MockOIDCIdentityProvider {
     private final WireMockServer server;
     private final PublicKey publicKey;
     private final String audience;
+
     public MockOIDCIdentityProvider(String clientSecret, String audience, long tokenTTLMillis) {
         this.audience = audience;
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
         publicKey = keyPair.getPublic();
-        server = new WireMockServer(wireMockConfig().port(0)
-                .extensions(new OAuth2Transformer(keyPair, tokenTTLMillis)));
+        server =
+                new WireMockServer(wireMockConfig().port(0).extensions(new OAuth2Transformer(keyPair, tokenTTLMillis)));
         server.start();
 
         // Set up a correct openid-configuration that points to the next stub
-        server.stubFor(
-                get(urlEqualTo("/.well-known/openid-configuration"))
-                        .willReturn(aResponse()
-                                .withHeader("Content-Type", "application/json")
-                                .withBody("""
+        server.stubFor(get(urlEqualTo("/.well-known/openid-configuration"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                                """
                                         {
                                           "issuer": "%s",
                                           "token_endpoint": "%s/oauth/token"
                                         }
-                                        """.replace("%s", server.baseUrl()))));
+                                        """
+                                        .replace("%s", server.baseUrl()))));
 
         // Only respond when the client sends the expected request body
         server.stubFor(post(urlEqualTo("/oauth/token"))
@@ -77,7 +79,8 @@ public class MockOIDCIdentityProvider {
                 .withRequestBody(matching(".*audience=" + URLEncoder.encode(audience, StandardCharsets.UTF_8) + ".*"))
                 .withRequestBody(matching(".*client_id=.*"))
                 .withRequestBody(matching(".*client_secret=" + clientSecret + "(&.*|$)"))
-                .willReturn(aResponse().withTransformers("o-auth-token-transformer").withStatus(200)));
+                .willReturn(
+                        aResponse().withTransformers("o-auth-token-transformer").withStatus(200)));
     }
 
     public void stop() {
@@ -109,16 +112,24 @@ public class MockOIDCIdentityProvider {
             Matcher m = clientIdToRolePattern.matcher(request.getBodyAsString());
             if (m.find()) {
                 String role = m.group(1);
-                return Response.Builder.like(response).but().body("""
+                return Response.Builder.like(response)
+                        .but()
+                        .body(
+                                """
                         {
                           "access_token": "%s",
                           "expires_in": %d,
                           "token_type":"Bearer"
                         }
-                        """.formatted(generateToken(role),
-                        TimeUnit.MILLISECONDS.toSeconds(tokenTTL))).build();
+                        """
+                                        .formatted(generateToken(role), TimeUnit.MILLISECONDS.toSeconds(tokenTTL)))
+                        .build();
             } else {
-                return Response.Builder.like(response).but().body("Invalid request").status(400).build();
+                return Response.Builder.like(response)
+                        .but()
+                        .body("Invalid request")
+                        .status(400)
+                        .build();
             }
         }
 

@@ -74,7 +74,6 @@ public class PulsarFunctionTestTemporaryDirectory {
     public void assertThatFunctionDownloadTempFilesHaveBeenDeleted() {
         // make sure all temp files are deleted
         File[] foundFiles = downloadDirectory.listFiles((dir1, name) -> name.startsWith("function"));
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: "
-                + Arrays.asList(foundFiles));
+        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 }

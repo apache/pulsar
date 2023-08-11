@@ -111,7 +111,8 @@ public class LogAppender implements Appender {
     public void start() {
         this.state = State.STARTING;
         try {
-            producer = pulsarClient.newProducer()
+            producer = pulsarClient
+                    .newProducer()
                     .topic(logTopic)
                     .blockIfQueueFull(false)
                     .enableBatching(true)

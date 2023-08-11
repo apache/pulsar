@@ -86,17 +86,16 @@ public class WebServiceTest {
     private String BROKER_LOOKUP_URL;
     private String BROKER_LOOKUP_URL_TLS;
 
-    private final static String CA_CERT_FILE_PATH =
+    private static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    private final static String BROKER_CERT_FILE_PATH =
+    private static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private final static String BROKER_KEY_FILE_PATH =
+    private static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private final static String CLIENT_CERT_FILE_PATH =
+    private static final String CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private final static String CLIENT_KEY_FILE_PATH =
+    private static final String CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-
 
     @Test
     public void testWebExecutorMetrics() throws Exception {
@@ -277,8 +276,7 @@ public class WebServiceTest {
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
-        @Cleanup
-        AsyncHttpClient client = new DefaultAsyncHttpClient();
+        @Cleanup AsyncHttpClient client = new DefaultAsyncHttpClient();
 
         BoundRequestBuilder builder = client.prepare("TRACE", url);
 
@@ -301,8 +299,7 @@ public class WebServiceTest {
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
-        @Cleanup
-        AsyncHttpClient client = new DefaultAsyncHttpClient();
+        @Cleanup AsyncHttpClient client = new DefaultAsyncHttpClient();
 
         BoundRequestBuilder builder = client.preparePut(url)
                 .setHeader("Accept", "application/json")
@@ -320,7 +317,9 @@ public class WebServiceTest {
 
         // Create local cluster
         String localCluster = "test";
-        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster, ClusterDataImpl.builder().build());
+        pulsar.getPulsarResources()
+                .getClusterResources()
+                .createCluster(localCluster, ClusterDataImpl.builder().build());
         TenantInfo info2 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
@@ -332,10 +331,10 @@ public class WebServiceTest {
 
         // Simple GET without content size should go through
         Response res3 = client.prepareGet(url)
-            .setHeader("Accept", "application/json")
-            .setHeader("Content-Type", "application/json")
-            .execute()
-            .get();
+                .setHeader("Accept", "application/json")
+                .setHeader("Content-Type", "application/json")
+                .execute()
+                .get();
         assertEquals(res3.getStatusCode(), 200);
     }
 
@@ -345,8 +344,7 @@ public class WebServiceTest {
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
 
-        @Cleanup
-        AsyncHttpClient client = new DefaultAsyncHttpClient();
+        @Cleanup AsyncHttpClient client = new DefaultAsyncHttpClient();
 
         Response res = client.prepareGet(url).execute().get();
         assertEquals(res.getStatusCode(), 200);
@@ -386,8 +384,14 @@ public class WebServiceTest {
         }
     }
 
-    private void setupEnv(boolean enableFilter, boolean enableTls, boolean enableAuth, boolean allowInsecure,
-                          double rateLimit, boolean disableTrace) throws Exception {
+    private void setupEnv(
+            boolean enableFilter,
+            boolean enableTls,
+            boolean enableAuth,
+            boolean allowInsecure,
+            double rateLimit,
+            boolean disableTrace)
+            throws Exception {
         if (pulsar != null) {
             throw new Exception("broker already started");
         }
@@ -425,15 +429,15 @@ public class WebServiceTest {
             config.setHttpRequestsMaxPerSecond(rateLimit);
         }
 
-        pulsarTestContext = PulsarTestContext.builder()
-                .spyByDefault()
-                .config(config)
-                .build();
+        pulsarTestContext =
+                PulsarTestContext.builder().spyByDefault().config(config).build();
 
         pulsar = pulsarTestContext.getPulsarService();
 
-        String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
-        String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
+        String BROKER_URL_BASE =
+                "http://localhost:" + pulsar.getListenPortHTTP().get();
+        String BROKER_URL_BASE_TLS =
+                "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
         String serviceUrl = BROKER_URL_BASE;
 
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder();
@@ -444,19 +448,26 @@ public class WebServiceTest {
             authParams.put("tlsCertFile", CLIENT_CERT_FILE_PATH);
             authParams.put("tlsKeyFile", CLIENT_KEY_FILE_PATH);
 
-            adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
+            adminBuilder
+                    .authentication(AuthenticationTls.class.getName(), authParams)
+                    .allowTlsInsecureConnection(true);
         }
 
-        BROKER_LOOKUP_URL = BROKER_URL_BASE
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-        BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+        BROKER_LOOKUP_URL =
+                BROKER_URL_BASE + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+        BROKER_LOOKUP_URL_TLS =
+                BROKER_URL_BASE_TLS + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
 
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
         try {
-            pulsarAdmin.clusters().createCluster(config.getClusterName(),
-                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+            pulsarAdmin
+                    .clusters()
+                    .createCluster(
+                            config.getClusterName(),
+                            ClusterData.builder()
+                                    .serviceUrl(pulsar.getWebServiceAddress())
+                                    .build());
         } catch (ConflictException ce) {
             // This is OK.
         } finally {

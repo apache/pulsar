@@ -56,23 +56,13 @@ import org.apache.pulsar.client.api.SubscriptionType;
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(
-            name = "topicNames",
-            required = true,
-            value = "Topic name"
-    )
+    @ApiModelProperty(name = "topicNames", required = true, value = "Topic name")
     private Set<String> topicNames = new TreeSet<>();
 
-    @ApiModelProperty(
-            name = "topicsPattern",
-            value = "Topic pattern"
-    )
+    @ApiModelProperty(name = "topicsPattern", value = "Topic pattern")
     private Pattern topicsPattern;
 
-    @ApiModelProperty(
-            name = "subscriptionName",
-            value = "Subscription name"
-    )
+    @ApiModelProperty(name = "subscriptionName", value = "Subscription name")
     private String subscriptionName;
 
     @ApiModelProperty(
@@ -82,8 +72,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "* Exclusive\n"
                     + "* Failover\n"
                     + "* Shared\n"
-                    + "* Key_Shared"
-    )
+                    + "* Key_Shared")
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
     private Map<String, String> subscriptionProperties;
@@ -99,16 +88,14 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "negativeAckRedeliveryBackoff",
             value = "Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a"
-                    + " consumer."
-    )
+                    + " consumer.")
     @JsonIgnore
     private RedeliveryBackoff negativeAckRedeliveryBackoff;
 
     @ApiModelProperty(
             name = "ackTimeoutRedeliveryBackoff",
             value = "Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a"
-                    + " consumer."
-    )
+                    + " consumer.")
     @JsonIgnore
     private RedeliveryBackoff ackTimeoutRedeliveryBackoff;
 
@@ -120,8 +107,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "`Receive`.\n"
                     + "\n"
                     + "A value higher than the default value increases consumer throughput, though at the expense of "
-                    + "more memory utilization."
-    )
+                    + "more memory utilization.")
     private int receiverQueueSize = 1000;
 
     @ApiModelProperty(
@@ -133,14 +119,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "Setting a group time of 0 sends out acknowledgments immediately.\n"
                     + "\n"
                     + "A longer ack group time is more efficient at the expense of a slight increase in message "
-                    + "re-deliveries after a failure."
-    )
+                    + "re-deliveries after a failure.")
     private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
 
     @ApiModelProperty(
             name = "maxAcknowledgmentGroupSize",
-            value = "Group a consumer acknowledgment for the number of messages."
-    )
+            value = "Group a consumer acknowledgment for the number of messages.")
     private int maxAcknowledgmentGroupSize = 1000;
 
     @ApiModelProperty(
@@ -148,8 +132,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             value = "Delay to wait before redelivering messages that failed to be processed.\n"
                     + "\n"
                     + "When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are "
-                    + "redelivered after a fixed timeout."
-    )
+                    + "redelivered after a fixed timeout.")
     private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
 
     @ApiModelProperty(
@@ -157,20 +140,13 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             value = "The max total receiver queue size across partitions.\n"
                     + "\n"
                     + "This setting reduces the receiver queue size for individual partitions if the total receiver "
-                    + "queue size exceeds this value."
-    )
+                    + "queue size exceeds this value.")
     private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
-    @ApiModelProperty(
-            name = "consumerName",
-            value = "Consumer name"
-    )
+    @ApiModelProperty(name = "consumerName", value = "Consumer name")
     private String consumerName = null;
 
-    @ApiModelProperty(
-            name = "ackTimeoutMillis",
-            value = "Timeout of unacked messages"
-    )
+    @ApiModelProperty(name = "ackTimeoutMillis", value = "Timeout of unacked messages")
     private long ackTimeoutMillis = 0;
 
     @ApiModelProperty(
@@ -178,8 +154,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             value = "Granularity of the ack-timeout redelivery.\n"
                     + "\n"
                     + "Using an higher `tickDurationMillis` reduces the memory overhead to track messages when setting "
-                    + "ack-timeout to a bigger value (for example, 1 hour)."
-    )
+                    + "ack-timeout to a bigger value (for example, 1 hour).")
     private long tickDurationMillis = 1000;
 
     @ApiModelProperty(
@@ -205,8 +180,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "C4, 1, 2\n"
                     + "C5, 1, 1\n"
                     + "\n"
-                    + "Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4."
-    )
+                    + "Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.")
     private int priorityLevel = 0;
 
     /**
@@ -228,8 +202,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "maxPendingChunkedMessage",
             value = "The maximum size of a queue holding pending chunked messages. When the threshold is reached,"
-                    + " the consumer drops pending messages to optimize memory utilization."
-    )
+                    + " the consumer drops pending messages to optimize memory utilization.")
     // max pending chunked message to avoid sending incomplete message into the queue and memory
     private int maxPendingChunkedMessage = 10;
 
@@ -237,15 +210,13 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             name = "autoAckOldestChunkedMessageOnQueueFull",
             value = "Whether to automatically acknowledge pending chunked messages when the threshold of"
                     + " `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered"
-                    + " by their broker."
-    )
+                    + " by their broker.")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
     @ApiModelProperty(
             name = "expireTimeOfIncompleteChunkedMessageMillis",
             value = "The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the"
-                    + " specified time period. The default value is 1 minute."
-    )
+                    + " specified time period. The default value is 1 minute.")
     private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.MINUTES.toMillis(1);
 
     @JsonIgnore
@@ -268,8 +239,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + " batch.\n"
                     + "\n"
                     + "Delivered encrypted message contains {@link EncryptionContext} which contains encryption and "
-                    + "compression information in it using which application can decrypt consumed message payload."
-    )
+                    + "compression information in it using which application can decrypt consumed message payload.")
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     @ApiModelProperty(
@@ -279,8 +249,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "`properties` is application defined metadata attached to a consumer.\n"
                     + "\n"
                     + "When getting a topic stats, associate this metadata with the consumer stats for easier "
-                    + "identification."
-    )
+                    + "identification.")
     private SortedMap<String, String> properties = new TreeMap<>();
 
     @ApiModelProperty(
@@ -296,22 +265,19 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "consumer (like failure or exclusive subscriptions).\n"
                     + "\n"
                     + "Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions "
-                    + "leads to a subscription call throwing a `PulsarClientException`."
-    )
+                    + "leads to a subscription call throwing a `PulsarClientException`.")
     private boolean readCompacted = false;
 
     @ApiModelProperty(
             name = "subscriptionInitialPosition",
-            value = "Initial position at which to set cursor when subscribing to a topic at first time."
-    )
+            value = "Initial position at which to set cursor when subscribing to a topic at first time.")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     @ApiModelProperty(
             name = "patternAutoDiscoveryPeriod",
             value = "Topic auto discovery period when using a pattern for topic's consumer.\n"
                     + "\n"
-                    + "The default and minimum value is 1 minute."
-    )
+                    + "The default and minimum value is 1 minute.")
     private int patternAutoDiscoveryPeriod = 60;
 
     @ApiModelProperty(
@@ -320,8 +286,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "\n"
                     + "* **PersistentOnly**: only subscribe to persistent topics.\n"
                     + "* **NonPersistentOnly**: only subscribe to non-persistent topics.\n"
-                    + "* **AllTopics**: subscribe to both persistent and non-persistent topics."
-    )
+                    + "* **AllTopics**: subscribe to both persistent and non-persistent topics.")
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
     @ApiModelProperty(
@@ -353,8 +318,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + ".subscribe();\n"
                     + "```\n"
                     + "When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the"
-                    + " ack timeout to 30000 millisecond."
-    )
+                    + " ack timeout to 30000 millisecond.")
     private transient DeadLetterPolicy deadLetterPolicy;
 
     private boolean retryEnable = false;
@@ -367,8 +331,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             value = "If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement "
                     + "automatically.\n"
                     + "\n"
-                    + "**Note**: this is only for partitioned consumers."
-    )
+                    + "**Note**: this is only for partitioned consumers.")
     private boolean autoUpdatePartitions = true;
 
     private long autoUpdatePartitionsIntervalSeconds = 60;
@@ -376,8 +339,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "replicateSubscriptionState",
             value = "If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated"
-                    + " clusters."
-    )
+                    + " clusters.")
     private boolean replicateSubscriptionState = false;
 
     private boolean resetIncludeHead = false;

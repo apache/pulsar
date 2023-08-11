@@ -24,7 +24,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -34,7 +33,6 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Optional;
 import java.util.Properties;
-
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.Test;
@@ -81,7 +79,8 @@ public class PulsarConfigurationLoaderTest {
 
     @Test
     public void testConfigurationConverting_checkNonExistMember() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> PulsarConfigurationLoader.convertFrom(new MockConfiguration(), false));
     }
 
@@ -235,12 +234,16 @@ public class PulsarConfigurationLoaderTest {
     static class TestCompleteObject {
         @FieldContext(required = true)
         String required = "I am not null";
+
         @FieldContext(required = false)
         String optional;
+
         @FieldContext
         String optional2;
+
         @FieldContext(minValue = 1)
         int minValue = 2;
+
         @FieldContext(minValue = 1, maxValue = 3)
         int minMaxValue = 2;
     }
@@ -263,8 +266,10 @@ public class PulsarConfigurationLoaderTest {
     static class TestInCompleteObjectMix {
         @FieldContext(required = true)
         String inValidRequired;
+
         @FieldContext(minValue = 1, maxValue = 3)
         long inValidMin = 0;
+
         @FieldContext(minValue = 1, maxValue = 3)
         long inValidMax = 4;
     }

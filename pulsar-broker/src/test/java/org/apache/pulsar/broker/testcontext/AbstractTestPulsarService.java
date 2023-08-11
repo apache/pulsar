@@ -39,12 +39,14 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
 
-    public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                     MetadataStoreExtended localMetadataStore,
-                                     MetadataStoreExtended configurationMetadataStore,
-                                     CompactionServiceFactory compactionServiceFactory,
-                                     BrokerInterceptor brokerInterceptor,
-                                     BookKeeperClientFactory bookKeeperClientFactory) {
+    public AbstractTestPulsarService(
+            SpyConfig spyConfig,
+            ServiceConfiguration config,
+            MetadataStoreExtended localMetadataStore,
+            MetadataStoreExtended configurationMetadataStore,
+            CompactionServiceFactory compactionServiceFactory,
+            BrokerInterceptor brokerInterceptor,
+            BookKeeperClientFactory bookKeeperClientFactory) {
         super(config);
         this.spyConfig = spyConfig;
         setLocalMetadataStore(
@@ -70,8 +72,7 @@ abstract class AbstractTestPulsarService extends PulsarService {
     public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
             throws MetadataStoreException, PulsarServerException {
         if (synchronizer != null) {
-            synchronizer.registerSyncListener(
-                    getLocalMetadataStore()::handleMetadataEvent);
+            synchronizer.registerSyncListener(getLocalMetadataStore()::handleMetadataEvent);
         }
         return getLocalMetadataStore();
     }

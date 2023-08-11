@@ -178,12 +178,16 @@ public class SimpleLoadManagerImplTest {
         policies.setPolicy("primaryBrokerPolicy", policyData);
 
         try {
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().createIsolationData("use",
-                    policies.getPolicies());
+            pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getIsolationPolicies()
+                    .createIsolationData("use", policies.getPolicies());
         } catch (BadVersionException e) {
             // isolation policy already exist
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().setIsolationData("use",
-                    data -> policies.getPolicies());
+            pulsar.getPulsarResources()
+                    .getNamespaceResources()
+                    .getIsolationPolicies()
+                    .setIsolationData("use", data -> policies.getPolicies());
         }
     }
 
@@ -207,11 +211,9 @@ public class SimpleLoadManagerImplTest {
         sortedRankings.setAccessible(true);
         sortedRankings.set(loadManager, sortedRankingsInstance);
 
-        Optional<ResourceUnit> res = loadManager
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
+        Optional<ResourceUnit> res = loadManager.getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
         // broker is not active so found should be null
         assertEquals(res, Optional.empty(), "found a broker when expected none to be found");
-
     }
 
     private void setObjectField(Class<?> objClass, Object objInstance, String fieldName, Object newValue)
@@ -232,20 +234,27 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
         ResourceUnit ru1 = new SimpleResourceUnit(
-                "http://" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get(), rd);
+                "http://" + pulsar1.getAdvertisedAddress() + ":"
+                        + pulsar1.getConfiguration().getWebServicePort().get(),
+                rd);
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
 
         // inject the load report and rankings
         Map<ResourceUnit, org.apache.pulsar.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport.setSystemResourceUsage(new SystemResourceUsage());
         loadReports.put(ru1, loadReport);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "currentLoadReports", loadReports);
 
-        ResourceUnitRanking ranking = new ResourceUnitRanking(loadReport.getSystemResourceUsage(),
-                new HashSet<String>(), new ResourceQuota(), new HashSet<String>(), new ResourceQuota());
+        ResourceUnitRanking ranking = new ResourceUnitRanking(
+                loadReport.getSystemResourceUsage(),
+                new HashSet<String>(),
+                new ResourceQuota(),
+                new HashSet<String>(),
+                new ResourceQuota());
         Map<ResourceUnit, ResourceUnitRanking> rankings = new HashMap<>();
         rankings.put(ru1, ranking);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "resourceUnitRankings", rankings);
@@ -255,10 +264,10 @@ public class SimpleLoadManagerImplTest {
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "sortedRankings", sortedRankingsInstance);
 
         ResourceUnit found = loadManager
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
+                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"))
+                .get();
         // broker is not active so found should be null
         assertNotEquals(found, null, "did not find a broker when expected one to be found");
-
     }
 
     @Test(enabled = false)
@@ -284,7 +293,8 @@ public class SimpleLoadManagerImplTest {
         sortedRankings.set(loadManager, sortedRankingsInstance);
 
         ResourceUnit found = loadManager
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
+                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"))
+                .get();
         assertEquals(found.getResourceId(), ru1.getResourceId());
     }
 
@@ -309,14 +319,14 @@ public class SimpleLoadManagerImplTest {
         SimpleLoadCalculatorImpl calc = new SimpleLoadCalculatorImpl();
         calc.recalibrateResourceUsagePerServiceUnit(null);
         assertNull(calc.getResourceDescription(null));
-
     }
 
     @Test
     public void testLoadReportParsing() throws Exception {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         reportData.setName("b1");
         SystemResourceUsage resource = new SystemResourceUsage();
         ResourceUsage resourceUsage = new ResourceUsage();
@@ -328,13 +338,18 @@ public class SimpleLoadManagerImplTest {
         String loadReportJson = mapper.writeValueAsString(reportData);
         LoadReport loadReport = PulsarLoadReportImpl.parse(loadReportJson);
         assertEquals(
-                loadReport.getResourceUnitDescription().getResourceUsage().get("bandwidthIn").compareTo(resourceUsage),
+                loadReport
+                        .getResourceUnitDescription()
+                        .getResourceUsage()
+                        .get("bandwidthIn")
+                        .compareTo(resourceUsage),
                 0);
     }
 
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
-        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
+        SimpleLoadManagerImpl loadManager =
+                spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
@@ -366,10 +381,12 @@ public class SimpleLoadManagerImplTest {
         stats.put("property/cluster/namespace2/0x00000000_0xFFFFFFFF", nsb2);
 
         Map<ResourceUnit, org.apache.pulsar.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport1.setSystemResourceUsage(systemResource);
         loadReport1.setBundleStats(stats);
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport2.setSystemResourceUsage(new SystemResourceUsage());
         loadReport2.setBundleStats(stats);
         loadReports.put(ru1, loadReport1);
@@ -383,16 +400,20 @@ public class SimpleLoadManagerImplTest {
     // Test that bundles belonging to the same namespace are evenly distributed.
     @Test
     public void testEvenBundleDistribution() throws Exception {
-        final NamespaceBundle[] bundles = LoadBalancerTestingUtils
-                .makeBundles(pulsar1.getNamespaceService().getNamespaceBundleFactory(), "pulsar", "use", "test", 16);
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
+                pulsar1.getNamespaceService().getNamespaceBundleFactory(), "pulsar", "use", "test", 16);
         final ResourceQuota quota = new ResourceQuota();
         // Create high message rate quota for the first bundle to make it unlikely to be a coincidence of even
         // distribution.
-        pulsar1.getBrokerService().getBundlesQuotas().setResourceQuota(bundles[0], quota).join();
+        pulsar1.getBrokerService()
+                .getBundlesQuotas()
+                .setResourceQuota(bundles[0], quota)
+                .join();
         int numAssignedToPrimary = 0;
         int numAssignedToSecondary = 0;
         pulsar1.getConfiguration().setLoadBalancerPlacementStrategy(SimpleLoadManagerImpl.LOADBALANCER_STRATEGY_LLS);
-        final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsar1.getLoadManager().get();
+        final SimpleLoadManagerImpl loadManager =
+                (SimpleLoadManagerImpl) pulsar1.getLoadManager().get();
 
         for (final NamespaceBundle bundle : bundles) {
             if (loadManager.getLeastLoaded(bundle).get().getResourceId().equals(primaryHost)) {
@@ -474,5 +495,4 @@ public class SimpleLoadManagerImplTest {
         usage.setBandwidthIn(new ResourceUsage(usageLimit, usageLimit));
         assertEquals(usage.getBandwidthIn().usage, usageLimit);
     }
-
 }

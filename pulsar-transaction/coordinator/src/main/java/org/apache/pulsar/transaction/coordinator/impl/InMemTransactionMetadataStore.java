@@ -58,7 +58,6 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
         this.commitTransactionCount = new LongAdder();
         this.abortTransactionCount = new LongAdder();
         this.transactionTimeoutCount = new LongAdder();
-
     }
 
     @Override
@@ -80,10 +79,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
                 return CompletableFuture.failedFuture(new IllegalArgumentException("Owner can't be blank"));
             }
         }
-        TxnID txnID = new TxnID(
-            tcID.getId(),
-            localID.getAndIncrement()
-        );
+        TxnID txnID = new TxnID(tcID.getId(), localID.getAndIncrement());
         TxnMetaImpl txn = new TxnMetaImpl(txnID, System.currentTimeMillis(), timeoutInMills, owner);
         transactions.put(txnID, txn);
         return CompletableFuture.completedFuture(txnID);
@@ -118,8 +114,8 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus,
-                                                   boolean isTimeout) {
+    public CompletableFuture<Void> updateTxnStatus(
+            TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus, boolean isTimeout) {
         return getTxnMeta(txnid).thenCompose(txn -> {
             try {
                 txn.updateTxnStatus(newStatus, expectedStatus);

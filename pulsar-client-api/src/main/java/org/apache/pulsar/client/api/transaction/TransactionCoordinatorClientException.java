@@ -71,8 +71,7 @@ public class TransactionCoordinatorClientException extends IOException {
         }
 
         public InvalidTxnStatusException(String txnId, String actualState, String expectState) {
-            super("[" + txnId + "] with unexpected state : "
-                    + actualState + ", expect " + expectState + " state!");
+            super("[" + txnId + "] with unexpected state : " + actualState + ", expect " + expectState + " state!");
         }
     }
 
@@ -130,6 +129,5 @@ public class TransactionCoordinatorClientException extends IOException {
         } else {
             return new TransactionCoordinatorClientException(t);
         }
-
     }
 }

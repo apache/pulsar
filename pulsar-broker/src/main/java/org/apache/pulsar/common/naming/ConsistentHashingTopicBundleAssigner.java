@@ -25,7 +25,9 @@ import org.apache.pulsar.broker.PulsarService;
 public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignmentStrategy {
     @Override
     public NamespaceBundle findBundle(TopicName topicName, NamespaceBundles namespaceBundles) {
-        long hashCode = Hashing.crc32().hashString(topicName.toString(), StandardCharsets.UTF_8).padToLong();
+        long hashCode = Hashing.crc32()
+                .hashString(topicName.toString(), StandardCharsets.UTF_8)
+                .padToLong();
         NamespaceBundle bundle = namespaceBundles.getBundle(hashCode);
         if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
             bundle.setHasNonPersistentTopic(true);
@@ -34,7 +36,5 @@ public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignme
     }
 
     @Override
-    public void init(PulsarService pulsarService) {
-    }
-
+    public void init(PulsarService pulsarService) {}
 }

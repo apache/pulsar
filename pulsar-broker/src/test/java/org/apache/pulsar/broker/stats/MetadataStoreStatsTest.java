@@ -42,7 +42,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-
 @Test(groups = "flaky")
 public class MetadataStoreStatsTest extends BrokerTestBase {
 
@@ -80,11 +79,14 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         String subName = "my-sub1";
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic).subscriptionName(subName).subscribe();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
 
         for (int i = 0; i < 100; i++) {
             producer.newMessage().value(UUID.randomUUID().toString()).send();
@@ -105,8 +107,10 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
 
         String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
 
-        Collection<PrometheusMetricsTest.Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
+        Collection<PrometheusMetricsTest.Metric> opsLatency =
+                metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
+        Collection<PrometheusMetricsTest.Metric> putBytes =
+                metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
 
         Assert.assertTrue(opsLatency.size() > 1, metricsDebugMessage);
         Assert.assertTrue(putBytes.size() > 1, metricsDebugMessage);
@@ -170,11 +174,14 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         String subName = "my-sub1";
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic).create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic).subscriptionName(subName).subscribe();
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
 
         for (int i = 0; i < 100; i++) {
             producer.newMessage().value(UUID.randomUUID().toString()).send();
@@ -193,10 +200,14 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         String metricsStr = output.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
-        Collection<PrometheusMetricsTest.Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> batchExecuteTime = metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> opsPerBatch = metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
+        Collection<PrometheusMetricsTest.Metric> executorQueueSize =
+                metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
+        Collection<PrometheusMetricsTest.Metric> opsWaiting =
+                metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
+        Collection<PrometheusMetricsTest.Metric> batchExecuteTime =
+                metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
+        Collection<PrometheusMetricsTest.Metric> opsPerBatch =
+                metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
 
         String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
 
@@ -254,15 +265,13 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
     }
 
-    private boolean isExpectedLabel(String metadataStoreName, Set<String> expectedLabel,
-                                    AtomicInteger expectedLabelCount) {
-        if (StringUtils.isEmpty(metadataStoreName)
-                || !expectedLabel.contains(metadataStoreName)) {
+    private boolean isExpectedLabel(
+            String metadataStoreName, Set<String> expectedLabel, AtomicInteger expectedLabelCount) {
+        if (StringUtils.isEmpty(metadataStoreName) || !expectedLabel.contains(metadataStoreName)) {
             return false;
         } else {
             expectedLabelCount.incrementAndGet();
             return true;
         }
     }
-
 }

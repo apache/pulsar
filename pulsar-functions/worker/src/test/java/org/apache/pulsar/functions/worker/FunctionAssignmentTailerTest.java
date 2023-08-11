@@ -65,41 +65,65 @@ public class FunctionAssignmentTailerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-1"))
+                .build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-2"))
+                .build();
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                        .setFunctionMetaData(function1)
+                        .setInstanceId(0)
+                        .build())
                 .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                        .setFunctionMetaData(function2)
+                        .setInstanceId(0)
+                        .build())
                 .build();
 
         ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
         MessageMetadata metadata = new MessageMetadata();
-        Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
-        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
+        Message message1 = spy(new MessageImpl(
+                "foo",
+                MessageId.latest.toString(),
+                new HashMap<>(),
+                Unpooled.copiedBuffer(assignment1.toByteArray()),
+                null,
+                metadata));
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()))
+                .when(message1)
+                .getKey();
 
-        Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
-        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
+        Message message2 = spy(new MessageImpl(
+                "foo",
+                MessageId.latest.toString(),
+                new HashMap<>(),
+                Unpooled.copiedBuffer(assignment2.toByteArray()),
+                null,
+                metadata));
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance()))
+                .when(message2)
+                .getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
@@ -177,30 +201,40 @@ public class FunctionAssignmentTailerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-1"))
+                .build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-2"))
+                .build();
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                        .setFunctionMetaData(function1)
+                        .setInstanceId(0)
+                        .build())
                 .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                        .setFunctionMetaData(function2)
+                        .setInstanceId(0)
+                        .build())
                 .build();
 
         ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
@@ -209,13 +243,27 @@ public class FunctionAssignmentTailerTest {
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
         MessageMetadata metadata = new MessageMetadata();
-        Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
-        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
+        Message message1 = spy(new MessageImpl(
+                "foo",
+                messageId1.toString(),
+                new HashMap<>(),
+                Unpooled.copiedBuffer(assignment1.toByteArray()),
+                null,
+                metadata));
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()))
+                .when(message1)
+                .getKey();
 
-        Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
-        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
+        Message message2 = spy(new MessageImpl(
+                "foo",
+                messageId2.toString(),
+                new HashMap<>(),
+                Unpooled.copiedBuffer(assignment2.toByteArray()),
+                null,
+                metadata));
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance()))
+                .when(message2)
+                .getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
@@ -301,30 +349,40 @@ public class FunctionAssignmentTailerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-1"))
+                .build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant")
+                        .setNamespace("test-namespace")
+                        .setName("func-2"))
+                .build();
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                        .setFunctionMetaData(function1)
+                        .setInstanceId(0)
+                        .build())
                 .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                        .setFunctionMetaData(function2)
+                        .setInstanceId(0)
+                        .build())
                 .build();
 
         ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
@@ -333,13 +391,27 @@ public class FunctionAssignmentTailerTest {
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
         MessageMetadata metadata = new MessageMetadata();
-        Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
-        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
+        Message message1 = spy(new MessageImpl(
+                "foo",
+                messageId1.toString(),
+                new HashMap<>(),
+                Unpooled.copiedBuffer(assignment1.toByteArray()),
+                null,
+                metadata));
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()))
+                .when(message1)
+                .getKey();
 
-        Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
-        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
+        Message message2 = spy(new MessageImpl(
+                "foo",
+                messageId2.toString(),
+                new HashMap<>(),
+                Unpooled.copiedBuffer(assignment2.toByteArray()),
+                null,
+                metadata));
+        doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance()))
+                .when(message2)
+                .getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
 

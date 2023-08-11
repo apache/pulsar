@@ -28,8 +28,7 @@ import io.netty.channel.VoidChannelPromise;
  */
 public final class NettyChannelUtil {
 
-    private NettyChannelUtil() {
-    }
+    private NettyChannelUtil() {}
 
     /**
      * Write and flush the message to the channel.
@@ -59,5 +58,4 @@ public final class NettyChannelUtil {
     public static void writeAndFlushWithClosePromise(ChannelOutboundInvoker ctx, ByteBuf msg) {
         ctx.writeAndFlush(msg).addListener(ChannelFutureListener.CLOSE);
     }
-
 }

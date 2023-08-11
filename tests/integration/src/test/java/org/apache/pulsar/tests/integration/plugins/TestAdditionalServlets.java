@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.plugins;
 
-import org.apache.pulsar.tests.integration.containers.BrokerContainer;
-import org.apache.pulsar.tests.integration.containers.ProxyContainer;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -34,6 +29,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.containers.ProxyContainer;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class TestAdditionalServlets extends PulsarTestSuite {
 
@@ -65,7 +65,6 @@ public class TestAdditionalServlets extends PulsarTestSuite {
         testAddress(host, httpPort);
     }
 
-
     @Test
     public void testProxyAdditionalServlet() throws Exception {
         ProxyContainer proxy = getPulsarCluster().getProxy();
@@ -76,18 +75,24 @@ public class TestAdditionalServlets extends PulsarTestSuite {
         testAddress(host, httpPort);
     }
 
-
-
-    private void testAddress(String host, Integer httpPort) throws IOException, InterruptedException, URISyntaxException {
+    private void testAddress(String host, Integer httpPort)
+            throws IOException, InterruptedException, URISyntaxException {
         ExecutorService executor = null;
         try {
             executor = Executors.newSingleThreadExecutor();
-            HttpClient httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
-                    .executor(executor).build();
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.ALWAYS)
+                    .executor(executor)
+                    .build();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI("http://" + host + ":" + httpPort + "/" + NAME + "/")).GET().build();
-            String response = httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
-            Assert.assertEquals(IntStream.range(0, SEQUENCE_LENGTH).boxed().collect(Collectors.toSet()),
+                    .uri(new URI("http://" + host + ":" + httpPort + "/" + NAME + "/"))
+                    .GET()
+                    .build();
+            String response = httpClient
+                    .send(request, HttpResponse.BodyHandlers.ofString())
+                    .body();
+            Assert.assertEquals(
+                    IntStream.range(0, SEQUENCE_LENGTH).boxed().collect(Collectors.toSet()),
                     Arrays.stream(response.split(",")).map(Integer::parseInt).collect(Collectors.toSet()));
         } finally {
             if (executor != null) {

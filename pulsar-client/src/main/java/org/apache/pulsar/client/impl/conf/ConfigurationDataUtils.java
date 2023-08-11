@@ -44,9 +44,7 @@ public final class ConfigurationDataUtils {
 
     private ConfigurationDataUtils() {}
 
-    public static <T> T loadData(Map<String, Object> config,
-                                 T existingData,
-                                 Class<T> dataCls) {
+    public static <T> T loadData(Map<String, Object> config, T existingData, Class<T> dataCls) {
         try {
             String existingConfigJson = MAPPER.writeValueAsString(existingData);
             Map<String, Object> existingConfig = MAPPER.readValue(existingConfigJson, Map.class);
@@ -58,8 +56,5 @@ public final class ConfigurationDataUtils {
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config into existing configuration data", e);
         }
-
     }
-
 }
-

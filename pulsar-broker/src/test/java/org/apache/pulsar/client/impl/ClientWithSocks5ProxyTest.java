@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -36,13 +41,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.internal.thread.ThreadTimeoutException;
 
-import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
-
 @Test
 @Slf4j
 public class ClientWithSocks5ProxyTest extends BrokerTestBase {
@@ -59,7 +57,8 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
 
     @Override
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        clientBuilder.socks5ProxyAddress(new InetSocketAddress("localhost", 11080))
+        clientBuilder
+                .socks5ProxyAddress(new InetSocketAddress("localhost", 11080))
                 .socks5ProxyUsername("socks5")
                 .socks5ProxyPassword("pulsar");
     }
@@ -110,16 +109,15 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         startSocks5Server(true);
         // init consumer
         final String subscriptionName = "socks5-subscription";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
-        //init producer
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        // init producer
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         String msg = "abc";
         producer.send(msg.getBytes());
@@ -137,9 +135,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .socks5ProxyAddress(new InetSocketAddress("localhost", 11080));
         PulsarClient pulsarClient = replacePulsarClient(clientBuilder);
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         String msg = "abc";
         producer.send(msg.getBytes());
     }
@@ -148,12 +144,9 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
     public void testSetFromSystemProperty() throws PulsarClientException {
         startSocks5Server(false);
         System.setProperty("socks5Proxy.address", "http://localhost:11080");
-        ClientBuilder clientBuilder = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl());
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl());
         PulsarClient pulsarClient = replacePulsarClient(clientBuilder);
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         String msg = "abc";
         producer.send(msg.getBytes());
     }
@@ -162,17 +155,16 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
     public void testSetErrorProxyAddress() throws PulsarClientException {
         startSocks5Server(false);
         System.setProperty("socks5Proxy.address", "localhost:11080"); // with no scheme
-        ClientBuilder clientBuilder = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl());
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl());
         PulsarClient pulsarClient = replacePulsarClient(clientBuilder);
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         String msg = "abc";
         producer.send(msg.getBytes());
     }
 
-    @Test(timeOut = 5000, expectedExceptions = {ThreadTimeoutException.class})
+    @Test(
+            timeOut = 5000,
+            expectedExceptions = {ThreadTimeoutException.class})
     public void testWithErrorPassword() throws PulsarClientException {
         startSocks5Server(true);
         ClientBuilder clientBuilder = PulsarClient.builder()
@@ -181,8 +173,6 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
                 .socks5ProxyUsername("socks5")
                 .socks5ProxyPassword("error-password");
         PulsarClient pulsarClient = replacePulsarClient(clientBuilder);
-        pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
+        pulsarClient.newProducer().topic(topicName).create();
     }
 }

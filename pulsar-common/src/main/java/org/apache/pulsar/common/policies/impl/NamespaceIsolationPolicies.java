@@ -156,8 +156,12 @@ public class NamespaceIsolationPolicies {
         return BrokerAssignment.shared;
     }
 
-    public void assignBroker(NamespaceName nsname, BrokerStatus brkStatus, SortedSet<BrokerStatus> primaryCandidates,
-            SortedSet<BrokerStatus> secondaryCandidates, SortedSet<BrokerStatus> sharedCandidates) {
+    public void assignBroker(
+            NamespaceName nsname,
+            BrokerStatus brkStatus,
+            SortedSet<BrokerStatus> primaryCandidates,
+            SortedSet<BrokerStatus> secondaryCandidates,
+            SortedSet<BrokerStatus> sharedCandidates) {
         NamespaceIsolationPolicy nsPolicy = this.getPolicyByNamespace(nsname);
         BrokerAssignment brokerAssignment = this.getBrokerAssignment(nsPolicy, brkStatus.getBrokerAddress());
         if (brokerAssignment == BrokerAssignment.primary) {

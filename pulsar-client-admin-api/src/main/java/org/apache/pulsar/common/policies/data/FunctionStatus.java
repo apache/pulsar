@@ -70,11 +70,9 @@ public class FunctionStatus {
 
             public String workerId;
         }
-
     }
 
     public void addInstance(FunctionInstanceStatus functionInstanceStatus) {
         instances.add(functionInstanceStatus);
     }
-
 }

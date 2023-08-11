@@ -49,18 +49,20 @@ public class BundlesQuotas {
     }
 
     public CompletableFuture<Void> setDefaultResourceQuota(ResourceQuota quota) {
-        return resourceQuotaCache.readModifyUpdateOrCreate(DEFAULT_RESOURCE_QUOTA_PATH, __ -> quota)
+        return resourceQuotaCache
+                .readModifyUpdateOrCreate(DEFAULT_RESOURCE_QUOTA_PATH, __ -> quota)
                 .thenApply(__ -> null);
     }
 
     public CompletableFuture<ResourceQuota> getDefaultResourceQuota() {
-        return resourceQuotaCache.get(DEFAULT_RESOURCE_QUOTA_PATH)
+        return resourceQuotaCache
+                .get(DEFAULT_RESOURCE_QUOTA_PATH)
                 .thenApply(optResourceQuota -> optResourceQuota.orElse(INITIAL_QUOTA));
     }
 
     public CompletableFuture<Void> setResourceQuota(String bundle, ResourceQuota quota) {
-        return resourceQuotaCache.readModifyUpdateOrCreate(RESOURCE_QUOTA_ROOT + "/" + bundle,
-                __ -> quota)
+        return resourceQuotaCache
+                .readModifyUpdateOrCreate(RESOURCE_QUOTA_ROOT + "/" + bundle, __ -> quota)
                 .thenApply(__ -> null);
     }
 
@@ -73,18 +75,16 @@ public class BundlesQuotas {
     }
 
     public CompletableFuture<ResourceQuota> getResourceQuota(String bundle) {
-        return resourceQuotaCache.get(RESOURCE_QUOTA_ROOT + "/" + bundle)
-                .thenCompose(optResourceQuota -> {
-                    if (optResourceQuota.isPresent()) {
-                        return CompletableFuture.completedFuture(optResourceQuota.get());
-                    } else {
-                        return getDefaultResourceQuota();
-                    }
-                });
+        return resourceQuotaCache.get(RESOURCE_QUOTA_ROOT + "/" + bundle).thenCompose(optResourceQuota -> {
+            if (optResourceQuota.isPresent()) {
+                return CompletableFuture.completedFuture(optResourceQuota.get());
+            } else {
+                return getDefaultResourceQuota();
+            }
+        });
     }
 
     public CompletableFuture<Void> resetResourceQuota(NamespaceBundle bundle) {
         return resourceQuotaCache.delete(RESOURCE_QUOTA_ROOT + "/" + bundle.toString());
     }
-
 }

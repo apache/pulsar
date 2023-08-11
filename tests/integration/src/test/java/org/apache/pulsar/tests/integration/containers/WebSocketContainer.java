@@ -23,10 +23,14 @@ import org.apache.pulsar.tests.integration.utils.DockerUtils;
 public class WebSocketContainer extends PulsarContainer<WebSocketContainer> {
 
     public WebSocketContainer(String clusterName, String hostName) {
-        super(clusterName, hostName, hostName,
+        super(
+                clusterName,
+                hostName,
+                hostName,
                 "bin/run-websocket.sh",
                 -1,
-                BROKER_HTTP_PORT, "/admin/v2/proxy-stats/stats");
+                BROKER_HTTP_PORT,
+                "/admin/v2/proxy-stats/stats");
     }
 
     public String getWSUrl() {
@@ -35,7 +39,7 @@ public class WebSocketContainer extends PulsarContainer<WebSocketContainer> {
 
     @Override
     protected void afterStart() {
-        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/var/log/pulsar/pulsar-websocket.log");
+        DockerUtils.runCommandAsyncWithLogging(
+                this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/pulsar-websocket.log");
     }
 }

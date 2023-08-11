@@ -28,5 +28,4 @@ import javax.ws.rs.core.MediaType;
 @Api(value = "/functions", description = "Functions admin apis", tags = "functions", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Functions extends  org.apache.pulsar.broker.admin.v2.Functions{
-}
+public class Functions extends org.apache.pulsar.broker.admin.v2.Functions {}

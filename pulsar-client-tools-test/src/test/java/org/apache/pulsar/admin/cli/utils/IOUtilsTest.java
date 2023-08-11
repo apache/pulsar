@@ -28,7 +28,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -47,8 +46,7 @@ public class IOUtilsTest {
     }
 
     @BeforeClass
-    public void setUp() {
-    }
+    public void setUp() {}
 
     @Test
     public void test1() {

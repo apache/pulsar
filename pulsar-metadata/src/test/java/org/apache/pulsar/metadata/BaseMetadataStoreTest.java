@@ -74,25 +74,29 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         // The Zookeeper test server gets restarted by TestRetrySupport before the retry.
         // The new connection string won't be available to the test method unless a
         // Supplier<String> lambda is used for providing the value.
-        return new Object[][]{
-                {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
-                {"Memory", stringSupplier(() -> "memory:" + UUID.randomUUID())},
-                {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
-                {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
+        return new Object[][] {
+            {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
+            {"Memory", stringSupplier(() -> "memory:" + UUID.randomUUID())},
+            {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
+            {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
         };
     }
 
     @DataProvider(name = "distributedImpl")
     public Object[][] distributedImplementations() {
-        return new Object[][]{
-                {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
-                {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
+        return new Object[][] {
+            {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
+            {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
         };
     }
 
     private synchronized String getEtcdClusterConnectString() {
         if (etcdCluster == null) {
-            etcdCluster = EtcdClusterExtension.builder().withClusterName("test").withNodes(1).withSsl(false).build()
+            etcdCluster = EtcdClusterExtension.builder()
+                    .withClusterName("test")
+                    .withNodes(1)
+                    .withSsl(false)
+                    .build()
                     .cluster();
             etcdCluster.start();
         }
@@ -115,24 +119,28 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         assertTrue(clazz.isInstance(t), String.format("Exception %s is not of type %s", t.getClass(), clazz));
     }
 
-    public static void assertEqualsAndRetry(Supplier<Object> actual,
-                                            Object expected,
-                                            Object expectedAndRetry) throws Exception {
+    public static void assertEqualsAndRetry(Supplier<Object> actual, Object expected, Object expectedAndRetry)
+            throws Exception {
         assertEqualsAndRetry(actual, expected, expectedAndRetry, 5, 100);
     }
 
-    public static void assertEqualsAndRetry(Supplier<Object> actual,
-                                            Object expected,
-                                            Object expectedAndRetry,
-                                            int retryCount,
-                                            long intSleepTimeInMillis) throws Exception {
-        assertTrue(retryStrategically((__) -> {
-            if (actual.get().equals(expectedAndRetry)) {
-                return false;
-            }
-            assertEquals(actual.get(), expected);
-            return true;
-        }, retryCount, intSleepTimeInMillis));
+    public static void assertEqualsAndRetry(
+            Supplier<Object> actual,
+            Object expected,
+            Object expectedAndRetry,
+            int retryCount,
+            long intSleepTimeInMillis)
+            throws Exception {
+        assertTrue(retryStrategically(
+                (__) -> {
+                    if (actual.get().equals(expectedAndRetry)) {
+                        return false;
+                    }
+                    assertEquals(actual.get(), expected);
+                    return true;
+                },
+                retryCount,
+                intSleepTimeInMillis));
     }
 
     public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)

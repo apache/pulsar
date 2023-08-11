@@ -44,27 +44,16 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             help = "Time interval in milliseconds the sink will attempt to batch messages together before flush.")
     private long lingerTimeMs = 2147483647L;
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "The Kafka topic name that passed to kafka sink.")
+    @FieldDoc(required = true, defaultValue = "", help = "The Kafka topic name that passed to kafka sink.")
     private String topic;
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "A kafka-connector sink class to use.")
+    @FieldDoc(required = true, defaultValue = "", help = "A kafka-connector sink class to use.")
     private String kafkaConnectorSinkClass;
 
-    @FieldDoc(
-            defaultValue = "",
-            help = "Config properties to pass to the kafka connector.")
+    @FieldDoc(defaultValue = "", help = "Config properties to pass to the kafka connector.")
     private Map<String, String> kafkaConnectorConfigProperties;
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "Pulsar topic to store offsets at.")
+    @FieldDoc(required = true, defaultValue = "", help = "Pulsar topic to store offsets at.")
     private String offsetStorageTopic;
 
     @FieldDoc(

@@ -80,9 +80,7 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         }
     }
 
-
-    private static class DeleteRequestWithPulsarRecord
-            extends DeleteRequest
+    private static class DeleteRequestWithPulsarRecord extends DeleteRequest
             implements DocWriteRequestWithPulsarRecord {
         private Record pulsarRecord;
 
@@ -100,18 +98,18 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     private RestHighLevelClient client;
     private org.opensearch.action.bulk.BulkProcessor internalBulkProcessor;
 
-    public OpenSearchHighLevelRestClient(ElasticSearchConfig elasticSearchConfig,
-                                         BulkProcessor.Listener bulkProcessorListener) {
+    public OpenSearchHighLevelRestClient(
+            ElasticSearchConfig elasticSearchConfig, BulkProcessor.Listener bulkProcessorListener) {
         super(elasticSearchConfig, bulkProcessorListener);
         log.info("ElasticSearch URL {}", config.getElasticSearchUrl());
         final HttpHost[] httpHosts = getHttpHosts();
 
         RestClientBuilder builder = org.opensearch.client.RestClient.builder(httpHosts)
-                .setRequestConfigCallback(builder1 -> builder1
-                        .setContentCompressionEnabled(config.isCompressionEnabled())
-                        .setConnectionRequestTimeout(config.getConnectionRequestTimeoutInMs())
-                        .setConnectTimeout(config.getConnectTimeoutInMs())
-                        .setSocketTimeout(config.getSocketTimeoutInMs()))
+                .setRequestConfigCallback(
+                        builder1 -> builder1.setContentCompressionEnabled(config.isCompressionEnabled())
+                                .setConnectionRequestTimeout(config.getConnectionRequestTimeoutInMs())
+                                .setConnectTimeout(config.getConnectTimeoutInMs())
+                                .setSocketTimeout(config.getSocketTimeoutInMs()))
                 .setHttpClientConfigCallback(this.configCallback)
                 .setFailureListener(new org.opensearch.client.RestClient.FailureListener() {
                     @Override
@@ -122,71 +120,70 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         client = new RestHighLevelClient(builder);
 
         if (config.isBulkEnabled()) {
-            org.opensearch.action.bulk.BulkProcessor.Builder bulkBuilder = org.opensearch.action.bulk.BulkProcessor
-                    .builder(
-                            (bulkRequest, bulkResponseActionListener)
-                                    -> client.bulkAsync(bulkRequest,
-                                    RequestOptions.DEFAULT,
-                                    bulkResponseActionListener),
-                            new org.opensearch.action.bulk.BulkProcessor.Listener() {
+            org.opensearch.action.bulk.BulkProcessor.Builder bulkBuilder =
+                    org.opensearch.action.bulk.BulkProcessor.builder(
+                                    (bulkRequest, bulkResponseActionListener) -> client.bulkAsync(
+                                            bulkRequest, RequestOptions.DEFAULT, bulkResponseActionListener),
+                                    new org.opensearch.action.bulk.BulkProcessor.Listener() {
 
-                                private List<BulkProcessor.BulkOperationRequest>
-                                        convertBulkRequest(BulkRequest bulkRequest) {
-                                    return bulkRequest.requests().stream().map(docWriteRequest -> {
-                                        final Record pulsarRecord;
-                                        if (docWriteRequest instanceof DocWriteRequestWithPulsarRecord) {
-                                            DocWriteRequestWithPulsarRecord requestWithId =
-                                                    (DocWriteRequestWithPulsarRecord) docWriteRequest;
-                                            pulsarRecord = requestWithId.getPulsarRecord();
-                                        } else {
-                                            throw new UnsupportedOperationException("Unexpected bulk request of type: "
-                                                    + docWriteRequest.getClass());
+                                        private List<BulkProcessor.BulkOperationRequest> convertBulkRequest(
+                                                BulkRequest bulkRequest) {
+                                            return bulkRequest.requests().stream()
+                                                    .map(docWriteRequest -> {
+                                                        final Record pulsarRecord;
+                                                        if (docWriteRequest
+                                                                instanceof DocWriteRequestWithPulsarRecord) {
+                                                            DocWriteRequestWithPulsarRecord requestWithId =
+                                                                    (DocWriteRequestWithPulsarRecord) docWriteRequest;
+                                                            pulsarRecord = requestWithId.getPulsarRecord();
+                                                        } else {
+                                                            throw new UnsupportedOperationException(
+                                                                    "Unexpected bulk request of type: "
+                                                                            + docWriteRequest.getClass());
+                                                        }
+                                                        return BulkProcessor.BulkOperationRequest.builder()
+                                                                .pulsarRecord(pulsarRecord)
+                                                                .build();
+                                                    })
+                                                    .collect(Collectors.toList());
                                         }
-                                        return BulkProcessor.BulkOperationRequest.builder()
-                                                .pulsarRecord(pulsarRecord)
-                                                .build();
-                                    }).collect(Collectors.toList());
-                                }
 
+                                        private List<BulkProcessor.BulkOperationResult> convertBulkResponse(
+                                                BulkResponse bulkRequest) {
+                                            return Arrays.asList(bulkRequest.getItems()).stream()
+                                                    .map(itemResponse -> BulkProcessor.BulkOperationResult.builder()
+                                                            .error(itemResponse.getFailureMessage())
+                                                            .index(itemResponse.getIndex())
+                                                            .documentId(itemResponse.getId())
+                                                            .build())
+                                                    .collect(Collectors.toList());
+                                        }
 
-                                private List<BulkProcessor.BulkOperationResult>
-                                convertBulkResponse(BulkResponse bulkRequest) {
-                                    return Arrays.asList(bulkRequest.getItems())
-                                            .stream()
-                                            .map(itemResponse ->
-                                                    BulkProcessor.BulkOperationResult.builder()
-                                                        .error(itemResponse.getFailureMessage())
-                                                        .index(itemResponse.getIndex())
-                                                        .documentId(itemResponse.getId())
-                                                        .build())
-                                            .collect(Collectors.toList());
-                                }
-                                @Override
-                                public void beforeBulk(long l, BulkRequest bulkRequest) {
-                                }
+                                        @Override
+                                        public void beforeBulk(long l, BulkRequest bulkRequest) {}
 
-                                @Override
-                                public void afterBulk(long l, BulkRequest bulkRequest,
-                                                      BulkResponse bulkResponse) {
-                                    bulkProcessorListener.afterBulk(l, convertBulkRequest(bulkRequest),
-                                            convertBulkResponse(bulkResponse));
-                                }
+                                        @Override
+                                        public void afterBulk(
+                                                long l, BulkRequest bulkRequest, BulkResponse bulkResponse) {
+                                            bulkProcessorListener.afterBulk(
+                                                    l,
+                                                    convertBulkRequest(bulkRequest),
+                                                    convertBulkResponse(bulkResponse));
+                                        }
 
-                                @Override
-                                public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
-                                    bulkProcessorListener.afterBulk(l, convertBulkRequest(bulkRequest),
-                                            throwable);
-                                }
-                            }
-                    )
-                    .setBulkActions(config.getBulkActions())
-                    .setBulkSize(new ByteSizeValue(config.getBulkSizeInMb(), ByteSizeUnit.MB))
-                    .setConcurrentRequests(config.getBulkConcurrentRequests())
-                    .setBackoffPolicy(new RandomExponentialBackoffPolicy(
-                            new RandomExponentialRetry(elasticSearchConfig.getMaxRetryTimeInSec()),
-                            config.getRetryBackoffInMs(),
-                            config.getMaxRetries()
-                    ));
+                                        @Override
+                                        public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
+                                            bulkProcessorListener.afterBulk(
+                                                    l, convertBulkRequest(bulkRequest), throwable);
+                                        }
+                                    })
+                            .setBulkActions(config.getBulkActions())
+                            .setBulkSize(new ByteSizeValue(config.getBulkSizeInMb(), ByteSizeUnit.MB))
+                            .setConcurrentRequests(config.getBulkConcurrentRequests())
+                            .setBackoffPolicy(new RandomExponentialBackoffPolicy(
+                                    new RandomExponentialRetry(elasticSearchConfig.getMaxRetryTimeInSec()),
+                                    config.getRetryBackoffInMs(),
+                                    config.getMaxRetries()));
             if (config.getBulkFlushIntervalInMs() > 0) {
                 bulkBuilder.setFlushInterval(new TimeValue(config.getBulkFlushIntervalInMs(), TimeUnit.MILLISECONDS));
             }
@@ -194,8 +191,6 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         } else {
             this.internalBulkProcessor = null;
         }
-
-
     }
 
     @Override
@@ -219,7 +214,9 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
 
     @Override
     public boolean deleteIndex(String index) throws IOException {
-        return client.indices().delete(new DeleteIndexRequest(index), RequestOptions.DEFAULT).isAcknowledged();
+        return client.indices()
+                .delete(new DeleteIndexRequest(index), RequestOptions.DEFAULT)
+                .isAcknowledged();
     }
 
     @Override
@@ -284,11 +281,10 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
             queryBuilder = QueryBuilders.matchQuery(name, text);
         }
         return client.search(
-                new SearchRequest()
-                        .indices(indexName)
-                        .source(new SearchSourceBuilder().query(queryBuilder))  ,
+                new SearchRequest().indices(indexName).source(new SearchSourceBuilder().query(queryBuilder)),
                 RequestOptions.DEFAULT);
     }
+
     @Override
     public BulkProcessor getBulkProcessor() {
         return this;

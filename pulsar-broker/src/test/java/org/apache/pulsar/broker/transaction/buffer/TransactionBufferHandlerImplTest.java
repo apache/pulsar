@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
@@ -31,15 +26,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.testng.annotations.Test;
-
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 @Test(groups = "broker")
 public class TransactionBufferHandlerImplTest {
@@ -51,13 +50,17 @@ public class TransactionBufferHandlerImplTest {
         NamespaceService namespaceService = mock(NamespaceService.class);
         when(pulsarService.getNamespaceService()).thenReturn(namespaceService);
         when(pulsarService.getClient()).thenReturn(pulsarClient);
-        when(namespaceService.getBundleAsync(any())).thenReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class)));
+        when(namespaceService.getBundleAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class)));
         Optional<NamespaceEphemeralData> opData = Optional.empty();
         when(namespaceService.getOwnerAsync(any())).thenReturn(CompletableFuture.completedFuture(opData));
-        when(((PulsarClientImpl)pulsarClient).getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
+        when(((PulsarClientImpl) pulsarClient).getConnection(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
         TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarService, null, 1000, 3000));
         doNothing().when(handler).endTxn(any());
-        doReturn(CompletableFuture.completedFuture(mock(ClientCnx.class))).when(handler).getClientCnx(anyString());
+        doReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)))
+                .when(handler)
+                .getClientCnx(anyString());
         for (int i = 0; i < 500; i++) {
             handler.endTxnOnTopic("public/default/t", 1L, 1L, TxnAction.COMMIT, 1L);
         }

@@ -28,7 +28,6 @@ import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 
-
 public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
     private final WebTarget adminResourceGroups;
 
@@ -44,7 +43,7 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
 
     @Override
     public CompletableFuture<List<String>> getResourceGroupsAsync() {
-        return asyncGetRequest(this.adminResourceGroups, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(this.adminResourceGroups, new FutureCallback<List<String>>() {});
     }
 
     @Override
@@ -55,7 +54,7 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
     @Override
     public CompletableFuture<ResourceGroup> getResourceGroupAsync(String name) {
         WebTarget path = adminResourceGroups.path(name);
-        return asyncGetRequest(path, new FutureCallback<ResourceGroup>(){});
+        return asyncGetRequest(path, new FutureCallback<ResourceGroup>() {});
     }
 
     @Override

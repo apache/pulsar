@@ -48,9 +48,8 @@ public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
     }
 
     @SuppressWarnings("rawtypes")
-    protected <ServiceContainerT extends GenericContainer> void testSink(SinkTester<ServiceContainerT> sinkTester,
-                                                                         boolean builtinSink,
-                                                                         SourceTester<ServiceContainerT> sourceTester)
+    protected <ServiceContainerT extends GenericContainer> void testSink(
+            SinkTester<ServiceContainerT> sinkTester, boolean builtinSink, SourceTester<ServiceContainerT> sourceTester)
             throws Exception {
 
         ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);

@@ -40,9 +40,10 @@ public interface NamespaceUnloadStrategy {
      * @param recentlyUnloadedBrokers The recently unloaded brokers.
      * @return unloadDecision containing a list of the bundles that should be unloaded.
      */
-    Set<UnloadDecision> findBundlesForUnloading(LoadManagerContext context,
-                                                Map<String, Long> recentlyUnloadedBundles,
-                                                Map<String, Long> recentlyUnloadedBrokers);
+    Set<UnloadDecision> findBundlesForUnloading(
+            LoadManagerContext context,
+            Map<String, Long> recentlyUnloadedBundles,
+            Map<String, Long> recentlyUnloadedBrokers);
 
     /**
      * Initializes the internals.
@@ -50,5 +51,4 @@ public interface NamespaceUnloadStrategy {
      * @param pulsar The pulsar service instance.
      */
     void initialize(PulsarService pulsar);
-
 }

@@ -74,7 +74,6 @@ public class ValidatorImpls {
     /**
      * Validates if an object is not null.
      */
-
     public static class NotNullValidator extends Validator {
 
         @Override
@@ -121,8 +120,8 @@ public class ValidatorImpls {
         }
 
         public static void validateField(String name, Class<?> keyType, Class<?> valueType, Object o) {
-            ConfigValidationUtils.NestableFieldValidator validator = ConfigValidationUtils.mapFv(keyType,
-                    valueType, false);
+            ConfigValidationUtils.NestableFieldValidator validator =
+                    ConfigValidationUtils.mapFv(keyType, valueType, false);
             validator.validateField(name, o);
         }
 
@@ -158,9 +157,9 @@ public class ValidatorImpls {
                 ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
                 Class<?> objectClass = clsLoader.loadClass(className);
                 if (!this.classImplements.isAssignableFrom(objectClass)) {
-                    throw new IllegalArgumentException(
-                            String.format("Field '%s' with value '%s' does not implement %s ",
-                                    name, o, this.classImplements.getName()));
+                    throw new IllegalArgumentException(String.format(
+                            "Field '%s' with value '%s' does not implement %s ",
+                            name, o, this.classImplements.getName()));
                 }
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
@@ -176,8 +175,8 @@ public class ValidatorImpls {
         Class<?>[] classesImplements;
 
         public ImplementsClassesValidator(Map<String, Object> params) {
-            this.classesImplements = (Class<?>[]) params.get(
-                    ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASSES);
+            this.classesImplements =
+                    (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASSES);
         }
 
         @Override
@@ -201,9 +200,9 @@ public class ValidatorImpls {
                 }
             }
             if (count == 0) {
-                throw new IllegalArgumentException(
-                        String.format("Field '%s' with value '%s' does not implement any of these classes %s",
-                                name, o, Arrays.toString(classesImplements)));
+                throw new IllegalArgumentException(String.format(
+                        "Field '%s' with value '%s' does not implement any of these classes %s",
+                        name, o, Arrays.toString(classesImplements)));
             }
         }
     }
@@ -217,20 +216,20 @@ public class ValidatorImpls {
         private Class<?>[] valueValidators;
 
         public MapEntryCustomValidator(Map<String, Object> params) {
-            this.keyValidators = (Class<?>[]) params.get(
-                    ConfigValidationAnnotations.ValidatorParams.KEY_VALIDATOR_CLASSES);
-            this.valueValidators = (Class<?>[]) params.get(
-                    ConfigValidationAnnotations.ValidatorParams.VALUE_VALIDATOR_CLASSES);
+            this.keyValidators =
+                    (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.KEY_VALIDATOR_CLASSES);
+            this.valueValidators =
+                    (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.VALUE_VALIDATOR_CLASSES);
         }
 
         @SuppressWarnings("unchecked")
         public static void validateField(String name, Class<?>[] keyValidators, Class<?>[] valueValidators, Object o)
-                throws IllegalAccessException, InstantiationException,
-                NoSuchMethodException, InvocationTargetException {
+                throws IllegalAccessException, InstantiationException, NoSuchMethodException,
+                        InvocationTargetException {
             if (o == null) {
                 return;
             }
-            //check if Map
+            // check if Map
             SimpleTypeValidator.validateField(name, Map.class, o);
             for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) o).entrySet()) {
                 for (Class<?> kv : keyValidators) {
@@ -240,7 +239,7 @@ public class ValidatorImpls {
                     } else {
                         log.warn(
                                 "validator: {} cannot be used in MapEntryCustomValidator to validate keys. "
-                                + " Individual entry validators must be a instance of Validator class",
+                                        + " Individual entry validators must be a instance of Validator class",
                                 kv.getName());
                     }
                 }
@@ -251,7 +250,7 @@ public class ValidatorImpls {
                     } else {
                         log.warn(
                                 "validator: {} cannot be used in MapEntryCustomValidator to validate values. "
-                                + " Individual entry validators must a instance of Validator class",
+                                        + " Individual entry validators must a instance of Validator class",
                                 vv.getName());
                     }
                 }
@@ -262,8 +261,10 @@ public class ValidatorImpls {
         public void validateField(String name, Object o) {
             try {
                 validateField(name, this.keyValidators, this.valueValidators, o);
-            } catch (IllegalAccessException | InstantiationException
-                    | NoSuchMethodException | InvocationTargetException e) {
+            } catch (IllegalAccessException
+                    | InstantiationException
+                    | NoSuchMethodException
+                    | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -274,17 +275,14 @@ public class ValidatorImpls {
      */
     public static class StringValidator extends Validator {
 
-        public StringValidator() {
-
-        }
+        public StringValidator() {}
 
         private HashSet<String> acceptedValues = null;
 
         public StringValidator(Map<String, Object> params) {
 
-            this.acceptedValues =
-                    new HashSet<String>(Arrays.asList((String[]) params.get(
-                            ConfigValidationAnnotations.ValidatorParams.ACCEPTED_VALUES)));
+            this.acceptedValues = new HashSet<String>(
+                    Arrays.asList((String[]) params.get(ConfigValidationAnnotations.ValidatorParams.ACCEPTED_VALUES)));
 
             if (this.acceptedValues.isEmpty()
                     || (this.acceptedValues.size() == 1 && this.acceptedValues.contains(""))) {
@@ -297,9 +295,8 @@ public class ValidatorImpls {
             SimpleTypeValidator.validateField(name, String.class, o);
             if (this.acceptedValues != null) {
                 if (!this.acceptedValues.contains((String) o)) {
-                    throw new IllegalArgumentException(
-                            "Field " + name + " is not an accepted value. Value: " + o
-                                    + " Accepted values: " + this.acceptedValues);
+                    throw new IllegalArgumentException("Field " + name + " is not an accepted value. Value: " + o
+                            + " Accepted values: " + this.acceptedValues);
                 }
             }
         }
@@ -314,17 +311,17 @@ public class ValidatorImpls {
         private Class<?>[] entryValidators;
 
         public ListEntryCustomValidator(Map<String, Object> params) {
-            this.entryValidators = (Class<?>[]) params.get(
-                    ConfigValidationAnnotations.ValidatorParams.ENTRY_VALIDATOR_CLASSES);
+            this.entryValidators =
+                    (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.ENTRY_VALIDATOR_CLASSES);
         }
 
         public static void validateField(String name, Class<?>[] validators, Object o)
-                throws IllegalAccessException, InstantiationException,
-                NoSuchMethodException, InvocationTargetException {
+                throws IllegalAccessException, InstantiationException, NoSuchMethodException,
+                        InvocationTargetException {
             if (o == null) {
                 return;
             }
-            //check if iterable
+            // check if iterable
             SimpleTypeValidator.validateField(name, Iterable.class, o);
             for (Object entry : (Iterable<?>) o) {
                 for (Class<?> validator : validators) {
@@ -334,7 +331,7 @@ public class ValidatorImpls {
                     } else {
                         log.warn(
                                 "validator: {} cannot be used in ListEntryCustomValidator."
-                                + " Individual entry validators must a instance of Validator class",
+                                        + " Individual entry validators must a instance of Validator class",
                                 validator.getName());
                     }
                 }
@@ -345,8 +342,10 @@ public class ValidatorImpls {
         public void validateField(String name, Object o) {
             try {
                 validateField(name, this.entryValidators, o);
-            } catch (NoSuchMethodException | IllegalAccessException
-                    | InvocationTargetException | InstantiationException e) {
+            } catch (NoSuchMethodException
+                    | IllegalAccessException
+                    | InvocationTargetException
+                    | InstantiationException e) {
                 throw new RuntimeException(e);
             }
         }

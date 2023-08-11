@@ -41,8 +41,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
     PulsarLedgerAuditorManager(MetadataStoreExtended store, String ledgersRoot) {
         this.coordinationService = new CoordinationServiceImpl(store);
-        String electionPath = ledgersRoot + "/" + BookKeeperConstants.UNDER_REPLICATION_NODE
-                + "/" + ELECTION_PATH;
+        String electionPath = ledgersRoot + "/" + BookKeeperConstants.UNDER_REPLICATION_NODE + "/" + ELECTION_PATH;
 
         this.leaderElection =
                 coordinationService.getLeaderElection(String.class, electionPath, this::handleStateChanges);
@@ -85,10 +84,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
     @Override
     public BookieId getCurrentAuditor() {
-        return leaderElection.getLeaderValue()
-                .join()
-                .map(BookieId::parse)
-                .orElse(null);
+        return leaderElection.getLeaderValue().join().map(BookieId::parse).orElse(null);
     }
 
     @Override

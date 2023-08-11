@@ -37,29 +37,34 @@ public class NamespaceEventsSystemTopicFactory {
     }
 
     public TopicPoliciesSystemTopicClient createTopicPoliciesSystemTopicClient(NamespaceName namespaceName) {
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        TopicName topicName = TopicName.get(
+                TopicDomain.persistent.value(), namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         log.info("Create topic policies system topic client {}", topicName.toString());
         return new TopicPoliciesSystemTopicClient(client, topicName);
     }
 
     public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
-            TopicName systemTopicName, SystemTopicTxnBufferSnapshotService<T>
-            systemTopicTxnBufferSnapshotService, Class<T> schemaType) {
+            TopicName systemTopicName,
+            SystemTopicTxnBufferSnapshotService<T> systemTopicTxnBufferSnapshotService,
+            Class<T> schemaType) {
         log.info("Create transaction buffer snapshot client, topicName : {}", systemTopicName.toString());
-        return new TransactionBufferSnapshotBaseSystemTopicClient(client, systemTopicName,
-                systemTopicTxnBufferSnapshotService, schemaType);
+        return new TransactionBufferSnapshotBaseSystemTopicClient(
+                client, systemTopicName, systemTopicTxnBufferSnapshotService, schemaType);
     }
 
     public static TopicName getSystemTopicName(NamespaceName namespaceName, EventType eventType) {
         return switch (eventType) {
-            case TOPIC_POLICY -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                    SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
-            case TRANSACTION_BUFFER_SNAPSHOT -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-            case TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
+            case TOPIC_POLICY -> TopicName.get(
+                    TopicDomain.persistent.value(), namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+            case TRANSACTION_BUFFER_SNAPSHOT -> TopicName.get(
+                    TopicDomain.persistent.value(), namespaceName, SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+            case TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS -> TopicName.get(
+                    TopicDomain.persistent.value(),
+                    namespaceName,
                     SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-            case TRANSACTION_BUFFER_SNAPSHOT_INDEXES -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
+            case TRANSACTION_BUFFER_SNAPSHOT_INDEXES -> TopicName.get(
+                    TopicDomain.persistent.value(),
+                    namespaceName,
                     SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
         };
     }

@@ -88,8 +88,8 @@ public class CompressionCodecZLib implements CompressionCodec {
         int numBytes;
         do {
             int writerIndex = out.writerIndex();
-            numBytes = deflater.deflate(out.array(), out.arrayOffset() + writerIndex, out.writableBytes(),
-                    Deflater.SYNC_FLUSH);
+            numBytes = deflater.deflate(
+                    out.array(), out.arrayOffset() + writerIndex, out.writableBytes(), Deflater.SYNC_FLUSH);
             out.writerIndex(writerIndex + numBytes);
         } while (numBytes > 0);
     }

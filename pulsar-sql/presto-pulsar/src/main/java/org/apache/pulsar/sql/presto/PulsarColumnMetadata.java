@@ -35,10 +35,15 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
     private DecoderExtraInfo decoderExtraInfo;
 
-    public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
-                                boolean hidden, boolean isInternal,
-                                PulsarColumnHandle.HandleKeyValueType handleKeyValueType,
-                                DecoderExtraInfo decoderExtraInfo) {
+    public PulsarColumnMetadata(
+            String name,
+            Type type,
+            String comment,
+            String extraInfo,
+            boolean hidden,
+            boolean isInternal,
+            PulsarColumnHandle.HandleKeyValueType handleKeyValueType,
+            DecoderExtraInfo decoderExtraInfo) {
         super(name, type, comment, extraInfo, hidden);
         this.nameWithCase = name;
         this.isInternal = isInternal;
@@ -50,7 +55,6 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return decoderExtraInfo;
     }
 
-
     public String getNameWithCase() {
         return nameWithCase;
     }
@@ -58,7 +62,6 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     public boolean isInternal() {
         return isInternal;
     }
-
 
     public PulsarColumnHandle.HandleKeyValueType getHandleKeyValueType() {
         return handleKeyValueType;
@@ -82,11 +85,11 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     @Override
     public String toString() {
         return "PulsarColumnMetadata{"
-            + "isInternal=" + isInternal
-            + ", nameWithCase='" + nameWithCase + '\''
-            + ", handleKeyValueType=" + handleKeyValueType
-            + ", decoderExtraInfo=" + decoderExtraInfo.toString()
-            + '}';
+                + "isInternal=" + isInternal
+                + ", nameWithCase='" + nameWithCase + '\''
+                + ", handleKeyValueType=" + handleKeyValueType
+                + ", decoderExtraInfo=" + decoderExtraInfo.toString()
+                + '}';
     }
 
     @Override
@@ -125,7 +128,6 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return result;
     }
 
-
     /**
      * Decoder extra info for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle}
      * used by {@link io.trino.decoder.RowDecoder}.
@@ -140,11 +142,11 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
         public DecoderExtraInfo() {}
 
-        //equals ColumnName in general, may used as alias or embedded field in future.
+        // equals ColumnName in general, may used as alias or embedded field in future.
         private String mapping;
-        //reserved dataFormat used by RowDecoder.
+        // reserved dataFormat used by RowDecoder.
         private String dataFormat;
-        //reserved formatHint used by RowDecoder.
+        // reserved formatHint used by RowDecoder.
         private String formatHint;
 
         public String getMapping() {
@@ -171,7 +173,6 @@ public class PulsarColumnMetadata extends ColumnMetadata {
             this.formatHint = formatHint;
         }
 
-
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -196,7 +197,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         }
 
         @Override
-        public String  toString() {
+        public String toString() {
             return "DecoderExtraInfo{"
                     + "mapping=" + mapping
                     + ", dataFormat=" + dataFormat
@@ -212,8 +213,5 @@ public class PulsarColumnMetadata extends ColumnMetadata {
             result = 31 * result + (formatHint != null ? formatHint.hashCode() : 0);
             return result;
         }
-
     }
-
-
 }

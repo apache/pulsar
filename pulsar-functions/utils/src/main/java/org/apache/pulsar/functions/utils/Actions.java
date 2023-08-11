@@ -36,11 +36,15 @@ public class Actions {
     @Builder(toBuilder = true)
     public static class Action {
         private String actionName;
+
         @Builder.Default
         private int numRetries = 1;
+
         private Supplier<ActionResult> supplier;
+
         @Builder.Default
         private long sleepBetweenInvocationsMs = 500;
+
         private Boolean continueOn;
         private Consumer<ActionResult> onFail;
         private Consumer<ActionResult> onSuccess;
@@ -63,10 +67,7 @@ public class Actions {
         private Object result;
     }
 
-    private Actions() {
-
-    }
-
+    private Actions() {}
 
     public Actions addAction(Action action) {
         action.verifyAction();
@@ -118,14 +119,18 @@ public class Actions {
                 return true;
             } else {
                 if (actionResult.getErrorMsg() != null) {
-                    log.warn("Error completing action [ {} ] :- {} - [ATTEMPT] {}/{}",
+                    log.warn(
+                            "Error completing action [ {} ] :- {} - [ATTEMPT] {}/{}",
                             action.getActionName(),
                             actionResult.getErrorMsg(),
-                            i + 1, action.getNumRetries());
+                            i + 1,
+                            action.getNumRetries());
                 } else {
-                    log.warn("Error completing action [ {} ] [ATTEMPT] {}/{}",
+                    log.warn(
+                            "Error completing action [ {} ] [ATTEMPT] {}/{}",
                             action.getActionName(),
-                            i + 1, action.getNumRetries());
+                            i + 1,
+                            action.getNumRetries());
                 }
 
                 Thread.sleep(action.sleepBetweenInvocationsMs);

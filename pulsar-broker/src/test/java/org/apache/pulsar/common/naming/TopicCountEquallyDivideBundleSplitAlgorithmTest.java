@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -34,7 +33,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.testng.annotations.Test;
 
-
 public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
 
     @Test
@@ -49,8 +47,11 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(Lists.newArrayList("a")))
-                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
-        assertNull(algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join());
+                .when(mockNamespaceService)
+                .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+        assertNull(algorithm
+                .getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null))
+                .join());
     }
 
     @SuppressWarnings("UnstableApiUsage")
@@ -63,15 +64,17 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
         NamespaceService namespaceServiceForMockResult = mock(NamespaceService.class);
         NamespaceBundle namespaceBundleForMockResult = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(mockTopics))
-                .when(namespaceServiceForMockResult).getOwnedTopicListForNamespaceBundle(namespaceBundleForMockResult);
+                .when(namespaceServiceForMockResult)
+                .getOwnedTopicListForNamespaceBundle(namespaceBundleForMockResult);
         List<Long> hashList = new ArrayList<>();
         NamespaceBundleFactory namespaceBundleFactoryForMockResult = mock(NamespaceBundleFactory.class);
         mockTopics.forEach((topic) -> {
-            long hashValue = Hashing.crc32().hashString(topic, StandardCharsets.UTF_8).padToLong();
+            long hashValue =
+                    Hashing.crc32().hashString(topic, StandardCharsets.UTF_8).padToLong();
             doReturn(namespaceBundleFactoryForMockResult)
-                    .when(namespaceBundleForMockResult).getNamespaceBundleFactory();
-            doReturn(hashValue)
-                    .when(namespaceBundleFactoryForMockResult).getLongHashCode(topic);
+                    .when(namespaceBundleForMockResult)
+                    .getNamespaceBundleFactory();
+            doReturn(hashValue).when(namespaceBundleFactoryForMockResult).getLongHashCode(topic);
             hashList.add(hashValue);
         });
         Collections.sort(hashList);
@@ -82,16 +85,20 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(mockTopics))
-                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+                .when(mockNamespaceService)
+                .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
         NamespaceBundleFactory mockNamespaceBundleFactory = mock(NamespaceBundleFactory.class);
         mockTopics.forEach((topic) -> {
-            doReturn(mockNamespaceBundleFactory)
-                    .when(mockNamespaceBundle).getNamespaceBundleFactory();
-            long hashValue = Hashing.crc32().hashString(topic, StandardCharsets.UTF_8).padToLong();
-            doReturn(hashValue)
-                    .when(mockNamespaceBundleFactory).getLongHashCode(topic);
+            doReturn(mockNamespaceBundleFactory).when(mockNamespaceBundle).getNamespaceBundleFactory();
+            long hashValue =
+                    Hashing.crc32().hashString(topic, StandardCharsets.UTF_8).padToLong();
+            doReturn(hashValue).when(mockNamespaceBundleFactory).getLongHashCode(topic);
         });
-        assertEquals((long) algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join().get(0),
+        assertEquals(
+                (long) algorithm
+                        .getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null))
+                        .join()
+                        .get(0),
                 splitMiddleForMockResult);
     }
 }

@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.common.topics;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
-import org.testng.annotations.Test;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
+import org.testng.annotations.Test;
 
 public class TopicListTest {
 
@@ -67,18 +65,12 @@ public class TopicListTest {
         Set<String> addedNames = TopicList.minus(newNames, oldNames);
         Set<String> removedNames = TopicList.minus(oldNames, newNames);
 
-        assertTrue(addedNames.size() == 2 &&
-                addedNames.contains(topicName5) &&
-                addedNames.contains(topicName6));
-        assertTrue(removedNames.size() == 2 &&
-                removedNames.contains(topicName1) &&
-                removedNames.contains(topicName2));
+        assertTrue(addedNames.size() == 2 && addedNames.contains(topicName5) && addedNames.contains(topicName6));
+        assertTrue(removedNames.size() == 2 && removedNames.contains(topicName1) && removedNames.contains(topicName2));
 
         // totally 2 different list, should return content of first lists.
         Set<String> addedNames2 = TopicList.minus(addedNames, removedNames);
-        assertTrue(addedNames2.size() == 2 &&
-                addedNames2.contains(topicName5) &&
-                addedNames2.contains(topicName6));
+        assertTrue(addedNames2.size() == 2 && addedNames2.contains(topicName5) && addedNames2.contains(topicName6));
 
         // 2 same list, should return empty list.
         Set<String> addedNames3 = TopicList.minus(addedNames, addedNames);
@@ -104,8 +96,5 @@ public class TopicListTest {
 
         String hash3 = TopicList.calculateHash(Arrays.asList(topicName1, topicName2));
         assertNotEquals(hash1, hash3, "Different list must have different hashes");
-
     }
-
-
 }

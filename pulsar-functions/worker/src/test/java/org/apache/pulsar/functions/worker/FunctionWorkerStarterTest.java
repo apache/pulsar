@@ -37,7 +37,7 @@ public class FunctionWorkerStarterTest {
             Class argumentsClass =
                     Class.forName("org.apache.pulsar.functions.worker.FunctionWorkerStarter$WorkerArguments");
 
-            FunctionWorkerStarter.main(new String[]{"-g"});
+            FunctionWorkerStarter.main(new String[] {"-g"});
 
             String message = baoStream.toString();
 

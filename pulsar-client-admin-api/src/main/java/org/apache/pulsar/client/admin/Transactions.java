@@ -51,7 +51,6 @@ public interface Transactions {
      */
     CompletableFuture<List<TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync();
 
-
     /**
      * Get transaction metadataStore stats.
      *
@@ -108,8 +107,8 @@ public interface Transactions {
      * @param subName the subscription name of this transaction ack
      * @return the future stats of transaction in pending ack.
      */
-    CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStatsAsync(TxnID txnID, String topic,
-                                                                                         String subName);
+    CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStatsAsync(
+            TxnID txnID, String topic, String subName);
     /**
      * Get transaction in pending ack stats.
      *
@@ -118,8 +117,8 @@ public interface Transactions {
      * @param subName the subscription name of this transaction ack
      * @return the stats of transaction in pending ack.
      */
-    TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String topic,
-                                                                 String subName) throws PulsarAdminException;
+    TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String topic, String subName)
+            throws PulsarAdminException;
     /**
      * Get transaction metadata.
      *
@@ -144,8 +143,8 @@ public interface Transactions {
      * @param segmentStats Whether to get segment statistics.
      * @return the future stats of transaction buffer in topic.
      */
-    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic, boolean lowWaterMarks,
-                                                                             boolean segmentStats);
+    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(
+            String topic, boolean lowWaterMarks, boolean segmentStats);
 
     /**
      * Get transaction buffer stats.
@@ -154,8 +153,8 @@ public interface Transactions {
      * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
      * @return the future stats of transaction buffer in topic.
      */
-    default CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
-                                                                                     boolean lowWaterMarks) {
+    default CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(
+            String topic, boolean lowWaterMarks) {
         return getTransactionBufferStatsAsync(topic, lowWaterMarks, false);
     }
 
@@ -177,8 +176,8 @@ public interface Transactions {
      * @param segmentStats Whether to get segment statistics.
      * @return the stats of transaction buffer in topic.
      */
-    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks,
-                                                     boolean segmentStats) throws PulsarAdminException;
+    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks, boolean segmentStats)
+            throws PulsarAdminException;
 
     /**
      * Get transaction buffer stats.
@@ -187,8 +186,8 @@ public interface Transactions {
      * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
      * @return the stats of transaction buffer in topic.
      */
-    default TransactionBufferStats getTransactionBufferStats(String topic,
-                                                             boolean lowWaterMarks) throws PulsarAdminException {
+    default TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks)
+            throws PulsarAdminException {
         return getTransactionBufferStats(topic, lowWaterMarks, false);
     }
 
@@ -210,8 +209,8 @@ public interface Transactions {
      * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
      * @return the stats of transaction pending ack.
      */
-    CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName,
-                                                                          boolean lowWaterMarks);
+    CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(
+            String topic, String subName, boolean lowWaterMarks);
 
     /**
      * Get transaction pending ack stats.
@@ -254,9 +253,8 @@ public interface Transactions {
      * @param timeUnit the timeout timeUnit
      * @return the future metadata of slow transactions.
      */
-    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsByCoordinatorIdAsync(Integer coordinatorId,
-                                                                                                long timeout,
-                                                                                                TimeUnit timeUnit);
+    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsByCoordinatorIdAsync(
+            Integer coordinatorId, long timeout, TimeUnit timeUnit);
 
     /**
      * Get slow transactions by coordinator id.
@@ -266,9 +264,8 @@ public interface Transactions {
      * @param timeUnit the timeout timeUnit
      * @return the metadata of slow transactions.
      */
-    Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(Integer coordinatorId,
-                                                                        long timeout,
-                                                                        TimeUnit timeUnit) throws PulsarAdminException;
+    Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(
+            Integer coordinatorId, long timeout, TimeUnit timeUnit) throws PulsarAdminException;
 
     /**
      * Get slow transactions.
@@ -278,9 +275,7 @@ public interface Transactions {
      *
      * @return the future metadata of slow transactions.
      */
-    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsAsync(long timeout,
-                                                                                 TimeUnit timeUnit);
-
+    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsAsync(long timeout, TimeUnit timeUnit);
 
     /**
      * Get slow transactions.
@@ -300,8 +295,8 @@ public interface Transactions {
      *
      * @return the future internal stats of this coordinator
      */
-    CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId,
-                                                                                            boolean metadata);
+    CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(
+            int coordinatorId, boolean metadata);
 
     /**
      * Get transaction coordinator internal stats.
@@ -311,8 +306,8 @@ public interface Transactions {
      *
      * @return the internal stats of this coordinator
      */
-    TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
-                                                                    boolean metadata) throws PulsarAdminException;
+    TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId, boolean metadata)
+            throws PulsarAdminException;
 
     /**
      * Get pending ack internal stats.
@@ -323,8 +318,8 @@ public interface Transactions {
      *
      * @return the future internal stats of pending ack
      */
-    CompletableFuture<TransactionPendingAckInternalStats> getPendingAckInternalStatsAsync(String topic, String subName,
-                                                                                          boolean metadata);
+    CompletableFuture<TransactionPendingAckInternalStats> getPendingAckInternalStatsAsync(
+            String topic, String subName, boolean metadata);
 
     /**
      * Get pending ack internal stats.
@@ -335,8 +330,8 @@ public interface Transactions {
      *
      * @return the internal stats of pending ack
      */
-    TransactionPendingAckInternalStats getPendingAckInternalStats(String topic, String subName,
-                                                                  boolean metadata) throws PulsarAdminException;
+    TransactionPendingAckInternalStats getPendingAckInternalStats(String topic, String subName, boolean metadata)
+            throws PulsarAdminException;
 
     /**
      * Get transaction buffer internal stats asynchronously.
@@ -346,8 +341,8 @@ public interface Transactions {
      *
      * @return the future internal stats of transaction buffer
      */
-    CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(String topic,
-                                                                                             boolean metadata);
+    CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(
+            String topic, boolean metadata);
 
     /**
      * Get transaction buffer internal stats.
@@ -357,8 +352,8 @@ public interface Transactions {
      *
      * @return the internal stats of transaction buffer
      */
-    TransactionBufferInternalStats getTransactionBufferInternalStats(String topic,
-                                                                     boolean metadata) throws PulsarAdminException;
+    TransactionBufferInternalStats getTransactionBufferInternalStats(String topic, boolean metadata)
+            throws PulsarAdminException;
 
     /**
      * Sets the scale of the transaction coordinators.
@@ -384,8 +379,8 @@ public interface Transactions {
      * @param batchIndex the batch index of the message position, `null` means not batch message.
      * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
-    PositionInPendingAckStats getPositionStatsInPendingAck(String topic, String subName, Long ledgerId, Long entryId,
-                                                           Integer batchIndex) throws PulsarAdminException;
+    PositionInPendingAckStats getPositionStatsInPendingAck(
+            String topic, String subName, Long ledgerId, Long entryId, Integer batchIndex) throws PulsarAdminException;
 
     /**
      * Get the position stats in transaction pending ack.
@@ -397,7 +392,6 @@ public interface Transactions {
      * @param batchIndex the batch index of the message position, `null` means not batch message.
      * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
-    CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic, String subName,
-                                                                                   Long ledgerId, Long entryId,
-                                                                                   Integer batchIndex);
+    CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(
+            String topic, String subName, Long ledgerId, Long entryId, Integer batchIndex);
 }

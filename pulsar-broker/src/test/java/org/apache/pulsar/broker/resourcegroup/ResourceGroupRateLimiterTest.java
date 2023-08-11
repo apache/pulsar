@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
@@ -34,15 +36,11 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
     final String rgName = "testRG";
     org.apache.pulsar.common.policies.data.ResourceGroup testAddRg =
-    new org.apache.pulsar.common.policies.data.ResourceGroup();
+            new org.apache.pulsar.common.policies.data.ResourceGroup();
     final String namespaceName = "prop/ns-abc";
     final String persistentTopicString = "persistent://prop/ns-abc/test-topic";
     final int MESSAGE_SIZE = 10;
@@ -53,7 +51,6 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         prepareData();
-
     }
 
     @AfterClass(alwaysRun = true)
@@ -62,42 +59,44 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    public void createResourceGroup(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rg) throws PulsarAdminException {
+    public void createResourceGroup(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rg)
+            throws PulsarAdminException {
         admin.resourcegroups().createResourceGroup(rgName, rg);
 
         Awaitility.await().untilAsserted(() -> {
-            final org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup = pulsar
-                .getResourceGroupServiceManager().resourceGroupGet(rgName);
+            final org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup =
+                    pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName);
             assertNotNull(resourceGroup);
             assertEquals(rgName, resourceGroup.resourceGroupName);
         });
-
     }
 
     public void deleteResourceGroup(String rgName) throws PulsarAdminException {
         admin.resourcegroups().deleteResourceGroup(rgName);
-        Awaitility.await().atMost(1, TimeUnit.SECONDS)
-            .untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
+        Awaitility.await()
+                .atMost(1, TimeUnit.SECONDS)
+                .untilAsserted(
+                        () -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
     }
 
-    private void testRateLimit() throws PulsarAdminException, PulsarClientException,
-      InterruptedException, ExecutionException, TimeoutException {
+    private void testRateLimit()
+            throws PulsarAdminException, PulsarClientException, InterruptedException, ExecutionException,
+                    TimeoutException {
         createResourceGroup(rgName, testAddRg);
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
 
-        Awaitility.await().untilAsserted(() ->
-          assertNotNull(pulsar.getResourceGroupServiceManager()
-            .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
+        Awaitility.await()
+                .untilAsserted(() -> assertNotNull(pulsar.getResourceGroupServiceManager()
+                        .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
 
-        Awaitility.await().untilAsserted(() ->
-          assertNotNull(pulsar.getResourceGroupServiceManager()
-            .resourceGroupGet(rgName).getResourceGroupPublishLimiter()));
+        Awaitility.await()
+                .untilAsserted(() -> assertNotNull(pulsar.getResourceGroupServiceManager()
+                        .resourceGroupGet(rgName)
+                        .getResourceGroupPublishLimiter()));
 
         Producer<byte[]> producer = null;
         try {
-            producer = pulsarClient.newProducer()
-              .topic(persistentTopicString)
-              .create();
+            producer = pulsarClient.newProducer().topic(persistentTopicString).create();
         } catch (PulsarClientException p) {
             final String errMesg = String.format("Got exception while building producer: ex=%s", p.getMessage());
             Assert.fail(errMesg);
@@ -115,7 +114,8 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         // Second message should fail with timeout.
         Producer<byte[]> finalProducer = producer;
         Assert.assertThrows(TimeoutException.class, () -> {
-            finalProducer.sendAsync(new byte[MESSAGE_SIZE]).get(500, TimeUnit.MILLISECONDS);});
+            finalProducer.sendAsync(new byte[MESSAGE_SIZE]).get(500, TimeUnit.MILLISECONDS);
+        });
 
         // In the next interval, the above message will be accepted. Wait for one more second (total 2s),
         // to publish the next message.

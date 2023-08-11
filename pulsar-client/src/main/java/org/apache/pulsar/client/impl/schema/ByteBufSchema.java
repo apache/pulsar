@@ -34,9 +34,10 @@ public class ByteBufSchema extends AbstractSchema<ByteBuf> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("ByteBuf")
-            .type(SchemaType.BYTES)
-            .schema(new byte[0]).build();
+                .name("ByteBuf")
+                .type(SchemaType.BYTES)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new ByteBufSchema();
     }
 

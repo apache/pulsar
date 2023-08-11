@@ -71,13 +71,15 @@ public class MessageIdTest extends BrokerTestBase {
             admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         }
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscribe();
@@ -98,7 +100,8 @@ public class MessageIdTest extends BrokerTestBase {
             try {
                 MessageIdImpl currentMessageId = (MessageIdImpl) f.get();
                 if (previousMessageId != null) {
-                    assertTrue(currentMessageId.compareTo(previousMessageId) > 0,
+                    assertTrue(
+                            currentMessageId.compareTo(previousMessageId) > 0,
                             "Message Ids should be in ascending order");
                 }
                 messageIds.add(currentMessageId);
@@ -138,12 +141,14 @@ public class MessageIdTest extends BrokerTestBase {
             admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         }
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .enableBatching(false)
                 .topic(topicName)
                 .create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscribe();

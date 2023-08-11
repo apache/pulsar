@@ -65,8 +65,10 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
+
     @SuppressWarnings("unused")
     private ManagedLedger ledgerMock;
+
     @SuppressWarnings("unused")
     private ManagedCursor cursorMock;
 
@@ -80,8 +82,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         ServiceConfiguration svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        @Cleanup
-        PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
+        @Cleanup PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
         @Cleanup(value = "shutdownGracefully")
@@ -118,7 +119,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @Test(enabled = false)
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic)
+                brokerService.getOrCreateTopic(successTopicName).get();
         topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
@@ -157,7 +159,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 // Thread.sleep(2,0);
-                log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                log.info(
+                        "unsubscriber outcome is {}",
+                        ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                 // assertFalse(ps.delete().isCompletedExceptionally());
             } catch (Exception e) {
                 e.printStackTrace();
@@ -177,7 +181,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @Test(enabled = false)
     public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic)
+                brokerService.getOrCreateTopic(successTopicName).get();
         topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
@@ -203,7 +208,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 log.info("{} forcing topic GC ", Thread.currentThread());
                 for (int i = 0; i < 2000; i++) {
                     topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
-                    topic.getInactiveTopicPolicies().setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                    topic.getInactiveTopicPolicies()
+                            .setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
                     topic.checkGC();
                 }
                 log.info("GC done..");
@@ -222,7 +228,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 // Thread.sleep(2,0);
-                log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                log.info(
+                        "unsubscriber outcome is {}",
+                        ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                 // assertFalse(ps.delete().isCompletedExceptionally());
             } catch (Exception e) {
                 e.printStackTrace();
@@ -242,7 +250,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @Test(enabled = false)
     public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic)
+                brokerService.getOrCreateTopic(successTopicName).get();
         topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
@@ -280,7 +289,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
                 ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
-                log.info("unsubscribe result : {}", topic.unsubscribe(successSubName).get());
+                log.info(
+                        "unsubscribe result : {}",
+                        topic.unsubscribe(successSubName).get());
                 log.info("closing consumer..");
                 ps.getConsumers().get(0).close();
             } catch (Exception e) {
@@ -301,7 +312,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @Test(enabled = false)
     public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic)
+                brokerService.getOrCreateTopic(successTopicName).get();
         topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
@@ -341,7 +353,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
                 ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
-                log.info("unsubscribe result : " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                log.info("unsubscribe result : "
+                        + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
             } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
@@ -358,13 +371,22 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     }
 
     private SubscriptionOption getSubscriptionOption(CommandSubscribe cmd) {
-        return SubscriptionOption.builder().cnx(serverCnx)
-                .subscriptionName(cmd.getSubscription()).consumerId(cmd.getConsumerId()).subType(cmd.getSubType())
-                .priorityLevel(0).consumerName(cmd.getConsumerName()).isDurable(cmd.isDurable()).startMessageId(null)
-                .metadata(Collections.emptyMap()).readCompacted(cmd.isReadCompacted())
+        return SubscriptionOption.builder()
+                .cnx(serverCnx)
+                .subscriptionName(cmd.getSubscription())
+                .consumerId(cmd.getConsumerId())
+                .subType(cmd.getSubType())
+                .priorityLevel(0)
+                .consumerName(cmd.getConsumerName())
+                .isDurable(cmd.isDurable())
+                .startMessageId(null)
+                .metadata(Collections.emptyMap())
+                .readCompacted(cmd.isReadCompacted())
                 .subscriptionProperties(java.util.Optional.empty())
                 .initialPosition(InitialPosition.Latest)
-                .startMessageRollbackDurationSec(0).replicatedSubscriptionStateArg(false).keySharedMeta(null)
+                .startMessageRollbackDurationSec(0)
+                .replicatedSubscriptionStateArg(false)
+                .keySharedMeta(null)
                 .build();
     }
 }

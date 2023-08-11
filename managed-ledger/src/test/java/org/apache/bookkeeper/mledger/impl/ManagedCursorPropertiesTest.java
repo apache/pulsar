@@ -160,7 +160,6 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
     void testPropertiesAtCreation() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_at_creation", new ManagedLedgerConfig());
 
-
         Map<String, Long> properties = new TreeMap<>();
         properties.put("a", 1L);
         properties.put("b", 2L);
@@ -276,14 +275,14 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         map.put("b", "2");
         map.put("c", "3");
 
-        futures.add(executeWithRetry(() -> c1.setCursorProperties(map),
-                ManagedLedgerException.BadVersionException.class, 3));
+        futures.add(executeWithRetry(
+                () -> c1.setCursorProperties(map), ManagedLedgerException.BadVersionException.class, 3));
 
-        futures.add(executeWithRetry(() -> c1.putCursorProperty("a", "2"),
-                ManagedLedgerException.BadVersionException.class, 3));
+        futures.add(executeWithRetry(
+                () -> c1.putCursorProperty("a", "2"), ManagedLedgerException.BadVersionException.class, 3));
 
-        futures.add(executeWithRetry(() -> c1.removeCursorProperty("c"),
-                ManagedLedgerException.BadVersionException.class, 3));
+        futures.add(executeWithRetry(
+                () -> c1.removeCursorProperty("c"), ManagedLedgerException.BadVersionException.class, 3));
 
         for (CompletableFuture<Void> future : futures) {
             future.get(10, TimeUnit.SECONDS);

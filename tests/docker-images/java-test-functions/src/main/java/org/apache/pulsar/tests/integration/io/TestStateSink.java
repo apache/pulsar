@@ -44,7 +44,5 @@ public class TestStateSink implements Sink<String> {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

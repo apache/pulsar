@@ -36,5 +36,4 @@ public class TransactionCoordinatorID {
     public static TransactionCoordinatorID get(long id) {
         return new TransactionCoordinatorID(id);
     }
-
 }

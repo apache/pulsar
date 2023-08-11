@@ -22,8 +22,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -60,11 +64,6 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 /**
  * Unit tests of {@link ConsumerBuilderImpl}.
  */
@@ -96,8 +95,7 @@ public class ConsumerBuilderImplTest {
     @Test
     public void testConsumerBuilderImpl() throws PulsarClientException {
         Consumer consumer = mock(Consumer.class);
-        when(consumerBuilderImpl.subscribeAsync())
-                .thenReturn(CompletableFuture.completedFuture(consumer));
+        when(consumerBuilderImpl.subscribeAsync()).thenReturn(CompletableFuture.completedFuture(consumer));
         assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
     }
 
@@ -157,44 +155,56 @@ public class ConsumerBuilderImplTest {
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenConsumerEventListenerIsNull() {
-        consumerBuilderImpl.topic(TOPIC_NAME)
+        consumerBuilderImpl
+                .topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .consumerEventListener(null);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenCryptoKeyReaderIsNull() {
-        consumerBuilderImpl.topic(TOPIC_NAME)
+        consumerBuilderImpl
+                .topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoKeyReader(null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullString() {
-        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+        consumerBuilderImpl
+                .topic(TOPIC_NAME)
+                .subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader((String) null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyString() {
-        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName").defaultCryptoKeyReader("");
+        consumerBuilderImpl
+                .topic(TOPIC_NAME)
+                .subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader("");
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullMap() {
-        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+        consumerBuilderImpl
+                .topic(TOPIC_NAME)
+                .subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader((Map<String, String>) null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyMap() {
-        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+        consumerBuilderImpl
+                .topic(TOPIC_NAME)
+                .subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader(new HashMap<String, String>());
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenCryptoFailureActionIsNull() {
-        consumerBuilderImpl.topic(TOPIC_NAME)
+        consumerBuilderImpl
+                .topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoFailureAction(null);
     }
@@ -357,8 +367,9 @@ public class ConsumerBuilderImplTest {
 
     @Test
     public void testConsumerMode() {
-        consumerBuilderImpl.subscriptionMode(SubscriptionMode.NonDurable)
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        consumerBuilderImpl
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
     }
 
     @Test
@@ -380,12 +391,16 @@ public class ConsumerBuilderImplTest {
         List<TopicConsumerConfigurationData> topicConsumerConfigurationDataList = new ArrayList<>();
         when(consumerBuilderImpl.getConf().getTopicConfigurations()).thenReturn(topicConsumerConfigurationDataList);
 
-        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl.topicConfiguration(Pattern.compile("foo")).priorityLevel(1).build();
+        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl
+                .topicConfiguration(Pattern.compile("foo"))
+                .priorityLevel(1)
+                .build();
 
         assertThat(consumerBuilder).isSameAs(consumerBuilderImpl);
         assertThat(topicConsumerConfigurationDataList).hasSize(1);
         TopicConsumerConfigurationData topicConsumerConfigurationData = topicConsumerConfigurationDataList.get(0);
-        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo")).isTrue();
+        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo"))
+                .isTrue();
         assertThat(topicConsumerConfigurationData.getPriorityLevel()).isEqualTo(1);
     }
 
@@ -394,67 +409,73 @@ public class ConsumerBuilderImplTest {
         ConsumerBuilderImpl<byte[]> consumerBuilder = createConsumerBuilder();
 
         String jsonConf = ("{\n"
-            + "    'topicNames' : [ 'new-topic' ],\n"
-            + "    'topicsPattern' : 'new-topics-pattern',\n"
-            + "    'subscriptionName' : 'new-subscription',\n"
-            + "    'subscriptionType' : 'Key_Shared',\n"
-            + "    'subscriptionProperties' : {\n"
-            + "      'new-sub-prop' : 'new-sub-prop-value'\n"
-            + "    },\n"
-            + "    'subscriptionMode' : 'NonDurable',\n"
-            + "    'receiverQueueSize' : 2,\n"
-            + "    'acknowledgementsGroupTimeMicros' : 2,\n"
-            + "    'maxAcknowledgmentGroupSize' : 2,\n"
-            + "    'negativeAckRedeliveryDelayMicros' : 2,\n"
-            + "    'maxTotalReceiverQueueSizeAcrossPartitions' : 2,\n"
-            + "    'consumerName' : 'new-consumer',\n"
-            + "    'ackTimeoutMillis' : 2,\n"
-            + "    'tickDurationMillis' : 2,\n"
-            + "    'priorityLevel' : 2,\n"
-            + "    'maxPendingChunkedMessage' : 2,\n"
-            + "    'autoAckOldestChunkedMessageOnQueueFull' : true,\n"
-            + "    'expireTimeOfIncompleteChunkedMessageMillis' : 2,\n"
-            + "    'cryptoFailureAction' : 'DISCARD',\n"
-            + "    'properties' : {\n"
-            + "      'new-prop' : 'new-prop-value'\n"
-            + "    },\n"
-            + "    'readCompacted' : true,\n"
-            + "    'subscriptionInitialPosition' : 'Earliest',\n"
-            + "    'patternAutoDiscoveryPeriod' : 2,\n"
-            + "    'regexSubscriptionMode' : 'AllTopics',\n"
-            + "    'deadLetterPolicy' : {\n"
-            + "      'retryLetterTopic' : 'new-retry',\n"
-            + "      'initialSubscriptionName' : 'new-dlq-sub',\n"
-            + "      'deadLetterTopic' : 'new-dlq',\n"
-            + "      'maxRedeliverCount' : 2\n"
-            + "    },\n"
-            + "    'retryEnable' : true,\n"
-            + "    'autoUpdatePartitions' : false,\n"
-            + "    'autoUpdatePartitionsIntervalSeconds' : 2,\n"
-            + "    'replicateSubscriptionState' : true,\n"
-            + "    'resetIncludeHead' : true,\n"
-            + "    'batchIndexAckEnabled' : true,\n"
-            + "    'ackReceiptEnabled' : true,\n"
-            + "    'poolMessages' : true,\n"
-            + "    'startPaused' : true,\n"
-            + "    'autoScaledReceiverQueueSizeEnabled' : true\n"
-            + "  }").replace("'", "\"");
+                        + "    'topicNames' : [ 'new-topic' ],\n"
+                        + "    'topicsPattern' : 'new-topics-pattern',\n"
+                        + "    'subscriptionName' : 'new-subscription',\n"
+                        + "    'subscriptionType' : 'Key_Shared',\n"
+                        + "    'subscriptionProperties' : {\n"
+                        + "      'new-sub-prop' : 'new-sub-prop-value'\n"
+                        + "    },\n"
+                        + "    'subscriptionMode' : 'NonDurable',\n"
+                        + "    'receiverQueueSize' : 2,\n"
+                        + "    'acknowledgementsGroupTimeMicros' : 2,\n"
+                        + "    'maxAcknowledgmentGroupSize' : 2,\n"
+                        + "    'negativeAckRedeliveryDelayMicros' : 2,\n"
+                        + "    'maxTotalReceiverQueueSizeAcrossPartitions' : 2,\n"
+                        + "    'consumerName' : 'new-consumer',\n"
+                        + "    'ackTimeoutMillis' : 2,\n"
+                        + "    'tickDurationMillis' : 2,\n"
+                        + "    'priorityLevel' : 2,\n"
+                        + "    'maxPendingChunkedMessage' : 2,\n"
+                        + "    'autoAckOldestChunkedMessageOnQueueFull' : true,\n"
+                        + "    'expireTimeOfIncompleteChunkedMessageMillis' : 2,\n"
+                        + "    'cryptoFailureAction' : 'DISCARD',\n"
+                        + "    'properties' : {\n"
+                        + "      'new-prop' : 'new-prop-value'\n"
+                        + "    },\n"
+                        + "    'readCompacted' : true,\n"
+                        + "    'subscriptionInitialPosition' : 'Earliest',\n"
+                        + "    'patternAutoDiscoveryPeriod' : 2,\n"
+                        + "    'regexSubscriptionMode' : 'AllTopics',\n"
+                        + "    'deadLetterPolicy' : {\n"
+                        + "      'retryLetterTopic' : 'new-retry',\n"
+                        + "      'initialSubscriptionName' : 'new-dlq-sub',\n"
+                        + "      'deadLetterTopic' : 'new-dlq',\n"
+                        + "      'maxRedeliverCount' : 2\n"
+                        + "    },\n"
+                        + "    'retryEnable' : true,\n"
+                        + "    'autoUpdatePartitions' : false,\n"
+                        + "    'autoUpdatePartitionsIntervalSeconds' : 2,\n"
+                        + "    'replicateSubscriptionState' : true,\n"
+                        + "    'resetIncludeHead' : true,\n"
+                        + "    'batchIndexAckEnabled' : true,\n"
+                        + "    'ackReceiptEnabled' : true,\n"
+                        + "    'poolMessages' : true,\n"
+                        + "    'startPaused' : true,\n"
+                        + "    'autoScaledReceiverQueueSizeEnabled' : true\n"
+                        + "  }")
+                .replace("'", "\"");
 
-        Map<String, Object> conf = new ObjectMapper().readValue(jsonConf, new TypeReference<HashMap<String,Object>>() {});
+        Map<String, Object> conf =
+                new ObjectMapper().readValue(jsonConf, new TypeReference<HashMap<String, Object>>() {});
 
         MessageListener<byte[]> messageListener = (consumer, message) -> {};
         conf.put("messageListener", messageListener);
         ConsumerEventListener consumerEventListener = mock(ConsumerEventListener.class);
         conf.put("consumerEventListener", consumerEventListener);
-        RedeliveryBackoff negativeAckRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();
+        RedeliveryBackoff negativeAckRedeliveryBackoff =
+                MultiplierRedeliveryBackoff.builder().build();
         conf.put("negativeAckRedeliveryBackoff", negativeAckRedeliveryBackoff);
-        RedeliveryBackoff ackTimeoutRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();;
+        RedeliveryBackoff ackTimeoutRedeliveryBackoff =
+                MultiplierRedeliveryBackoff.builder().build();
+        ;
         conf.put("ackTimeoutRedeliveryBackoff", ackTimeoutRedeliveryBackoff);
         CryptoKeyReader cryptoKeyReader = DefaultCryptoKeyReader.builder().build();
         conf.put("cryptoKeyReader", cryptoKeyReader);
         MessageCrypto messageCrypto = new MessageCryptoBc("ctx2", true);
         conf.put("messageCrypto", messageCrypto);
-        BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.builder().maxNumBytes(2).build();
+        BatchReceivePolicy batchReceivePolicy =
+                BatchReceivePolicy.builder().maxNumBytes(2).build();
         conf.put("batchReceivePolicy", batchReceivePolicy);
         KeySharedPolicy keySharedPolicy = KeySharedPolicy.stickyHashRange();
         conf.put("keySharedPolicy", keySharedPolicy);
@@ -468,8 +489,9 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getTopicsPattern().pattern(), "new-topics-pattern");
         assertEquals(configurationData.getSubscriptionName(), "new-subscription");
         assertEquals(configurationData.getSubscriptionType(), SubscriptionType.Key_Shared);
-        assertThat(configurationData.getSubscriptionProperties()).hasSize(1)
-            .hasFieldOrPropertyWithValue("new-sub-prop", "new-sub-prop-value");
+        assertThat(configurationData.getSubscriptionProperties())
+                .hasSize(1)
+                .hasFieldOrPropertyWithValue("new-sub-prop", "new-sub-prop-value");
         assertEquals(configurationData.getSubscriptionMode(), SubscriptionMode.NonDurable);
         assertEquals(configurationData.getReceiverQueueSize(), 2);
         assertEquals(configurationData.getAcknowledgementsGroupTimeMicros(), 2);
@@ -484,8 +506,9 @@ public class ConsumerBuilderImplTest {
         assertTrue(configurationData.isAutoAckOldestChunkedMessageOnQueueFull());
         assertEquals(configurationData.getExpireTimeOfIncompleteChunkedMessageMillis(), 2);
         assertEquals(configurationData.getCryptoFailureAction(), ConsumerCryptoFailureAction.DISCARD);
-        assertThat(configurationData.getProperties()).hasSize(1)
-            .hasFieldOrPropertyWithValue("new-prop", "new-prop-value");
+        assertThat(configurationData.getProperties())
+                .hasSize(1)
+                .hasFieldOrPropertyWithValue("new-prop", "new-prop-value");
         assertTrue(configurationData.isReadCompacted());
         assertEquals(configurationData.getSubscriptionInitialPosition(), SubscriptionInitialPosition.Earliest);
         assertEquals(configurationData.getPatternAutoDiscoveryPeriod(), 2);
@@ -528,8 +551,9 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getTopicsPattern().pattern(), "topics-pattern");
         assertEquals(configurationData.getSubscriptionName(), "subscription");
         assertEquals(configurationData.getSubscriptionType(), SubscriptionType.Exclusive);
-        assertThat(configurationData.getSubscriptionProperties()).hasSize(1)
-            .hasFieldOrPropertyWithValue("sub-prop", "sub-prop-value");
+        assertThat(configurationData.getSubscriptionProperties())
+                .hasSize(1)
+                .hasFieldOrPropertyWithValue("sub-prop", "sub-prop-value");
         assertEquals(configurationData.getSubscriptionMode(), SubscriptionMode.Durable);
         assertEquals(configurationData.getReceiverQueueSize(), 1000);
         assertEquals(configurationData.getAcknowledgementsGroupTimeMicros(), TimeUnit.MILLISECONDS.toMicros(100));
@@ -544,8 +568,7 @@ public class ConsumerBuilderImplTest {
         assertFalse(configurationData.isAutoAckOldestChunkedMessageOnQueueFull());
         assertEquals(configurationData.getExpireTimeOfIncompleteChunkedMessageMillis(), TimeUnit.MINUTES.toMillis(1));
         assertEquals(configurationData.getCryptoFailureAction(), ConsumerCryptoFailureAction.FAIL);
-        assertThat(configurationData.getProperties()).hasSize(1)
-            .hasFieldOrPropertyWithValue("prop", "prop-value");
+        assertThat(configurationData.getProperties()).hasSize(1).hasFieldOrPropertyWithValue("prop", "prop-value");
         assertFalse(configurationData.isReadCompacted());
         assertEquals(configurationData.getSubscriptionInitialPosition(), SubscriptionInitialPosition.Latest);
         assertEquals(configurationData.getPatternAutoDiscoveryPeriod(), 60);
@@ -584,22 +607,29 @@ public class ConsumerBuilderImplTest {
         Map<String, String> subscriptionProperties = new HashMap<>();
         subscriptionProperties.put("sub-prop", "sub-prop-value");
         consumerBuilder
-            .topic("topic")
-            .topicsPattern("topics-pattern")
-            .subscriptionName("subscription")
-            .subscriptionProperties(subscriptionProperties)
-            .messageListener((consumer, message) -> {})
-            .consumerEventListener(mock(ConsumerEventListener.class))
-            .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder().build())
-            .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder().build())
-            .consumerName("consumer")
-            .cryptoKeyReader(DefaultCryptoKeyReader.builder().build())
-            .messageCrypto(new MessageCryptoBc("ctx1", true))
-            .properties(properties)
-            .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("dlq").retryLetterTopic("retry").initialSubscriptionName("dlq-sub").maxRedeliverCount(1).build())
-            .batchReceivePolicy(BatchReceivePolicy.builder().maxNumBytes(1).build())
-            .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
-            .messagePayloadProcessor(mock(MessagePayloadProcessor.class));
+                .topic("topic")
+                .topicsPattern("topics-pattern")
+                .subscriptionName("subscription")
+                .subscriptionProperties(subscriptionProperties)
+                .messageListener((consumer, message) -> {})
+                .consumerEventListener(mock(ConsumerEventListener.class))
+                .negativeAckRedeliveryBackoff(
+                        MultiplierRedeliveryBackoff.builder().build())
+                .ackTimeoutRedeliveryBackoff(
+                        MultiplierRedeliveryBackoff.builder().build())
+                .consumerName("consumer")
+                .cryptoKeyReader(DefaultCryptoKeyReader.builder().build())
+                .messageCrypto(new MessageCryptoBc("ctx1", true))
+                .properties(properties)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .deadLetterTopic("dlq")
+                        .retryLetterTopic("retry")
+                        .initialSubscriptionName("dlq-sub")
+                        .maxRedeliverCount(1)
+                        .build())
+                .batchReceivePolicy(BatchReceivePolicy.builder().maxNumBytes(1).build())
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
+                .messagePayloadProcessor(mock(MessagePayloadProcessor.class));
         return consumerBuilder;
     }
 }

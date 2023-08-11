@@ -33,8 +33,7 @@ import org.slf4j.LoggerFactory;
 
 public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSupported {
 
-    private static final Logger log = LoggerFactory
-            .getLogger(SourceOfFlume.class);
+    private static final Logger log = LoggerFactory.getLogger(SourceOfFlume.class);
 
     public static final String BATCH_DURATION_MS = "batchDurationMillis";
 
@@ -73,8 +72,7 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
         try {
             final long maxBatchEndTime = System.currentTimeMillis() + maxBatchDurationMillis;
 
-            while (eventList.size() < this.getBatchSize()
-                    && System.currentTimeMillis() < maxBatchEndTime) {
+            while (eventList.size() < this.getBatchSize() && System.currentTimeMillis() < maxBatchEndTime) {
                 BlockingQueue<Object> blockingQueue = StringSink.getQueue();
                 while (blockingQueue != null && !blockingQueue.isEmpty()) {
                     Object message = blockingQueue.take();
@@ -102,5 +100,4 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
     public long getBatchSize() {
         return batchSize;
     }
-
 }

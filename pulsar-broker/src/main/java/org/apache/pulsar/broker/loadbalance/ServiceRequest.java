@@ -18,6 +18,4 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-public abstract class ServiceRequest {
-
-}
+public abstract class ServiceRequest {}

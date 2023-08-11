@@ -53,6 +53,7 @@ import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
     @Getter
     private final MetadataStore store;
+
     private final MetadataSerde<T> serde;
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
@@ -76,52 +77,46 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         if (cacheConfig.getExpireAfterWriteMillis() > 0) {
             cacheBuilder.expireAfterWrite(cacheConfig.getExpireAfterWriteMillis(), TimeUnit.MILLISECONDS);
         }
-        this.objCache = cacheBuilder
-                .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
-                    @Override
-                    public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
-                        return readValueFromStore(key);
-                    }
+        this.objCache = cacheBuilder.buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
+            @Override
+            public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
+                return readValueFromStore(key);
+            }
 
-                    @Override
-                    public CompletableFuture<Optional<CacheGetResult<T>>> asyncReload(
-                            String key,
-                            Optional<CacheGetResult<T>> oldValue,
-                            Executor executor) {
-                        if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
-                            return readValueFromStore(key);
-                        } else {
-                            // Do not try to refresh the cache item if we know that we're not connected to the
-                            // metadata store
-                            return CompletableFuture.completedFuture(oldValue);
-                        }
-                    }
-                });
+            @Override
+            public CompletableFuture<Optional<CacheGetResult<T>>> asyncReload(
+                    String key, Optional<CacheGetResult<T>> oldValue, Executor executor) {
+                if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
+                    return readValueFromStore(key);
+                } else {
+                    // Do not try to refresh the cache item if we know that we're not connected to the
+                    // metadata store
+                    return CompletableFuture.completedFuture(oldValue);
+                }
+            }
+        });
     }
 
     private CompletableFuture<Optional<CacheGetResult<T>>> readValueFromStore(String path) {
-        return store.get(path)
-                .thenCompose(optRes -> {
-                    if (!optRes.isPresent()) {
-                        return FutureUtils.value(Optional.empty());
-                    }
+        return store.get(path).thenCompose(optRes -> {
+            if (!optRes.isPresent()) {
+                return FutureUtils.value(Optional.empty());
+            }
 
-                    try {
-                        GetResult res = optRes.get();
-                        T obj = serde.deserialize(path, res.getValue(), res.getStat());
-                        return FutureUtils
-                                .value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
-                    } catch (Throwable t) {
-                        return FutureUtils.exception(new ContentDeserializationException(
-                                "Failed to deserialize payload for key '" + path + "'", t));
-                    }
-                });
+            try {
+                GetResult res = optRes.get();
+                T obj = serde.deserialize(path, res.getValue(), res.getStat());
+                return FutureUtils.value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
+            } catch (Throwable t) {
+                return FutureUtils.exception(
+                        new ContentDeserializationException("Failed to deserialize payload for key '" + path + "'", t));
+            }
+        });
     }
 
     @Override
     public CompletableFuture<Optional<T>> get(String path) {
-        return objCache.get(path)
-                .thenApply(optRes -> optRes.map(CacheGetResult::getValue));
+        return objCache.get(path).thenApply(optRes -> optRes.map(CacheGetResult::getValue));
     }
 
     @Override
@@ -141,8 +136,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction) {
-        return executeWithRetry(() -> objCache.get(path)
-                .thenCompose(optEntry -> {
+        return executeWithRetry(
+                () -> objCache.get(path).thenCompose(optEntry -> {
                     Optional<T> currentValue;
                     long expectedVersion;
 
@@ -171,16 +166,19 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
-                        refresh(path);
-                    }).thenApply(__ -> newValueObj);
-                }), path);
+                    return store.put(path, newValue, Optional.of(expectedVersion))
+                            .thenAccept(__ -> {
+                                refresh(path);
+                            })
+                            .thenApply(__ -> newValueObj);
+                }),
+                path);
     }
 
     @Override
     public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction) {
-        return executeWithRetry(() -> objCache.get(path)
-                .thenCompose(optEntry -> {
+        return executeWithRetry(
+                () -> objCache.get(path).thenCompose(optEntry -> {
                     if (!optEntry.isPresent()) {
                         return FutureUtils.exception(new NotFoundException(""));
                     }
@@ -200,10 +198,13 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
-                        refresh(path);
-                    }).thenApply(__ -> newValueObj);
-                }), path);
+                    return store.put(path, newValue, Optional.of(expectedVersion))
+                            .thenAccept(__ -> {
+                                refresh(path);
+                            })
+                            .thenApply(__ -> newValueObj);
+                }),
+                path);
     }
 
     @Override
@@ -230,7 +231,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                             future.completeExceptionally(ex.getCause());
                         }
                     });
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     if (ex.getCause() instanceof BadVersionException) {
                         // Use already exists exception to provide more self-explanatory error message
                         future.completeExceptionally(new AlreadyExistsException(ex.getCause()));
@@ -278,17 +280,17 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     public void accept(Notification t) {
         String path = t.getPath();
         switch (t.getType()) {
-        case Created:
-        case Modified:
-            refresh(path);
-            break;
+            case Created:
+            case Modified:
+                refresh(path);
+                break;
 
-        case Deleted:
-            objCache.synchronous().invalidate(path);
-            break;
+            case Deleted:
+                objCache.synchronous().invalidate(path);
+                break;
 
-        default:
-            break;
+            default:
+                break;
         }
     }
 

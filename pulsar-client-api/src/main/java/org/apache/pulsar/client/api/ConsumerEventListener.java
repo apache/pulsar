@@ -48,5 +48,4 @@ public interface ConsumerEventListener extends Serializable {
      *            the id of the partition that became inactive
      */
     void becameInactive(Consumer<?> consumer, int partitionId);
-
 }

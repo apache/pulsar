@@ -75,11 +75,8 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
     }
 
     @DataProvider(name = "batchEnabled")
-    public Object[][] batchEnabled(){
-        return new Object[][]{
-                {true},
-                {false}
-        };
+    public Object[][] batchEnabled() {
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(timeOut = 30000, dataProvider = "batchEnabled")
@@ -100,22 +97,27 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
         List<MessageIdImpl>[] sendMessages =
                 sendManyMessages(topicName, ledgerCount, messageCountPerLedger, messageCountPerEntry);
         int sendMessageCount = Arrays.asList(sendMessages).stream()
-                .flatMap(s -> s.stream()).collect(Collectors.toList()).size();
+                .flatMap(s -> s.stream())
+                .collect(Collectors.toList())
+                .size();
         log.info("send {} messages", sendMessageCount);
 
         log.info("make individual ack.");
         ConsumerAndReceivedMessages consumerAndReceivedMessages1 =
-                waitConsumeAndAllMessages(topicName, subName, enabledBatch,false);
+                waitConsumeAndAllMessages(topicName, subName, enabledBatch, false);
         List<MessageIdImpl>[] messageIds = consumerAndReceivedMessages1.messageIds;
         Consumer consumer = consumerAndReceivedMessages1.consumer;
         MessageIdImpl individualPosition = messageIds[1].get(messageCountPerEntry - 1);
-        MessageIdImpl expectedMarkDeletedPosition =
-                new MessageIdImpl(messageIds[0].get(0).getLedgerId(), messageIds[0].get(0).getEntryId(), -1);
-        MessageIdImpl lastPosition =
-                new MessageIdImpl(messageIds[2].get(4).getLedgerId(), messageIds[2].get(4).getEntryId(), -1);
+        MessageIdImpl expectedMarkDeletedPosition = new MessageIdImpl(
+                messageIds[0].get(0).getLedgerId(), messageIds[0].get(0).getEntryId(), -1);
+        MessageIdImpl lastPosition = new MessageIdImpl(
+                messageIds[2].get(4).getLedgerId(), messageIds[2].get(4).getEntryId(), -1);
         consumer.acknowledge(individualPosition);
         consumer.acknowledge(expectedMarkDeletedPosition);
-        waitPersistentCursorLedger(topicName, subName, expectedMarkDeletedPosition.getLedgerId(),
+        waitPersistentCursorLedger(
+                topicName,
+                subName,
+                expectedMarkDeletedPosition.getLedgerId(),
                 expectedMarkDeletedPosition.getEntryId());
         consumer.close();
 
@@ -137,68 +139,76 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
     }
 
     private ManagedCursorImpl getCursor(String topicName, String subName) throws Exception {
-        PersistentSubscription subscription_ =
-                (PersistentSubscription) pulsar.getBrokerService().getTopic(topicName, false)
-                        .get().get().getSubscription(subName);
-        return  (ManagedCursorImpl) subscription_.getCursor();
+        PersistentSubscription subscription_ = (PersistentSubscription)
+                pulsar.getBrokerService().getTopic(topicName, false).get().get().getSubscription(subName);
+        return (ManagedCursorImpl) subscription_.getCursor();
     }
 
-    private void waitMarkDeleteLargeAndEquals(String topicName, String subName, final long markDeletedLedgerId,
-                                            final long markDeletedEntryId) throws Exception {
+    private void waitMarkDeleteLargeAndEquals(
+            String topicName, String subName, final long markDeletedLedgerId, final long markDeletedEntryId)
+            throws Exception {
         Awaitility.await().atMost(Duration.ofSeconds(45)).untilAsserted(() -> {
-            Position persistentMarkDeletedPosition = getCursor(topicName, subName).getMarkDeletedPosition();
-            log.info("markDeletedPosition {}:{}, expected {}:{}", persistentMarkDeletedPosition.getLedgerId(),
-                    persistentMarkDeletedPosition.getEntryId(), markDeletedLedgerId, markDeletedEntryId);
+            Position persistentMarkDeletedPosition =
+                    getCursor(topicName, subName).getMarkDeletedPosition();
+            log.info(
+                    "markDeletedPosition {}:{}, expected {}:{}",
+                    persistentMarkDeletedPosition.getLedgerId(),
+                    persistentMarkDeletedPosition.getEntryId(),
+                    markDeletedLedgerId,
+                    markDeletedEntryId);
             Assert.assertTrue(persistentMarkDeletedPosition.getLedgerId() >= markDeletedLedgerId);
-            if (persistentMarkDeletedPosition.getLedgerId() > markDeletedLedgerId){
+            if (persistentMarkDeletedPosition.getLedgerId() > markDeletedLedgerId) {
                 return;
             }
             Assert.assertTrue(persistentMarkDeletedPosition.getEntryId() >= markDeletedEntryId);
         });
     }
 
-    private void waitPersistentCursorLedger(String topicName, String subName, final long markDeletedLedgerId,
-                                            final long markDeletedEntryId) throws Exception {
+    private void waitPersistentCursorLedger(
+            String topicName, String subName, final long markDeletedLedgerId, final long markDeletedEntryId)
+            throws Exception {
         Awaitility.await().untilAsserted(() -> {
-            Position persistentMarkDeletedPosition = getCursor(topicName, subName).getPersistentMarkDeletedPosition();
+            Position persistentMarkDeletedPosition =
+                    getCursor(topicName, subName).getPersistentMarkDeletedPosition();
             Assert.assertEquals(persistentMarkDeletedPosition.getLedgerId(), markDeletedLedgerId);
             Assert.assertEquals(persistentMarkDeletedPosition.getEntryId(), markDeletedEntryId);
         });
     }
 
-    private List<MessageIdImpl>[] sendManyMessages(String topicName, int ledgerCount, int messageCountPerLedger,
-                                                   int messageCountPerEntry) throws Exception {
+    private List<MessageIdImpl>[] sendManyMessages(
+            String topicName, int ledgerCount, int messageCountPerLedger, int messageCountPerEntry) throws Exception {
         List<MessageIdImpl>[] messageIds = new List[ledgerCount];
-        for (int i = 0; i < ledgerCount; i++){
+        for (int i = 0; i < ledgerCount; i++) {
             admin.topics().unload(topicName);
             if (messageCountPerEntry == 1) {
                 messageIds[i] = sendManyMessages(topicName, messageCountPerLedger);
             } else {
-                messageIds[i] = sendManyBatchedMessages(topicName, messageCountPerEntry,
-                        messageCountPerLedger / messageCountPerEntry);
+                messageIds[i] = sendManyBatchedMessages(
+                        topicName, messageCountPerEntry, messageCountPerLedger / messageCountPerEntry);
             }
         }
         return messageIds;
     }
 
-    private List<MessageIdImpl> sendManyMessages(String topicName, int messageCountPerLedger,
-                                                   int messageCountPerEntry) throws Exception {
+    private List<MessageIdImpl> sendManyMessages(String topicName, int messageCountPerLedger, int messageCountPerEntry)
+            throws Exception {
         if (messageCountPerEntry == 1) {
             return sendManyMessages(topicName, messageCountPerLedger);
         } else {
-            return sendManyBatchedMessages(topicName, messageCountPerEntry,
-                    messageCountPerLedger / messageCountPerEntry);
+            return sendManyBatchedMessages(
+                    topicName, messageCountPerEntry, messageCountPerLedger / messageCountPerEntry);
         }
     }
 
     private List<MessageIdImpl> sendManyMessages(String topicName, int msgCount) throws Exception {
         List<MessageIdImpl> messageIdList = new ArrayList<>();
-        final Producer<String> producer = pulsarClient.newProducer(Schema.JSON(String.class))
+        final Producer<String> producer = pulsarClient
+                .newProducer(Schema.JSON(String.class))
                 .topic(topicName)
                 .enableBatching(false)
                 .create();
         long timestamp = System.currentTimeMillis();
-        for (int i = 0; i < msgCount; i++){
+        for (int i = 0; i < msgCount; i++) {
             String messageSuffix = String.format("%s-%s", timestamp, i);
             MessageIdImpl messageIdSent = (MessageIdImpl) producer.newMessage()
                     .key(String.format("Key-%s", messageSuffix))
@@ -212,34 +222,35 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
 
     private List<MessageIdImpl> sendManyBatchedMessages(String topicName, int msgCountPerEntry, int entryCount)
             throws Exception {
-        Producer<String> producer = pulsarClient.newProducer(Schema.JSON(String.class))
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.JSON(String.class))
                 .topic(topicName)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.SECONDS)
                 .batchingMaxMessages(Integer.MAX_VALUE)
                 .create();
         List<CompletableFuture<MessageId>> messageIdFutures = new ArrayList<>();
-        for (int i = 0; i < entryCount; i++){
-            for (int j = 0; j < msgCountPerEntry; j++){
-                CompletableFuture<MessageId> messageIdFuture =
-                        producer.newMessage().value(String.format("entry-seq[%s], batch_index[%s]", i, j)).sendAsync();
+        for (int i = 0; i < entryCount; i++) {
+            for (int j = 0; j < msgCountPerEntry; j++) {
+                CompletableFuture<MessageId> messageIdFuture = producer.newMessage()
+                        .value(String.format("entry-seq[%s], batch_index[%s]", i, j))
+                        .sendAsync();
                 messageIdFutures.add(messageIdFuture);
             }
             producer.flush();
         }
         producer.close();
         FutureUtil.waitForAll(messageIdFutures).get();
-        return messageIdFutures.stream().map(f -> (MessageIdImpl)f.join()).collect(Collectors.toList());
+        return messageIdFutures.stream().map(f -> (MessageIdImpl) f.join()).collect(Collectors.toList());
     }
 
-    private ConsumerAndReceivedMessages waitConsumeAndAllMessages(String topicName, String subName,
-                                                            final boolean enabledBatch,
-                                                            boolean ack) throws Exception {
+    private ConsumerAndReceivedMessages waitConsumeAndAllMessages(
+            String topicName, String subName, final boolean enabledBatch, boolean ack) throws Exception {
         List<MessageIdImpl> messageIds = new ArrayList<>();
         final Consumer consumer = createConsumer(topicName, subName, enabledBatch);
-        while (true){
+        while (true) {
             Message message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message != null){
+            if (message != null) {
                 messageIds.add((MessageIdImpl) message.getMessageId());
                 if (ack) {
                     consumer.acknowledge(message);
@@ -258,31 +269,36 @@ public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
         private List<MessageIdImpl>[] messageIds;
     }
 
-    private List<MessageIdImpl>[] sortMessageId(List<MessageIdImpl> messageIds, boolean enabledBatch){
+    private List<MessageIdImpl>[] sortMessageId(List<MessageIdImpl> messageIds, boolean enabledBatch) {
         Map<Long, List<MessageIdImpl>> map = messageIds.stream().collect(Collectors.groupingBy(v -> v.getLedgerId()));
         TreeMap<Long, List<MessageIdImpl>> sortedMap = new TreeMap<>(map);
         List<MessageIdImpl>[] res = new List[sortedMap.size()];
-        Iterator<Map.Entry<Long, List<MessageIdImpl>>> iterator = sortedMap.entrySet().iterator();
-        for (int i = 0; i < sortedMap.size(); i++){
+        Iterator<Map.Entry<Long, List<MessageIdImpl>>> iterator =
+                sortedMap.entrySet().iterator();
+        for (int i = 0; i < sortedMap.size(); i++) {
             res[i] = iterator.next().getValue();
         }
-        for (List<MessageIdImpl> list : res){
+        for (List<MessageIdImpl> list : res) {
             list.sort((m1, m2) -> {
-                if (enabledBatch){
+                if (enabledBatch) {
                     BatchMessageIdImpl mb1 = (BatchMessageIdImpl) m1;
                     BatchMessageIdImpl mb2 = (BatchMessageIdImpl) m2;
-                    return (int) (mb1.getLedgerId() * 1000000 + mb1.getEntryId() * 1000 + mb1.getBatchIndex() -
-                            mb2.getLedgerId() * 1000000 + mb2.getEntryId() * 1000 + mb2.getBatchIndex());
+                    return (int) (mb1.getLedgerId() * 1000000
+                            + mb1.getEntryId() * 1000
+                            + mb1.getBatchIndex()
+                            - mb2.getLedgerId() * 1000000
+                            + mb2.getEntryId() * 1000
+                            + mb2.getBatchIndex());
                 }
-                return (int) (m1.getLedgerId() * 1000 + m1.getEntryId() -
-                        m2.getLedgerId() * 1000 + m2.getEntryId());
+                return (int) (m1.getLedgerId() * 1000 + m1.getEntryId() - m2.getLedgerId() * 1000 + m2.getEntryId());
             });
         }
         return res;
     }
 
     private Consumer<String> createConsumer(String topicName, String subName, boolean enabledBatch) throws Exception {
-        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.JSON(String.class))
+        final Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.JSON(String.class))
                 .autoScaledReceiverQueueSizeEnabled(false)
                 .subscriptionType(SubscriptionType.Failover)
                 .isAckReceiptEnabled(true)

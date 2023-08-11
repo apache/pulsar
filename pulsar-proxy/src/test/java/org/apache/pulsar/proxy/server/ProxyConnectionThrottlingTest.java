@@ -59,8 +59,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyConfig.setMaxConcurrentInboundConnectionsPerIp(NUM_CONCURRENT_INBOUND_CONNECTION);
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -83,7 +83,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/producer-topic-1").create();
+                .topic("persistent://sample/test/local/producer-topic-1")
+                .create();
 
         log.info("Creating producer 2");
         PulsarClient client2 = PulsarClient.builder()
@@ -92,7 +93,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/producer-topic-1").create();
+                .topic("persistent://sample/test/local/producer-topic-1")
+                .create();
 
         log.info("Creating producer 3");
         @Cleanup
@@ -102,42 +104,59 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
         try {
             Producer<byte[]> producer3 = client3.newProducer(Schema.BYTES)
-                    .topic("persistent://sample/test/local/producer-topic-1").create();
+                    .topic("persistent://sample/test/local/producer-topic-1")
+                    .create();
             producer3.send("Message 1".getBytes());
-            Assert.fail("Should have failed since max num of connections is 2 and the first" +
-                    " producer used them all up - one for discovery and other for producing.");
+            Assert.fail("Should have failed since max num of connections is 2 and the first"
+                    + " producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
-        Awaitility.await().untilAsserted(() ->{
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 4);
         });
-        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
-        Set<String> keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
+        Assert.assertEquals(
+                ConnectionController.DefaultConnectionController.getConnections()
+                        .size(),
+                1);
+        Set<String> keys = ConnectionController.DefaultConnectionController.getConnections()
+                .keySet();
         for (String key : keys) {
-            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
-                    .getConnections().get(key).toInteger(), 4);
+            Assert.assertEquals(
+                    (int) ConnectionController.DefaultConnectionController.getConnections()
+                            .get(key)
+                            .toInteger(),
+                    4);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 4.0d);
 
         client1.close();
 
-        Awaitility.await().untilAsserted(() ->{
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
         });
-        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
+        Assert.assertEquals(
+                ConnectionController.DefaultConnectionController.getConnections()
+                        .size(),
+                1);
         keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
-            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
-                    .getConnections().get(key).toInteger(), 2);
+            Assert.assertEquals(
+                    (int) ConnectionController.DefaultConnectionController.getConnections()
+                            .get(key)
+                            .toInteger(),
+                    2);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
 
         client2.close();
-        Awaitility.await().untilAsserted(() ->{
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 0);
         });
-        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 0);
+        Assert.assertEquals(
+                ConnectionController.DefaultConnectionController.getConnections()
+                        .size(),
+                0);
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 0.0d);
     }
 }

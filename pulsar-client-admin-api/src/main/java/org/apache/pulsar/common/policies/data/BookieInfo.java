@@ -25,11 +25,14 @@ import org.apache.pulsar.common.policies.data.impl.BookieInfoImpl;
  */
 public interface BookieInfo {
     String getRack();
+
     String getHostname();
 
     interface Builder {
         Builder rack(String rack);
+
         Builder hostname(String hostname);
+
         BookieInfo build();
     }
 

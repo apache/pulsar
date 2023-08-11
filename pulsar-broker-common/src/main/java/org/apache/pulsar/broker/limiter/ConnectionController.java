@@ -45,9 +45,10 @@ public interface ConnectionController {
     void decreaseConnection(SocketAddress remoteAddress);
 
     enum State {
-        OK, REACH_MAX_CONNECTION_PER_IP, REACH_MAX_CONNECTION;
+        OK,
+        REACH_MAX_CONNECTION_PER_IP,
+        REACH_MAX_CONNECTION;
     }
-
 
     class DefaultConnectionController implements ConnectionController {
         private static final Logger log = LoggerFactory.getLogger(DefaultConnectionController.class);
@@ -86,14 +87,18 @@ public interface ConnectionController {
                     totalConnectionNum++;
                 }
                 if (maxConnectionsLimitEnabled && totalConnectionNum > maxConnections) {
-                    log.info("Reject connect request from {}, because reached the maximum number of connections {}",
-                            remoteAddress, totalConnectionNum);
+                    log.info(
+                            "Reject connect request from {}, because reached the maximum number of connections {}",
+                            remoteAddress,
+                            totalConnectionNum);
                     return State.REACH_MAX_CONNECTION;
                 }
                 if (maxConnectionsLimitPerIpEnabled && CONNECTIONS.get(ip).getValue() > maxConnectionPerIp) {
-                    log.info("Reject connect request from {}, because reached the maximum number "
+                    log.info(
+                            "Reject connect request from {}, because reached the maximum number "
                                     + "of connections per Ip {}",
-                            remoteAddress, CONNECTIONS.get(ip).getValue());
+                            remoteAddress,
+                            CONNECTIONS.get(ip).getValue());
                     return State.REACH_MAX_CONNECTION_PER_IP;
                 }
             } catch (Exception e) {
@@ -141,8 +146,5 @@ public interface ConnectionController {
         public static Map<String, MutableInt> getConnections() {
             return CONNECTIONS;
         }
-
     }
-
-
 }

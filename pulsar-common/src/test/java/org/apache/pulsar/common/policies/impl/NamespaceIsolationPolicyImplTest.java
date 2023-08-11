@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,9 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -45,7 +42,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationPolicyImplTest {
-    private final String defaultPolicyJson = "{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"90\"}}}";
+    private final String defaultPolicyJson =
+            "{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"90\"}}}";
 
     private NamespaceIsolationPolicyImpl getDefaultPolicy() throws Exception {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
@@ -68,8 +66,8 @@ public class NamespaceIsolationPolicyImplTest {
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters)
-                        .build()
-                ).build();
+                        .build())
+                .build();
 
         NamespaceIsolationPolicyImpl newPolicy = new NamespaceIsolationPolicyImpl(policyData);
         assertEquals(newPolicy, defaultPolicy);
@@ -127,8 +125,8 @@ public class NamespaceIsolationPolicyImplTest {
         } catch (IllegalArgumentException iae) {
             // OK
         }
-        List<URL> secondaryBrokers = defaultPolicy.findSecondaryBrokers(brokers,
-                NamespaceName.get("pulsar/use/testns-1"));
+        List<URL> secondaryBrokers =
+                defaultPolicy.findSecondaryBrokers(brokers, NamespaceName.get("pulsar/use/testns-1"));
         assertEquals(secondaryBrokers.size(), 10);
         for (URL secondaryBroker : secondaryBrokers) {
             assertTrue(secondaryBroker.getHost().matches("prod1-broker.*.messaging.use.example.com"));
@@ -156,29 +154,36 @@ public class NamespaceIsolationPolicyImplTest {
         }
         assertFalse(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
         for (int i = 0; i < 8; i++) {
-            brokerStatus.set(i, BrokerStatus.builder()
-                    .brokerAddress(brokerStatus.get(i).getBrokerAddress())
-                    .active(false)
-                    .loadFactor(brokerStatus.get(i).getLoadFactor())
-                    .build());
+            brokerStatus.set(
+                    i,
+                    BrokerStatus.builder()
+                            .brokerAddress(brokerStatus.get(i).getBrokerAddress())
+                            .active(false)
+                            .loadFactor(brokerStatus.get(i).getLoadFactor())
+                            .build());
         }
         assertTrue(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
-        brokerStatus.set(7, BrokerStatus.builder()
-                .brokerAddress(brokerStatus.get(7).getBrokerAddress())
-                .active(true)
-                .loadFactor(brokerStatus.get(7).getLoadFactor())
-                .build());
+        brokerStatus.set(
+                7,
+                BrokerStatus.builder()
+                        .brokerAddress(brokerStatus.get(7).getBrokerAddress())
+                        .active(true)
+                        .loadFactor(brokerStatus.get(7).getLoadFactor())
+                        .build());
         assertTrue(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
-        brokerStatus.set(9, BrokerStatus.builder()
-                .brokerAddress(brokerStatus.get(9).getBrokerAddress())
-                .active(brokerStatus.get(9).isActive())
-                .loadFactor(80)
-                .build());
+        brokerStatus.set(
+                9,
+                BrokerStatus.builder()
+                        .brokerAddress(brokerStatus.get(9).getBrokerAddress())
+                        .active(brokerStatus.get(9).isActive())
+                        .loadFactor(80)
+                        .build());
         assertFalse(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
 
         brokerStatus = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            BrokerStatus status = BrokerStatus.builder().brokerAddress(String.format("broker-%d", 2 * i))
+            BrokerStatus status = BrokerStatus.builder()
+                    .brokerAddress(String.format("broker-%d", 2 * i))
                     .active(true)
                     .loadFactor(i * 20)
                     .build();
@@ -217,7 +222,5 @@ public class NamespaceIsolationPolicyImplTest {
                 fail("Should not happen");
             }
         }
-
     }
-
 }

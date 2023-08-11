@@ -33,31 +33,27 @@ public class HbaseAbstractConfig implements Serializable {
 
     private static final long serialVersionUID = -8945930873383593712L;
 
-    @FieldDoc(
-        defaultValue = "hbase-site.xml",
-        help = "hbase system configuration 'hbase-site.xml' file")
+    @FieldDoc(defaultValue = "hbase-site.xml", help = "hbase system configuration 'hbase-site.xml' file")
     private String hbaseConfigResources = "hbase-site.xml";
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "hbase system configuration about hbase.zookeeper.quorum value")
+            required = true,
+            defaultValue = "",
+            help = "hbase system configuration about hbase.zookeeper.quorum value")
     private String zookeeperQuorum;
 
     @FieldDoc(
-        defaultValue = "2181",
-        help = "hbase system configuration about hbase.zookeeper.property.clientPort value")
+            defaultValue = "2181",
+            help = "hbase system configuration about hbase.zookeeper.property.clientPort value")
     private String zookeeperClientPort = "2181";
 
-    @FieldDoc(
-        defaultValue = "/hbase",
-        help = "hbase system configuration about zookeeper.znode.parent value")
+    @FieldDoc(defaultValue = "/hbase", help = "hbase system configuration about zookeeper.znode.parent value")
     private String zookeeperZnodeParent = "/hbase";
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "hbase table, value is namespace:tableName, namespace default value is default")
+            required = true,
+            defaultValue = "",
+            help = "hbase table, value is namespace:tableName, namespace default value is default")
     private String tableName;
 
     public void validate() {

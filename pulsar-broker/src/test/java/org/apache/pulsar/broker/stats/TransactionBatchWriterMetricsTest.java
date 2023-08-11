@@ -107,22 +107,22 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         return conf;
     }
 
-
     @Override
     protected void startBroker() throws Exception {
         super.startBroker();
         ensureClusterExists(pulsar, clusterName);
         ensureTenantExists(pulsar.getPulsarResources().getTenantResources(), TopicName.PUBLIC_TENANT, clusterName);
-        ensureNamespaceExists(pulsar.getPulsarResources().getNamespaceResources(), DEFAULT_NAMESPACE,
-                clusterName);
-        ensureNamespaceExists(pulsar.getPulsarResources().getNamespaceResources(), NamespaceName.SYSTEM_NAMESPACE,
-                clusterName);
-        ensureTopicExists(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(),
-                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, 16);
+        ensureNamespaceExists(pulsar.getPulsarResources().getNamespaceResources(), DEFAULT_NAMESPACE, clusterName);
+        ensureNamespaceExists(
+                pulsar.getPulsarResources().getNamespaceResources(), NamespaceName.SYSTEM_NAMESPACE, clusterName);
+        ensureTopicExists(
+                pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(),
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                16);
     }
 
     @Test
-    public void testTransactionMetaLogMetrics() throws Exception{
+    public void testTransactionMetaLogMetrics() throws Exception {
         String metricsLabelCluster = clusterName;
         String metricsLabelBroker = pulsar.getAdvertisedAddress().split(":")[0];
         admin.topics().createNonPartitionedTopic(topicName);
@@ -130,47 +130,55 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         sendAndAckSomeMessages();
 
         // call metrics
-        @Cleanup
-        Client client = ClientBuilder.newClient();
+        @Cleanup Client client = ClientBuilder.newClient();
         WebTarget target = client.target(brokerUrl + "/metrics/get");
-        Response response = target.request(MediaType.APPLICATION_JSON_TYPE).buildGet().invoke();
+        Response response =
+                target.request(MediaType.APPLICATION_JSON_TYPE).buildGet().invoke();
         Assert.assertTrue(response.getStatus() / 200 == 1);
         List<String> metricsLines = parseResponseEntityToList(response);
 
-        metricsLines = metricsLines.stream().filter(s -> !s.startsWith("#") && s.contains("bufferedwriter")).collect(
-                Collectors.toList());
+        metricsLines = metricsLines.stream()
+                .filter(s -> !s.startsWith("#") && s.contains("bufferedwriter"))
+                .collect(Collectors.toList());
 
         // verify tc.
         String metrics_key_txn_tc_record_count_sum =
                 "pulsar_txn_tc_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
-        Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metrics_key_txn_tc_record_count_sum, metricsLabelCluster, metricsLabelBroker))
+        Assert.assertTrue(searchMetricsValue(
+                        metricsLines,
+                        String.format(metrics_key_txn_tc_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);
         String metrics_key_txn_tc_max_delay =
                 "pulsar_txn_tc_bufferedwriter_flush_trigger_max_delay_total{cluster=\"%s\",broker=\"%s\"} ";
-        Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metrics_key_txn_tc_max_delay, metricsLabelCluster, metricsLabelBroker))
+        Assert.assertTrue(searchMetricsValue(
+                        metricsLines,
+                        String.format(metrics_key_txn_tc_max_delay, metricsLabelCluster, metricsLabelBroker))
                 > 0);
         String metrics_key_txn_tc_bytes_size =
                 "pulsar_txn_tc_bufferedwriter_batch_size_bytes_sum{cluster=\"%s\",broker=\"%s\"} ";
-        Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metrics_key_txn_tc_bytes_size, metricsLabelCluster, metricsLabelBroker))
+        Assert.assertTrue(searchMetricsValue(
+                        metricsLines,
+                        String.format(metrics_key_txn_tc_bytes_size, metricsLabelCluster, metricsLabelBroker))
                 > 0);
         // verify pending ack.
         String metrics_key_txn_pending_ack_record_count_sum =
                 "pulsar_txn_pending_ack_store_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
-        Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metrics_key_txn_pending_ack_record_count_sum, metricsLabelCluster, metricsLabelBroker))
+        Assert.assertTrue(searchMetricsValue(
+                        metricsLines,
+                        String.format(
+                                metrics_key_txn_pending_ack_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);
         String metrics_key_txn_pending_ack_max_delay =
                 "pulsar_txn_pending_ack_store_bufferedwriter_flush_trigger_max_delay_total{cluster=\"%s\",broker=\"%s\"} ";
-        Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metrics_key_txn_pending_ack_max_delay, metricsLabelCluster, metricsLabelBroker))
+        Assert.assertTrue(searchMetricsValue(
+                        metricsLines,
+                        String.format(metrics_key_txn_pending_ack_max_delay, metricsLabelCluster, metricsLabelBroker))
                 > 0);
         String metrics_key_txn_pending_ack_bytes_size =
                 "pulsar_txn_pending_ack_store_bufferedwriter_batch_size_bytes_sum{cluster=\"%s\",broker=\"%s\"} ";
-        Assert.assertTrue(searchMetricsValue(metricsLines,
-                String.format(metrics_key_txn_pending_ack_bytes_size, metricsLabelCluster, metricsLabelBroker))
+        Assert.assertTrue(searchMetricsValue(
+                        metricsLines,
+                        String.format(metrics_key_txn_pending_ack_bytes_size, metricsLabelCluster, metricsLabelBroker))
                 > 0);
 
         // cleanup.
@@ -178,13 +186,13 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         admin.topics().delete(topicName, true);
     }
 
-    private static Double searchMetricsValue(List<String> metricsLines, String key){
-        for (int i = 0; i < metricsLines.size(); i++){
+    private static Double searchMetricsValue(List<String> metricsLines, String key) {
+        for (int i = 0; i < metricsLines.size(); i++) {
             String metricsLine = metricsLines.get(i);
-            if (metricsLine.startsWith("#")){
+            if (metricsLine.startsWith("#")) {
                 continue;
             }
-            if (metricsLine.startsWith(key)){
+            if (metricsLine.startsWith(key)) {
                 return Double.valueOf(metricsLine.split(" ")[1]);
             }
         }
@@ -192,13 +200,15 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
     }
 
     private void sendAndAckSomeMessages() throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
                 .topic(topicName)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false)
                 .batchingMaxMessages(2)
                 .create();
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer consumer = pulsarClient
+                .newConsumer()
                 .subscriptionType(SubscriptionType.Shared)
                 .topic(topicName)
                 .isAckReceiptEnabled(true)
@@ -206,12 +216,19 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
                 .subscriptionName("my-subscription")
                 .subscribe();
         producer.sendAsync("normal message x".getBytes()).get();
-        for (int i = 0; i < 100; i++){
-            Transaction transaction =
-                    pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        for (int i = 0; i < 100; i++) {
+            Transaction transaction = pulsarClient
+                    .newTransaction()
+                    .withTransactionTimeout(10, TimeUnit.SECONDS)
+                    .build()
+                    .get();
             Message msg = consumer.receive();
-            producer.newMessage(transaction).value(("tx msg a-" + i).getBytes(StandardCharsets.UTF_8)).sendAsync();
-            producer.newMessage(transaction).value(("tx msg b-" + i).getBytes(StandardCharsets.UTF_8)).sendAsync();
+            producer.newMessage(transaction)
+                    .value(("tx msg a-" + i).getBytes(StandardCharsets.UTF_8))
+                    .sendAsync();
+            producer.newMessage(transaction)
+                    .value(("tx msg b-" + i).getBytes(StandardCharsets.UTF_8))
+                    .sendAsync();
             consumer.acknowledgeAsync(msg.getMessageId(), transaction);
             transaction.commit().get();
         }
@@ -230,23 +247,28 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         }
     }
 
-    private static void ensureTopicExists(NamespaceResources.PartitionedTopicResources partitionedTopicResources,
-                                          TopicName topicName, int numPartitions) throws Exception {
-        Optional<PartitionedTopicMetadata> getResult =
-                partitionedTopicResources.getPartitionedTopicMetadataAsync(topicName).get();
+    private static void ensureTopicExists(
+            NamespaceResources.PartitionedTopicResources partitionedTopicResources,
+            TopicName topicName,
+            int numPartitions)
+            throws Exception {
+        Optional<PartitionedTopicMetadata> getResult = partitionedTopicResources
+                .getPartitionedTopicMetadataAsync(topicName)
+                .get();
         if (!getResult.isPresent()) {
             partitionedTopicResources.createPartitionedTopic(topicName, new PartitionedTopicMetadata(numPartitions));
         } else {
             PartitionedTopicMetadata existsMeta = getResult.get();
             if (existsMeta.partitions < numPartitions) {
-                partitionedTopicResources.updatePartitionedTopicAsync(topicName,
-                        __ -> new PartitionedTopicMetadata(numPartitions)).get();
+                partitionedTopicResources
+                        .updatePartitionedTopicAsync(topicName, __ -> new PartitionedTopicMetadata(numPartitions))
+                        .get();
             }
         }
     }
 
-    private static void ensureNamespaceExists(NamespaceResources namespaceResources, NamespaceName namespaceName,
-                                              String cluster) throws Exception {
+    private static void ensureNamespaceExists(
+            NamespaceResources namespaceResources, NamespaceName namespaceName, String cluster) throws Exception {
         if (!namespaceResources.namespaceExists(namespaceName)) {
             Policies policies = new Policies();
             policies.bundles = getBundles(16);
@@ -266,10 +288,12 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
             TenantInfoImpl publicTenant = new TenantInfoImpl(Collections.emptySet(), Collections.singleton(cluster));
             tenantResources.createTenant(tenant, publicTenant);
         } else {
-            tenantResources.updateTenantAsync(tenant, ti -> {
-                ti.getAllowedClusters().add(cluster);
-                return ti;
-            }).get();
+            tenantResources
+                    .updateTenantAsync(tenant, ti -> {
+                        ti.getAllowedClusters().add(cluster);
+                        return ti;
+                    })
+                    .get();
         }
     }
 
@@ -277,9 +301,9 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         InputStream inputStream = (InputStream) response.getEntity();
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
         List<String> list = new ArrayList<>();
-        while (true){
+        while (true) {
             String str = bufferedReader.readLine();
-            if (str == null){
+            if (str == null) {
                 break;
             }
             list.add(str);
@@ -288,13 +312,11 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
     }
 
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        org.apache.pulsar.client.api.ClientBuilder clientBuilder =
-                PulsarClient.builder()
-                        .serviceUrl(url)
-                        .enableTransaction(true)
-                        .statsInterval(intervalInSecs, TimeUnit.SECONDS);
+        org.apache.pulsar.client.api.ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(url)
+                .enableTransaction(true)
+                .statsInterval(intervalInSecs, TimeUnit.SECONDS);
         customizeNewPulsarClientBuilder(clientBuilder);
         return createNewPulsarClient(clientBuilder);
     }
-
 }

@@ -22,10 +22,9 @@ package io.airlift.compress.zstd;
  * Expose ZstdFrameCompressor which is a package protected class.
  */
 public class ZStdRawCompressor {
-    public static int compress(long inputAddress, long inputLimit,
-            long outputAddress, long outputLimit, int compressionLevel) {
-        return ZstdFrameCompressor.compress(null, inputAddress, inputLimit, null, outputAddress, outputLimit,
-                compressionLevel);
+    public static int compress(
+            long inputAddress, long inputLimit, long outputAddress, long outputLimit, int compressionLevel) {
+        return ZstdFrameCompressor.compress(
+                null, inputAddress, inputLimit, null, outputAddress, outputLimit, compressionLevel);
     }
-
 }

@@ -56,9 +56,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void updateLastActive() {
-
-    }
+    public void updateLastActive() {}
 
     @Override
     public Map<String, Long> getProperties() {
@@ -102,16 +100,19 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void asyncReadEntries(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
-                                 PositionImpl maxPosition) {
-
-    }
+    public void asyncReadEntries(
+            int numberOfEntriesToRead,
+            AsyncCallbacks.ReadEntriesCallback callback,
+            Object ctx,
+            PositionImpl maxPosition) {}
 
     @Override
-    public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes,
-                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
-
-    }
+    public void asyncReadEntries(
+            int numberOfEntriesToRead,
+            long maxSizeBytes,
+            AsyncCallbacks.ReadEntriesCallback callback,
+            Object ctx,
+            PositionImpl maxPosition) {}
 
     @Override
     public Entry getNthEntry(int n, IndividualDeletedEntries deletedEntries)
@@ -120,10 +121,8 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void asyncGetNthEntry(int n, IndividualDeletedEntries deletedEntries,
-                                 AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
-
-    }
+    public void asyncGetNthEntry(
+            int n, IndividualDeletedEntries deletedEntries, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {}
 
     @Override
     public List<Entry> readEntriesOrWait(int numberOfEntriesToRead)
@@ -138,16 +137,19 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void asyncReadEntriesOrWait(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
-
-    }
+    public void asyncReadEntriesOrWait(
+            int numberOfEntriesToRead,
+            AsyncCallbacks.ReadEntriesCallback callback,
+            Object ctx,
+            PositionImpl maxPosition) {}
 
     @Override
-    public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
-
-    }
+    public void asyncReadEntriesOrWait(
+            int maxEntries,
+            long maxSizeBytes,
+            AsyncCallbacks.ReadEntriesCallback callback,
+            Object ctx,
+            PositionImpl maxPosition) {}
 
     @Override
     public boolean cancelPendingReadRequest() {
@@ -170,46 +172,30 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void markDelete(Position position) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void markDelete(Position position) throws InterruptedException, ManagedLedgerException {}
 
     @Override
     public void markDelete(Position position, Map<String, Long> properties)
-            throws InterruptedException, ManagedLedgerException {
-
-    }
+            throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncMarkDelete(Position position, AsyncCallbacks.MarkDeleteCallback callback, Object ctx) {
-
-    }
+    public void asyncMarkDelete(Position position, AsyncCallbacks.MarkDeleteCallback callback, Object ctx) {}
 
     @Override
-    public void asyncMarkDelete(Position position, Map<String, Long> properties,
-                                AsyncCallbacks.MarkDeleteCallback callback, Object ctx) {
-
-    }
+    public void asyncMarkDelete(
+            Position position, Map<String, Long> properties, AsyncCallbacks.MarkDeleteCallback callback, Object ctx) {}
 
     @Override
-    public void delete(Position position) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void delete(Position position) throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncDelete(Position position, AsyncCallbacks.DeleteCallback callback, Object ctx) {
-
-    }
+    public void asyncDelete(Position position, AsyncCallbacks.DeleteCallback callback, Object ctx) {}
 
     @Override
-    public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncDelete(Iterable<Position> position, AsyncCallbacks.DeleteCallback callback, Object ctx) {
-
-    }
+    public void asyncDelete(Iterable<Position> position, AsyncCallbacks.DeleteCallback callback, Object ctx) {}
 
     @Override
     public Position getReadPosition() {
@@ -227,36 +213,27 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void rewind() {
-
-    }
+    public void rewind() {}
 
     @Override
-    public void seek(Position newReadPosition, boolean force) {
-
-    }
+    public void seek(Position newReadPosition, boolean force) {}
 
     @Override
-    public void clearBacklog() throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void clearBacklog() throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncClearBacklog(AsyncCallbacks.ClearBacklogCallback callback, Object ctx) {
-
-    }
+    public void asyncClearBacklog(AsyncCallbacks.ClearBacklogCallback callback, Object ctx) {}
 
     @Override
     public void skipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries)
-            throws InterruptedException, ManagedLedgerException {
-
-    }
+            throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncSkipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries,
-                                 AsyncCallbacks.SkipEntriesCallback callback, Object ctx) {
-
-    }
+    public void asyncSkipEntries(
+            int numEntriesToSkip,
+            IndividualDeletedEntries deletedEntries,
+            AsyncCallbacks.SkipEntriesCallback callback,
+            Object ctx) {}
 
     @Override
     public Position findNewestMatching(java.util.function.Predicate<Entry> condition)
@@ -271,26 +248,25 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void asyncFindNewestMatching(FindPositionConstraint constraint,
-                                        java.util.function.Predicate<Entry> condition,
-                                        AsyncCallbacks.FindEntryCallback callback, Object ctx) {
-
-    }
-
-    @Override
-    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
-            AsyncCallbacks.FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
-    }
+    public void asyncFindNewestMatching(
+            FindPositionConstraint constraint,
+            java.util.function.Predicate<Entry> condition,
+            AsyncCallbacks.FindEntryCallback callback,
+            Object ctx) {}
 
     @Override
-    public void resetCursor(Position position) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void asyncFindNewestMatching(
+            FindPositionConstraint constraint,
+            Predicate<Entry> condition,
+            AsyncCallbacks.FindEntryCallback callback,
+            Object ctx,
+            boolean isFindFromLedger) {}
 
     @Override
-    public void asyncResetCursor(Position position, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback) {
+    public void resetCursor(Position position) throws InterruptedException, ManagedLedgerException {}
 
-    }
+    @Override
+    public void asyncResetCursor(Position position, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback) {}
 
     @Override
     public List<Entry> replayEntries(Set<? extends Position> positions)
@@ -299,27 +275,25 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
-                                                      AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+    public Set<? extends Position> asyncReplayEntries(
+            Set<? extends Position> positions, AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         return null;
     }
 
     @Override
-    public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
-                                                      AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
-                                                      boolean sortEntries) {
+    public Set<? extends Position> asyncReplayEntries(
+            Set<? extends Position> positions,
+            AsyncCallbacks.ReadEntriesCallback callback,
+            Object ctx,
+            boolean sortEntries) {
         return null;
     }
 
     @Override
-    public void close() throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void close() throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-
-    }
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {}
 
     @Override
     public Position getFirstPosition() {
@@ -327,19 +301,13 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void setActive() {
-
-    }
+    public void setActive() {}
 
     @Override
-    public void setInactive() {
-
-    }
+    public void setInactive() {}
 
     @Override
-    public void setAlwaysInactive() {
-
-    }
+    public void setAlwaysInactive() {}
 
     @Override
     public boolean isActive() {
@@ -377,9 +345,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void setThrottleMarkDelete(double throttleMarkDelete) {
-
-    }
+    public void setThrottleMarkDelete(double throttleMarkDelete) {}
 
     @Override
     public ManagedLedger getManagedLedger() {
@@ -392,9 +358,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void trimDeletedEntries(List<Entry> entries) {
-
-    }
+    public void trimDeletedEntries(List<Entry> entries) {}
 
     @Override
     public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {

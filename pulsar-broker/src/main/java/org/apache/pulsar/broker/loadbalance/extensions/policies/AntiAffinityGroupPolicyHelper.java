@@ -34,25 +34,25 @@ public class AntiAffinityGroupPolicyHelper {
     Map<String, String> brokerToFailureDomainMap;
     ServiceUnitStateChannel channel;
 
-    public AntiAffinityGroupPolicyHelper(PulsarService pulsar,
-                                  ServiceUnitStateChannel channel){
+    public AntiAffinityGroupPolicyHelper(PulsarService pulsar, ServiceUnitStateChannel channel) {
 
         this.pulsar = pulsar;
         this.brokerToFailureDomainMap = new HashMap<>();
         this.channel = channel;
     }
 
-    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
-                                                                        String bundle) {
-        return LoadManagerShared.filterAntiAffinityGroupOwnedBrokersAsync(pulsar, bundle,
-                brokers.keySet(), channel.getOwnershipEntrySet(), brokerToFailureDomainMap)
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(
+            Map<String, BrokerLookupData> brokers, String bundle) {
+        return LoadManagerShared.filterAntiAffinityGroupOwnedBrokersAsync(
+                        pulsar, bundle, brokers.keySet(), channel.getOwnershipEntrySet(), brokerToFailureDomainMap)
                 .thenApply(__ -> brokers);
     }
 
     public boolean hasAntiAffinityGroupPolicy(String bundle) {
         try {
             return LoadManagerShared.getNamespaceAntiAffinityGroup(
-                    pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle)).isPresent();
+                            pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle))
+                    .isPresent();
         } catch (MetadataStoreException e) {
             log.error("Failed to check unload candidates. Assumes that bundle:{} cannot unload ", bundle, e);
             return false;
@@ -62,10 +62,13 @@ public class AntiAffinityGroupPolicyHelper {
     public void listenFailureDomainUpdate() {
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+        pulsar.getPulsarResources()
+                .getClusterResources()
+                .getFailureDomainResources()
                 .registerListener(__ -> {
-                    pulsar.getLoadManagerExecutor().execute(() ->
-                            LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
+                    pulsar.getLoadManagerExecutor()
+                            .execute(() -> LoadManagerShared.refreshBrokerToFailureDomainMap(
+                                    pulsar, brokerToFailureDomainMap));
                 });
     }
 }

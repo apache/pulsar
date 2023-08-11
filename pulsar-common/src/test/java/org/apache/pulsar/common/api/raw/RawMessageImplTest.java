@@ -35,15 +35,16 @@ import org.testng.annotations.Test;
 public class RawMessageImplTest {
 
     private static final String HARD_CODE_KEY = "__pfn_input_topic__";
-    private static final String KEY_VALUE_FIRST= "persistent://first-tenant-value/first-namespace-value/first-topic-value";
-    private static final String KEY_VALUE_SECOND = "persistent://second-tenant-value/second-namespace-value/second-topic-value";
+    private static final String KEY_VALUE_FIRST =
+            "persistent://first-tenant-value/first-namespace-value/first-topic-value";
+    private static final String KEY_VALUE_SECOND =
+            "persistent://second-tenant-value/second-namespace-value/second-topic-value";
     private static final String HARD_CODE_KEY_ID = "__pfn_input_msg_id__";
-    private static final String HARD_CODE_KEY_ID_VALUE  = "__pfn_input_msg_id_value__";
+    private static final String HARD_CODE_KEY_ID_VALUE = "__pfn_input_msg_id_value__";
 
     @Test
     public void testGetProperties() {
-        ReferenceCountedMessageMetadata refCntMsgMetadata =
-                ReferenceCountedMessageMetadata.get(mock(ByteBuf.class));
+        ReferenceCountedMessageMetadata refCntMsgMetadata = ReferenceCountedMessageMetadata.get(mock(ByteBuf.class));
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_FIRST);
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_SECOND);
@@ -60,7 +61,8 @@ public class RawMessageImplTest {
     public void testNonBatchedMessage() {
         MessageMetadata messageMetadata = new MessageMetadata();
         messageMetadata.setPartitionKeyB64Encoded(true);
-        messageMetadata.addAllProperties(singletonList(new KeyValue().setKey("key1").setValue("value1")));
+        messageMetadata.addAllProperties(
+                singletonList(new KeyValue().setKey("key1").setValue("value1")));
         messageMetadata.setEventTime(100L);
 
         ReferenceCountedMessageMetadata refCntMsgMetadata = mock(ReferenceCountedMessageMetadata.class);
@@ -77,7 +79,8 @@ public class RawMessageImplTest {
     public void testBatchedMessage() {
         MessageMetadata messageMetadata = new MessageMetadata();
         messageMetadata.setPartitionKeyB64Encoded(true);
-        messageMetadata.addAllProperties(singletonList(new KeyValue().setKey("key1").setValue("value1")));
+        messageMetadata.addAllProperties(
+                singletonList(new KeyValue().setKey("key1").setValue("value1")));
         messageMetadata.setEventTime(100L);
 
         ReferenceCountedMessageMetadata refCntMsgMetadata = mock(ReferenceCountedMessageMetadata.class);
@@ -85,7 +88,8 @@ public class RawMessageImplTest {
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         singleMessageMetadata.setPartitionKeyB64Encoded(false);
-        singleMessageMetadata.addAllProperties(singletonList(new KeyValue().setKey("key2").setValue("value2")));
+        singleMessageMetadata.addAllProperties(
+                singletonList(new KeyValue().setKey("key2").setValue("value2")));
         singleMessageMetadata.setEventTime(200L);
 
         RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, singleMessageMetadata, null, 0, 0, 0);

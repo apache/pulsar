@@ -102,7 +102,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
             @Override
             public void onUpdate(TopicPolicies data) {
-                //no op.
+                // no op.
             }
         }
 
@@ -111,7 +111,11 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
                 systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
                 Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
-                Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
+                Assert.assertTrue(systemTopicBasedTopicPoliciesService
+                                .listeners
+                                .get(topicName)
+                                .size()
+                        >= 1);
                 systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
             }
         });
@@ -120,12 +124,16 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
             systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
             Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
-            Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
+            Assert.assertTrue(systemTopicBasedTopicPoliciesService
+                            .listeners
+                            .get(topicName)
+                            .size()
+                    >= 1);
             systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
         }
 
         f.get();
-        //Some system topics will be added to the listeners. Just check if it contains topicName.
+        // Some system topics will be added to the listeners. Just check if it contains topicName.
         Assert.assertFalse(systemTopicBasedTopicPoliciesService.listeners.containsKey(topicName));
     }
 
@@ -133,56 +141,61 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     public void testGetPolicy() throws ExecutionException, InterruptedException, TopicPoliciesCacheNotInitException {
 
         // Init topic policies
-        TopicPolicies initPolicy = TopicPolicies.builder()
-                .maxConsumerPerTopic(10)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
+        TopicPolicies initPolicy =
+                TopicPolicies.builder().maxConsumerPerTopic(10).build();
+        systemTopicBasedTopicPoliciesService
+                .updateTopicPoliciesAsync(TOPIC1, initPolicy)
+                .get();
 
         // Wait for all topic policies updated.
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(systemTopicBasedTopicPoliciesService
-                        .getPoliciesCacheInit(TOPIC1.getNamespaceObject())));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertTrue(
+                        systemTopicBasedTopicPoliciesService.getPoliciesCacheInit(TOPIC1.getNamespaceObject())));
 
         // Assert broker is cache all topic policies
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1)
-                        .getMaxConsumerPerTopic().intValue(), 10));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(
+                        systemTopicBasedTopicPoliciesService
+                                .getTopicPolicies(TOPIC1)
+                                .getMaxConsumerPerTopic()
+                                .intValue(),
+                        10));
 
         // Update policy for TOPIC1
-        TopicPolicies policies1 = TopicPolicies.builder()
-                .maxProducerPerTopic(1)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1).get();
+        TopicPolicies policies1 = TopicPolicies.builder().maxProducerPerTopic(1).build();
+        systemTopicBasedTopicPoliciesService
+                .updateTopicPoliciesAsync(TOPIC1, policies1)
+                .get();
 
         // Update policy for TOPIC2
-        TopicPolicies policies2 = TopicPolicies.builder()
-                .maxProducerPerTopic(2)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2).get();
+        TopicPolicies policies2 = TopicPolicies.builder().maxProducerPerTopic(2).build();
+        systemTopicBasedTopicPoliciesService
+                .updateTopicPoliciesAsync(TOPIC2, policies2)
+                .get();
 
         // Update policy for TOPIC3
-        TopicPolicies policies3 = TopicPolicies.builder()
-                .maxProducerPerTopic(3)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC3, policies3).get();
+        TopicPolicies policies3 = TopicPolicies.builder().maxProducerPerTopic(3).build();
+        systemTopicBasedTopicPoliciesService
+                .updateTopicPoliciesAsync(TOPIC3, policies3)
+                .get();
 
         // Update policy for TOPIC4
-        TopicPolicies policies4 = TopicPolicies.builder()
-                .maxProducerPerTopic(4)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC4, policies4).get();
+        TopicPolicies policies4 = TopicPolicies.builder().maxProducerPerTopic(4).build();
+        systemTopicBasedTopicPoliciesService
+                .updateTopicPoliciesAsync(TOPIC4, policies4)
+                .get();
 
         // Update policy for TOPIC5
-        TopicPolicies policies5 = TopicPolicies.builder()
-                .maxProducerPerTopic(5)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC5, policies5).get();
+        TopicPolicies policies5 = TopicPolicies.builder().maxProducerPerTopic(5).build();
+        systemTopicBasedTopicPoliciesService
+                .updateTopicPoliciesAsync(TOPIC5, policies5)
+                .get();
 
         // Update policy for TOPIC6
-        TopicPolicies policies6 = TopicPolicies.builder()
-                .maxProducerPerTopic(6)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC6, policies6).get();
+        TopicPolicies policies6 = TopicPolicies.builder().maxProducerPerTopic(6).build();
+        systemTopicBasedTopicPoliciesService
+                .updateTopicPoliciesAsync(TOPIC6, policies6)
+                .get();
 
         Awaitility.await().untilAsserted(() -> {
             TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
@@ -235,7 +248,9 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
 
         // Check get without cache
-        TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPoliciesBypassCacheAsync(TOPIC1).get();
+        TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService
+                .getTopicPoliciesBypassCacheAsync(TOPIC1)
+                .get();
         Assert.assertEquals(policies1, policiesGet1);
     }
 
@@ -246,8 +261,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.topics().createPartitionedTopic(topic, 3);
         pulsarClient.newProducer().topic(topic).create().close();
         admin.topics().setMaxConsumers(topic, 1000);
-        Awaitility.await().untilAsserted(() ->
-                assertNotNull(admin.topics().getMaxConsumers(topic)));
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getMaxConsumers(topic)));
         Map<TopicName, TopicPolicies> map = systemTopicBasedTopicPoliciesService.getPoliciesCache();
         Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listMap =
                 systemTopicBasedTopicPoliciesService.getListeners();
@@ -283,12 +297,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(listMap.get(topicName));
     }
 
-
-
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("system-topic",
-                new TenantInfoImpl(new HashSet<>(), Set.of("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("system-topic", new TenantInfoImpl(new HashSet<>(), Set.of("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);
@@ -303,7 +317,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test
     public void testGetPolicyTimeout() throws Exception {
-        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject())));
         service.policyCacheInitMap.put(TOPIC1.getNamespaceObject(), false);
         long start = System.currentTimeMillis();
@@ -313,7 +328,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 .setMax(1000, TimeUnit.MILLISECONDS)
                 .create();
         try {
-            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
+            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false)
+                    .get();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TopicPoliciesCacheNotInitException);
         }
@@ -325,8 +341,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     public void testCreatSystemTopicClientWithRetry() throws Exception {
         SystemTopicBasedTopicPoliciesService service =
                 spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
-        Field field = SystemTopicBasedTopicPoliciesService.class
-                .getDeclaredField("namespaceEventsSystemTopicFactory");
+        Field field = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("namespaceEventsSystemTopicFactory");
         field.setAccessible(true);
         NamespaceEventsSystemTopicFactory factory = spy((NamespaceEventsSystemTopicFactory) field.get(service));
         SystemTopicClient<PulsarEvent> client = mock(TopicPoliciesSystemTopicClient.class);
@@ -336,9 +351,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         SystemTopicClient.Reader<PulsarEvent> reader = mock(SystemTopicClient.Reader.class);
         // Throw an exception first, create successfully after retrying
         doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
-                .doReturn(CompletableFuture.completedFuture(reader)).when(client).newReaderAsync();
+                .doReturn(CompletableFuture.completedFuture(reader))
+                .when(client)
+                .newReaderAsync();
 
-        SystemTopicClient.Reader<PulsarEvent> reader1 = service.createSystemTopicClientWithRetry(null).get();
+        SystemTopicClient.Reader<PulsarEvent> reader1 =
+                service.createSystemTopicClientWithRetry(null).get();
 
         assertEquals(reader1, reader);
     }
@@ -347,32 +365,39 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     public void testGetTopicPoliciesWithRetry() throws Exception {
         Field initMapField = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("policyCacheInitMap");
         initMapField.setAccessible(true);
-        Map<NamespaceName, Boolean> initMap = (Map)initMapField.get(systemTopicBasedTopicPoliciesService);
+        Map<NamespaceName, Boolean> initMap = (Map) initMapField.get(systemTopicBasedTopicPoliciesService);
         initMap.remove(NamespaceName.get(NAMESPACE1));
         Field readerCaches = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("readerCaches");
         readerCaches.setAccessible(true);
-        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers = (Map)readerCaches.get(systemTopicBasedTopicPoliciesService);
+        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers =
+                (Map) readerCaches.get(systemTopicBasedTopicPoliciesService);
         readers.remove(NamespaceName.get(NAMESPACE1));
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
                 .setMax(1000, TimeUnit.MILLISECONDS)
                 .create();
-        TopicPolicies initPolicy = TopicPolicies.builder()
-                .maxConsumerPerTopic(10)
-                .build();
+        TopicPolicies initPolicy =
+                TopicPolicies.builder().maxConsumerPerTopic(10).build();
         ScheduledExecutorService executors = Executors.newScheduledThreadPool(1);
-        executors.schedule(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
-                } catch (Exception ignore) {}
-            }
-        }, 2000, TimeUnit.MILLISECONDS);
+        executors.schedule(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            systemTopicBasedTopicPoliciesService
+                                    .updateTopicPoliciesAsync(TOPIC1, initPolicy)
+                                    .get();
+                        } catch (Exception ignore) {
+                        }
+                    }
+                },
+                2000,
+                TimeUnit.MILLISECONDS);
         Awaitility.await().untilAsserted(() -> {
             Optional<TopicPolicies> topicPolicies = systemTopicBasedTopicPoliciesService
-                    .getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
+                    .getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false)
+                    .get();
             Assert.assertTrue(topicPolicies.isPresent());
             if (topicPolicies.isPresent()) {
                 Assert.assertEquals(topicPolicies.get(), initPolicy);
@@ -382,11 +407,11 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test
     public void testHandleNamespaceBeingDeleted() throws Exception {
-        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-        pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(NAMESPACE1),
-                old -> {
-                    old.deleted = true;
-                    return old;
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(NAMESPACE1), old -> {
+            old.deleted = true;
+            return old;
         });
         service.deleteTopicPoliciesAsync(TOPIC1).get();
     }
@@ -399,26 +424,31 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         SystemTopicBasedTopicPoliciesService topicPoliciesService =
                 (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
-        ConcurrentHashMap<TopicName, TopicPolicies> spyPoliciesCache = spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
+        ConcurrentHashMap<TopicName, TopicPolicies> spyPoliciesCache =
+                spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
         FieldUtils.writeDeclaredField(topicPoliciesService, "policiesCache", spyPoliciesCache, true);
 
-            Awaitility.await().untilAsserted(() -> {
-                Assertions.assertThat(topicPoliciesService.getTopicPolicies(TopicName.get(topic))).isNull();
+        Awaitility.await().untilAsserted(() -> {
+            Assertions.assertThat(topicPoliciesService.getTopicPolicies(TopicName.get(topic)))
+                    .isNull();
         });
 
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
         Awaitility.await().untilAsserted(() -> {
-                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
-            });
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)))
+                    .isNotNull();
+        });
 
         Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers =
                 (Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>)
                         FieldUtils.readDeclaredField(topicPoliciesService, "readerCaches", true);
 
         Mockito.doAnswer(invocation -> {
-            Thread.sleep(1000);
-            return invocation.callRealMethod();
-        }).when(spyPoliciesCache).get(Mockito.any());
+                    Thread.sleep(1000);
+                    return invocation.callRealMethod();
+                })
+                .when(spyPoliciesCache)
+                .get(Mockito.any());
 
         CompletableFuture<Void> result = new CompletableFuture<>();
         Thread thread = new Thread(() -> {

@@ -139,8 +139,11 @@ public class PulsarRegistrationManager implements RegistrationManager {
                     rwRegistration.release().get();
                 }
 
-                bookieRegistrationReadOnly.put(bookieId,
-                        lockManager.acquireLock(regPathReadOnly, bookieServiceInfo).get());
+                bookieRegistrationReadOnly.put(
+                        bookieId,
+                        lockManager
+                                .acquireLock(regPathReadOnly, bookieServiceInfo)
+                                .get());
             } else {
                 ResourceLock<BookieServiceInfo> roRegistration = bookieRegistrationReadOnly.remove(bookieId);
                 if (roRegistration != null) {
@@ -148,7 +151,8 @@ public class PulsarRegistrationManager implements RegistrationManager {
                     roRegistration.release().get();
                 }
 
-                bookieRegistration.put(bookieId,
+                bookieRegistration.put(
+                        bookieId,
                         lockManager.acquireLock(regPath, bookieServiceInfo).get());
             }
         } catch (ExecutionException ee) {
@@ -201,8 +205,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
             throw new BookieException.MetadataStoreException(e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("InterruptedException while checking registration ephemeral nodes for BookieId: {}", bookieId,
-                    e);
+            log.error("InterruptedException while checking registration ephemeral nodes for BookieId: {}", bookieId, e);
             throw new BookieException.MetadataStoreException(e);
         }
     }
@@ -259,7 +262,8 @@ public class PulsarRegistrationManager implements RegistrationManager {
     public void removeCookie(BookieId bookieId, Version version) throws BookieException {
         String path = this.cookiePath + "/" + bookieId;
         try {
-            store.delete(path, Optional.of(((LongVersion) version).getLongVersion())).get();
+            store.delete(path, Optional.of(((LongVersion) version).getLongVersion()))
+                    .get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BookieException.MetadataStoreException("Interrupted deleting cookie for bookie " + bookieId, e);
@@ -289,7 +293,8 @@ public class PulsarRegistrationManager implements RegistrationManager {
 
         // create readonly bookies node if not exists
         if (!store.exists(bookieReadonlyRegistrationPath).get()) {
-            store.put(bookieReadonlyRegistrationPath, new byte[0], Optional.empty()).get();
+            store.put(bookieReadonlyRegistrationPath, new byte[0], Optional.empty())
+                    .get();
         }
 
         return ledgerRootExists;
@@ -298,8 +303,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
     @Override
     public boolean initNewCluster() throws Exception {
         String instanceIdPath = ledgersRootPath + "/" + INSTANCEID;
-        log.info("Initializing metadata for new cluster, ledger root path: {}",
-                ledgersRootPath);
+        log.info("Initializing metadata for new cluster, ledger root path: {}", ledgersRootPath);
 
         if (store.exists(instanceIdPath).get()) {
             log.error("Ledger root path: {} already exists", ledgersRootPath);
@@ -312,8 +316,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
         String instanceId = UUID.randomUUID().toString();
         store.put(instanceIdPath, instanceId.getBytes(UTF_8), Optional.of(-1L)).join();
 
-        log.info("Successfully initiated cluster. ledger root path: {} instanceId: {}",
-                ledgersRootPath, instanceId);
+        log.info("Successfully initiated cluster. ledger root path: {} instanceId: {}", ledgersRootPath, instanceId);
         return true;
     }
 
@@ -321,23 +324,29 @@ public class PulsarRegistrationManager implements RegistrationManager {
     public boolean format() throws Exception {
         // Clear underreplicated ledgers
         store.deleteRecursive(PulsarLedgerUnderreplicationManager.getBasePath(ledgersRootPath)
-                + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get();
+                        + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH)
+                .get();
 
         // Clear underreplicatedledger locks
-        store.deleteRecursive(PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRootPath)).get();
+        store.deleteRecursive(PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRootPath))
+                .get();
 
         // Clear the cookies
         store.deleteRecursive(cookiePath).get();
 
         // Clear the INSTANCEID
         if (store.exists(ledgersRootPath + "/" + BookKeeperConstants.INSTANCEID).get()) {
-            store.delete(ledgersRootPath + "/" + BookKeeperConstants.INSTANCEID, Optional.empty()).get();
+            store.delete(ledgersRootPath + "/" + BookKeeperConstants.INSTANCEID, Optional.empty())
+                    .get();
         }
 
         // create INSTANCEID
         String instanceId = UUID.randomUUID().toString();
-        store.put(ledgersRootPath + "/" + BookKeeperConstants.INSTANCEID,
-                instanceId.getBytes(StandardCharsets.UTF_8), Optional.of(-1L)).get();
+        store.put(
+                        ledgersRootPath + "/" + BookKeeperConstants.INSTANCEID,
+                        instanceId.getBytes(StandardCharsets.UTF_8),
+                        Optional.of(-1L))
+                .get();
 
         log.info("Successfully formatted BookKeeper metadata");
         return true;
@@ -348,22 +357,24 @@ public class PulsarRegistrationManager implements RegistrationManager {
         log.info("Nuking metadata of existing cluster, ledger root path: {}", ledgersRootPath);
 
         if (!store.exists(ledgersRootPath + "/" + INSTANCEID).join()) {
-            log.info("There is no existing cluster with ledgersRootPath: {}, so exiting nuke operation",
+            log.info(
+                    "There is no existing cluster with ledgersRootPath: {}, so exiting nuke operation",
                     ledgersRootPath);
             return true;
         }
 
-        @Cleanup
-        RegistrationClient registrationClient = new PulsarRegistrationClient(store, ledgersRootPath);
+        @Cleanup RegistrationClient registrationClient = new PulsarRegistrationClient(store, ledgersRootPath);
 
-        Collection<BookieId> rwBookies = registrationClient.getWritableBookies().join().getValue();
+        Collection<BookieId> rwBookies =
+                registrationClient.getWritableBookies().join().getValue();
         if (rwBookies != null && !rwBookies.isEmpty()) {
             log.error("Bookies are still up and connected to this cluster, "
                     + "stop all bookies before nuking the cluster");
             return false;
         }
 
-        Collection<BookieId> roBookies = registrationClient.getReadOnlyBookies().join().getValue();
+        Collection<BookieId> roBookies =
+                registrationClient.getReadOnlyBookies().join().getValue();
         if (roBookies != null && !roBookies.isEmpty()) {
             log.error("Readonly Bookies are still up and connected to this cluster, "
                     + "stop all bookies before nuking the cluster");

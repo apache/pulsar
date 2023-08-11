@@ -49,18 +49,24 @@ public class NamespaceBundles {
     private final NamespaceBundle fullBundle;
     private final Optional<Pair<LocalPolicies, Long>> localPolicies;
 
-    public NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
-                            Optional<Pair<LocalPolicies, Long>> localPolicies) {
+    public NamespaceBundles(
+            NamespaceName nsname, NamespaceBundleFactory factory, Optional<Pair<LocalPolicies, Long>> localPolicies) {
         this(nsname, factory, localPolicies, getPartitions(localPolicies.map(Pair::getLeft)));
     }
 
-    NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
-                     Optional<Pair<LocalPolicies, Long>> localPolicies, Collection<Long> partitions) {
+    NamespaceBundles(
+            NamespaceName nsname,
+            NamespaceBundleFactory factory,
+            Optional<Pair<LocalPolicies, Long>> localPolicies,
+            Collection<Long> partitions) {
         this(nsname, factory, localPolicies, getPartitions(partitions));
     }
 
-    NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
-                     Optional<Pair<LocalPolicies, Long>> localPolicies, long[] partitions) {
+    NamespaceBundles(
+            NamespaceName nsname,
+            NamespaceBundleFactory factory,
+            Optional<Pair<LocalPolicies, Long>> localPolicies,
+            long[] partitions) {
         // check input arguments
         this.nsname = Objects.requireNonNull(nsname);
         this.factory = Objects.requireNonNull(factory);
@@ -69,8 +75,8 @@ public class NamespaceBundles {
 
         // calculate bundles based on partition boundaries
         this.bundles = new ArrayList<>();
-        fullBundle = new NamespaceBundle(nsname,
-                Range.range(FULL_LOWER_BOUND, BoundType.CLOSED, FULL_UPPER_BOUND, BoundType.CLOSED), factory);
+        fullBundle = new NamespaceBundle(
+                nsname, Range.range(FULL_LOWER_BOUND, BoundType.CLOSED, FULL_UPPER_BOUND, BoundType.CLOSED), factory);
 
         if (partitions.length == 1) {
             throw new IllegalArgumentException("Need to specify at least 2 boundaries");
@@ -109,7 +115,8 @@ public class NamespaceBundles {
     public void validateBundle(NamespaceBundle nsBundle) throws Exception {
         int idx = Arrays.binarySearch(partitions, nsBundle.getLowerEndpoint());
         checkArgument(idx >= 0, "Cannot find bundle in the bundles list");
-        checkArgument(nsBundle.getUpperEndpoint().equals(bundles.get(idx).getUpperEndpoint()),
+        checkArgument(
+                nsBundle.getUpperEndpoint().equals(bundles.get(idx).getUpperEndpoint()),
                 "Invalid upper boundary for bundle");
     }
 
@@ -158,7 +165,7 @@ public class NamespaceBundles {
 
     static long[] getPartitions(BundlesData bundlesData) {
         if (bundlesData == null) {
-            return new long[]{Long.decode(FIRST_BOUNDARY), Long.decode(LAST_BOUNDARY)};
+            return new long[] {Long.decode(FIRST_BOUNDARY), Long.decode(LAST_BOUNDARY)};
         } else {
             List<String> boundaries = bundlesData.getBoundaries();
             long[] partitions = new long[boundaries.size()];
@@ -184,10 +191,8 @@ public class NamespaceBundles {
     }
 
     public BundlesData getBundlesData() {
-        List<String> boundaries = Arrays.stream(partitions)
-                .boxed()
-                .map(p -> format("0x%08x", p))
-                .collect(Collectors.toList());
+        List<String> boundaries =
+                Arrays.stream(partitions).boxed().map(p -> format("0x%08x", p)).collect(Collectors.toList());
         return BundlesData.builder()
                 .boundaries(boundaries)
                 .numBundles(boundaries.size() - 1)
@@ -195,7 +200,8 @@ public class NamespaceBundles {
     }
 
     public LocalPolicies toLocalPolicies() {
-        return new LocalPolicies(this.getBundlesData(),
+        return new LocalPolicies(
+                this.getBundlesData(),
                 localPolicies.map(lp -> lp.getLeft().bookieAffinityGroup).orElse(null),
                 localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null));
     }

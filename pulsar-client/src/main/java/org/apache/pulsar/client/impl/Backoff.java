@@ -40,8 +40,14 @@ public class Backoff {
 
     private static final Random random = new Random();
 
-    Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop, Clock clock) {
+    Backoff(
+            long initial,
+            TimeUnit unitInitial,
+            long max,
+            TimeUnit unitMax,
+            long mandatoryStop,
+            TimeUnit unitMandatoryStop,
+            Clock clock) {
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
         this.next = this.initial;
@@ -49,8 +55,13 @@ public class Backoff {
         this.clock = clock;
     }
 
-    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-                   TimeUnit unitMandatoryStop) {
+    public Backoff(
+            long initial,
+            TimeUnit unitInitial,
+            long max,
+            TimeUnit unitMax,
+            long mandatoryStop,
+            TimeUnit unitMandatoryStop) {
         this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone());
     }
 
@@ -100,8 +111,12 @@ public class Backoff {
         return firstBackoffTimeInMillis;
     }
 
-    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
-                                        long defaultInterval, long maxBackoffInterval) {
+    public static boolean shouldBackoff(
+            long initialTimestamp,
+            TimeUnit unitInitial,
+            int failedAttempts,
+            long defaultInterval,
+            long maxBackoffInterval) {
         long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
         long currentTime = System.nanoTime();
         long interval = defaultInterval;
@@ -118,7 +133,11 @@ public class Backoff {
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
-        return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts,
-                                     DEFAULT_INTERVAL_IN_NANOSECONDS, MAX_BACKOFF_INTERVAL_NANOSECONDS);
+        return Backoff.shouldBackoff(
+                initialTimestamp,
+                unitInitial,
+                failedAttempts,
+                DEFAULT_INTERVAL_IN_NANOSECONDS,
+                MAX_BACKOFF_INTERVAL_NANOSECONDS);
     }
 }

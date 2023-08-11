@@ -34,8 +34,7 @@ public class GenericJsonSchema extends GenericSchemaImpl {
         this(schemaInfo, true);
     }
 
-    GenericJsonSchema(SchemaInfo schemaInfo,
-                      boolean useProvidedSchemaAsReaderSchema) {
+    GenericJsonSchema(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo);
         setWriter(new GenericJsonWriter());
         setReader(new MultiVersionGenericJsonReader(useProvidedSchemaAsReaderSchema, schema, schemaInfo, fields));
@@ -51,8 +50,8 @@ public class GenericJsonSchema extends GenericSchemaImpl {
     }
 
     public Schema<GenericRecord> clone() {
-        Schema<GenericRecord> schema = of(this.schemaInfo,
-                ((AbstractMultiVersionGenericReader) this.reader).useProvidedSchemaAsReaderSchema);
+        Schema<GenericRecord> schema =
+                of(this.schemaInfo, ((AbstractMultiVersionGenericReader) this.reader).useProvidedSchemaAsReaderSchema);
         if (this.schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(this.schemaInfoProvider);
         }

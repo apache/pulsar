@@ -35,7 +35,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -77,9 +76,8 @@ public class ConsumerImplTest {
         CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
 
         consumerConf.setSubscriptionName("test-sub");
-        consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorProvider, -1, false, subscribeFuture, null, null, null,
-                true);
+        consumer = ConsumerImpl.newConsumerImpl(
+                client, topic, consumerConf, executorProvider, -1, false, subscribeFuture, null, null, null, true);
         consumer.setState(HandlerState.State.Ready);
     }
 
@@ -104,8 +102,11 @@ public class ConsumerImplTest {
     public void testCorrectBackoffConfiguration() {
         final Backoff backoff = consumer.getConnectionHandler().backoff;
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
-        Assert.assertEquals(backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
-        Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
+        Assert.assertEquals(
+                backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
+        Assert.assertEquals(
+                backoff.next(),
+                TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
     @Test(invocationTimeOut = 1000)
@@ -223,8 +224,17 @@ public class ConsumerImplTest {
 
         consumerConf.setStartPaused(true);
 
-        consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorProvider, -1, false, new CompletableFuture<>(), null, null, null,
+        consumer = ConsumerImpl.newConsumerImpl(
+                client,
+                topic,
+                consumerConf,
+                executorProvider,
+                -1,
+                false,
+                new CompletableFuture<>(),
+                null,
+                null,
+                null,
                 true);
 
         Assert.assertTrue(consumer.paused);
@@ -233,14 +243,13 @@ public class ConsumerImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testCreateConsumerWhenSchemaIsNull() throws PulsarClientException {
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-            .serviceUrl("pulsar://127.0.0.1:6650")
-            .build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl("pulsar://127.0.0.1:6650").build();
 
         client.newConsumer(null)
-            .topic("topic_testCreateConsumerWhenSchemaIsNull")
-            .subscriptionName("testCreateConsumerWhenSchemaIsNull")
-            .subscribe();
+                .topic("topic_testCreateConsumerWhenSchemaIsNull")
+                .subscriptionName("testCreateConsumerWhenSchemaIsNull")
+                .subscribe();
     }
 
     @Test
@@ -255,8 +264,7 @@ public class ConsumerImplTest {
     @Test
     public void testTopicPriorityLevel() {
         ConsumerConfigurationData<Object> consumerConf = new ConsumerConfigurationData<>();
-        consumerConf.getTopicConfigurations().add(
-                TopicConsumerConfigurationData.ofTopicName(topic, 1));
+        consumerConf.getTopicConfigurations().add(TopicConsumerConfigurationData.ofTopicName(topic, 1));
 
         createConsumer(consumerConf);
 

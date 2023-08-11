@@ -21,9 +21,14 @@ package org.apache.pulsar.tests.integration.schema;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
 import com.google.common.collect.Sets;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.*;
@@ -31,19 +36,12 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.schema.Schemas.Person;
 import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
-import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
-
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Test Pulsar Schema.
@@ -57,11 +55,11 @@ public class SchemaTest extends PulsarTestSuite {
     public void setupCluster() throws Exception {
         super.setupCluster();
         this.client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build();
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
         this.admin = PulsarAdmin.builder()
-            .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
-            .build();
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
     }
 
     @Override
@@ -82,23 +80,14 @@ public class SchemaTest extends PulsarTestSuite {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
         final String topic = "test-create-schema-after-deletion";
-        final String fqtn = TopicName.get(
-             TopicDomain.persistent.value(),
-             tenant,
-             namespace,
-             topic
-         ).toString();
+        final String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
-        admin.namespaces().createNamespace(
-            tenant + "/" + namespace,
-            Sets.newHashSet(pulsarCluster.getClusterName())
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(pulsarCluster.getClusterName()));
 
         // Create a topic with `Person`
-        try (Producer<Person> producer = client.newProducer(Schema.AVRO(Person.class))
-             .topic(fqtn)
-             .create()
-        ) {
+        try (Producer<Person> producer =
+                client.newProducer(Schema.AVRO(Person.class)).topic(fqtn).create()) {
             Person person = new Person();
             person.setName("Tom Hanks");
             person.setAge(60);
@@ -114,10 +103,8 @@ public class SchemaTest extends PulsarTestSuite {
         log.info("Successfully deleted schema of topic {}", fqtn);
 
         // after deleting the topic, try to create a topic with a different schema
-        try (Producer<Student> producer = client.newProducer(Schema.AVRO(Student.class))
-             .topic(fqtn)
-             .create()
-        ) {
+        try (Producer<Student> producer =
+                client.newProducer(Schema.AVRO(Student.class)).topic(fqtn).create()) {
             Student student = new Student();
             student.setName("Tom Jerry");
             student.setAge(30);
@@ -135,22 +122,16 @@ public class SchemaTest extends PulsarTestSuite {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
         final String topic = "test-multi-version-schema";
-        final String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        final String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(pulsarCluster.getClusterName())
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(pulsarCluster.getClusterName()));
 
-        Producer<Person> producer = client.newProducer(Schema.AVRO(
-                SchemaDefinition.<Person>builder().withAlwaysAllowNull
-                        (false).withSupportSchemaVersioning(true).
-                        withPojo(Person.class).build()))
+        Producer<Person> producer = client.newProducer(Schema.AVRO(SchemaDefinition.<Person>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Person.class)
+                        .build()))
                 .topic(fqtn)
                 .create();
 
@@ -158,10 +139,12 @@ public class SchemaTest extends PulsarTestSuite {
         person.setName("Tom Hanks");
         person.setAge(60);
 
-        Consumer<PersonConsumeSchema> consumer = client.newConsumer(Schema.AVRO(
-                SchemaDefinition.<PersonConsumeSchema>builder().withAlwaysAllowNull
-                        (false).withSupportSchemaVersioning(true).
-                        withPojo(PersonConsumeSchema.class).build()))
+        Consumer<PersonConsumeSchema> consumer = client.newConsumer(
+                        Schema.AVRO(SchemaDefinition.<PersonConsumeSchema>builder()
+                                .withAlwaysAllowNull(false)
+                                .withSupportSchemaVersioning(true)
+                                .withPojo(PersonConsumeSchema.class)
+                                .build()))
                 .subscriptionName("test")
                 .topic(fqtn)
                 .subscribe();
@@ -184,17 +167,10 @@ public class SchemaTest extends PulsarTestSuite {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
         final String topic = "test-logical-type-schema";
-        final String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        final String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(pulsarCluster.getClusterName())
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(pulsarCluster.getClusterName()));
 
         AvroLogicalType messageForSend = AvroLogicalType.builder()
                 .decimal(new BigDecimal("12.34"))
@@ -205,14 +181,14 @@ public class SchemaTest extends PulsarTestSuite {
                 .date(LocalDate.now())
                 .build();
 
-        Producer<AvroLogicalType> producer = client
-                .newProducer(Schema.AVRO(SchemaDefinition.<AvroLogicalType>builder().withPojo(AvroLogicalType.class)
-                        .withJSR310ConversionEnabled(true).build()))
+        Producer<AvroLogicalType> producer = client.newProducer(Schema.AVRO(SchemaDefinition.<AvroLogicalType>builder()
+                        .withPojo(AvroLogicalType.class)
+                        .withJSR310ConversionEnabled(true)
+                        .build()))
                 .topic(fqtn)
                 .create();
 
-        Consumer<AvroLogicalType> consumer = client
-                .newConsumer(Schema.AVRO(AvroLogicalType.class))
+        Consumer<AvroLogicalType> consumer = client.newConsumer(Schema.AVRO(AvroLogicalType.class))
                 .topic(fqtn)
                 .subscriptionName("test")
                 .subscribe();
@@ -234,28 +210,18 @@ public class SchemaTest extends PulsarTestSuite {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
         final String topic = "test-auto-consume-schema";
-        final String fqtn = TopicName.get(
-                TopicDomain.persistent.value(),
-                tenant,
-                namespace,
-                topic
-        ).toString();
+        final String fqtn = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topic)
+                .toString();
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(pulsarCluster.getClusterName())
-        );
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(pulsarCluster.getClusterName()));
 
-        Consumer<GenericRecord> consumer = client
-                .newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> consumer = client.newConsumer(Schema.AUTO_CONSUME())
                 .topic(fqtn)
                 .subscriptionName("test")
                 .subscribe();
 
-        Producer<Person> producer = client
-                .newProducer(Schema.AVRO(Person.class))
-                .topic(fqtn)
-                .create();
+        Producer<Person> producer =
+                client.newProducer(Schema.AVRO(Person.class)).topic(fqtn).create();
 
         Person person = new Person();
         person.setName("Tom Hanks");
@@ -294,27 +260,25 @@ public class SchemaTest extends PulsarTestSuite {
         schemas.forEach(schemaProducer -> {
             schemas.forEach(schemaConsumer -> {
                 try {
-                    String topicName = schemaProducer.getSchemaInfo().getName() + schemaConsumer.getSchemaInfo().getName();
-                        client.newProducer(schemaProducer)
-                                .topic(topicName)
-                                .create().close();
+                    String topicName = schemaProducer.getSchemaInfo().getName()
+                            + schemaConsumer.getSchemaInfo().getName();
+                    client.newProducer(schemaProducer).topic(topicName).create().close();
 
-                        client.newConsumer(schemaConsumer)
-                                .topic(topicName)
-                                .subscriptionName("test")
-                                .subscribe().close();
-                    assertEquals(schemaProducer.getSchemaInfo().getType(),
+                    client.newConsumer(schemaConsumer)
+                            .topic(topicName)
+                            .subscriptionName("test")
+                            .subscribe()
+                            .close();
+                    assertEquals(
+                            schemaProducer.getSchemaInfo().getType(),
                             schemaConsumer.getSchemaInfo().getType());
 
                 } catch (PulsarClientException e) {
-                    assertNotEquals(schemaProducer.getSchemaInfo().getType(),
+                    assertNotEquals(
+                            schemaProducer.getSchemaInfo().getType(),
                             schemaConsumer.getSchemaInfo().getType());
                 }
-
             });
         });
-
     }
-
 }
-

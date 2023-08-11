@@ -57,26 +57,29 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
     public static final String PRIMITIVE_COLUMN_NAME = "__value__";
 
     @Override
-    public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
-                                             Set<DecoderColumnHandle> columns) {
+    public PulsarRowDecoder createRowDecoder(
+            TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
         if (columns.size() == 1) {
-            return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo),
+            return new PulsarPrimitiveRowDecoder(
+                    (AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo),
                     columns.iterator().next());
         } else {
-            return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo),
-                    null);
+            return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo), null);
         }
     }
 
     @Override
-    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
-                                                      PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(
+            TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         ColumnMetadata valueColumn = new PulsarColumnMetadata(
                 PulsarColumnMetadata.getColumnName(handleKeyValueType, PRIMITIVE_COLUMN_NAME),
                 parsePrimitivePrestoType(PRIMITIVE_COLUMN_NAME, schemaInfo.getType()),
-                "The value of the message with primitive type schema", null, false, false,
-                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(PRIMITIVE_COLUMN_NAME,
-                null, null));
+                "The value of the message with primitive type schema",
+                null,
+                false,
+                false,
+                handleKeyValueType,
+                new PulsarColumnMetadata.DecoderExtraInfo(PRIMITIVE_COLUMN_NAME, null, null));
         return Arrays.asList(valueColumn);
     }
 
@@ -111,6 +114,5 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
                 log.error("Can't convert type: %s for %s", pulsarType, fieldName);
                 return null;
         }
-
     }
 }

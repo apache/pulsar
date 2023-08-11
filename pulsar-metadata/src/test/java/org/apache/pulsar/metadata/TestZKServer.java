@@ -19,7 +19,6 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -27,11 +26,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-
 import java.nio.charset.StandardCharsets;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.server.ContainerManager;
@@ -76,22 +72,26 @@ public class TestZKServer implements AutoCloseable {
         boolean zkServerReady = waitForServerUp(this.getConnectionString(), 30_000);
         assertTrue(zkServerReady);
 
-        this.containerManager = new ContainerManager(zks.getZKDatabase(), new RequestProcessor() {
-            @Override
-            public void processRequest(Request request) throws RequestProcessorException {
-                String path = StandardCharsets.UTF_8.decode(request.request).toString();
-                try {
-                    zks.getZKDatabase().getDataTree().deleteNode(path, -1);
-                } catch (KeeperException.NoNodeException e) {
-                    // Ok
-                }
-            }
+        this.containerManager = new ContainerManager(
+                zks.getZKDatabase(),
+                new RequestProcessor() {
+                    @Override
+                    public void processRequest(Request request) throws RequestProcessorException {
+                        String path =
+                                StandardCharsets.UTF_8.decode(request.request).toString();
+                        try {
+                            zks.getZKDatabase().getDataTree().deleteNode(path, -1);
+                        } catch (KeeperException.NoNodeException e) {
+                            // Ok
+                        }
+                    }
 
-            @Override
-            public void shutdown() {
-
-            }
-        }, 10, 10000, 0L);
+                    @Override
+                    public void shutdown() {}
+                },
+                10,
+                10000,
+                0L);
     }
 
     public void checkContainers() throws Exception {

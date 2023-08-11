@@ -28,53 +28,54 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class LocalDateSchema extends AbstractSchema<LocalDate> {
 
-   private static final LocalDateSchema INSTANCE;
-   private static final SchemaInfo SCHEMA_INFO;
+    private static final LocalDateSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
 
-   static {
-       SCHEMA_INFO = SchemaInfoImpl.builder()
-             .name("LocalDate")
-             .type(SchemaType.LOCAL_DATE)
-             .schema(new byte[0]).build();
-       INSTANCE = new LocalDateSchema();
-   }
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("LocalDate")
+                .type(SchemaType.LOCAL_DATE)
+                .schema(new byte[0])
+                .build();
+        INSTANCE = new LocalDateSchema();
+    }
 
-   public static LocalDateSchema of() {
-      return INSTANCE;
-   }
+    public static LocalDateSchema of() {
+        return INSTANCE;
+    }
 
-   @Override
-   public byte[] encode(LocalDate message) {
-      if (null == message) {
-         return null;
-      }
+    @Override
+    public byte[] encode(LocalDate message) {
+        if (null == message) {
+            return null;
+        }
 
-      Long epochDay = message.toEpochDay();
-      return LongSchema.of().encode(epochDay);
-   }
+        Long epochDay = message.toEpochDay();
+        return LongSchema.of().encode(epochDay);
+    }
 
-   @Override
-   public LocalDate decode(byte[] bytes) {
-      if (null == bytes) {
-         return null;
-      }
+    @Override
+    public LocalDate decode(byte[] bytes) {
+        if (null == bytes) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(bytes);
-      return LocalDate.ofEpochDay(decode);
-   }
+        Long decode = LongSchema.of().decode(bytes);
+        return LocalDate.ofEpochDay(decode);
+    }
 
-   @Override
-   public LocalDate decode(ByteBuf byteBuf) {
-      if (null == byteBuf) {
-         return null;
-      }
+    @Override
+    public LocalDate decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(byteBuf);
-      return LocalDate.ofEpochDay(decode);
-   }
+        Long decode = LongSchema.of().decode(byteBuf);
+        return LocalDate.ofEpochDay(decode);
+    }
 
-   @Override
-   public SchemaInfo getSchemaInfo() {
-      return SCHEMA_INFO;
-   }
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        return SCHEMA_INFO;
+    }
 }

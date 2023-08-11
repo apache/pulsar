@@ -50,17 +50,19 @@ public class BrokerDiscoveryProvider implements Closeable {
 
     private final AtomicInteger counter = new AtomicInteger();
 
-    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(4)
-            .name("pulsar-proxy-ordered").build();
-    private final ScheduledExecutorService scheduledExecutorScheduler = Executors.newScheduledThreadPool(4,
-            new DefaultThreadFactory("pulsar-proxy-scheduled-executor"));
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
+            .numThreads(4)
+            .name("pulsar-proxy-ordered")
+            .build();
+    private final ScheduledExecutorService scheduledExecutorScheduler =
+            Executors.newScheduledThreadPool(4, new DefaultThreadFactory("pulsar-proxy-scheduled-executor"));
 
     public BrokerDiscoveryProvider(ProxyConfiguration config, PulsarResources pulsarResources)
             throws PulsarServerException {
         try {
             this.pulsarResources = pulsarResources;
-            this.metadataStoreCacheLoader = new MetadataStoreCacheLoader(pulsarResources,
-                    config.getMetadataStoreSessionTimeoutMillis());
+            this.metadataStoreCacheLoader =
+                    new MetadataStoreCacheLoader(pulsarResources, config.getMetadataStoreSessionTimeoutMillis());
         } catch (Exception e) {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
@@ -103,5 +105,4 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerDiscoveryProvider.class);
-
 }

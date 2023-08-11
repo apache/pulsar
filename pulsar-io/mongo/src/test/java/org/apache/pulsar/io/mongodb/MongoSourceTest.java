@@ -18,12 +18,22 @@
  */
 package org.apache.pulsar.io.mongodb;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
 import com.mongodb.reactivestreams.client.ChangeStreamPublisher;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import java.util.Map;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.bson.BsonDocument;
@@ -35,20 +45,6 @@ import org.reactivestreams.Subscriber;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Map;
-
-import static org.mockito.ArgumentMatchers.any;
-
-
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
-import static org.testng.Assert.assertEquals;
 
 public class MongoSourceTest {
 
@@ -93,9 +89,11 @@ public class MongoSourceTest {
         when(mockPublisher.fullDocument(any())).thenReturn(mockPublisher);
 
         doAnswer((invocation) -> {
-            subscriber = invocation.getArgument(0, Subscriber.class);
-            return null;
-        }).when(mockPublisher).subscribe(any());
+                    subscriber = invocation.getArgument(0, Subscriber.class);
+                    return null;
+                })
+                .when(mockPublisher)
+                .subscribe(any());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -128,9 +126,10 @@ public class MongoSourceTest {
 
         Record<byte[]> record = source.read();
 
-        assertEquals(new String(record.getValue()),
+        assertEquals(
+                new String(record.getValue()),
                 "{\"fullDocument\":{\"hello\":\"pulsar\"},"
-                + "\"ns\":{\"databaseName\":\"hello\",\"collectionName\":\"pulsar\",\"fullName\":\"hello.pulsar\"},"
-                + "\"operation\":\"INSERT\"}");
+                        + "\"ns\":{\"databaseName\":\"hello\",\"collectionName\":\"pulsar\",\"fullName\":\"hello.pulsar\"},"
+                        + "\"operation\":\"INSERT\"}");
     }
 }

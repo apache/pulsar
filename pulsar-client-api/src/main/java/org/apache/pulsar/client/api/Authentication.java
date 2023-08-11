@@ -85,20 +85,20 @@ public interface Authentication extends Closeable, Serializable {
      * An authentication Stage.
      * when authentication complete, passed-in authFuture will contains authentication related http request headers.
      */
-    default void authenticationStage(String requestUrl,
-                                     AuthenticationDataProvider authData,
-                                     Map<String, String> previousResHeaders,
-                                     CompletableFuture<Map<String, String>> authFuture) {
+    default void authenticationStage(
+            String requestUrl,
+            AuthenticationDataProvider authData,
+            Map<String, String> previousResHeaders,
+            CompletableFuture<Map<String, String>> authFuture) {
         authFuture.complete(null);
     }
 
     /**
      * Add an authenticationStage that will complete along with authFuture.
      */
-    default Set<Entry<String, String>> newRequestHeader(String hostName,
-                                                        AuthenticationDataProvider authData,
-                                                        Map<String, String> previousResHeaders) throws Exception {
+    default Set<Entry<String, String>> newRequestHeader(
+            String hostName, AuthenticationDataProvider authData, Map<String, String> previousResHeaders)
+            throws Exception {
         return authData.getHttpHeaders();
     }
-
 }

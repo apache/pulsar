@@ -59,8 +59,7 @@ import org.apache.flume.conf.FlumeConfiguration;
  * basePath - Base Path where agent configuration needs to be stored. Defaults
  * to /flume
  */
-public abstract class AbstractZooKeeperConfigurationProvider extends
-        AbstractConfigurationProvider {
+public abstract class AbstractZooKeeperConfigurationProvider extends AbstractConfigurationProvider {
 
     static final String DEFAULT_ZK_BASE_PATH = "/flume";
 
@@ -68,11 +67,10 @@ public abstract class AbstractZooKeeperConfigurationProvider extends
 
     protected final String zkConnString;
 
-    protected AbstractZooKeeperConfigurationProvider(String agentName,
-                                                     String zkConnString, String basePath) {
+    protected AbstractZooKeeperConfigurationProvider(String agentName, String zkConnString, String basePath) {
         super(agentName);
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(zkConnString),
-                "Invalid Zookeeper Connection String %s", zkConnString);
+        Preconditions.checkArgument(
+                !Strings.isNullOrEmpty(zkConnString), "Invalid Zookeeper Connection String %s", zkConnString);
         this.zkConnString = zkConnString;
         if (basePath == null || basePath.isEmpty()) {
             this.basePath = DEFAULT_ZK_BASE_PATH;
@@ -82,12 +80,10 @@ public abstract class AbstractZooKeeperConfigurationProvider extends
     }
 
     protected CuratorFramework createClient() {
-        return CuratorFrameworkFactory.newClient(zkConnString,
-                new ExponentialBackoffRetry(1000, 1));
+        return CuratorFrameworkFactory.newClient(zkConnString, new ExponentialBackoffRetry(1000, 1));
     }
 
-    protected FlumeConfiguration configFromBytes(byte[] configData)
-            throws IOException {
+    protected FlumeConfiguration configFromBytes(byte[] configData) throws IOException {
         Map<String, String> configMap;
         if (configData == null || configData.length == 0) {
             configMap = Collections.emptyMap();

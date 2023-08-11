@@ -32,6 +32,7 @@ import org.apache.pulsar.common.stats.Metrics;
 public class ManagedLedgerCacheMetrics extends AbstractMetrics {
 
     private List<Metrics> metrics;
+
     public ManagedLedgerCacheMetrics(PulsarService pulsar) {
         super(pulsar);
         this.metrics = new ArrayList<>();
@@ -92,7 +93,5 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
         metrics.clear();
         metrics.add(m);
         return metrics;
-
     }
-
 }

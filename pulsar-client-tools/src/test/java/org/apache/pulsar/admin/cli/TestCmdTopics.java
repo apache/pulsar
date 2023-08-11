@@ -75,7 +75,7 @@ public class TestCmdTopics {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws IOException {
-        //NOTHING FOR NOW
+        // NOTHING FOR NOW
     }
 
     private static LedgerInfo newLedger(long id, long entries, long size) {
@@ -97,20 +97,17 @@ public class TestCmdTopics {
         Assert.assertNull(CmdTopics.findFirstLedgerWithinThreshold(ledgers, Long.MAX_VALUE));
 
         // test small threshold
-        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 0),
-                            new MessageIdImpl(2, 0, -1));
+        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 0), new MessageIdImpl(2, 0, -1));
 
         // test middling thresholds
-        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 1000),
-                            new MessageIdImpl(2, 0, -1));
-        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 5000),
-                            new MessageIdImpl(1, 0, -1));
+        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 1000), new MessageIdImpl(2, 0, -1));
+        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 5000), new MessageIdImpl(1, 0, -1));
     }
 
     @Test
     public void testListCmd() throws Exception {
-        List<String> topicList = Lists.newArrayList("persistent://public/default/t1", "persistent://public/default/t2",
-                "persistent://public/default/t3");
+        List<String> topicList = Lists.newArrayList(
+                "persistent://public/default/t1", "persistent://public/default/t2", "persistent://public/default/t3");
 
         Topics topics = mock(Topics.class);
         doReturn(topicList).when(topics).getList(anyString(), any());
@@ -124,14 +121,16 @@ public class TestCmdTopics {
         CmdTopics cmd = new CmdTopics(() -> admin);
 
         PrintStream defaultSystemOut = System.out;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); PrintStream ps = new PrintStream(out)) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
+                PrintStream ps = new PrintStream(out)) {
             System.setOut(ps);
             cmd.run("list public/default".split("\\s+"));
             Assert.assertEquals(out.toString(), String.join("\n", topicList) + "\n");
         } finally {
             System.setOut(defaultSystemOut);
         }
-   }
+    }
+
     @Test
     public void testPartitionedLookup() throws Exception {
         partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");

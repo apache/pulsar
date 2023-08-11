@@ -73,52 +73,50 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
     }
 
     @Override
-    public PulsarJsonRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
-                                                 Set<DecoderColumnHandle> columns) {
+    public PulsarJsonRowDecoder createRowDecoder(
+            TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) {
         return new PulsarJsonRowDecoder((GenericJsonSchema) GenericJsonSchema.of(schemaInfo), columns);
     }
 
     @Override
-    public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
-                                                      PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+    public List<ColumnMetadata> extractColumnMetadata(
+            TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         List<ColumnMetadata> columnMetadata;
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
-            throw new TrinoException(NOT_SUPPORTED, "Topic "
-                    + topicName.toString() + " does not have a valid schema");
+            throw new TrinoException(NOT_SUPPORTED, "Topic " + topicName.toString() + " does not have a valid schema");
         }
 
         Schema schema;
         try {
             schema = GenericJsonSchema.of(schemaInfo).getAvroSchema();
         } catch (SchemaParseException ex) {
-            throw new TrinoException(NOT_SUPPORTED, "Topic "
-                    + topicName.toString() + " does not have a valid schema");
+            throw new TrinoException(NOT_SUPPORTED, "Topic " + topicName.toString() + " does not have a valid schema");
         }
 
         try {
             columnMetadata = schema.getFields().stream()
-                    .map(field ->
-                            new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType,
-                                    field.name()), parseJsonPrestoType(field.name(), field.schema()),
-                                    field.schema().toString(), null, false, false,
-                                    handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(
-                                    field.name(), null, null))
-
-                    ).collect(toList());
+                    .map(field -> new PulsarColumnMetadata(
+                            PulsarColumnMetadata.getColumnName(handleKeyValueType, field.name()),
+                            parseJsonPrestoType(field.name(), field.schema()),
+                            field.schema().toString(),
+                            null,
+                            false,
+                            false,
+                            handleKeyValueType,
+                            new PulsarColumnMetadata.DecoderExtraInfo(field.name(), null, null)))
+                    .collect(toList());
         } catch (StackOverflowError e) {
-            log.warn(e, "Topic "
-                    + topicName.toString() + " extractColumnMetadata failed.");
-            throw new TrinoException(NOT_SUPPORTED, "Topic "
-                    + topicName.toString() + " schema may contains cyclic definitions.", e);
+            log.warn(e, "Topic " + topicName.toString() + " extractColumnMetadata failed.");
+            throw new TrinoException(
+                    NOT_SUPPORTED, "Topic " + topicName.toString() + " schema may contains cyclic definitions.", e);
         }
         return columnMetadata;
     }
 
-
     private Type parseJsonPrestoType(String fieldName, Schema schema) {
         Schema.Type type = schema.getType();
-        LogicalType logicalType  = schema.getLogicalType();
+        LogicalType logicalType = schema.getLogicalType();
         switch (type) {
             case STRING:
             case ENUM:
@@ -126,7 +124,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case NULL:
                 throw new UnsupportedOperationException(format(
                         "field '%s' NULL type code should not be reached , "
-                                + "please check the schema or report the bug.", fieldName));
+                                + "please check the schema or report the bug.",
+                        fieldName));
             case FIXED:
             case BYTES:
                 //  When the precision <= 0, throw Exception.
@@ -159,21 +158,24 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case ARRAY:
                 return new ArrayType(parseJsonPrestoType(fieldName, schema.getElementType()));
             case MAP:
-                //The key for an avro map must be string.
-                TypeSignature valueType = parseJsonPrestoType(fieldName, schema.getValueType()).getTypeSignature();
-                return typeManager.getParameterizedType(StandardTypes.MAP, ImmutableList.of(TypeSignatureParameter.
-                        typeParameter(VarcharType.VARCHAR.getTypeSignature()),
-                        TypeSignatureParameter.typeParameter(valueType)));
+                // The key for an avro map must be string.
+                TypeSignature valueType =
+                        parseJsonPrestoType(fieldName, schema.getValueType()).getTypeSignature();
+                return typeManager.getParameterizedType(
+                        StandardTypes.MAP,
+                        ImmutableList.of(
+                                TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()),
+                                TypeSignatureParameter.typeParameter(valueType)));
             case RECORD:
                 if (schema.getFields().size() > 0) {
                     return RowType.from(schema.getFields().stream()
-                            .map(field -> new RowType.Field(Optional.of(field.name()),
-                                    parseJsonPrestoType(field.name(), field.schema())))
+                            .map(field -> new RowType.Field(
+                                    Optional.of(field.name()), parseJsonPrestoType(field.name(), field.schema())))
                             .collect(toImmutableList()));
                 } else {
                     throw new UnsupportedOperationException(format(
-                            "field '%s' of record type has no fields, "
-                                    + "please check schema definition. ", fieldName));
+                            "field '%s' of record type has no fields, " + "please check schema definition. ",
+                            fieldName));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
@@ -181,8 +183,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                         return parseJsonPrestoType(fieldName, nestType);
                     }
                 }
-                throw new UnsupportedOperationException(format(
-                        "field '%s' of UNION type must contains not NULL type.", fieldName));
+                throw new UnsupportedOperationException(
+                        format("field '%s' of UNION type must contains not NULL type.", fieldName));
             default:
                 throw new UnsupportedOperationException(format(
                         "Can't convert from schema type '%s' (%s) to presto type.",
@@ -191,5 +193,4 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
     }
 
     private static final Logger log = Logger.get(PulsarJsonRowDecoderFactory.class);
-
 }

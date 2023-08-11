@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v1.ConsumerV1Impl;
+
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
@@ -70,7 +71,8 @@ public class ConsumerConfiguration implements Serializable {
      */
     public ConsumerConfiguration setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
         long ackTimeoutMillis = timeUnit.toMillis(ackTimeout);
-        checkArgument(ackTimeoutMillis >= minAckTimeoutMillis,
+        checkArgument(
+                ackTimeoutMillis >= minAckTimeoutMillis,
                 "Ack timeout should be should be greater than " + minAckTimeoutMillis + " ms");
         conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
         return this;
@@ -357,7 +359,7 @@ public class ConsumerConfiguration implements Serializable {
         return conf;
     }
 
-     /**
+    /**
      * @param subscriptionInitialPosition the initial position at which to set
      * set cursor  when subscribing to the topic first time
      * Default is {@value InitialPosition.Latest}
@@ -371,7 +373,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the configured {@link subscriptionInitialPosition} for the consumer
      */
-    public SubscriptionInitialPosition getSubscriptionInitialPosition(){
+    public SubscriptionInitialPosition getSubscriptionInitialPosition() {
         return conf.getSubscriptionInitialPosition();
     }
 

@@ -65,14 +65,14 @@ public class JwksCache {
         // Store the clients
         this.httpClient = httpClient;
         this.openidApi = apiClient != null ? new OpenidApi(apiClient) : null;
-        keyIdCacheMissRefreshNanos = TimeUnit.SECONDS.toNanos(getConfigValueAsInt(config,
-                KEY_ID_CACHE_MISS_REFRESH_SECONDS, KEY_ID_CACHE_MISS_REFRESH_SECONDS_DEFAULT));
+        keyIdCacheMissRefreshNanos = TimeUnit.SECONDS.toNanos(getConfigValueAsInt(
+                config, KEY_ID_CACHE_MISS_REFRESH_SECONDS, KEY_ID_CACHE_MISS_REFRESH_SECONDS_DEFAULT));
         // Configure the cache
         int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
-        int refreshAfterWriteSeconds = getConfigValueAsInt(config, CACHE_REFRESH_AFTER_WRITE_SECONDS,
-                CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT);
-        int expireAfterSeconds = getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS,
-                CACHE_EXPIRATION_SECONDS_DEFAULT);
+        int refreshAfterWriteSeconds = getConfigValueAsInt(
+                config, CACHE_REFRESH_AFTER_WRITE_SECONDS, CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT);
+        int expireAfterSeconds =
+                getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS, CACHE_EXPIRATION_SECONDS_DEFAULT);
         AsyncCacheLoader<Optional<String>, List<Jwk>> loader = (jwksUri, executor) -> {
             // Store the time of the retrieval, even though it might be a little early or the call might fail.
             jwksLastRefreshTime.put(jwksUri, System.nanoTime());
@@ -101,53 +101,45 @@ public class JwksCache {
      * Retrieve the JWK for the given key ID from the given JWKS URI. If the key ID is not found, and failOnMissingKeyId
      * is false, then the JWK will be reloaded from the JWKS URI and the key ID will be searched for again.
      */
-    private CompletableFuture<Jwk> getJwkAndMaybeReload(Optional<String> maybeJwksUri,
-                                                        String keyId,
-                                                        boolean failOnMissingKeyId) {
-        return cache
-                .get(maybeJwksUri)
-                .thenCompose(jwks -> {
-                    try {
-                        return CompletableFuture.completedFuture(getJwkForKID(maybeJwksUri, jwks, keyId));
-                    } catch (IllegalArgumentException e) {
-                        if (failOnMissingKeyId) {
-                            throw e;
-                        } else {
-                            Long lastRefresh = jwksLastRefreshTime.get(maybeJwksUri);
-                            if (lastRefresh == null || System.nanoTime() - lastRefresh > keyIdCacheMissRefreshNanos) {
-                                // In this case, the key ID was not found, but we haven't refreshed the JWKS in a while,
-                                // so it is possible the key ID was added. Refresh the JWKS and try again.
-                                cache.synchronous().invalidate(maybeJwksUri);
-                            }
-                            // There is a small race condition where the JWKS could be refreshed by another thread,
-                            // so we retry getting the JWK, even though we might not have invalidated the cache.
-                            return getJwkAndMaybeReload(maybeJwksUri, keyId, true);
-                        }
+    private CompletableFuture<Jwk> getJwkAndMaybeReload(
+            Optional<String> maybeJwksUri, String keyId, boolean failOnMissingKeyId) {
+        return cache.get(maybeJwksUri).thenCompose(jwks -> {
+            try {
+                return CompletableFuture.completedFuture(getJwkForKID(maybeJwksUri, jwks, keyId));
+            } catch (IllegalArgumentException e) {
+                if (failOnMissingKeyId) {
+                    throw e;
+                } else {
+                    Long lastRefresh = jwksLastRefreshTime.get(maybeJwksUri);
+                    if (lastRefresh == null || System.nanoTime() - lastRefresh > keyIdCacheMissRefreshNanos) {
+                        // In this case, the key ID was not found, but we haven't refreshed the JWKS in a while,
+                        // so it is possible the key ID was added. Refresh the JWKS and try again.
+                        cache.synchronous().invalidate(maybeJwksUri);
                     }
-                });
+                    // There is a small race condition where the JWKS could be refreshed by another thread,
+                    // so we retry getting the JWK, even though we might not have invalidated the cache.
+                    return getJwkAndMaybeReload(maybeJwksUri, keyId, true);
+                }
+            }
+        });
     }
 
     private CompletableFuture<List<Jwk>> getJwksFromJwksUri(String jwksUri) {
-        return httpClient
-                .prepareGet(jwksUri)
-                .execute()
-                .toCompletableFuture()
-                .thenCompose(result -> {
-                    CompletableFuture<List<Jwk>> future = new CompletableFuture<>();
-                    try {
-                        HashMap<String, Object> jwks =
-                                reader.readValue(result.getResponseBodyAsBytes());
-                        future.complete(convertToJwks(jwksUri, jwks));
-                    } catch (AuthenticationException e) {
-                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
-                        future.completeExceptionally(e);
-                    } catch (Exception e) {
-                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
-                        future.completeExceptionally(new AuthenticationException(
-                                "Error retrieving public key at " + jwksUri + ": " + e.getMessage()));
-                    }
-                    return future;
-                });
+        return httpClient.prepareGet(jwksUri).execute().toCompletableFuture().thenCompose(result -> {
+            CompletableFuture<List<Jwk>> future = new CompletableFuture<>();
+            try {
+                HashMap<String, Object> jwks = reader.readValue(result.getResponseBodyAsBytes());
+                future.complete(convertToJwks(jwksUri, jwks));
+            } catch (AuthenticationException e) {
+                incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                future.completeExceptionally(e);
+            } catch (Exception e) {
+                incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                future.completeExceptionally(new AuthenticationException(
+                        "Error retrieving public key at " + jwksUri + ": " + e.getMessage()));
+            }
+            return future;
+        });
     }
 
     CompletableFuture<Jwk> getJwkFromKubernetesApiServer(String keyId) {
@@ -188,20 +180,15 @@ public class JwksCache {
                 }
 
                 @Override
-                public void onUploadProgress(long bytesWritten, long contentLength, boolean done) {
-
-                }
+                public void onUploadProgress(long bytesWritten, long contentLength, boolean done) {}
 
                 @Override
-                public void onDownloadProgress(long bytesRead, long contentLength, boolean done) {
-
-                }
+                public void onDownloadProgress(long bytesRead, long contentLength, boolean done) {}
             });
         } catch (ApiException e) {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
-            future.completeExceptionally(
-                    new AuthenticationException("Failed to retrieve public key from Kubernetes API server: "
-                            + e.getMessage()));
+            future.completeExceptionally(new AuthenticationException(
+                    "Failed to retrieve public key from Kubernetes API server: " + e.getMessage()));
         }
         return future;
     }

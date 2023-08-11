@@ -40,8 +40,9 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public MessageId getMessageId() {
-        return new BatchMessageIdImpl(id.getLedgerId(), id.getEntryId(),
-                                      id.getPartition(), id.getBatchIndex());
+        return new BatchMessageIdImpl(
+                id.getLedgerId(), id.getEntryId(),
+                id.getPartition(), id.getBatchIndex());
     }
 
     @Override

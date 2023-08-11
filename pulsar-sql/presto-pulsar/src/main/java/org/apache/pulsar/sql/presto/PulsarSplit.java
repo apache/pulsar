@@ -80,7 +80,8 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
-            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies) throws IOException {
+            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies)
+            throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -210,21 +211,21 @@ public class PulsarSplit implements ConnectorSplit {
     @Override
     public String toString() {
         return "PulsarSplit{"
-            + "splitId=" + splitId
-            + ", connectorId='" + connectorId + '\''
-            + ", originSchemaName='" + originSchemaName + '\''
-            + ", schemaName='" + schemaName + '\''
-            + ", tableName='" + tableName + '\''
-            + ", splitSize=" + splitSize
-            + ", schema='" + schema + '\''
-            + ", schemaType=" + schemaType
-            + ", startPositionEntryId=" + startPositionEntryId
-            + ", endPositionEntryId=" + endPositionEntryId
-            + ", startPositionLedgerId=" + startPositionLedgerId
-            + ", endPositionLedgerId=" + endPositionLedgerId
-            + ", schemaInfoProperties=" + schemaInfoProperties
-            + (offloadPolicies == null ? "" : offloadPolicies.toString())
-            + '}';
+                + "splitId=" + splitId
+                + ", connectorId='" + connectorId + '\''
+                + ", originSchemaName='" + originSchemaName + '\''
+                + ", schemaName='" + schemaName + '\''
+                + ", tableName='" + tableName + '\''
+                + ", splitSize=" + splitSize
+                + ", schema='" + schema + '\''
+                + ", schemaType=" + schemaType
+                + ", startPositionEntryId=" + startPositionEntryId
+                + ", endPositionEntryId=" + endPositionEntryId
+                + ", startPositionLedgerId=" + startPositionLedgerId
+                + ", endPositionLedgerId=" + endPositionLedgerId
+                + ", schemaInfoProperties=" + schemaInfoProperties
+                + (offloadPolicies == null ? "" : offloadPolicies.toString())
+                + '}';
     }
 
     public SchemaInfo getSchemaInfo() {

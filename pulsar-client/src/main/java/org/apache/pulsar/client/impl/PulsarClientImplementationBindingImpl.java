@@ -243,8 +243,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return KeyValueSchemaImpl.kvBytes();
     }
 
-    public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
-                                                    KeyValueEncodingType keyValueEncodingType) {
+    public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(
+            Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType) {
         return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
     }
 
@@ -263,7 +263,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
             default:
                 return GenericSchemaImpl.of(schemaInfo);
         }
-
     }
 
     public RecordSchemaBuilder newRecordSchemaBuilder(String name) {
@@ -288,9 +287,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param keyValueEncodingType the encoding type to encode and decode key value pair
      * @return the final schema info
      */
-    public <K, V> SchemaInfo encodeKeyValueSchemaInfo(Schema<K> keySchema,
-                                               Schema<V> valueSchema,
-                                               KeyValueEncodingType keyValueEncodingType) {
+    public <K, V> SchemaInfo encodeKeyValueSchemaInfo(
+            Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType) {
         return encodeKeyValueSchemaInfo("KeyValue", keySchema, valueSchema, keyValueEncodingType);
     }
 
@@ -303,10 +301,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param keyValueEncodingType the encoding type to encode and decode key value pair
      * @return the final schema info
      */
-    public <K, V> SchemaInfo encodeKeyValueSchemaInfo(String schemaName,
-                                               Schema<K> keySchema,
-                                               Schema<V> valueSchema,
-                                               KeyValueEncodingType keyValueEncodingType) {
+    public <K, V> SchemaInfo encodeKeyValueSchemaInfo(
+            String schemaName, Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType) {
         return KeyValueSchemaInfo.encodeKeyValueSchemaInfo(schemaName, keySchema, valueSchema, keyValueEncodingType);
     }
 
@@ -384,8 +380,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return new MessagePayloadFactoryImpl();
     }
 
-    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
-                                        Map<String, String> propertiesValue) {
+    public SchemaInfo newSchemaInfoImpl(
+            String name, byte[] schema, SchemaType type, long timestamp, Map<String, String> propertiesValue) {
         return new SchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
     }
 

@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.io.elasticsearch.testcontainers;
 
+import java.io.IOException;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 import lombok.extern.slf4j.Slf4j;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
-
-import java.io.IOException;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
 
 @Slf4j
 // Toxiproxy container, which will be used as a TCP proxy
@@ -64,17 +63,18 @@ public class ElasticToxiproxiContainer extends ToxiproxyContainer {
     public void removeToxicAfterDelay(String toxicName, long delayMs) {
         Objects.nonNull(proxy);
         Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    log.info("removing the toxic {}", toxicName);
-                    proxy.toxics().get(toxicName).remove();
-                } catch (IOException e) {
-                    log.error("failed to remove toxic " + toxicName, e);
-                }
-            }
-        }, delayMs);
+        timer.schedule(
+                new TimerTask() {
+                    @Override
+                    public void run() {
+                        try {
+                            log.info("removing the toxic {}", toxicName);
+                            proxy.toxics().get(toxicName).remove();
+                        } catch (IOException e) {
+                            log.error("failed to remove toxic " + toxicName, e);
+                        }
+                    }
+                },
+                delayMs);
     }
-
 }

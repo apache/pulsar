@@ -20,6 +20,8 @@ package org.apache.pulsar.tests.integration.plugins;
 
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -32,9 +34,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
 
 public class TestBrokerInterceptors extends TopicMessagingBase {
 
@@ -49,8 +48,8 @@ public class TestBrokerInterceptors extends TopicMessagingBase {
     }
 
     @Override
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
-                                                                            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+            String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         specBuilder.numBrokers(1);
         return specBuilder;
     }
@@ -61,9 +60,8 @@ public class TestBrokerInterceptors extends TopicMessagingBase {
 
         final String topicName = getNonPartitionedTopic("interceptorTest-topic", true);
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl).build();
 
         @Cleanup
         final Producer<String> producer = client.newProducer(Schema.STRING)
@@ -74,9 +72,7 @@ public class TestBrokerInterceptors extends TopicMessagingBase {
         int messagesToSend = 20;
         for (int i = 0; i < messagesToSend; i++) {
             String messageValue = producer.getProducerName() + "-" + i;
-            MessageId messageId = producer.newMessage()
-                    .value(messageValue)
-                    .send();
+            MessageId messageId = producer.newMessage().value(messageValue).send();
             assertNotNull(messageId);
         }
 
@@ -86,20 +82,21 @@ public class TestBrokerInterceptors extends TopicMessagingBase {
             }
         }
 
-        String log = pulsarCluster.getAnyBroker()
-                .execCmd("cat", "/var/log/pulsar/broker.log").getStdout();
+        String log = pulsarCluster
+                .getAnyBroker()
+                .execCmd("cat", "/var/log/pulsar/broker.log")
+                .getStdout();
 
-        for (String line : new String[]{
-                "initialize: OK",
-                "onConnectionCreated",
-                "producerCreated",
-                "consumerCreated",
-                "messageProduced",
-                "beforeSendMessage: OK",
+        for (String line : new String[] {
+            "initialize: OK",
+            "onConnectionCreated",
+            "producerCreated",
+            "consumerCreated",
+            "messageProduced",
+            "beforeSendMessage: OK",
         }) {
             assertTrue(log.contains("LoggingBrokerInterceptor - " + line), "Log did not contain line '" + line + "'");
         }
-
     }
 
     private Consumer<String> createConsumer(PulsarClient client, String topicName) throws Exception {

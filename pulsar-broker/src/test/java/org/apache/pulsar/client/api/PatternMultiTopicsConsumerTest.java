@@ -35,7 +35,6 @@ public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(PatternMultiTopicsConsumerTest.class);
 
-
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -52,21 +51,27 @@ public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 5000)
     public void testSimple() throws Exception {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/topic.*")
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topicsPattern("persistent://my-property/my-ns/topic.*")
                 // Make sure topics are discovered before test times out
                 .patternAutoDiscoveryPeriod(2, TimeUnit.SECONDS)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("subscriber-name").subscribe();
+                .subscriptionName("subscriber-name")
+                .subscribe();
         testWithConsumer(consumer);
     }
 
     @Test(timeOut = 5000)
     public void testNotifications() throws Exception {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/topic.*")
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topicsPattern("persistent://my-property/my-ns/topic.*")
                 // Set auto-discovery period high so that only notifications can inform us about new topics
                 .patternAutoDiscoveryPeriod(1, TimeUnit.MINUTES)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("subscriber-name").subscribe();
+                .subscriptionName("subscriber-name")
+                .subscribe();
         testWithConsumer(consumer);
     }
 
@@ -88,11 +93,12 @@ public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.info("Received message: [{}]", receivedMessage);
-            receivedMessages.computeIfAbsent(msg.getTopicName(), topic -> new LinkedList<>()).add(receivedMessage);
+            receivedMessages
+                    .computeIfAbsent(msg.getTopicName(), topic -> new LinkedList<>())
+                    .add(receivedMessage);
         }
 
         Assert.assertEquals(receivedMessages, sentMessages);
         consumer.close();
     }
-
 }

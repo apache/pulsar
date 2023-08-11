@@ -42,11 +42,10 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
 
     public static KeyValue<SchemaData, SchemaData> decodeKeyValueSchemaData(SchemaData schemaData) {
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
-            KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaData.toSchemaInfo());
+                KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaData.toSchemaInfo());
         return new KeyValue<>(
-            SchemaData.fromSchemaInfo(schemaInfoKeyValue.getKey()),
-            SchemaData.fromSchemaInfo(schemaInfoKeyValue.getValue())
-        );
+                SchemaData.fromSchemaInfo(schemaInfoKeyValue.getKey()),
+                SchemaData.fromSchemaInfo(schemaInfoKeyValue.getValue()));
     }
 
     @Override
@@ -81,15 +80,16 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
                 throw new IncompatibleSchemaException("From schema is not a KEY_VALUE schema.");
             }
             fromKeyValue = decodeKeyValueSchemaData(schemaData);
-            if (fromKeyValue.getKey().getType() != toKeyType || fromKeyValue.getValue().getType() != toValueType) {
-                throw new IncompatibleSchemaException(
-                        String.format("Key schemas or Value schemas are different schema type, "
-                                        + "from key schema type is %s and to key schema is %s,"
-                                        + " from value schema is %s and to value schema is %s",
-                                fromKeyValue.getKey().getType(),
-                                toKeyType,
-                                fromKeyValue.getValue().getType(),
-                                toValueType));
+            if (fromKeyValue.getKey().getType() != toKeyType
+                    || fromKeyValue.getValue().getType() != toValueType) {
+                throw new IncompatibleSchemaException(String.format(
+                        "Key schemas or Value schemas are different schema type, "
+                                + "from key schema type is %s and to key schema is %s,"
+                                + " from value schema is %s and to value schema is %s",
+                        fromKeyValue.getKey().getType(),
+                        toKeyType,
+                        fromKeyValue.getValue().getType(),
+                        toValueType));
             }
             fromKeyList.addFirst(fromKeyValue.getKey());
             fromValueList.addFirst(fromKeyValue.getValue());

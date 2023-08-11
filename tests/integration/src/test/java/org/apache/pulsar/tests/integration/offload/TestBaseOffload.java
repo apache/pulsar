@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.offload;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -41,7 +40,8 @@ import org.testng.Assert;
 public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
     protected int getEntrySize() {
         return 1024;
-    };
+    }
+    ;
 
     private byte[] buildEntry(String pattern) {
         byte[] entry = new byte[getEntrySize()];
@@ -58,32 +58,44 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
 
-        pulsarCluster.runAdminCommandOnAnyBroker( "tenants",
-                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
-                "--admin-roles", "offload-admin", tenant);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "create",
+                "--allowed-clusters",
+                pulsarCluster.getClusterName(),
+                "--admin-roles",
+                "offload-admin",
+                tenant);
 
         pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces",
-                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+                "namespaces", "create", "--clusters", pulsarCluster.getClusterName(), namespace);
 
         long firstLedger = -1;
-        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer<byte[]> producer = client.newProducer().topic(topic)
-                    .maxPendingMessages(getNumEntriesPerLedger() / 2).sendTimeout(60, TimeUnit.SECONDS)
-                    .blockIfQueueFull(true).enableBatching(false).create();) {
-            client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe().close();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+                Producer<byte[]> producer = client.newProducer()
+                        .topic(topic)
+                        .maxPendingMessages(getNumEntriesPerLedger() / 2)
+                        .sendTimeout(60, TimeUnit.SECONDS)
+                        .blockIfQueueFull(true)
+                        .enableBatching(false)
+                        .create(); ) {
+            client.newConsumer()
+                    .topic(topic)
+                    .subscriptionName("my-sub")
+                    .subscribe()
+                    .close();
 
             // write enough to topic to make it roll
             int i = 0;
             AtomicBoolean success = new AtomicBoolean(true);
 
             for (; i < getNumEntriesPerLedger() * 1.5; i++) {
-                producer.sendAsync(buildEntry("offload-message" + i))
-                        .exceptionally(e -> {
-                            log.error("failed to send a message", e);
-                            success.set(false);
-                            return null;
-                        });;
+                producer.sendAsync(buildEntry("offload-message" + i)).exceptionally(e -> {
+                    log.error("failed to send a message", e);
+                    success.set(false);
+                    return null;
+                });
+                ;
             }
             producer.flush();
             Assert.assertTrue(success.get());
@@ -95,21 +107,25 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
             // first offload with a high threshold, nothing should offload
 
-            String output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "offload", "--size-threshold", "100G", topic).getStdout();
+            String output = pulsarCluster
+                    .runAdminCommandOnAnyBroker("topics", "offload", "--size-threshold", "100G", topic)
+                    .getStdout();
             Assert.assertTrue(output.contains("Nothing to offload"));
 
-            output = pulsarCluster.runAdminCommandOnAnyBroker( "topics",
-                    "offload-status", topic).getStdout();
+            output = pulsarCluster
+                    .runAdminCommandOnAnyBroker("topics", "offload-status", topic)
+                    .getStdout();
             Assert.assertTrue(output.contains("Offload has not been run"));
 
             // offload with a low threshold
-            output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "offload", "--size-threshold", "1M", topic).getStdout();
+            output = pulsarCluster
+                    .runAdminCommandOnAnyBroker("topics", "offload", "--size-threshold", "1M", topic)
+                    .getStdout();
             Assert.assertTrue(output.contains("Offload triggered"));
 
-            output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "offload-status", "-w", topic).getStdout();
+            output = pulsarCluster
+                    .runAdminCommandOnAnyBroker("topics", "offload-status", "-w", topic)
+                    .getStdout();
             Assert.assertTrue(output.contains("Offload was a success"));
 
             // delete the first ledger, so that we cannot possibly read from it
@@ -124,8 +140,11 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
 
         log.info("Read back the data (which would be in that first ledger)");
-        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+                Consumer<byte[]> consumer = client.newConsumer()
+                        .topic(topic)
+                        .subscriptionName("my-sub")
+                        .subscribe()) {
             // read back from topic
             for (int i = 0; i < getNumEntriesPerLedger() * 1.5; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
@@ -139,33 +158,45 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
 
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
-                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
-                "--admin-roles", "offload-admin", tenant);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "create",
+                "--allowed-clusters",
+                pulsarCluster.getClusterName(),
+                "--admin-roles",
+                "offload-admin",
+                tenant);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "create", "--clusters", pulsarCluster.getClusterName(), namespace);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-offload-threshold", "--size", "1M", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-threshold", "--size", "1M", namespace);
 
         long firstLedger = 0;
-        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer<byte[]> producer = client.newProducer().topic(topic)
-                    .maxPendingMessages(getNumEntriesPerLedger() / 2).sendTimeout(60, TimeUnit.SECONDS)
-                    .blockIfQueueFull(true).enableBatching(false).create()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+                Producer<byte[]> producer = client.newProducer()
+                        .topic(topic)
+                        .maxPendingMessages(getNumEntriesPerLedger() / 2)
+                        .sendTimeout(60, TimeUnit.SECONDS)
+                        .blockIfQueueFull(true)
+                        .enableBatching(false)
+                        .create()) {
 
-            client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe().close();
+            client.newConsumer()
+                    .topic(topic)
+                    .subscriptionName("my-sub")
+                    .subscribe()
+                    .close();
 
             AtomicBoolean success = new AtomicBoolean(true);
             // write enough to topic to make it roll twice
             for (int i = 0; i < getNumEntriesPerLedger() * 2.5; i++) {
-                producer.sendAsync(buildEntry("offload-message" + i))
-                        .exceptionally(e -> {
-                            log.error("failed to send a message", e);
-                            success.set(false);
-                            return null;
-                        });;
+                producer.sendAsync(buildEntry("offload-message" + i)).exceptionally(e -> {
+                    log.error("failed to send a message", e);
+                    success.set(false);
+                    return null;
+                });
+                ;
             }
 
             producer.flush();
@@ -176,7 +207,9 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             firstLedger = admin.topics().getInternalStats(topic).ledgers.get(0).ledgerId;
 
             // wait up to 30 seconds for offload to occur
-            for (int i = 0; i < 100 && !admin.topics().getInternalStats(topic).ledgers.get(0).offloaded; i++) {
+            for (int i = 0;
+                    i < 100 && !admin.topics().getInternalStats(topic).ledgers.get(0).offloaded;
+                    i++) {
                 Thread.sleep(300);
             }
             Assert.assertTrue(admin.topics().getInternalStats(topic).ledgers.get(0).offloaded);
@@ -194,7 +227,10 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
         log.info("Read back the data (which would be in that first ledger)");
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-             Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
+                Consumer<byte[]> consumer = client.newConsumer()
+                        .topic(topic)
+                        .subscriptionName("my-sub")
+                        .subscribe()) {
             // read back from topic
             for (int i = 0; i < getNumEntriesPerLedger() * 2.5; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
@@ -204,8 +240,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
 
         // try disabling
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-offload-threshold", "--size", "-1", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-threshold", "--size", "-1", namespace);
 
         // hard to validate that it has been disabled as we'd be waiting for
         // something _not_ to happen (i.e. waiting for ages), so just check
@@ -215,44 +250,50 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
     }
 
     private boolean ledgerOffloaded(List<PersistentTopicInternalStats.LedgerInfo> ledgers, long ledgerId) {
-        return ledgers.stream().filter(l -> l.ledgerId == ledgerId)
-                .map(l -> l.offloaded).findFirst().get();
+        return ledgers.stream()
+                .filter(l -> l.ledgerId == ledgerId)
+                .map(l -> l.offloaded)
+                .findFirst()
+                .get();
     }
 
-    private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic)
-            throws Exception {
+    private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic) throws Exception {
         return writeAndWaitForOffload(serviceUrl, adminUrl, topic, -1);
     }
 
     private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic, int partitionNum)
             throws Exception {
-        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer<byte[]> producer = client.newProducer().topic(topic)
-                    .maxPendingMessages(getNumEntriesPerLedger() / 2).sendTimeout(60, TimeUnit.SECONDS)
-                    .blockIfQueueFull(true).enableBatching(false).create();
-            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+                Producer<byte[]> producer = client.newProducer()
+                        .topic(topic)
+                        .maxPendingMessages(getNumEntriesPerLedger() / 2)
+                        .sendTimeout(60, TimeUnit.SECONDS)
+                        .blockIfQueueFull(true)
+                        .enableBatching(false)
+                        .create();
+                PulsarAdmin admin =
+                        PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
 
-            String topicToCheck = partitionNum >= 0
-                    ? topic + "-partition-" + partitionNum
-                    : topic;
+            String topicToCheck = partitionNum >= 0 ? topic + "-partition-" + partitionNum : topic;
 
-            List<PersistentTopicInternalStats.LedgerInfo> ledgers = admin.topics()
-                    .getInternalStats(topicToCheck).ledgers;
+            List<PersistentTopicInternalStats.LedgerInfo> ledgers =
+                    admin.topics().getInternalStats(topicToCheck).ledgers;
             long currentLedger = ledgers.get(ledgers.size() - 1).ledgerId;
 
-            client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe().close();
+            client.newConsumer()
+                    .topic(topic)
+                    .subscriptionName("my-sub")
+                    .subscribe()
+                    .close();
 
             AtomicBoolean success = new AtomicBoolean(true);
             // write enough to topic to make it roll twice
-            for (int i = 0;
-                 i < getNumEntriesPerLedger() * 2.5 * (partitionNum > 0 ? partitionNum + 1 : 1);
-                 i++) {
-                producer.sendAsync(buildEntry("offload-message" + i))
-                        .exceptionally(e -> {
-                            log.error("failed to send a message", e);
-                            success.set(false);
-                            return null;
-                        });
+            for (int i = 0; i < getNumEntriesPerLedger() * 2.5 * (partitionNum > 0 ? partitionNum + 1 : 1); i++) {
+                producer.sendAsync(buildEntry("offload-message" + i)).exceptionally(e -> {
+                    log.error("failed to send a message", e);
+                    success.set(false);
+                    return null;
+                });
             }
             producer.flush();
             producer.send(buildEntry("final-offload-message"));
@@ -260,8 +301,8 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
             // wait up to 30 seconds for offload to occur
             for (int i = 0;
-                 i < 100 && !ledgerOffloaded(admin.topics().getInternalStats(topicToCheck).ledgers, currentLedger);
-                 i++) {
+                    i < 100 && !ledgerOffloaded(admin.topics().getInternalStats(topicToCheck).ledgers, currentLedger);
+                    i++) {
                 Thread.sleep(300);
             }
             Assert.assertTrue(ledgerOffloaded(admin.topics().getInternalStats(topicToCheck).ledgers, currentLedger));
@@ -278,7 +319,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 bk.openLedger(ledgerId).close();
                 return true;
             } catch (BKException.BKNoSuchLedgerExistsException
-                | BKException.BKNoSuchLedgerExistsOnMetadataServerException e) {
+                    | BKException.BKNoSuchLedgerExistsOnMetadataServerException e) {
                 return false;
             }
         }
@@ -289,19 +330,24 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
 
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
-                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
-                "--admin-roles", "offload-admin", tenant);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "create",
+                "--allowed-clusters",
+                pulsarCluster.getClusterName(),
+                "--admin-roles",
+                "offload-admin",
+                tenant);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "create", "--clusters", pulsarCluster.getClusterName(), namespace);
 
         // set threshold to offload runs immediately after role
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-offload-threshold", "--size", "0", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-threshold", "--size", "0", namespace);
 
-        String output = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        String output = pulsarCluster
+                .runAdminCommandOnAnyBroker("namespaces", "get-offload-deletion-lag", namespace)
+                .getStdout();
         Assert.assertTrue(output.contains("Unset for namespace"));
 
         long offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic);
@@ -310,10 +356,10 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         Thread.sleep(5000);
         Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-deletion-lag", namespace,
-                "--lag", "0m");
-        output = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-deletion-lag", namespace, "--lag", "0m");
+        output = pulsarCluster
+                .runAdminCommandOnAnyBroker("namespaces", "get-offload-deletion-lag", namespace)
+                .getStdout();
         Assert.assertTrue(output.contains("0 minute(s)"));
 
         offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic);
@@ -328,8 +374,9 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
         Thread.sleep(5); // wait 5 seconds to allow broker to see update
 
-        output = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        output = pulsarCluster
+                .runAdminCommandOnAnyBroker("namespaces", "get-offload-deletion-lag", namespace)
+                .getStdout();
         Assert.assertTrue(output.contains("Unset for namespace"));
 
         offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic);
@@ -340,34 +387,38 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
     }
 
-    protected void testDeleteOffloadedTopic(String serviceUrl, String adminUrl,
-                                            boolean unloadBeforeDelete, int numPartitions) throws Exception {
+    protected void testDeleteOffloadedTopic(
+            String serviceUrl, String adminUrl, boolean unloadBeforeDelete, int numPartitions) throws Exception {
         final String tenant = "offload-test-cli-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
 
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
-                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
-                "--admin-roles", "offload-admin", tenant);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "create",
+                "--allowed-clusters",
+                pulsarCluster.getClusterName(),
+                "--admin-roles",
+                "offload-admin",
+                tenant);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "create", "--clusters", pulsarCluster.getClusterName(), namespace);
 
         // set threshold to offload runs immediately after role
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-offload-threshold", "--size", "0", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-threshold", "--size", "0", namespace);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-retention", "--size", "100M", "--time", "100m", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "set-retention", "--size", "100M", "--time", "100m", namespace);
 
-        String output = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        String output = pulsarCluster
+                .runAdminCommandOnAnyBroker("namespaces", "get-offload-deletion-lag", namespace)
+                .getStdout();
         Assert.assertTrue(output.contains("Unset for namespace"));
 
         if (numPartitions > 0) {
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "create-partitioned-topic", topic,
-                    "--partitions", Integer.toString(numPartitions));
+            pulsarCluster.runAdminCommandOnAnyBroker(
+                    "topics", "create-partitioned-topic", topic, "--partitions", Integer.toString(numPartitions));
         } else {
             pulsarCluster.runAdminCommandOnAnyBroker("topics", "create", topic);
         }
@@ -378,10 +429,10 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         Thread.sleep(5000);
         Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-deletion-lag", namespace,
-                "--lag", "0m");
-        output = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-deletion-lag", namespace, "--lag", "0m");
+        output = pulsarCluster
+                .runAdminCommandOnAnyBroker("namespaces", "get-offload-deletion-lag", namespace)
+                .getStdout();
         Assert.assertTrue(output.contains("0 minute(s)"));
 
         offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic, numPartitions - 1);
@@ -408,35 +459,39 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         });
     }
 
-    protected void testDeleteOffloadedTopicExistsInBk(String serviceUrl, String adminUrl,
-                                            boolean unloadBeforeDelete, int numPartitions) throws Exception {
+    protected void testDeleteOffloadedTopicExistsInBk(
+            String serviceUrl, String adminUrl, boolean unloadBeforeDelete, int numPartitions) throws Exception {
         final String tenant = "offload-test-cli-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
 
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
-                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
-                "--admin-roles", "offload-admin", tenant);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "create",
+                "--allowed-clusters",
+                pulsarCluster.getClusterName(),
+                "--admin-roles",
+                "offload-admin",
+                tenant);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "create", "--clusters", pulsarCluster.getClusterName(), namespace);
 
         // set threshold to offload runs immediately after role
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-offload-threshold", "--size", "0", namespace);
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-retention", "--size", "100M", "--time", "100m", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-threshold", "--size", "0", namespace);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "set-retention", "--size", "100M", "--time", "100m", namespace);
 
         if (numPartitions > 0) {
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "create-partitioned-topic", topic,
-                    "--partitions", Integer.toString(numPartitions));
+            pulsarCluster.runAdminCommandOnAnyBroker(
+                    "topics", "create-partitioned-topic", topic, "--partitions", Integer.toString(numPartitions));
         } else {
             pulsarCluster.runAdminCommandOnAnyBroker("topics", "create", topic);
         }
 
-        String output = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        String output = pulsarCluster
+                .runAdminCommandOnAnyBroker("namespaces", "get-offload-deletion-lag", namespace)
+                .getStdout();
         Assert.assertTrue(output.contains("Unset for namespace"));
 
         long offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic, numPartitions - 1);

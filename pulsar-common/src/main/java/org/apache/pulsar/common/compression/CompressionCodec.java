@@ -49,5 +49,4 @@ public interface CompressionCodec {
      *             if the decompression fails
      */
     ByteBuf decode(ByteBuf encoded, int uncompressedSize) throws IOException;
-
 }

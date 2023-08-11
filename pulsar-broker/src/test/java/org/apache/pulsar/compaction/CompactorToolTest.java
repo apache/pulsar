@@ -90,8 +90,7 @@ public class CompactorToolTest {
         serviceConfiguration.setBrokerClientTlsEnabled(true);
         serviceConfiguration.setProperties(new Properties());
 
-        @Cleanup
-        PulsarClient ignored = CompactorTool.createClient(serviceConfiguration);
+        @Cleanup PulsarClient ignored = CompactorTool.createClient(serviceConfiguration);
 
         verify(serviceConfiguration, times(1)).isBrokerClientTlsEnabled();
         verify(serviceConfiguration, times(1)).isTlsAllowInsecureConnection();
@@ -110,8 +109,7 @@ public class CompactorToolTest {
 
         serviceConfiguration.setProperties(new Properties());
 
-        @Cleanup
-        PulsarClient ignored = CompactorTool.createClient(serviceConfiguration);
+        @Cleanup PulsarClient ignored = CompactorTool.createClient(serviceConfiguration);
 
         verify(serviceConfiguration, times(1)).isBrokerClientTlsEnabled();
         verify(serviceConfiguration, times(1)).isBrokerClientTlsEnabledWithKeyStore();

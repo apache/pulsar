@@ -66,7 +66,6 @@ import org.slf4j.LoggerFactory;
  * </p>
  *
  */
-
 public class ProducerHandler extends AbstractWebSocketHandler {
 
     private WebSocketService service;
@@ -79,8 +78,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private static final AtomicLongFieldUpdater<ProducerHandler> MSG_PUBLISHED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ProducerHandler.class, "msgPublishedCounter");
 
-    public static final List<Long> ENTRY_LATENCY_BUCKETS_USEC = Collections.unmodifiableList(Arrays.asList(
-            500L, 1_000L, 5_000L, 10_000L, 20_000L, 50_000L, 100_000L, 200_000L, 1000_000L));
+    public static final List<Long> ENTRY_LATENCY_BUCKETS_USEC = Collections.unmodifiableList(
+            Arrays.asList(500L, 1_000L, 5_000L, 10_000L, 20_000L, 50_000L, 100_000L, 200_000L, 1000_000L));
     private final ObjectReader producerMessageReader =
             ObjectMapperFactory.getMapper().reader().forType(ProducerMessage.class);
 
@@ -97,20 +96,33 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         try {
-            this.producer = getProducerBuilder(service.getPulsarClient()).topic(topic.toString()).create();
+            this.producer = getProducerBuilder(service.getPulsarClient())
+                    .topic(topic.toString())
+                    .create();
             if (!this.service.addProducer(this)) {
-                log.warn("[{}:{}] Failed to add producer handler for topic {}", request.getRemoteAddr(),
-                        request.getRemotePort(), topic);
+                log.warn(
+                        "[{}:{}] Failed to add producer handler for topic {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        topic);
             }
         } catch (Exception e) {
-            log.warn("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
-                    request.getRemotePort(), topic, e.getMessage());
+            log.warn(
+                    "[{}:{}] Failed in creating producer on topic {}: {}",
+                    request.getRemoteAddr(),
+                    request.getRemotePort(),
+                    topic,
+                    e.getMessage());
 
             try {
                 response.sendError(getErrorCode(e), getErrorMessage(e));
             } catch (IOException e1) {
-                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                        e1.getMessage(), e1);
+                log.warn(
+                        "[{}:{}] Failed to send error: {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        e1.getMessage(),
+                        e1);
             }
         }
     }
@@ -121,21 +133,25 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             if (!this.service.removeProducer(this)) {
                 log.warn("[{}] Failed to remove producer handler", producer.getTopic());
             }
-            producer.closeAsync().thenAccept(x -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Closed producer asynchronously", producer.getTopic());
-                }
-            }).exceptionally(exception -> {
-                log.warn("[{}] Failed to close producer", producer.getTopic(), exception);
-                return null;
-            });
+            producer.closeAsync()
+                    .thenAccept(x -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Closed producer asynchronously", producer.getTopic());
+                        }
+                    })
+                    .exceptionally(exception -> {
+                        log.warn("[{}] Failed to close producer", producer.getTopic(), exception);
+                        return null;
+                    });
         }
     }
 
     @Override
     public void onWebSocketText(String message) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received new message from producer {} ", producer.getTopic(),
+            log.debug(
+                    "[{}] Received new message from producer {} ",
+                    producer.getTopic(),
                     getRemote().getInetSocketAddress().toString());
         }
         ProducerMessage sendRequest;
@@ -194,24 +210,31 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
         final long now = System.nanoTime();
 
-        builder.sendAsync().thenAccept(msgId -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Success fully write the message to broker with returned message ID {} from producer {}",
-                        producer.getTopic(), msgId, getRemote().getInetSocketAddress().toString());
-            }
-            updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
-            if (isConnected()) {
-                String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
-                sendAckResponse(new ProducerAck(messageId, sendRequest.context));
-            }
-        }).exceptionally(exception -> {
-            log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
-                    getRemote().getInetSocketAddress().toString(), exception.getMessage());
-            numMsgsFailed.increment();
-            sendAckResponse(
-                    new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
-            return null;
-        });
+        builder.sendAsync()
+                .thenAccept(msgId -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "[{}] Success fully write the message to broker with returned message ID {} from producer {}",
+                                producer.getTopic(),
+                                msgId,
+                                getRemote().getInetSocketAddress().toString());
+                    }
+                    updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
+                    if (isConnected()) {
+                        String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
+                        sendAckResponse(new ProducerAck(messageId, sendRequest.context));
+                    }
+                })
+                .exceptionally(exception -> {
+                    log.warn(
+                            "[{}] Error occurred while producer handler was sending msg from {}: {}",
+                            producer.getTopic(),
+                            getRemote().getInetSocketAddress().toString(),
+                            exception.getMessage());
+                    numMsgsFailed.increment();
+                    sendAckResponse(new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
+                    return null;
+                });
     }
 
     public Producer<byte[]> getProducer() {
@@ -250,11 +273,16 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                     .allowTopicOperationAsync(topic, TopicOperation.PRODUCE, authRole, authenticationData)
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            log.warn(
+                    "Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(),
+                    topic);
             throw e;
         } catch (Exception e) {
-            log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+            log.warn(
+                    "Producer-client  with Role - {} failed to get permissions for topic - {}. {}",
+                    authRole,
+                    topic,
                     e.getMessage());
             throw e;
         }
@@ -272,7 +300,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 @Override
                 public void writeSuccess() {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Ack was sent successfully to {}", producer.getTopic(),
+                        log.debug(
+                                "[{}] Ack was sent successfully to {}",
+                                producer.getTopic(),
                                 getRemote().getInetSocketAddress().toString());
                     }
                 }
@@ -292,9 +322,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     protected ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client) {
-        ProducerBuilder<byte[]> builder = client.newProducer()
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition);
+        ProducerBuilder<byte[]> builder =
+                client.newProducer().enableBatching(false).messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
         builder.blockIfQueueFull(false);
@@ -328,14 +357,16 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("batchingMaxPublishDelay")) {
-            builder.batchingMaxPublishDelay(Integer.parseInt(queryParams.get("batchingMaxPublishDelay")),
-                    TimeUnit.MILLISECONDS);
+            builder.batchingMaxPublishDelay(
+                    Integer.parseInt(queryParams.get("batchingMaxPublishDelay")), TimeUnit.MILLISECONDS);
         }
 
         if (queryParams.containsKey("messageRoutingMode")) {
             checkArgument(
-                    Enums.getIfPresent(MessageRoutingMode.class, queryParams.get("messageRoutingMode")).isPresent(),
-                    "Invalid messageRoutingMode %s", queryParams.get("messageRoutingMode"));
+                    Enums.getIfPresent(MessageRoutingMode.class, queryParams.get("messageRoutingMode"))
+                            .isPresent(),
+                    "Invalid messageRoutingMode %s",
+                    queryParams.get("messageRoutingMode"));
             MessageRoutingMode routingMode = MessageRoutingMode.valueOf(queryParams.get("messageRoutingMode"));
             if (!MessageRoutingMode.CustomPartition.equals(routingMode)) {
                 builder.messageRoutingMode(routingMode);
@@ -343,14 +374,18 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("compressionType")) {
-            checkArgument(Enums.getIfPresent(CompressionType.class, queryParams.get("compressionType")).isPresent(),
-                    "Invalid compressionType %s", queryParams.get("compressionType"));
+            checkArgument(
+                    Enums.getIfPresent(CompressionType.class, queryParams.get("compressionType"))
+                            .isPresent(),
+                    "Invalid compressionType %s",
+                    queryParams.get("compressionType"));
             builder.compressionType(CompressionType.valueOf(queryParams.get("compressionType")));
         }
 
         if (queryParams.containsKey("encryptionKeys")) {
-            builder.cryptoKeyReader(service.getCryptoKeyReader().orElseThrow(() -> new IllegalStateException(
-                    "Can't add encryption key without configuring cryptoKeyReaderFactoryClassName")));
+            builder.cryptoKeyReader(service.getCryptoKeyReader()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Can't add encryption key without configuring cryptoKeyReaderFactoryClassName")));
             String[] keys = queryParams.get("encryptionKeys").split(",");
             for (String key : keys) {
                 builder.addEncryptionKey(key);
@@ -360,5 +395,4 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerHandler.class);
-
 }

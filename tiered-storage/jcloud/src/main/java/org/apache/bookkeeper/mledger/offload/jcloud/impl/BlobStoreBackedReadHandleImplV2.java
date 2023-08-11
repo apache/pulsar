@@ -84,9 +84,13 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         BackedInputStream inputStream;
         DataInputStream dataStream;
 
-        public GroupedReader(long ledgerId, long firstEntry, long lastEntry,
-                             OffloadIndexBlockV2 index,
-                             BackedInputStream inputStream, DataInputStream dataStream) {
+        public GroupedReader(
+                long ledgerId,
+                long firstEntry,
+                long lastEntry,
+                OffloadIndexBlockV2 index,
+                BackedInputStream inputStream,
+                DataInputStream dataStream) {
             this.ledgerId = ledgerId;
             this.firstEntry = firstEntry;
             this.lastEntry = lastEntry;
@@ -96,9 +100,11 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         }
     }
 
-    private BlobStoreBackedReadHandleImplV2(long ledgerId, List<OffloadIndexBlockV2> indices,
-                                            List<BackedInputStream> inputStreams,
-                                            ExecutorService executor) {
+    private BlobStoreBackedReadHandleImplV2(
+            long ledgerId,
+            List<OffloadIndexBlockV2> indices,
+            List<BackedInputStream> inputStreams,
+            ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.indices = indices;
         this.inputStreams = inputStreams;
@@ -117,7 +123,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
 
     @Override
     public LedgerMetadata getLedgerMetadata() {
-        //get the most complete one
+        // get the most complete one
         return indices.get(indices.size() - 1).getLedgerMetadata(ledgerId);
     }
 
@@ -147,15 +153,16 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.execute(() -> {
             if (state == State.Closed) {
-                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
-                        ledgerId, firstEntry, lastEntry);
+                log.warn(
+                        "Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
+                        ledgerId,
+                        firstEntry,
+                        lastEntry);
                 promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
                 return;
             }
 
-            if (firstEntry > lastEntry
-                    || firstEntry < 0
-                    || lastEntry > getLastAddConfirmed()) {
+            if (firstEntry > lastEntry || firstEntry < 0 || lastEntry > getLastAddConfirmed()) {
                 promise.completeExceptionally(new BKException.BKIncorrectParameterException());
                 return;
             }
@@ -175,10 +182,10 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                     while (entriesToRead > 0) {
                         int length = groupedReader.dataStream.readInt();
                         if (length < 0) { // hit padding or new block
-                            groupedReader.inputStream
-                                    .seek(groupedReader.index
-                                            .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
-                                            .getDataOffset());
+                            groupedReader.inputStream.seek(groupedReader
+                                    .index
+                                    .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                    .getDataOffset());
                             continue;
                         }
                         long entryId = groupedReader.dataStream.readLong();
@@ -193,23 +200,28 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                             entriesToRead--;
                             nextExpectedId++;
                         } else if (entryId > nextExpectedId) {
-                            groupedReader.inputStream
-                                    .seek(groupedReader.index
-                                            .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
-                                            .getDataOffset());
+                            groupedReader.inputStream.seek(groupedReader
+                                    .index
+                                    .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                    .getDataOffset());
                             continue;
                         } else if (entryId < nextExpectedId
-                                && !groupedReader.index.getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
-                                .equals(
-                                        groupedReader.index.getIndexEntryForEntry(groupedReader.ledgerId, entryId))) {
-                            groupedReader.inputStream
-                                    .seek(groupedReader.index
-                                            .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
-                                            .getDataOffset());
+                                && !groupedReader
+                                        .index
+                                        .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                        .equals(groupedReader.index.getIndexEntryForEntry(
+                                                groupedReader.ledgerId, entryId))) {
+                            groupedReader.inputStream.seek(groupedReader
+                                    .index
+                                    .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                    .getDataOffset());
                             continue;
                         } else if (entryId > groupedReader.lastEntry) {
-                            log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                    nextExpectedId, entryId, groupedReader.lastEntry);
+                            log.info(
+                                    "Expected to read {}, but read {}, which is greater than last entry {}",
+                                    nextExpectedId,
+                                    entryId,
+                                    groupedReader.lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
                             val skipped = groupedReader.inputStream.skip(length);
@@ -232,11 +244,13 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             final OffloadIndexBlockV2 index = indices.get(i);
             final long startEntryId = index.getStartEntryId(ledgerId);
             if (startEntryId > lastEntry) {
-                log.debug("entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
-                        ledgerId, startEntryId);
+                log.debug(
+                        "entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
+                        ledgerId,
+                        startEntryId);
             } else {
-                groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
-                        dataStreams.get(i)));
+                groupedReaders.add(new GroupedReader(
+                        ledgerId, startEntryId, lastEntry, index, inputStreams.get(i), dataStreams.get(i)));
                 lastEntry = startEntryId - 1;
             }
         }
@@ -282,19 +296,24 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     }
 
     @Override
-    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId,
-                                                                                      long timeOutInMillis,
-                                                                                      boolean parallel) {
+    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
+            long entryId, long timeOutInMillis, boolean parallel) {
         CompletableFuture<LastConfirmedAndEntry> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;
     }
 
-    public static ReadHandle open(ScheduledExecutorService executor,
-                                  BlobStore blobStore, String bucket, List<String> keys, List<String> indexKeys,
-                                  VersionCheck versionCheck,
-                                  long ledgerId, int readBufferSize, LedgerOffloaderStats offloaderStats,
-                                  String managedLedgerName)
+    public static ReadHandle open(
+            ScheduledExecutorService executor,
+            BlobStore blobStore,
+            String bucket,
+            List<String> keys,
+            List<String> indexKeys,
+            VersionCheck versionCheck,
+            long ledgerId,
+            int readBufferSize,
+            LedgerOffloaderStats offloaderStats,
+            String managedLedgerName)
             throws IOException {
         List<BackedInputStream> inputStreams = new LinkedList<>();
         List<OffloadIndexBlockV2> indice = new LinkedList<>();
@@ -305,8 +324,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             log.debug("open bucket: {} index key: {}", bucket, indexKey);
             long startTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
-            offloaderStats.recordReadOffloadIndexLatency(topicName,
-                    System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            offloaderStats.recordReadOffloadIndexLatency(
+                    topicName, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
             log.debug("indexKey blob: {} {}", indexKey, blob);
             versionCheck.check(indexKey, blob);
             OffloadIndexBlockV2Builder indexBuilder = OffloadIndexBlockV2Builder.create();
@@ -315,8 +334,15 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 index = indexBuilder.fromStream(payloadStream);
             }
 
-            BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
-                    versionCheck, index.getDataObjectLength(), readBufferSize, offloaderStats, managedLedgerName);
+            BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(
+                    blobStore,
+                    bucket,
+                    key,
+                    versionCheck,
+                    index.getDataObjectLength(),
+                    readBufferSize,
+                    offloaderStats,
+                    managedLedgerName);
             inputStreams.add(inputStream);
             indice.add(index);
         }

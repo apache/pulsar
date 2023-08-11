@@ -40,8 +40,9 @@ class DLInputStream {
     }
 
     static CompletableFuture<DLInputStream> openReaderAsync(DistributedLogManager distributedLogManager) {
-        return distributedLogManager.openAsyncLogReader(DLSN.InitialDLSN)
-            .thenApply(r -> new DLInputStream(distributedLogManager, r));
+        return distributedLogManager
+                .openAsyncLogReader(DLSN.InitialDLSN)
+                .thenApply(r -> new DLInputStream(distributedLogManager, r));
     }
 
     /**
@@ -65,28 +66,27 @@ class DLInputStream {
      * @param num how many entries read in one time
      */
     private void read(OutputStream outputStream, CompletableFuture<Void> readFuture, int num) {
-        reader.readBulk(num)
-            .whenComplete((logRecordWithDLSNS, throwable) -> {
-                if (null != throwable) {
-                    if (throwable instanceof EndOfStreamException) {
-                        readFuture.complete(null);
-                    } else {
-                        readFuture.completeExceptionally(throwable);
-                    }
-                    return;
+        reader.readBulk(num).whenComplete((logRecordWithDLSNS, throwable) -> {
+            if (null != throwable) {
+                if (throwable instanceof EndOfStreamException) {
+                    readFuture.complete(null);
+                } else {
+                    readFuture.completeExceptionally(throwable);
                 }
-                CompletableFuture.runAsync(() -> logRecordWithDLSNS.forEach(logRecord -> {
-                    try {
-                        outputStream.write(logRecord.getPayload());
-                    } catch (IOException e) {
-                        readFuture.completeExceptionally(e);
-                    }
-                })).thenRun(() -> read(outputStream, readFuture, num));
-            });
+                return;
+            }
+            CompletableFuture.runAsync(() -> logRecordWithDLSNS.forEach(logRecord -> {
+                        try {
+                            outputStream.write(logRecord.getPayload());
+                        } catch (IOException e) {
+                            readFuture.completeExceptionally(e);
+                        }
+                    }))
+                    .thenRun(() -> read(outputStream, readFuture, num));
+        });
     }
 
     CompletableFuture<Void> closeAsync() {
         return reader.asyncClose().thenCompose(ignore -> distributedLogManager.asyncClose());
     }
 }
-

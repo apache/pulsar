@@ -84,9 +84,15 @@ public class HttpTopicLookupv2Test {
         clusters.add("use");
         clusters.add("usc");
         clusters.add("usw");
-        ClusterData useData = ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build();
-        ClusterData uscData = ClusterData.builder().serviceUrl("http://broker.messaging.usc.example.com:8080").build();
-        ClusterData uswData = ClusterData.builder().serviceUrl("http://broker.messaging.usw.example.com:8080").build();
+        ClusterData useData = ClusterData.builder()
+                .serviceUrl("http://broker.messaging.use.example.com:8080")
+                .build();
+        ClusterData uscData = ClusterData.builder()
+                .serviceUrl("http://broker.messaging.usc.example.com:8080")
+                .build();
+        ClusterData uswData = ClusterData.builder()
+                .serviceUrl("http://broker.messaging.usw.example.com:8080")
+                .build();
         doReturn(config).when(pulsar).getConfiguration();
 
         ClusterResources clusters = mock(ClusterResources.class);
@@ -104,7 +110,8 @@ public class HttpTopicLookupv2Test {
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(auth).when(brokerService).getAuthorizationService();
         doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
-        doReturn(CompletableFuture.completedFuture(false)).when(brokerService)
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(brokerService)
                 .isAllowAutoTopicCreationAsync(any(TopicName.class));
     }
 
@@ -124,7 +131,8 @@ public class HttpTopicLookupv2Test {
         config.setAuthorizationEnabled(true);
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false, null, null);
+        destLookup.lookupTopicAsync(
+                asyncResponse, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
@@ -154,7 +162,16 @@ public class HttpTopicLookupv2Test {
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
-        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic_not_exist", false, null, null);
+        destLookup.lookupTopicAsync(
+                asyncResponse1,
+                TopicDomain.persistent.value(),
+                "myprop",
+                "usc",
+                "ns2",
+                "topic_not_exist",
+                false,
+                null,
+                null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse1).resume(arg.capture());
@@ -168,6 +185,7 @@ public class HttpTopicLookupv2Test {
         protected void validateClusterOwnership(String s) {
             // do nothing
         }
+
         @Override
         protected CompletableFuture<Void> validateClusterOwnershipAsync(String s) {
             return CompletableFuture.completedFuture(null);
@@ -193,7 +211,8 @@ public class HttpTopicLookupv2Test {
         config.setAuthorizationEnabled(true);
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
-        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,null, null);
+        destLookup.lookupTopicAsync(
+                asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse1).resume(arg.capture());
@@ -223,11 +242,20 @@ public class HttpTopicLookupv2Test {
         config.setAuthorizationEnabled(false);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> arg = ArgumentCaptor.forClass(RestException.class);
-//        // Test policy not found
+        //        // Test policy not found
         CompletableFuture<Optional<Policies>> nullPolicies = new CompletableFuture<>();
         nullPolicies.complete(Optional.empty());
         doReturn(nullPolicies).when(namespaceResources).getPoliciesAsync(namespaceName1);
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns1, "empty-cluster", false, null, null);
+        destLookup.lookupTopicAsync(
+                asyncResponse,
+                TopicDomain.persistent.value(),
+                property,
+                cluster,
+                ns1,
+                "empty-cluster",
+                false,
+                null,
+                null);
         verify(asyncResponse).resume(arg.capture());
         assertEquals(arg.getValue().getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         // Test empty cluster
@@ -236,7 +264,16 @@ public class HttpTopicLookupv2Test {
         doReturn(emptyPolicies).when(namespaceResources).getPoliciesAsync(namespaceName1);
         asyncResponse = mock(AsyncResponse.class);
         arg = ArgumentCaptor.forClass(RestException.class);
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns1, "empty-cluster", false, null, null);
+        destLookup.lookupTopicAsync(
+                asyncResponse,
+                TopicDomain.persistent.value(),
+                property,
+                cluster,
+                ns1,
+                "empty-cluster",
+                false,
+                null,
+                null);
         verify(asyncResponse).resume(arg.capture());
         assertEquals(arg.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         // Test get peer replication cluster
@@ -247,8 +284,16 @@ public class HttpTopicLookupv2Test {
         policies2.replication_clusters = Sets.newHashSet("invalid-localCluster");
         policies2Future.complete(Optional.of(policies2));
         doReturn(policies2Future).when(namespaceResources).getPoliciesAsync(namespaceName2);
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns2,
-                "invalid-localCluster", false, null, null);
+        destLookup.lookupTopicAsync(
+                asyncResponse,
+                TopicDomain.persistent.value(),
+                property,
+                cluster,
+                ns2,
+                "invalid-localCluster",
+                false,
+                null,
+                null);
         verify(asyncResponse).resume(arg.capture());
         assertEquals(arg.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         // Test bypass replication cluster
@@ -263,8 +308,16 @@ public class HttpTopicLookupv2Test {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         future.complete(false);
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns2,
-                "invalid-localCluster", false, null, null);
+        destLookup.lookupTopicAsync(
+                asyncResponse,
+                TopicDomain.persistent.value(),
+                property,
+                cluster,
+                ns2,
+                "invalid-localCluster",
+                false,
+                null,
+                null);
         verify(asyncResponse).resume(arg.capture());
         assertEquals(arg.getValue().getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
     }
@@ -277,5 +330,4 @@ public class HttpTopicLookupv2Test {
         RedirectData data2 = new RedirectData(url);
         assertEquals(data2.getRedirectLookupAddress(), url);
     }
-
 }

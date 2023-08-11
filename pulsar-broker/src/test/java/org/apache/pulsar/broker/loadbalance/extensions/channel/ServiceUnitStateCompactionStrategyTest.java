@@ -60,14 +60,12 @@ public class ServiceUnitStateCompactionStrategyTest {
     }
 
     @Test
-    public void testVersionId(){
+    public void testVersionId() {
         assertTrue(strategy.shouldKeepLeft(
-                new ServiceUnitStateData(Assigning, dst, 1),
-                new ServiceUnitStateData(Assigning, dst, 1)));
+                new ServiceUnitStateData(Assigning, dst, 1), new ServiceUnitStateData(Assigning, dst, 1)));
 
         assertTrue(strategy.shouldKeepLeft(
-                new ServiceUnitStateData(Assigning, dst, 1),
-                new ServiceUnitStateData(Assigning, dst, 2)));
+                new ServiceUnitStateData(Assigning, dst, 1), new ServiceUnitStateData(Assigning, dst, 2)));
 
         assertFalse(strategy.shouldKeepLeft(
                 new ServiceUnitStateData(Owned, dst, src, 10),
@@ -82,42 +80,30 @@ public class ServiceUnitStateCompactionStrategyTest {
                 new ServiceUnitStateData(Releasing, "broker2", dst, Long.MAX_VALUE + 2)));
 
         assertTrue(strategy.shouldKeepLeft(
-                new ServiceUnitStateData(Owned, dst, src, 10),
-                new ServiceUnitStateData(Releasing, "broker2", dst, 5)));
+                new ServiceUnitStateData(Owned, dst, src, 10), new ServiceUnitStateData(Releasing, "broker2", dst, 5)));
 
         assertFalse(strategy.shouldKeepLeft(
-                new ServiceUnitStateData(Owned, dst, src, 10),
-                new ServiceUnitStateData(Owned, "broker2", dst, 12)));
-
+                new ServiceUnitStateData(Owned, dst, src, 10), new ServiceUnitStateData(Owned, "broker2", dst, 12)));
     }
 
     @Test
-    public void testForce(){
+    public void testForce() {
         assertFalse(strategy.shouldKeepLeft(
-                new ServiceUnitStateData(Init, dst, 1),
-                new ServiceUnitStateData(Init, dst, true, 2)));
+                new ServiceUnitStateData(Init, dst, 1), new ServiceUnitStateData(Init, dst, true, 2)));
 
         assertTrue(strategy.shouldKeepLeft(
-                new ServiceUnitStateData(Init, dst, 1),
-                new ServiceUnitStateData(Init, dst, true, 1)));
+                new ServiceUnitStateData(Init, dst, 1), new ServiceUnitStateData(Init, dst, true, 1)));
     }
 
     @Test
     public void testTombstone() {
-        assertFalse(strategy.shouldKeepLeft(
-                data(Init), null));
-        assertFalse(strategy.shouldKeepLeft(
-                data(Assigning), null));
-        assertFalse(strategy.shouldKeepLeft(
-                data(Owned), null));
-        assertFalse(strategy.shouldKeepLeft(
-                data(Releasing), null));
-        assertFalse(strategy.shouldKeepLeft(
-                data(Splitting), null));
-        assertFalse(strategy.shouldKeepLeft(
-                data(Free), null));
-        assertFalse(strategy.shouldKeepLeft(
-                data(Deleted), null));
+        assertFalse(strategy.shouldKeepLeft(data(Init), null));
+        assertFalse(strategy.shouldKeepLeft(data(Assigning), null));
+        assertFalse(strategy.shouldKeepLeft(data(Owned), null));
+        assertFalse(strategy.shouldKeepLeft(data(Releasing), null));
+        assertFalse(strategy.shouldKeepLeft(data(Splitting), null));
+        assertFalse(strategy.shouldKeepLeft(data(Free), null));
+        assertFalse(strategy.shouldKeepLeft(data(Deleted), null));
     }
 
     @Test

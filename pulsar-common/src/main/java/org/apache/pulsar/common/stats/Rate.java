@@ -64,7 +64,9 @@ public class Rate {
 
         count = countAdder.sumThenReset();
         long sum = valueAdder.sumThenReset();
-        averageValue = count != 0 ? Long.valueOf(sum).doubleValue() / Long.valueOf(count).doubleValue() : 0.0d;
+        averageValue = count != 0
+                ? Long.valueOf(sum).doubleValue() / Long.valueOf(count).doubleValue()
+                : 0.0d;
         rate = count / period;
         valueRate = sum / period;
     }

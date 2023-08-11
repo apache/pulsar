@@ -36,8 +36,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
-import org.testng.annotations.Test;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class BufferedOffloadStreamTest {
     final Random random = new Random();
@@ -46,8 +46,7 @@ public class BufferedOffloadStreamTest {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         List<Entry> entryBuffer = new LinkedList<>();
         final UUID uuid = UUID.randomUUID();
-        OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "",
-                new HashMap<>());
+        OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "", new HashMap<>());
         final int entryCount = 10;
         List<Entry> entries = new ArrayList<>();
         for (int i = 0; i < entryCount; i++) {
@@ -61,17 +60,16 @@ public class BufferedOffloadStreamTest {
         segmentInfo.closeSegment(0, 9);
         blockSize += paddingLen;
 
-        final BufferedOffloadStream inputStream = new BufferedOffloadStream(blockSize, entryBuffer,
-                segmentInfo.beginLedgerId,
-                segmentInfo.beginEntryId);
+        final BufferedOffloadStream inputStream =
+                new BufferedOffloadStream(blockSize, entryBuffer, segmentInfo.beginLedgerId, segmentInfo.beginEntryId);
         Assert.assertEquals(inputStream.getLedgerId(), 0);
         Assert.assertEquals(inputStream.getBeginEntryId(), 0);
         Assert.assertEquals(inputStream.getBlockSize(), blockSize);
 
         byte[] headerB = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
-        StreamingDataBlockHeaderImpl headerRead = StreamingDataBlockHeaderImpl
-                .fromStream(new ByteArrayInputStream(headerB));
+        StreamingDataBlockHeaderImpl headerRead =
+                StreamingDataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
         assertEquals(headerRead.getBlockLength(), blockSize);
         assertEquals(headerRead.getFirstEntryId(), 0);
 
@@ -95,8 +93,7 @@ public class BufferedOffloadStreamTest {
 
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
         for (int i = 0; i < paddingBuf.capacity() / 4; i++) {
-            assertEquals(Integer.toHexString(paddingBuf.readInt()),
-                    Integer.toHexString(0xFEDCDEAD));
+            assertEquals(Integer.toHexString(paddingBuf.readInt()), Integer.toHexString(0xFEDCDEAD));
         }
 
         // 4. reach end.
@@ -121,8 +118,7 @@ public class BufferedOffloadStreamTest {
         int paddingLen = 10;
         List<Entry> entryBuffer = new LinkedList<>();
         final UUID uuid = UUID.randomUUID();
-        OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "",
-                new HashMap<>());
+        OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "", new HashMap<>());
         AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
         List<Entry> entries = new ArrayList<>();
@@ -134,7 +130,7 @@ public class BufferedOffloadStreamTest {
             entryBuffer.add(entry);
             blockSize += BufferedOffloadStream.ENTRY_HEADER_SIZE + entry.getLength();
         }
-        //create new ledger
+        // create new ledger
         {
             final byte[] bytes = new byte[random.nextInt(10)];
             final EntryImpl entry = EntryImpl.create(1, 0, bytes);
@@ -145,17 +141,16 @@ public class BufferedOffloadStreamTest {
         segmentInfo.closeSegment(1, 0);
         blockSize += paddingLen;
 
-        final BufferedOffloadStream inputStream = new BufferedOffloadStream(blockSize, entryBuffer,
-                segmentInfo.beginLedgerId,
-                segmentInfo.beginEntryId);
+        final BufferedOffloadStream inputStream =
+                new BufferedOffloadStream(blockSize, entryBuffer, segmentInfo.beginLedgerId, segmentInfo.beginEntryId);
         Assert.assertEquals(inputStream.getLedgerId(), 0);
         Assert.assertEquals(inputStream.getBeginEntryId(), 0);
         Assert.assertEquals(inputStream.getBlockSize(), blockSize);
 
         byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
-        StreamingDataBlockHeaderImpl headerRead = StreamingDataBlockHeaderImpl
-                .fromStream(new ByteArrayInputStream(headerB));
+        StreamingDataBlockHeaderImpl headerRead =
+                StreamingDataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
         assertEquals(headerRead.getBlockLength(), blockSize);
         assertEquals(headerRead.getFirstEntryId(), 0);
 
@@ -179,8 +174,7 @@ public class BufferedOffloadStreamTest {
 
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
         for (int i = 0; i < paddingBuf.capacity() / 4; i++) {
-            assertEquals(Integer.toHexString(paddingBuf.readInt()),
-                    Integer.toHexString(0xFEDCDEAD));
+            assertEquals(Integer.toHexString(paddingBuf.readInt()), Integer.toHexString(0xFEDCDEAD));
         }
 
         // 4. reach end.

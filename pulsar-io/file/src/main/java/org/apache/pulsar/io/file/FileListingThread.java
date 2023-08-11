@@ -53,7 +53,8 @@ public class FileListingThread extends Thread {
     private final boolean keepOriginal;
     private final long pollingInterval;
 
-    public FileListingThread(FileSourceConfig fileConfig,
+    public FileListingThread(
+            FileSourceConfig fileConfig,
             BlockingQueue<File> workQueue,
             BlockingQueue<File> inProcess,
             BlockingQueue<File> recentlyProcessed) {
@@ -83,7 +84,7 @@ public class FileListingThread extends Thread {
                             listing.removeAll(recentlyProcessed);
                         }
 
-                        for (File f: listing) {
+                        for (File f : listing) {
                             if (!workQueue.contains(f)) {
                                 workQueue.offer(f);
                             }
@@ -91,9 +92,9 @@ public class FileListingThread extends Thread {
                         queueLastUpdated.set(System.currentTimeMillis());
                     }
 
-                 } finally {
+                } finally {
                     listingLock.unlock();
-                 }
+                }
             }
 
             try {
@@ -104,8 +105,8 @@ public class FileListingThread extends Thread {
         }
     }
 
-    private Set<File> performListing(final File directory, final FileFilter filter,
-            final boolean recurseSubdirectories) {
+    private Set<File> performListing(
+            final File directory, final FileFilter filter, final boolean recurseSubdirectories) {
         Path p = directory.toPath();
         if (!Files.isReadable(p)) {
             throw new IllegalStateException("Cannot read directory: '" + directory);
@@ -139,9 +140,10 @@ public class FileListingThread extends Thread {
         final Double maxSize = Optional.ofNullable(fileConfig.getMaximumSize()).orElse(Double.MAX_VALUE);
         final long minAge = Optional.ofNullable(fileConfig.getMinimumFileAge()).orElse(0);
         final Long maxAge = Optional.ofNullable(fileConfig.getMaximumFileAge()).orElse(Long.MAX_VALUE);
-        final boolean ignoreHidden = Optional.ofNullable(fileConfig.getIgnoreHiddenFiles()).orElse(true);
-        final Pattern filePattern = Pattern.compile(Optional.ofNullable(fileConfig.getFileFilter())
-                .orElse("[^\\.].*"));
+        final boolean ignoreHidden =
+                Optional.ofNullable(fileConfig.getIgnoreHiddenFiles()).orElse(true);
+        final Pattern filePattern =
+                Pattern.compile(Optional.ofNullable(fileConfig.getFileFilter()).orElse("[^\\.].*"));
         final String indir = fileConfig.getInputDirectory();
         final String pathPatternStr = fileConfig.getPathFilter();
         final Pattern pathPattern = (!recurseDirs || pathPatternStr == null) ? null : Pattern.compile(pathPatternStr);
@@ -174,7 +176,7 @@ public class FileListingThread extends Thread {
                         }
                     }
                 }
-                //Verify that we have at least read permissions on the file we're considering grabbing
+                // Verify that we have at least read permissions on the file we're considering grabbing
                 if (!Files.isReadable(file.toPath())) {
                     return false;
                 }
@@ -186,8 +188,9 @@ public class FileListingThread extends Thread {
                     return false;
                 }
 
-                if (!keepOriginal && !StringUtils.isBlank(processedFileSuffix) && file.getName()
-                        .endsWith(processedFileSuffix)) {
+                if (!keepOriginal
+                        && !StringUtils.isBlank(processedFileSuffix)
+                        && file.getName().endsWith(processedFileSuffix)) {
                     return false;
                 }
 

@@ -35,18 +35,19 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SslContextTest {
-    final static String brokerKeyStorePath =
-            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
-    final static String brokerTrustStorePath =
-            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
-    final static String keyStoreType = "JKS";
-    final static String keyStorePassword = "111111";
+    static final String brokerKeyStorePath = Resources.getResource("certificate-authority/jks/broker.keystore.jks")
+            .getPath();
+    static final String brokerTrustStorePath = Resources.getResource("certificate-authority/jks/broker.truststore.jks")
+            .getPath();
+    static final String keyStoreType = "JKS";
+    static final String keyStorePassword = "111111";
 
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
-    final static String brokerCertPath =
-            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
-            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
+    static final String caCertPath =
+            Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+    static final String brokerCertPath = Resources.getResource("certificate-authority/server-keys/broker.cert.pem")
+            .getPath();
+    static final String brokerKeyPath = Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem")
+            .getPath();
 
     @DataProvider(name = "caCertSslContextDataProvider")
     public static Object[][] getSslContextDataProvider() {
@@ -58,15 +59,13 @@ public class SslContextTest {
         ciphers.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         // Note: OPENSSL doesn't support these ciphers.
-        return new Object[][]{
-                new Object[]{SslProvider.JDK, ciphers},
-                new Object[]{SslProvider.JDK, null},
-
-                new Object[]{SslProvider.OPENSSL, ciphers},
-                new Object[]{SslProvider.OPENSSL, null},
-
-                new Object[]{null, ciphers},
-                new Object[]{null, null},
+        return new Object[][] {
+            new Object[] {SslProvider.JDK, ciphers},
+            new Object[] {SslProvider.JDK, null},
+            new Object[] {SslProvider.OPENSSL, ciphers},
+            new Object[] {SslProvider.OPENSSL, null},
+            new Object[] {null, ciphers},
+            new Object[] {null, null},
         };
     }
 
@@ -79,17 +78,24 @@ public class SslContextTest {
         cipher.add("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384");
         cipher.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
-        return new Object[]{null, cipher};
+        return new Object[] {null, cipher};
     }
 
     @Test(dataProvider = "cipherDataProvider")
     public void testServerKeyStoreSSLContext(Set<String> cipher) throws Exception {
         NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                 null,
-                keyStoreType, brokerKeyStorePath, keyStorePassword, false,
-                keyStoreType, brokerTrustStorePath, keyStorePassword,
-                true, cipher,
-                null, 600);
+                keyStoreType,
+                brokerKeyStorePath,
+                keyStorePassword,
+                false,
+                keyStoreType,
+                brokerTrustStorePath,
+                keyStorePassword,
+                true,
+                cipher,
+                null,
+                600);
         contextAutoRefreshBuilder.update();
     }
 
@@ -105,21 +111,24 @@ public class SslContextTest {
         NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                 null,
                 false,
-                keyStoreType, brokerTrustStorePath, keyStorePassword,
-                null, null, null,
-                cipher, null, 0, new ClientAuthenticationData());
+                keyStoreType,
+                brokerTrustStorePath,
+                keyStorePassword,
+                null,
+                null,
+                null,
+                cipher,
+                null,
+                0,
+                new ClientAuthenticationData());
         contextAutoRefreshBuilder.update();
     }
 
     @Test(dataProvider = "caCertSslContextDataProvider")
     public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws GeneralSecurityException, IOException {
-        NettyServerSslContextBuilder sslContext = new NettyServerSslContextBuilder(sslProvider,
-                true,
-                caCertPath, brokerCertPath, brokerKeyPath,
-                ciphers,
-                null,
-                true, 60);
+        NettyServerSslContextBuilder sslContext = new NettyServerSslContextBuilder(
+                sslProvider, true, caCertPath, brokerCertPath, brokerKeyPath, ciphers, null, true, 60);
         if (ciphers != null) {
             if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
                 assertThrows(SSLException.class, sslContext::update);
@@ -132,9 +141,8 @@ public class SslContextTest {
     @Test(dataProvider = "caCertSslContextDataProvider")
     public void testClientCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws GeneralSecurityException, IOException {
-        NettyClientSslContextRefresher sslContext = new NettyClientSslContextRefresher(sslProvider,
-                true, caCertPath,
-                null, ciphers, null, 0);
+        NettyClientSslContextRefresher sslContext =
+                new NettyClientSslContextRefresher(sslProvider, true, caCertPath, null, ciphers, null, 0);
         if (ciphers != null) {
             if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
                 assertThrows(SSLException.class, sslContext::update);

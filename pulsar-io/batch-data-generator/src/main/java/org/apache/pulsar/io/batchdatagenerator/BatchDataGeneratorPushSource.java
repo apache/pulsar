@@ -32,50 +32,52 @@ import org.apache.pulsar.io.core.SourceContext;
 @Slf4j
 public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implements Runnable {
 
-  private Fairy fairy;
-  private SourceContext sourceContext;
-  private int maxRecordsPerCycle = 10;
+    private Fairy fairy;
+    private SourceContext sourceContext;
+    private int maxRecordsPerCycle = 10;
 
-  private ExecutorService executor = Executors.newSingleThreadExecutor();
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
-  @Override
-  public void close() {
-    executor.shutdownNow();
-  }
-
-  @Override
-  public void open(Map config, SourceContext context) throws Exception {
-    this.fairy = Fairy.create();
-    this.sourceContext = context;
-  }
-
-  @Override
-  public void discover(Consumer taskEater) throws Exception {
-    log.info("Generating one task for each instance");
-    for (int i = 0; i < sourceContext.getNumInstances(); ++i) {
-      taskEater.accept(String.format("something-%d", System.currentTimeMillis()).getBytes(StandardCharsets.UTF_8));
+    @Override
+    public void close() {
+        executor.shutdownNow();
     }
-  }
 
-  @Override
-  public void prepare(byte[] instanceSplit) throws Exception {
-    log.info("Instance " + sourceContext.getInstanceId() + " got a new discovered task {}",
-            new String(instanceSplit, StandardCharsets.UTF_8));
-    executor.execute(this);
-  }
-
-  @Override
-  public void run() {
-    try {
-      for (int i = 0; i < maxRecordsPerCycle; i++) {
-        Thread.sleep(50);
-        Record<Person> record = () -> new Person(fairy.person());
-        consume(record);
-      }
-      // this task is completed
-      consume(null);
-    } catch (Exception e) {
-      notifyError(e);
+    @Override
+    public void open(Map config, SourceContext context) throws Exception {
+        this.fairy = Fairy.create();
+        this.sourceContext = context;
     }
-  }
+
+    @Override
+    public void discover(Consumer taskEater) throws Exception {
+        log.info("Generating one task for each instance");
+        for (int i = 0; i < sourceContext.getNumInstances(); ++i) {
+            taskEater.accept(
+                    String.format("something-%d", System.currentTimeMillis()).getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    @Override
+    public void prepare(byte[] instanceSplit) throws Exception {
+        log.info(
+                "Instance " + sourceContext.getInstanceId() + " got a new discovered task {}",
+                new String(instanceSplit, StandardCharsets.UTF_8));
+        executor.execute(this);
+    }
+
+    @Override
+    public void run() {
+        try {
+            for (int i = 0; i < maxRecordsPerCycle; i++) {
+                Thread.sleep(50);
+                Record<Person> record = () -> new Person(fairy.person());
+                consume(record);
+            }
+            // this task is completed
+            consume(null);
+        } catch (Exception e) {
+            notifyError(e);
+        }
+    }
 }

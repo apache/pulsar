@@ -47,7 +47,7 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
 
     @Test
     public void TestGetAllDynamicConfigurations() throws Exception {
-        Map<String,String> configs = admin.brokers().getAllDynamicConfigurations();
+        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations();
         assertNotNull(configs);
     }
 
@@ -63,7 +63,9 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
             fail("exception should be thrown");
         } catch (Exception e) {
             if (e instanceof PulsarAdminException) {
-                assertEquals(((PulsarAdminException) e).getStatusCode(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+                assertEquals(
+                        ((PulsarAdminException) e).getStatusCode(),
+                        Response.Status.PRECONDITION_FAILED.getStatusCode());
             } else {
                 fail("PulsarAdminException should be thrown");
             }

@@ -36,16 +36,16 @@ public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarService
             Throwable e = rte.getCause();
             assertEquals(e.getClass(), PulsarServerException.class);
             assertEquals(e.getCause().getClass(), IllegalStateException.class);
-            assertEquals(e.getCause().getMessage(), "Invalid broker configuration. Authentication must be "
-                    + "enabled with authenticationEnabled=true when authorization is enabled with "
-                    + "authorizationEnabled=true.");
+            assertEquals(
+                    e.getCause().getMessage(),
+                    "Invalid broker configuration. Authentication must be "
+                            + "enabled with authenticationEnabled=true when authorization is enabled with "
+                            + "authorizationEnabled=true.");
         }
     }
 
     @Override
-    protected void setup() throws Exception {
-
-    }
+    protected void setup() throws Exception {}
 
     @Override
     protected void cleanup() throws Exception {

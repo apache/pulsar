@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.proto;
 
 import static org.testng.Assert.assertEquals;
-
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 import org.testng.annotations.Test;
@@ -37,5 +36,4 @@ public class FunctionDetailsTest {
         FunctionDetails fc = FunctionDetails.newBuilder().build();
         assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
     }
-
 }

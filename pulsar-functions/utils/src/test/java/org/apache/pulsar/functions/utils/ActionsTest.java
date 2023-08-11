@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.utils.Actions;
-import org.testng.annotations.Test;
-
-import java.util.function.Supplier;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -30,6 +25,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import java.util.function.Supplier;
+import org.testng.annotations.Test;
 
 public class ActionsTest {
 
@@ -38,16 +35,17 @@ public class ActionsTest {
 
         // Test for success
         Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
-        when(supplier1.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+        when(supplier1.get())
+                .thenReturn(Actions.ActionResult.builder().success(true).build());
 
         Supplier<Actions.ActionResult> supplier2 = mock(Supplier.class);
-        when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+        when(supplier2.get())
+                .thenReturn(Actions.ActionResult.builder().success(true).build());
 
         java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
         java.util.function.Consumer<Actions.ActionResult> onSuccess = mock(java.util.function.Consumer.class);
 
-        Actions.Action action1 = spy(
-            Actions.Action.builder()
+        Actions.Action action1 = spy(Actions.Action.builder()
                 .actionName("action1")
                 .numRetries(10)
                 .sleepBetweenInvocationsMs(100)
@@ -57,17 +55,14 @@ public class ActionsTest {
                 .onSuccess(onSuccess)
                 .build());
 
-        Actions.Action action2 = spy(
-            Actions.Action.builder()
+        Actions.Action action2 = spy(Actions.Action.builder()
                 .actionName("action2")
                 .numRetries(20)
                 .sleepBetweenInvocationsMs(200)
                 .supplier(supplier2)
                 .build());
 
-        Actions actions = Actions.newBuilder()
-            .addAction(action1)
-            .addAction(action2);
+        Actions actions = Actions.newBuilder().addAction(action1).addAction(action2);
         actions.run();
 
         assertEquals(actions.numActions(), 2);
@@ -77,21 +72,21 @@ public class ActionsTest {
         verify(supplier2, times(1)).get();
     }
 
-
     @Test
     public void testActionsOneAction() throws InterruptedException {
         // test only run 1 action
         Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
-        when(supplier1.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+        when(supplier1.get())
+                .thenReturn(Actions.ActionResult.builder().success(true).build());
 
         Supplier<Actions.ActionResult> supplier2 = mock(Supplier.class);
-        when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+        when(supplier2.get())
+                .thenReturn(Actions.ActionResult.builder().success(true).build());
 
         java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
         java.util.function.Consumer<Actions.ActionResult> onSuccess = mock(java.util.function.Consumer.class);
 
-        Actions.Action action1 = spy(
-            Actions.Action.builder()
+        Actions.Action action1 = spy(Actions.Action.builder()
                 .actionName("action1")
                 .numRetries(10)
                 .sleepBetweenInvocationsMs(100)
@@ -100,8 +95,7 @@ public class ActionsTest {
                 .onFail(onFail)
                 .onSuccess(onSuccess)
                 .build());
-        Actions.Action action2 = spy(
-            Actions.Action.builder()
+        Actions.Action action2 = spy(Actions.Action.builder()
                 .actionName("action2")
                 .numRetries(20)
                 .sleepBetweenInvocationsMs(200)
@@ -110,9 +104,7 @@ public class ActionsTest {
                 .onSuccess(onSuccess)
                 .build());
 
-        Actions actions = Actions.newBuilder()
-            .addAction(action1)
-            .addAction(action2);
+        Actions actions = Actions.newBuilder().addAction(action1).addAction(action2);
         actions.run();
 
         assertEquals(actions.numActions(), 2);
@@ -125,19 +117,20 @@ public class ActionsTest {
     @Test
     public void testActionsRetry() throws InterruptedException {
 
-      // test retry
+        // test retry
 
         Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
-        when(supplier1.get()).thenReturn(Actions.ActionResult.builder().success(false).build());
+        when(supplier1.get())
+                .thenReturn(Actions.ActionResult.builder().success(false).build());
 
         Supplier<Actions.ActionResult> supplier2 = mock(Supplier.class);
-        when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+        when(supplier2.get())
+                .thenReturn(Actions.ActionResult.builder().success(true).build());
 
         java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
         java.util.function.Consumer<Actions.ActionResult> onSuccess = mock(java.util.function.Consumer.class);
 
-        Actions.Action action1 = spy(
-            Actions.Action.builder()
+        Actions.Action action1 = spy(Actions.Action.builder()
                 .actionName("action1")
                 .numRetries(10)
                 .sleepBetweenInvocationsMs(10)
@@ -147,17 +140,14 @@ public class ActionsTest {
                 .onSuccess(onSuccess)
                 .build());
 
-        Actions.Action action2 = spy(
-            Actions.Action.builder()
+        Actions.Action action2 = spy(Actions.Action.builder()
                 .actionName("action2")
                 .numRetries(20)
                 .sleepBetweenInvocationsMs(200)
                 .supplier(supplier2)
                 .build());
 
-        Actions actions = Actions.newBuilder()
-            .addAction(action1)
-            .addAction(action2);
+        Actions actions = Actions.newBuilder().addAction(action1).addAction(action2);
         actions.run();
 
         assertEquals(actions.numActions(), 2);
@@ -167,45 +157,43 @@ public class ActionsTest {
         verify(supplier2, times(1)).get();
     }
 
-  @Test
-  public void testActionsNoContinueOn() throws InterruptedException {
-      // No continueOn
-      Supplier<Actions.ActionResult>supplier1 = mock(Supplier.class);
-      when(supplier1.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+    @Test
+    public void testActionsNoContinueOn() throws InterruptedException {
+        // No continueOn
+        Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
+        when(supplier1.get())
+                .thenReturn(Actions.ActionResult.builder().success(true).build());
 
-      Supplier<Actions.ActionResult>    supplier2 = mock(Supplier.class);
-      when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+        Supplier<Actions.ActionResult> supplier2 = mock(Supplier.class);
+        when(supplier2.get())
+                .thenReturn(Actions.ActionResult.builder().success(true).build());
 
-      java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
-      java.util.function.Consumer<Actions.ActionResult> onSuccess = mock(java.util.function.Consumer.class);
+        java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
+        java.util.function.Consumer<Actions.ActionResult> onSuccess = mock(java.util.function.Consumer.class);
 
-      Actions.Action action1 = spy(
-          Actions.Action.builder()
-              .actionName("action1")
-              .numRetries(10)
-              .sleepBetweenInvocationsMs(100)
-              .supplier(supplier1)
-              .onFail(onFail)
-              .onSuccess(onSuccess)
-              .build());
+        Actions.Action action1 = spy(Actions.Action.builder()
+                .actionName("action1")
+                .numRetries(10)
+                .sleepBetweenInvocationsMs(100)
+                .supplier(supplier1)
+                .onFail(onFail)
+                .onSuccess(onSuccess)
+                .build());
 
-      Actions.Action action2 = spy(
-          Actions.Action.builder()
-              .actionName("action2")
-              .numRetries(20)
-              .sleepBetweenInvocationsMs(200)
-              .supplier(supplier2)
-              .build());
+        Actions.Action action2 = spy(Actions.Action.builder()
+                .actionName("action2")
+                .numRetries(20)
+                .sleepBetweenInvocationsMs(200)
+                .supplier(supplier2)
+                .build());
 
-      Actions actions = Actions.newBuilder()
-          .addAction(action1)
-          .addAction(action2);
-      actions.run();
+        Actions actions = Actions.newBuilder().addAction(action1).addAction(action2);
+        actions.run();
 
-      assertEquals(actions.numActions(), 2);
-      verify(supplier1, times(1)).get();
-      verify(onFail, times(0)).accept(any());
-      verify(onSuccess, times(1)).accept(any());
-      verify(supplier2, times(1)).get();
+        assertEquals(actions.numActions(), 2);
+        verify(supplier1, times(1)).get();
+        verify(onFail, times(0)).accept(any());
+        verify(onSuccess, times(1)).accept(any());
+        verify(supplier2, times(1)).get();
     }
 }

@@ -56,8 +56,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         conf.setClusterName("c1");
         conf.setAuthenticationEnabled(true);
-        conf.setAuthenticationProviders(
-                Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
+        conf.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user", "pass.pass"));
@@ -95,8 +94,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
-                EnumSet.of(AuthAction.consume));
+        admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role", EnumSet.of(AuthAction.consume));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
@@ -166,8 +164,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null));
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "my.*",
-                EnumSet.of(AuthAction.produce));
+        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "my.*", EnumSet.of(AuthAction.produce));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null));
@@ -189,8 +186,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "1.role.my", null));
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "2.role.my", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "*.my",
-                EnumSet.of(AuthAction.consume));
+        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "*.my", EnumSet.of(AuthAction.consume));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null));
@@ -208,11 +204,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         // tests for subscription auth mode
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "*", EnumSet.of(AuthAction.consume));
         admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.None);
-        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
-                SubscriptionAuthMode.None);
+        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"), SubscriptionAuthMode.None);
         admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.Prefix);
-        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
-                SubscriptionAuthMode.Prefix);
+        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"), SubscriptionAuthMode.Prefix);
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null));
@@ -220,15 +214,18 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         try {
             assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"));
             fail();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"));
             fail();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
-        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
+        assertTrue(
+                auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.tenants().deleteTenant("p1");
@@ -283,14 +280,15 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().grantPermissionOnNamespace(namespaceV1, "pass.pass2", EnumSet.of(AuthAction.produce));
         admin.namespaces().createNamespace(namespaceV2, Sets.newHashSet("c1"));
         admin.namespaces().grantPermissionOnNamespace(namespaceV2, "pass.pass2", EnumSet.of(AuthAction.produce));
-        PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
-                        ? brokerUrl.toString()
-                        : brokerUrlTls.toString())
+        PulsarAdmin admin2 = PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(new MockAuthentication("pass.pass2"))
                 .build();
         when(pulsar.getAdminClient()).thenReturn(admin2);
-        Assert.assertEquals(admin2.topics().getList(namespaceV1, TopicDomain.non_persistent).size(), 0);
-        Assert.assertEquals(admin2.topics().getList(namespaceV2, TopicDomain.non_persistent).size(), 0);
+        Assert.assertEquals(
+                admin2.topics().getList(namespaceV1, TopicDomain.non_persistent).size(), 0);
+        Assert.assertEquals(
+                admin2.topics().getList(namespaceV2, TopicDomain.non_persistent).size(), 0);
     }
 
     private static void waitForChange() {

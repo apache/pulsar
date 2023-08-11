@@ -44,10 +44,10 @@ public class PulsarLayoutManagerTest extends BaseMetadataStoreTest {
 
     private String ledgersRootPath;
 
-
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.ledgersRootPath = "/ledgers-" + UUID.randomUUID();
-        this.store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        this.store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
         this.layoutManager = new PulsarLayoutManager(store, ledgersRootPath);
     }
 
@@ -72,10 +72,7 @@ public class PulsarLayoutManagerTest extends BaseMetadataStoreTest {
         }
 
         // create the layout
-        LedgerLayout layout = new LedgerLayout(
-            PulsarLedgerManagerFactory.class.getName(),
-            managerVersion
-        );
+        LedgerLayout layout = new LedgerLayout(PulsarLedgerManagerFactory.class.getName(), managerVersion);
         layoutManager.storeLedgerLayout(layout);
 
         // read the layout
@@ -83,10 +80,7 @@ public class PulsarLayoutManagerTest extends BaseMetadataStoreTest {
         assertEquals(readLayout, layout);
 
         // attempts to create the layout again and it should fail
-        LedgerLayout newLayout = new LedgerLayout(
-            "new layout",
-            managerVersion + 1
-        );
+        LedgerLayout newLayout = new LedgerLayout("new layout", managerVersion + 1);
         try {
             layoutManager.storeLedgerLayout(newLayout);
             fail("Should fail storeLedgerLayout if layout already exists");
@@ -117,5 +111,4 @@ public class PulsarLayoutManagerTest extends BaseMetadataStoreTest {
             assertTrue(ioe.getMessage().contains("NotFoundException"));
         }
     }
-
 }

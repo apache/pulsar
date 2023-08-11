@@ -51,14 +51,18 @@ public class ReaderImpl<T> implements Reader<T> {
             .build();
     private final ConsumerImpl<T> consumer;
 
-    public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                      ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture,
-                      Schema<T> schema) {
+    public ReaderImpl(
+            PulsarClientImpl client,
+            ReaderConfigurationData<T> readerConfiguration,
+            ExecutorProvider executorProvider,
+            CompletableFuture<Consumer<T>> consumerFuture,
+            Schema<T> schema) {
         String subscription;
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionName())) {
             subscription = readerConfiguration.getSubscriptionName();
         } else {
-            subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
+            subscription = "reader-"
+                    + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
             if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
                 subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
             }
@@ -103,8 +107,12 @@ public class ReaderImpl<T> implements Reader<T> {
                     final MessageId messageId = msg.getMessageId();
                     readerListener.received(ReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
-                        log.error("[{}][{}] auto acknowledge message {} cumulative fail.", getTopic(),
-                                getConsumer().getSubscription(), messageId, ex);
+                        log.error(
+                                "[{}][{}] auto acknowledge message {} cumulative fail.",
+                                getTopic(),
+                                getConsumer().getSubscription(),
+                                messageId,
+                                ex);
                         return null;
                     });
                 }
@@ -127,20 +135,26 @@ public class ReaderImpl<T> implements Reader<T> {
 
         if (readerConfiguration.getKeyHashRanges() != null) {
             consumerConfiguration.setKeySharedPolicy(
-                    KeySharedPolicy
-                            .stickyHashRange()
-                            .ranges(readerConfiguration.getKeyHashRanges())
-            );
+                    KeySharedPolicy.stickyHashRange().ranges(readerConfiguration.getKeyHashRanges()));
         }
 
-        ConsumerInterceptors<T> consumerInterceptors =
-                ReaderInterceptorUtil.convertToConsumerInterceptors(
-                        this, readerConfiguration.getReaderInterceptorList());
+        ConsumerInterceptors<T> consumerInterceptors = ReaderInterceptorUtil.convertToConsumerInterceptors(
+                this, readerConfiguration.getReaderInterceptorList());
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
-        consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration,
-                executorProvider, partitionIdx, false, false, consumerFuture,
-                readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec(),
-                schema, consumerInterceptors, true /* createTopicIfDoesNotExist */);
+        consumer = new ConsumerImpl<>(
+                client,
+                readerConfiguration.getTopicName(),
+                consumerConfiguration,
+                executorProvider,
+                partitionIdx,
+                false,
+                false,
+                consumerFuture,
+                readerConfiguration.getStartMessageId(),
+                readerConfiguration.getStartMessageFromRollbackDurationInSec(),
+                schema,
+                consumerInterceptors,
+                true /* createTopicIfDoesNotExist */);
     }
 
     @Override
@@ -164,8 +178,12 @@ public class ReaderImpl<T> implements Reader<T> {
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
         // it will specify the subscription position anyway
         consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-            log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                    getConsumer().getSubscription(), msg.getMessageId(), ex);
+            log.warn(
+                    "[{}][{}] acknowledge message {} cumulative fail.",
+                    getTopic(),
+                    getConsumer().getSubscription(),
+                    msg.getMessageId(),
+                    ex);
             return null;
         });
         return msg;
@@ -177,8 +195,12 @@ public class ReaderImpl<T> implements Reader<T> {
 
         if (msg != null) {
             consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-                log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                        getConsumer().getSubscription(), msg.getMessageId(), ex);
+                log.warn(
+                        "[{}][{}] acknowledge message {} cumulative fail.",
+                        getTopic(),
+                        getConsumer().getSubscription(),
+                        msg.getMessageId(),
+                        ex);
                 return null;
             });
         }
@@ -189,12 +211,15 @@ public class ReaderImpl<T> implements Reader<T> {
     public CompletableFuture<Message<T>> readNextAsync() {
         CompletableFuture<Message<T>> originalFuture = consumer.receiveAsync();
         CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
-            consumer.acknowledgeCumulativeAsync(msg)
-                    .exceptionally(ex -> {
-                        log.error("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                                getConsumer().getSubscription(), msg.getMessageId(), ex);
-                        return null;
-                    });
+            consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                log.error(
+                        "[{}][{}] acknowledge message {} cumulative fail.",
+                        getTopic(),
+                        getConsumer().getSubscription(),
+                        msg.getMessageId(),
+                        ex);
+                return null;
+            });
             return msg;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();

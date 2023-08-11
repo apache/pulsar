@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.influxdb.v1;
 
-import org.influxdb.InfluxDB;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.influxdb.InfluxDB;
+import org.testng.annotations.Test;
 
 /**
  * InfluxDBSinkConfig test
@@ -89,8 +87,9 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "influxdbUrl property not set.")
+    @Test(
+            expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "influxdbUrl property not set.")
     public final void missingInfluxdbUrlValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("database", "test_db");
@@ -105,8 +104,9 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public final void invalidBatchSizeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");
@@ -122,8 +122,9 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant org.influxdb.InfluxDB.ConsistencyLevel.NOTSUPPORT")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "No enum constant org.influxdb.InfluxDB.ConsistencyLevel.NOTSUPPORT")
     public final void invalidConsistencyLevelTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");

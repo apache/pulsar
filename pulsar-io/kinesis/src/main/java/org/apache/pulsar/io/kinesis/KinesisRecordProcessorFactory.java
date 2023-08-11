@@ -26,8 +26,9 @@ public class KinesisRecordProcessorFactory implements ShardRecordProcessorFactor
 
     private final LinkedBlockingQueue<KinesisRecord> queue;
     private final KinesisSourceConfig config;
-    public KinesisRecordProcessorFactory(LinkedBlockingQueue<KinesisRecord> queue,
-                                         KinesisSourceConfig kinesisSourceConfig) {
+
+    public KinesisRecordProcessorFactory(
+            LinkedBlockingQueue<KinesisRecord> queue, KinesisSourceConfig kinesisSourceConfig) {
         this.queue = queue;
         this.config = kinesisSourceConfig;
     }

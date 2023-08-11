@@ -69,8 +69,7 @@ public class CoordinationServiceImpl implements CoordinationService {
     public void close() throws Exception {
         try {
             List<CompletableFuture<Void>> futures = new ArrayList<>();
-            futures.add(GracefulExecutorServicesShutdown
-                    .initiate()
+            futures.add(GracefulExecutorServicesShutdown.initiate()
                     .shutdown(executor)
                     .handle());
 
@@ -82,7 +81,6 @@ public class CoordinationServiceImpl implements CoordinationService {
                 futures.add(lm.asyncClose());
             }
 
-
             FutureUtils.collect(futures).get(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         } catch (CompletionException ce) {
             throw MetadataStoreException.unwrap(ce);
@@ -93,14 +91,14 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     @Override
     public <T> LockManager<T> getLockManager(Class<T> clazz) {
-        return (LockManager<T>) lockManagers.computeIfAbsent(clazz,
-                k -> new LockManagerImpl<T>(store, clazz, executor));
+        return (LockManager<T>)
+                lockManagers.computeIfAbsent(clazz, k -> new LockManagerImpl<T>(store, clazz, executor));
     }
 
     @Override
     public <T> LockManager<T> getLockManager(MetadataSerde<T> serde) {
-        return (LockManager<T>) lockManagers.computeIfAbsent(serde,
-                k -> new LockManagerImpl<T>(store, serde, executor));
+        return (LockManager<T>)
+                lockManagers.computeIfAbsent(serde, k -> new LockManagerImpl<T>(store, serde, executor));
     }
 
     @Override
@@ -111,16 +109,14 @@ public class CoordinationServiceImpl implements CoordinationService {
     }
 
     private CompletableFuture<Long> internalGetNextCounterValue(String path) {
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        // The base path already exists
-                        return incrementCounter(path);
-                    } else {
-                        return store.put(path, new byte[0], Optional.empty())
-                                .thenCompose(__ -> incrementCounter(path));
-                    }
-                });
+        return store.exists(path).thenCompose(exists -> {
+            if (exists) {
+                // The base path already exists
+                return incrementCounter(path);
+            } else {
+                return store.put(path, new byte[0], Optional.empty()).thenCompose(__ -> incrementCounter(path));
+            }
+        });
     }
 
     private void internalGetNextCounterValueWithRetry(String path, CompletableFuture<Long> future, int count) {
@@ -129,25 +125,27 @@ public class CoordinationServiceImpl implements CoordinationService {
             future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
-        this.internalGetNextCounterValue(path)
-                .thenAccept(future::complete)
-                .exceptionally(ex -> {
-                    if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
-                        log.warn("Failed to get next counter value because of bad version. "
-                                + "Retry to get next counter value from path {}", path);
-                        internalGetNextCounterValueWithRetry(path, future, count - 1);
-                    } else {
-                        log.error("Failed to get next counter value from path {}", path, ex);
-                        future.completeExceptionally(ex);
-                    }
-                    return null;
-                });
+        this.internalGetNextCounterValue(path).thenAccept(future::complete).exceptionally(ex -> {
+            if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                log.warn(
+                        "Failed to get next counter value because of bad version. "
+                                + "Retry to get next counter value from path {}",
+                        path);
+                internalGetNextCounterValueWithRetry(path, future, count - 1);
+            } else {
+                log.error("Failed to get next counter value from path {}", path, ex);
+                future.completeExceptionally(ex);
+            }
+            return null;
+        });
     }
 
     private CompletableFuture<Long> incrementCounter(String path) {
         String counterBasePath = path + "/-";
-        return store
-                .put(counterBasePath, new byte[0], Optional.of(-1L),
+        return store.put(
+                        counterBasePath,
+                        new byte[0],
+                        Optional.of(-1L),
                         EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenApply(stat -> {
                     String[] parts = stat.getPath().split("/");
@@ -157,10 +155,10 @@ public class CoordinationServiceImpl implements CoordinationService {
     }
 
     @Override
-    public <T> LeaderElection<T> getLeaderElection(Class<T> clazz, String path,
-            Consumer<LeaderElectionState> stateChangesListener) {
+    public <T> LeaderElection<T> getLeaderElection(
+            Class<T> clazz, String path, Consumer<LeaderElectionState> stateChangesListener) {
 
-        return (LeaderElection<T>) leaderElections.computeIfAbsent(path,
-                key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
+        return (LeaderElection<T>) leaderElections.computeIfAbsent(
+                path, key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
     }
 }

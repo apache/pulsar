@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.websocket;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -40,9 +43,6 @@ import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.api.WebSocketPingPongListener;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertTrue;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
@@ -103,7 +103,7 @@ public class PingPongSupportTest {
      */
     @DataProvider(name = "endpoint")
     public static Object[][] cacheEnable() {
-        return new Object[][] { { "producer" }, { "consumer" }, { "reader" } };
+        return new Object[][] {{"producer"}, {"consumer"}, {"reader"}};
     }
 
     @Test(dataProvider = "endpoint")
@@ -120,7 +120,8 @@ public class PingPongSupportTest {
 
     public static class GenericWebSocketHandler extends AbstractWebSocketHandler {
 
-        public GenericWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public GenericWebSocketHandler(
+                WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -130,9 +131,7 @@ public class PingPongSupportTest {
         }
 
         @Override
-        public void close() throws IOException {
-
-        }
+        public void close() throws IOException {}
     }
 
     public static class GenericWebSocketServlet extends WebSocketServlet {
@@ -157,20 +156,16 @@ public class PingPongSupportTest {
         ArrayBlockingQueue<String> incomingMessages = new ArrayBlockingQueue<>(10);
 
         @Override
-        public void onWebSocketClose(int i, String s) {
-        }
+        public void onWebSocketClose(int i, String s) {}
 
         @Override
-        public void onWebSocketConnect(Session session) {
-        }
+        public void onWebSocketConnect(Session session) {}
 
         @Override
-        public void onWebSocketError(Throwable throwable) {
-        }
+        public void onWebSocketError(Throwable throwable) {}
 
         @Override
-        public void onWebSocketPing(ByteBuffer payload) {
-        }
+        public void onWebSocketPing(ByteBuffer payload) {}
 
         @Override
         public void onWebSocketPong(ByteBuffer payload) {

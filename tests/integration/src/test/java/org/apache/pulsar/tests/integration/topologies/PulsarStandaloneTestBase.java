@@ -41,26 +41,22 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
     @DataProvider(name = "StandaloneServiceUrlAndTopics")
     public Object[][] serviceUrlAndTopics() {
         return new Object[][] {
-                // plain text, persistent topic
-                {
-                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
-                        true,
-                },
-                // plain text, non-persistent topic
-                {
-                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
-                        false
-                }
+            // plain text, persistent topic
+            {
+                stringSupplier(() -> getContainer().getPlainTextServiceUrl()), true,
+            },
+            // plain text, non-persistent topic
+            {stringSupplier(() -> getContainer().getPlainTextServiceUrl()), false}
         };
     }
 
     @DataProvider(name = "StandaloneServiceUrlAndHttpUrl")
     public Object[][] serviceUrlAndHttpUrl() {
         return new Object[][] {
-                {
-                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
-                        stringSupplier(() -> getContainer().getHttpServiceUrl()),
-                }
+            {
+                stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
+                stringSupplier(() -> getContainer().getHttpServiceUrl()),
+            }
         };
     }
 
@@ -80,18 +76,18 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         network = Network.newNetwork();
         String clusterName = PulsarClusterTestBase.randomName(8);
         container = new StandaloneContainer(clusterName, pulsarImageName)
-            .withNetwork(network)
-            .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
-            .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181")
-            .withEnv("PULSAR_STANDALONE_USE_ZOOKEEPER", "true");
+                .withNetwork(network)
+                .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
+                .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181")
+                .withEnv("PULSAR_STANDALONE_USE_ZOOKEEPER", "true");
         container.start();
         log.info("Pulsar cluster {} is up running:", clusterName);
         log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());
         log.info("\tHttp Service Url : {}", container.getHttpServiceUrl());
 
         // add cluster to public tenant
-        ContainerExecResult result = container.execCmd(
-                "/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
+        ContainerExecResult result =
+                container.execCmd("/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
         assertEquals(0, result.getExitCode());
         log.info("public/default namespace policies are {}", result.getStdout());
     }
@@ -107,8 +103,6 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         }
     }
 
-
-
     protected void dumpFunctionLogs(String name) {
         try {
             String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
@@ -120,5 +114,4 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
             log.info("Cannot download {} logs", name, err);
         }
     }
-
 }

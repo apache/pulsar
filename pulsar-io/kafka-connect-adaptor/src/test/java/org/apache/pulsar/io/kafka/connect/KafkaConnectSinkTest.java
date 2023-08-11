@@ -18,10 +18,46 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.AbstractMap;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TimeZone;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -82,44 +118,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.AbstractMap;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TimeZone;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 @SuppressWarnings({"unchecked", "rawtypes"})
 @Slf4j
 public class KafkaConnectSinkTest extends ProducerConsumerBase {
@@ -162,7 +160,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         }
     }
 
-    final private String offsetTopicName = "persistent://my-property/my-ns/kafka-connect-sink-offset";
+    private final String offsetTopicName = "persistent://my-property/my-ns/kafka-connect-sink-offset";
 
     private Path file;
     private Map<String, Object> props;
@@ -187,9 +185,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         props.put("kafkaConnectorConfigProperties", kafkaConnectorProps);
 
         this.context = mock(SinkContext.class);
-        this.client = PulsarClient.builder()
-                .serviceUrl(brokerUrl.toString())
-                .build();
+        this.client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         when(context.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
         when(context.getPulsarClient()).thenReturn(client);
     }
@@ -351,8 +347,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(sink.currentOffset(tp.topic(), tp.partition()), MessageIdUtils.getOffset(msgId));
 
         sink.taskContext.offset(tp, 0);
-        verify(context, times(1)).seek(pulsarTopicName,
-                tp.partition(), MessageIdUtils.getMessageId(0));
+        verify(context, times(1)).seek(pulsarTopicName, tp.partition(), MessageIdUtils.getMessageId(0));
         assertEquals(sink.currentOffset(tp.topic(), tp.partition()), 0);
 
         sink.taskContext.pause(tp);
@@ -402,15 +397,21 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         } catch (IllegalArgumentException iae) {
             // pass
         }
-
     }
 
-    private SinkRecord recordSchemaTest(Object value, Schema schema, Object expected, String expectedSchema) throws Exception {
+    private SinkRecord recordSchemaTest(Object value, Schema schema, Object expected, String expectedSchema)
+            throws Exception {
         return recordSchemaTest(value, schema, "key", "STRING", expected, expectedSchema);
     }
 
-    private SinkRecord recordSchemaTest(Object value, Schema schema, Object expectedKey, String expectedKeySchema,
-                                        Object expected, String expectedSchema) throws Exception {
+    private SinkRecord recordSchemaTest(
+            Object value,
+            Schema schema,
+            Object expectedKey,
+            String expectedKeySchema,
+            Object expected,
+            String expectedSchema)
+            throws Exception {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
         KafkaConnectSink sink = new KafkaConnectSink();
@@ -441,8 +442,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
         List<String> lines = Files.readAllLines(file, StandardCharsets.US_ASCII);
         ObjectMapper om = new ObjectMapper();
-        Map<String, Object> result = om.readValue(lines.get(0), new TypeReference<Map<String, Object>>() {
-        });
+        Map<String, Object> result = om.readValue(lines.get(0), new TypeReference<Map<String, Object>>() {});
 
         assertEquals(expectedKey, result.get("key"));
         assertEquals(expected, result.get("value"));
@@ -478,24 +478,23 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         if (value instanceof GenericRecord) {
             rec = (GenericRecord) value;
         } else if (value instanceof org.apache.avro.generic.GenericRecord) {
-            org.apache.avro.generic.GenericRecord avroRecord =
-                    (org.apache.avro.generic.GenericRecord) value;
-            org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) schema.getNativeSchema().get();
-            List<Field> fields = avroSchema.getFields()
-                    .stream()
+            org.apache.avro.generic.GenericRecord avroRecord = (org.apache.avro.generic.GenericRecord) value;
+            org.apache.avro.Schema avroSchema =
+                    (org.apache.avro.Schema) schema.getNativeSchema().get();
+            List<Field> fields = avroSchema.getFields().stream()
                     .map(f -> new Field(f.name(), f.pos()))
                     .collect(Collectors.toList());
 
-            return new GenericAvroRecord(new byte[]{1}, avroSchema, fields, avroRecord);
+            return new GenericAvroRecord(new byte[] {1}, avroSchema, fields, avroRecord);
         } else {
             rec = MockGenericObjectWrapper.builder()
                     .nativeObject(value)
                     .schemaType(schema != null ? schema.getSchemaInfo().getType() : null)
-                    .schemaVersion(new byte[]{1}).build();
+                    .schemaVersion(new byte[] {1})
+                    .build();
         }
         return rec;
     }
-
 
     @Test
     public void genericRecordCastTest() throws Exception {
@@ -504,8 +503,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         KafkaConnectSink sink = new KafkaConnectSink();
         sink.open(props, context);
 
-        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
-                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema =
+                AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
 
         final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
         // schema type INT32
@@ -629,12 +628,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void jsonSchemaTest() throws Exception {
-        JSONSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> jsonSchema = JSONSchema
-                .of(SchemaDefinition.<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations>builder()
+        JSONSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> jsonSchema =
+                JSONSchema.of(SchemaDefinition.<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations>builder()
                         .withPojo(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class)
                         .withAlwaysAllowNull(false)
                         .build());
-        PulsarSchemaToKafkaSchemaTest.StructWithAnnotations obj = new PulsarSchemaToKafkaSchemaTest.StructWithAnnotations();
+        PulsarSchemaToKafkaSchemaTest.StructWithAnnotations obj =
+                new PulsarSchemaToKafkaSchemaTest.StructWithAnnotations();
         obj.setField1(10);
         obj.setField2("test");
         obj.setField3(100L);
@@ -668,8 +668,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void avroSchemaTest() throws Exception {
-        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
-                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema =
+                AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
 
         final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
         obj.put("field1", 10);
@@ -731,7 +731,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     @Test
     public void schemaKeyValueSchemaTest() throws Exception {
         KeyValue<Integer, String> kv = new KeyValue<>(11, "value");
-        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
+        SinkRecord sinkRecord =
+                recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
         String val = (String) sinkRecord.value();
         Assert.assertEquals(val, "value");
         int key = (int) sinkRecord.key();
@@ -740,13 +741,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void schemaKeyValueSchemaNullValueTest() throws Exception {
-        RecordSchemaBuilder builder = SchemaBuilder
-                .record("test");
+        RecordSchemaBuilder builder = SchemaBuilder.record("test");
         builder.field("test").type(SchemaType.STRING);
         GenericSchema<GenericRecord> schema = GenericAvroSchema.of(builder.build(SchemaType.AVRO));
         KeyValue<Integer, String> kv = new KeyValue<>(11, null);
-        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, schema), 11,
-                "INT32", null, "STRUCT");
+        SinkRecord sinkRecord =
+                recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, schema), 11, "INT32", null, "STRUCT");
         Assert.assertNull(sinkRecord.value());
         int key = (int) sinkRecord.key();
         Assert.assertEquals(key, 11);
@@ -755,36 +755,35 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     @Test
     public void schemaKeyValueSchemaNullValueNoUnwrapTest() throws Exception {
         props.put("unwrapKeyValueIfAvailable", "false");
-        JSONSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> jsonSchema = JSONSchema
-                .of(SchemaDefinition.<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations>builder()
+        JSONSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> jsonSchema =
+                JSONSchema.of(SchemaDefinition.<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations>builder()
                         .withPojo(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class)
                         .withAlwaysAllowNull(true)
                         .build());
         KeyValue<Integer, String> kv = new KeyValue<>(11, null);
         Map<String, Object> expected = new HashMap();
         expected.put("11", null);
-        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, jsonSchema), "key",
-                "STRING", expected, "MAP");
-        Assert.assertNull(((Map)sinkRecord.value()).get(11));
-        String key =(String)sinkRecord.key();
+        SinkRecord sinkRecord =
+                recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, jsonSchema), "key", "STRING", expected, "MAP");
+        Assert.assertNull(((Map) sinkRecord.value()).get(11));
+        String key = (String) sinkRecord.key();
         Assert.assertEquals(key, "key");
     }
 
     @Test
     public void schemaKeyValueSchemaNullValueNoUnwrapTestAvro() throws Exception {
         props.put("unwrapKeyValueIfAvailable", "false");
-        RecordSchemaBuilder builder = SchemaBuilder
-                .record("test");
+        RecordSchemaBuilder builder = SchemaBuilder.record("test");
         builder.property("op", "test");
         builder.field("test").type(SchemaType.STRING);
         GenericSchema<GenericRecord> schema = GenericAvroSchema.of(builder.build(SchemaType.AVRO));
         KeyValue<Integer, String> kv = new KeyValue<>(11, null);
         Map<String, Object> expected = new HashMap();
         expected.put("11", null);
-        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, schema), "key",
-                "STRING", expected, "MAP");
-        Assert.assertNull(((Map)sinkRecord.value()).get(11));
-        String key =(String)sinkRecord.key();
+        SinkRecord sinkRecord =
+                recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, schema), "key", "STRING", expected, "MAP");
+        Assert.assertNull(((Map) sinkRecord.value()).get(11));
+        String key = (String) sinkRecord.key();
         Assert.assertEquals(key, "key");
     }
 
@@ -796,14 +795,14 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .schema(new byte[0])
                 .build());
 
-        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema, true);
+        org.apache.kafka.connect.data.Schema kafkaSchema =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(schema, true);
 
         Assert.assertFalse(kafkaSchema.isOptional());
 
         java.util.Date date = getDateFromString("12/30/1999 11:12:13");
-        Object connectData = KafkaConnectData
-                .getKafkaConnectData(Timestamp.fromLogical(kafkaSchema, date), kafkaSchema);
+        Object connectData =
+                KafkaConnectData.getKafkaConnectData(Timestamp.fromLogical(kafkaSchema, date), kafkaSchema);
 
         org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
     }
@@ -816,14 +815,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .schema(new byte[0])
                 .build());
 
-        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema, true);
+        org.apache.kafka.connect.data.Schema kafkaSchema =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(schema, true);
 
         Assert.assertFalse(kafkaSchema.isOptional());
 
         java.util.Date date = getDateFromString("01/01/1970 11:12:13");
-        Object connectData = KafkaConnectData
-                .getKafkaConnectData(Time.fromLogical(kafkaSchema, date), kafkaSchema);
+        Object connectData = KafkaConnectData.getKafkaConnectData(Time.fromLogical(kafkaSchema, date), kafkaSchema);
 
         org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
     }
@@ -836,14 +834,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .schema(new byte[0])
                 .build());
 
-        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema, true);
+        org.apache.kafka.connect.data.Schema kafkaSchema =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(schema, true);
 
         Assert.assertFalse(kafkaSchema.isOptional());
 
         java.util.Date date = getDateFromString("12/31/2022 00:00:00");
-        Object connectData = KafkaConnectData
-                .getKafkaConnectData(Date.fromLogical(kafkaSchema, date), kafkaSchema);
+        Object connectData = KafkaConnectData.getKafkaConnectData(Date.fromLogical(kafkaSchema, date), kafkaSchema);
 
         org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
     }
@@ -859,30 +856,29 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .schema(new byte[0])
                 .build());
 
-        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema, true);
+        org.apache.kafka.connect.data.Schema kafkaSchema =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(schema, true);
 
         Assert.assertFalse(kafkaSchema.isOptional());
 
-        Object connectData = KafkaConnectData
-                .getKafkaConnectData(Decimal.fromLogical(kafkaSchema, BigDecimal.valueOf(100L, 10)), kafkaSchema);
+        Object connectData = KafkaConnectData.getKafkaConnectData(
+                Decimal.fromLogical(kafkaSchema, BigDecimal.valueOf(100L, 10)), kafkaSchema);
 
         org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
     }
 
-
     @Test
     public void connectDataComplexAvroSchemaGenericRecordTest() {
-        AvroSchema<PulsarSchemaToKafkaSchemaTest.ComplexStruct> pulsarAvroSchema
-                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.ComplexStruct.class);
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.ComplexStruct> pulsarAvroSchema =
+                AvroSchema.of(PulsarSchemaToKafkaSchemaTest.ComplexStruct.class);
 
         final GenericData.Record key = getComplexStructRecord();
         final GenericData.Record value = getComplexStructRecord();
-        KeyValue<GenericRecord, GenericRecord> kv = new KeyValue<>(getGenericRecord(key, pulsarAvroSchema),
-                getGenericRecord(value, pulsarAvroSchema));
+        KeyValue<GenericRecord, GenericRecord> kv =
+                new KeyValue<>(getGenericRecord(key, pulsarAvroSchema), getGenericRecord(value, pulsarAvroSchema));
 
-        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema), false);
+        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(
+                Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema), false);
 
         Assert.assertTrue(kafkaSchema.isOptional());
         Assert.assertTrue(kafkaSchema.keySchema().isOptional());
@@ -891,12 +887,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void connectDataPojoArrTest() throws Exception {
-        PulsarSchemaToKafkaSchemaTest.ComplexStruct[] pojo =
-                new PulsarSchemaToKafkaSchemaTest.ComplexStruct[]{
-                        getPojoComplexStruct(),
-                        getPojoComplexStruct(),
-                        getPojoComplexStruct()
-                };
+        PulsarSchemaToKafkaSchemaTest.ComplexStruct[] pojo = new PulsarSchemaToKafkaSchemaTest.ComplexStruct[] {
+            getPojoComplexStruct(), getPojoComplexStruct(), getPojoComplexStruct()
+        };
 
         testPojoAsAvroAndJsonConversionToConnectData(pojo);
     }
@@ -904,11 +897,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     @Test
     public void connectDataPojoListTest() throws Exception {
         List<PulsarSchemaToKafkaSchemaTest.ComplexStruct> pojo =
-                Lists.newArrayList(
-                        getPojoComplexStruct(),
-                        getPojoComplexStruct(),
-                        getPojoComplexStruct()
-                );
+                Lists.newArrayList(getPojoComplexStruct(), getPojoComplexStruct(), getPojoComplexStruct());
 
         /*
         Need this because of (AFAICT)
@@ -917,10 +906,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         to generate proper schema
         */
         PulsarSchemaToKafkaSchemaTest.ComplexStruct[] pojoForSchema =
-                new PulsarSchemaToKafkaSchemaTest.ComplexStruct[]{
-                        getPojoComplexStruct(),
-                        getPojoComplexStruct(),
-                        getPojoComplexStruct()
+                new PulsarSchemaToKafkaSchemaTest.ComplexStruct[] {
+                    getPojoComplexStruct(), getPojoComplexStruct(), getPojoComplexStruct()
                 };
 
         AvroSchema pulsarAvroSchema = AvroSchema.of(pojoForSchema.getClass());
@@ -930,8 +917,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void connectDataPojoMapTest() throws Exception {
-        Map<String, PulsarSchemaToKafkaSchemaTest.ComplexStruct> pojo =
-                Maps.newHashMap();
+        Map<String, PulsarSchemaToKafkaSchemaTest.ComplexStruct> pojo = Maps.newHashMap();
         pojo.put("key1", getPojoComplexStruct());
         pojo.put("key2", getPojoComplexStruct());
 
@@ -965,28 +951,28 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void connectDataPrimitiveArraysTest() throws Exception {
-        testPojoAsAvroAndJsonConversionToConnectData(new String[]{"test", "test2"});
+        testPojoAsAvroAndJsonConversionToConnectData(new String[] {"test", "test2"});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new char[]{'a', 'b', 'c'});
-        testPojoAsAvroAndJsonConversionToConnectData(new Character[]{'a', 'b', 'c'});
+        testPojoAsAvroAndJsonConversionToConnectData(new char[] {'a', 'b', 'c'});
+        testPojoAsAvroAndJsonConversionToConnectData(new Character[] {'a', 'b', 'c'});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new byte[]{Byte.MIN_VALUE, Byte.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Byte[]{Byte.MIN_VALUE, Byte.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new byte[] {Byte.MIN_VALUE, Byte.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Byte[] {Byte.MIN_VALUE, Byte.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new short[]{Short.MIN_VALUE, Short.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Short[]{Short.MIN_VALUE, Short.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new short[] {Short.MIN_VALUE, Short.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Short[] {Short.MIN_VALUE, Short.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new int[]{Integer.MIN_VALUE, Integer.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Integer[]{Integer.MIN_VALUE, Integer.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new int[] {Integer.MIN_VALUE, Integer.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Integer[] {Integer.MIN_VALUE, Integer.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new long[]{Long.MIN_VALUE, Long.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Long[]{Long.MIN_VALUE, Long.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new long[] {Long.MIN_VALUE, Long.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Long[] {Long.MIN_VALUE, Long.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new float[]{Float.MIN_VALUE, Float.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Float[]{Float.MIN_VALUE, Float.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new float[] {Float.MIN_VALUE, Float.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Float[] {Float.MIN_VALUE, Float.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new double[]{Double.MIN_VALUE, Double.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Double[]{Double.MIN_VALUE, Double.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new double[] {Double.MIN_VALUE, Double.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Double[] {Double.MIN_VALUE, Double.MAX_VALUE});
     }
 
     private void testPojoAsAvroAndJsonConversionToConnectData(Object pojo) throws IOException {
@@ -994,11 +980,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         testPojoAsAvroAndJsonConversionToConnectData(pojo, pulsarAvroSchema);
     }
 
-    private void testPojoAsAvroAndJsonConversionToConnectData(Object pojo, AvroSchema pulsarAvroSchema) throws IOException {
+    private void testPojoAsAvroAndJsonConversionToConnectData(Object pojo, AvroSchema pulsarAvroSchema)
+            throws IOException {
         Object value = pojoAsAvroRecord(pojo, pulsarAvroSchema);
 
-        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(pulsarAvroSchema, false);
+        org.apache.kafka.connect.data.Schema kafkaSchema =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, false);
         Assert.assertFalse(kafkaSchema.isOptional());
 
         Object connectData = KafkaConnectData.getKafkaConnectData(value, kafkaSchema);
@@ -1009,8 +996,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         connectData = KafkaConnectData.getKafkaConnectData(jsonNode, kafkaSchema);
         org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
 
-        kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(pulsarAvroSchema, true);
+        kafkaSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, true);
         Assert.assertFalse(kafkaSchema.isOptional());
 
         connectData = KafkaConnectData.getKafkaConnectData(value, kafkaSchema);
@@ -1047,8 +1033,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void schemaKeyValueAvroSchemaTest() throws Exception {
-        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
-                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema =
+                AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
 
         final GenericData.Record key = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
         key.put("field1", 11);
@@ -1086,11 +1072,16 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         expectedValue.put("floatField", 0.0d);
         expectedValue.put("doubleField", 0.0d);
 
-        KeyValue<GenericRecord, GenericRecord> kv = new KeyValue<>(getGenericRecord(key, pulsarAvroSchema),
-                getGenericRecord(value, pulsarAvroSchema));
+        KeyValue<GenericRecord, GenericRecord> kv =
+                new KeyValue<>(getGenericRecord(key, pulsarAvroSchema), getGenericRecord(value, pulsarAvroSchema));
 
-        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema),
-                expectedKey, "STRUCT", expectedValue, "STRUCT");
+        SinkRecord sinkRecord = recordSchemaTest(
+                kv,
+                Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema),
+                expectedKey,
+                "STRUCT",
+                expectedValue,
+                "STRUCT");
 
         Struct outValue = (Struct) sinkRecord.value();
         Assert.assertEquals((int) outValue.get("field1"), 10);
@@ -1216,9 +1207,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         // close the producer, open again
         sink = new KafkaConnectSink();
         @Cleanup
-        PulsarClient pulsarClient1 = PulsarClient.builder()
-                .serviceUrl(brokerUrl.toString())
-                .build();
+        PulsarClient pulsarClient1 =
+                PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         when(context.getPulsarClient()).thenReturn(pulsarClient1);
         sink.open(props, context);
 
@@ -1230,7 +1220,6 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         sink.flush();
         // offset is 2 for the next written record
         assertEquals(sink.currentOffset(topicName, partition), 2);
-
 
         // use index
         entryId.set(999);
@@ -1348,9 +1337,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         // close the producer, open again
         sink = new KafkaConnectSink();
         @Cleanup
-        PulsarClient pulsarClient1 = PulsarClient.builder()
-                .serviceUrl(brokerUrl.toString())
-                .build();
+        PulsarClient pulsarClient1 =
+                PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         when(context.getPulsarClient()).thenReturn(pulsarClient1);
         sink.open(props, context);
 
@@ -1403,7 +1391,6 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         sink.close();
     }
 
-
     @Test
     public void partialPreCommitTest() throws Exception {
         props.put("useIndexAsOffset", "false");
@@ -1442,15 +1429,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(pendingFlushQueue.size(), 30);
 
         Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
-        committedOffsets.put(new TopicPartition(topicName, 0),
-                new OffsetAndMetadata(3L, Optional.empty(), null));
-        committedOffsets.put(new TopicPartition(topicName, 1),
-                new OffsetAndMetadata(4L, Optional.empty(), null));
-        committedOffsets.put(new TopicPartition(topicName, 2),
-                new OffsetAndMetadata(5L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 0), new OffsetAndMetadata(3L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 1), new OffsetAndMetadata(4L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 2), new OffsetAndMetadata(5L, Optional.empty(), null));
 
         Record<GenericObject> lastNotFlushed = pendingFlushQueue.peekFirst();
-        Record<GenericObject> lastNotFlushedAfter = (Record<GenericObject>) pendingFlushQueue.stream().toArray()[15];
+        Record<GenericObject> lastNotFlushedAfter =
+                (Record<GenericObject>) pendingFlushQueue.stream().toArray()[15];
 
         final AtomicInteger ackedMessagesCount = new AtomicInteger(0);
         sink.ackUntil(lastNotFlushed, committedOffsets, x -> ackedMessagesCount.incrementAndGet());
@@ -1480,12 +1465,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     private static PulsarSchemaToKafkaSchemaTest.ComplexStruct getPojoComplexStruct() {
         return new PulsarSchemaToKafkaSchemaTest.ComplexStruct()
                 .setStringList(Lists.newArrayList("str11", "str22"))
-                .setStructArr(new PulsarSchemaToKafkaSchemaTest.StructWithAnnotations[]{getPojoStructWithAnnotations()})
+                .setStructArr(
+                        new PulsarSchemaToKafkaSchemaTest.StructWithAnnotations[] {getPojoStructWithAnnotations()})
                 .setStructList(Lists.newArrayList(getPojoStructWithAnnotations()))
                 .setStruct(getPojoStructWithAnnotations())
-                .setStructMap(Map.of("key1", getPojoStructWithAnnotations(),
-                        "key2", getPojoStructWithAnnotations()))
-
+                .setStructMap(Map.of("key1", getPojoStructWithAnnotations(), "key2", getPojoStructWithAnnotations()))
                 .setByteField((byte) 1)
                 .setShortField((short) 2)
                 .setIntField(3)
@@ -1494,20 +1478,19 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .setDoubleField(6.0d)
                 .setCharField('c')
                 .setStringField("some text")
-
-                .setByteArr(new byte[]{1, 2})
-                .setShortArr(new short[]{3, 4})
-                .setIntArr(new int[]{5, 6})
-                .setLongArr(new long[]{7, 8})
-                .setFloatArr(new float[]{9.0f, 10.0f})
-                .setDoubleArr(new double[]{11.0d, 12.0d})
-                .setCharArr(new char[]{'a', 'b'})
-                .setStringArr(new String[]{"abc", "def"});
+                .setByteArr(new byte[] {1, 2})
+                .setShortArr(new short[] {3, 4})
+                .setIntArr(new int[] {5, 6})
+                .setLongArr(new long[] {7, 8})
+                .setFloatArr(new float[] {9.0f, 10.0f})
+                .setDoubleArr(new double[] {11.0d, 12.0d})
+                .setCharArr(new char[] {'a', 'b'})
+                .setStringArr(new String[] {"abc", "def"});
     }
 
     private static GenericData.Record getStructRecord() {
-        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
-                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema =
+                AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
 
         final GenericData.Record rec = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
 
@@ -1525,14 +1508,14 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     }
 
     private static GenericData.Record getComplexStructRecord() {
-        AvroSchema<PulsarSchemaToKafkaSchemaTest.ComplexStruct> pulsarAvroSchema
-                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.ComplexStruct.class);
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.ComplexStruct> pulsarAvroSchema =
+                AvroSchema.of(PulsarSchemaToKafkaSchemaTest.ComplexStruct.class);
 
         final GenericData.Record rec = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
 
-        rec.put("stringArr", new String[]{"str1", "str2"});
+        rec.put("stringArr", new String[] {"str1", "str2"});
         rec.put("stringList", Lists.newArrayList("str11", "str22"));
-        rec.put("structArr", new GenericData.Record[]{getStructRecord(), getStructRecord()});
+        rec.put("structArr", new GenericData.Record[] {getStructRecord(), getStructRecord()});
         rec.put("structList", Lists.newArrayList(getStructRecord(), getStructRecord()));
 
         rec.put("struct", getStructRecord());
@@ -1544,13 +1527,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         rec.put("doubleField", 6.1d);
         rec.put("charField", 'c');
         rec.put("stringField", "some string");
-        rec.put("byteArr", new byte[]{(byte) 1, (byte) 2});
-        rec.put("shortArr", new short[]{(short) 3, (short) 4});
-        rec.put("intArr", new int[]{5, 6});
-        rec.put("longArr", new long[]{7L, 8L});
-        rec.put("floatArr", new float[]{9.0f, 10.0f});
-        rec.put("doubleArr", new double[]{11.0d, 12.0d});
-        rec.put("charArr", new char[]{'a', 'b', 'c'});
+        rec.put("byteArr", new byte[] {(byte) 1, (byte) 2});
+        rec.put("shortArr", new short[] {(short) 3, (short) 4});
+        rec.put("intArr", new int[] {5, 6});
+        rec.put("longArr", new long[] {7L, 8L});
+        rec.put("floatArr", new float[] {9.0f, 10.0f});
+        rec.put("doubleArr", new double[] {11.0d, 12.0d});
+        rec.put("charArr", new char[] {'a', 'b', 'c'});
 
         Map<String, GenericData.Record> map = new HashMap<>();
         map.put("key1", getStructRecord());
@@ -1567,13 +1550,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         long entryId = Long.MAX_VALUE;
         int batchIdx = 16;
 
-        KafkaConnectSink.BatchMessageSequenceRef ref = KafkaConnectSink
-                .getMessageSequenceRefForBatchMessage(new MessageIdImpl(ledgerId, entryId, 0));
+        KafkaConnectSink.BatchMessageSequenceRef ref =
+                KafkaConnectSink.getMessageSequenceRefForBatchMessage(new MessageIdImpl(ledgerId, entryId, 0));
         assertNull(ref);
 
         ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
-                        new TopicMessageIdImpl("topic-0", new MessageIdImpl(ledgerId, entryId, 0))
-        );
+                new TopicMessageIdImpl("topic-0", new MessageIdImpl(ledgerId, entryId, 0)));
         assertNull(ref);
 
         ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
@@ -1584,8 +1566,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(ref.getBatchIdx(), batchIdx);
 
         ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
-                new TopicMessageIdImpl("topic-0", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx))
-        );
+                new TopicMessageIdImpl("topic-0", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx)));
 
         assertEquals(ref.getLedgerId(), ledgerId);
         assertEquals(ref.getEntryId(), entryId);
@@ -1594,62 +1575,38 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void collapsePartitionedTopicEnabledTest() throws Exception {
-        testCollapsePartitionedTopic(true,
-                "persistent://a/b/fake-topic-partition-0",
-                "persistent://a/b/fake-topic",
-                0);
+        testCollapsePartitionedTopic(true, "persistent://a/b/fake-topic-partition-0", "persistent://a/b/fake-topic", 0);
 
-        testCollapsePartitionedTopic(true,
-                "persistent://a/b/fake-topic-partition-1",
-                "persistent://a/b/fake-topic",
-                1);
+        testCollapsePartitionedTopic(true, "persistent://a/b/fake-topic-partition-1", "persistent://a/b/fake-topic", 1);
 
-        testCollapsePartitionedTopic(true,
-                "persistent://a/b/fake-topic",
-                "persistent://a/b/fake-topic",
-                0);
+        testCollapsePartitionedTopic(true, "persistent://a/b/fake-topic", "persistent://a/b/fake-topic", 0);
 
-        testCollapsePartitionedTopic(true,
-                "fake-topic-partition-5",
-                "persistent://public/default/fake-topic",
-                5);
+        testCollapsePartitionedTopic(true, "fake-topic-partition-5", "persistent://public/default/fake-topic", 5);
     }
 
     @Test
     public void collapsePartitionedTopicDisabledTest() throws Exception {
-        testCollapsePartitionedTopic(false,
-                "persistent://a/b/fake-topic-partition-0",
-                "persistent://a/b/fake-topic-partition-0",
-                0);
+        testCollapsePartitionedTopic(
+                false, "persistent://a/b/fake-topic-partition-0", "persistent://a/b/fake-topic-partition-0", 0);
 
-        testCollapsePartitionedTopic(false,
-                "persistent://a/b/fake-topic-partition-1",
-                "persistent://a/b/fake-topic-partition-1",
-                0);
+        testCollapsePartitionedTopic(
+                false, "persistent://a/b/fake-topic-partition-1", "persistent://a/b/fake-topic-partition-1", 0);
 
-        testCollapsePartitionedTopic(false,
-                "persistent://a/b/fake-topic",
-                "persistent://a/b/fake-topic",
-                0);
+        testCollapsePartitionedTopic(false, "persistent://a/b/fake-topic", "persistent://a/b/fake-topic", 0);
 
-        testCollapsePartitionedTopic(false,
-                "fake-topic-partition-5",
-                "fake-topic-partition-5",
-                0);
+        testCollapsePartitionedTopic(false, "fake-topic-partition-5", "fake-topic-partition-5", 0);
     }
 
-    private void testCollapsePartitionedTopic(boolean isEnabled,
-                                              String pulsarTopic,
-                                              String expectedKafkaTopic,
-                                              int expectedPartition) throws Exception {
+    private void testCollapsePartitionedTopic(
+            boolean isEnabled, String pulsarTopic, String expectedKafkaTopic, int expectedPartition) throws Exception {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
         props.put("collapsePartitionedTopics", Boolean.toString(isEnabled));
 
         KafkaConnectSink sink = new KafkaConnectSink();
-            sink.open(props, context);
+        sink.open(props, context);
 
-        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
-                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema =
+                AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
 
         final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
         obj.put("field1", (byte) 10);
@@ -1688,5 +1645,4 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         java.util.Date parsedDate = formatter.parse(dateInString);
         return parsedDate;
     }
-
 }

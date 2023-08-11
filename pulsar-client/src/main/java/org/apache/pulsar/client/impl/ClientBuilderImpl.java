@@ -50,13 +50,16 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public PulsarClient build() throws PulsarClientException {
-        checkArgument(StringUtils.isNotBlank(conf.getServiceUrl()) || conf.getServiceUrlProvider() != null,
+        checkArgument(
+                StringUtils.isNotBlank(conf.getServiceUrl()) || conf.getServiceUrlProvider() != null,
                 "service URL or service URL provider needs to be specified on the ClientBuilder object.");
-        checkArgument(StringUtils.isBlank(conf.getServiceUrl())  || conf.getServiceUrlProvider() == null,
+        checkArgument(
+                StringUtils.isBlank(conf.getServiceUrl()) || conf.getServiceUrlProvider() == null,
                 "Can only chose one way service URL or service URL provider.");
 
         if (conf.getServiceUrlProvider() != null) {
-            checkArgument(StringUtils.isNotBlank(conf.getServiceUrlProvider().getServiceUrl()),
+            checkArgument(
+                    StringUtils.isNotBlank(conf.getServiceUrlProvider().getServiceUrl()),
                     "Cannot get service url from service url provider.");
             conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
         }
@@ -105,10 +108,11 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
-        checkArgument(connectionMaxIdleSeconds < 0
+        checkArgument(
+                connectionMaxIdleSeconds < 0
                         || connectionMaxIdleSeconds >= ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN,
-                "Connection idle detect interval seconds at least "
-                        + ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN + ".");
+                "Connection idle detect interval seconds at least " + ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN
+                        + ".");
         conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
         return this;
     }

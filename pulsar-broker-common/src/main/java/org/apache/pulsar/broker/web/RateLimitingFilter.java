@@ -43,8 +43,7 @@ public class RateLimitingFilter implements Filter {
             .register();
 
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-    }
+    public void init(FilterConfig filterConfig) throws ServletException {}
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -59,6 +58,5 @@ public class RateLimitingFilter implements Filter {
     }
 
     @Override
-    public void destroy() {
-    }
+    public void destroy() {}
 }

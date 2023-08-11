@@ -46,9 +46,9 @@ public class AbstractTopicTest {
         when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
         when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
 
-        topic = mock(AbstractTopic.class, withSettings()
-                .useConstructor("topic", brokerService)
-                .defaultAnswer(CALLS_REAL_METHODS));
+        topic = mock(
+                AbstractTopic.class,
+                withSettings().useConstructor("topic", brokerService).defaultAnswer(CALLS_REAL_METHODS));
 
         ConcurrentOpenHashMap<String, Subscription> subscriptions =
                 ConcurrentOpenHashMap.<String, Subscription>newBuilder()

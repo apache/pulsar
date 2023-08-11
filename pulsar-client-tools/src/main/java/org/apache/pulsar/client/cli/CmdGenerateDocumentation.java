@@ -35,7 +35,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 @Slf4j
 public class CmdGenerateDocumentation {
 
-    @Parameter(names = {"-n", "--command-names"}, description = "List of command names")
+    @Parameter(
+            names = {"-n", "--command-names"},
+            description = "List of command names")
     private List<String> commandNames = new ArrayList<>();
 
     public int run() throws PulsarClientException {
@@ -65,17 +67,21 @@ public class CmdGenerateDocumentation {
         sb.append("## ").append(module).append("\n\n");
         sb.append(parentCmd.getUsageFormatter().getCommandDescription(module)).append("\n");
         sb.append("\n\n```shell\n")
-                .append("$ pulsar-client ").append(module).append(" [options]")
+                .append("$ pulsar-client ")
+                .append(module)
+                .append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
         List<ParameterDescription> options = cmd.getParameters();
-        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
-                sb.append("| `").append(option.getNames())
-                        .append("` | ").append(option.getDescription().replace("\n", " "))
-                        .append("|").append(option.getDefault()).append("|\n")
-        );
+        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) -> sb.append("| `")
+                .append(option.getNames())
+                .append("` | ")
+                .append(option.getDescription().replace("\n", " "))
+                .append("|")
+                .append(option.getDefault())
+                .append("|\n"));
         System.out.println(sb.toString());
         return sb.toString();
     }

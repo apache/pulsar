@@ -55,14 +55,16 @@ class LockManagerImpl<T> implements LockManager<T> {
     private final ExecutorService executor;
 
     private enum State {
-        Ready, Closed
+        Ready,
+        Closed
     }
 
     private State state = State.Ready;
 
     LockManagerImpl(MetadataStoreExtended store, Class<T> clazz, ExecutorService executor) {
-        this(store, new JSONMetadataSerdeSimpleType<>(
-                TypeFactory.defaultInstance().constructSimpleType(clazz, null)),
+        this(
+                store,
+                new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null)),
                 executor);
     }
 
@@ -86,31 +88,33 @@ class LockManagerImpl<T> implements LockManager<T> {
         ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path);
 
         CompletableFuture<ResourceLock<T>> result = new CompletableFuture<>();
-        lock.acquire(value).thenRun(() -> {
-            synchronized (LockManagerImpl.this) {
-                if (state == State.Ready) {
-                    locks.put(path, lock);
-                    lock.getLockExpiredFuture().thenRun(() -> {
-                        log.info("Released resource lock on {}", path);
-                        synchronized (LockManagerImpl.this) {
-                            locks.remove(path, lock);
+        lock.acquire(value)
+                .thenRun(() -> {
+                    synchronized (LockManagerImpl.this) {
+                        if (state == State.Ready) {
+                            locks.put(path, lock);
+                            lock.getLockExpiredFuture().thenRun(() -> {
+                                log.info("Released resource lock on {}", path);
+                                synchronized (LockManagerImpl.this) {
+                                    locks.remove(path, lock);
+                                }
+                            });
+                        } else {
+                            // LockManager was closed in between. Release the lock asynchronously
+                            lock.release();
                         }
-                    });
-                } else {
-                    // LockManager was closed in between. Release the lock asynchronously
-                    lock.release();
-                }
-            }
-            result.complete(lock);
-        }).exceptionally(ex -> {
-            if (ex.getCause() instanceof BadVersionException) {
-                result.completeExceptionally(
-                        new LockBusyException("Resource at " + path + " is already locked"));
-            } else {
-                result.completeExceptionally(ex.getCause());
-            }
-            return null;
-        });
+                    }
+                    result.complete(lock);
+                })
+                .exceptionally(ex -> {
+                    if (ex.getCause() instanceof BadVersionException) {
+                        result.completeExceptionally(
+                                new LockBusyException("Resource at " + path + " is already locked"));
+                    } else {
+                        result.completeExceptionally(ex.getCause());
+                    }
+                    return null;
+                });
 
         return result;
     }
@@ -118,26 +122,29 @@ class LockManagerImpl<T> implements LockManager<T> {
     private void handleSessionEvent(SessionEvent se) {
         // We want to make sure we're processing one event at a time and that we're done with one event before going
         // for the next one.
-        sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
-            final List<CompletableFuture<Void>> futures = new ArrayList<>();
-            if (se == SessionEvent.SessionReestablished) {
-                log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
-                for (ResourceLockImpl<T> lock : locks.values()) {
-                    futures.add(lock.silentRevalidateOnce());
-                }
+        sequencer.sequential(() -> FutureUtil.composeAsync(
+                () -> {
+                    final List<CompletableFuture<Void>> futures = new ArrayList<>();
+                    if (se == SessionEvent.SessionReestablished) {
+                        log.info(
+                                "Metadata store session has been re-established. Revalidating all the existing locks.");
+                        for (ResourceLockImpl<T> lock : locks.values()) {
+                            futures.add(lock.silentRevalidateOnce());
+                        }
 
-            } else if (se == SessionEvent.Reconnected) {
-                log.info("Metadata store connection has been re-established. Revalidating locks that were pending.");
-                for (ResourceLockImpl<T> lock : locks.values()) {
-                    futures.add(lock.revalidateIfNeededAfterReconnection());
-                }
-            }
-            return FutureUtil.waitForAll(futures)
-                    .exceptionally(ex -> {
+                    } else if (se == SessionEvent.Reconnected) {
+                        log.info(
+                                "Metadata store connection has been re-established. Revalidating locks that were pending.");
+                        for (ResourceLockImpl<T> lock : locks.values()) {
+                            futures.add(lock.revalidateIfNeededAfterReconnection());
+                        }
+                    }
+                    return FutureUtil.waitForAll(futures).exceptionally(ex -> {
                         log.warn("Failure when processing session event", ex);
                         return null;
                     });
-        }, executor));
+                },
+                executor));
     }
 
     private void handleDataNotification(Notification n) {
@@ -175,8 +182,7 @@ class LockManagerImpl<T> implements LockManager<T> {
             this.state = State.Closed;
         }
 
-        return FutureUtil.waitForAll(locks.values().stream()
-                .map(ResourceLock::release)
-                .collect(Collectors.toList()));
+        return FutureUtil.waitForAll(
+                locks.values().stream().map(ResourceLock::release).collect(Collectors.toList()));
     }
 }

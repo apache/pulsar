@@ -20,16 +20,13 @@ package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.beust.jcommander.JCommander;
+import java.util.Map;
+import java.util.Properties;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Map;
-import java.util.Properties;
-
 
 public class DocumentTest extends BrokerTestBase {
 
@@ -51,7 +48,7 @@ public class DocumentTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
         PulsarClientTool tool = new PulsarClientTool(properties);
-        String[] args = new String[]{"generate_documentation", "-n", "produce", "-n", "consume"};
+        String[] args = new String[] {"generate_documentation", "-n", "produce", "-n", "consume"};
         assertEquals(tool.run(args), 0);
         assertEquals(tool.generateDocumentation.getCommandNames().size(), 2);
     }

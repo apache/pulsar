@@ -42,10 +42,10 @@ public class MockExecutorControllerTest {
     public void setup() {
         this.executor = mock(ScheduledExecutorService.class);
         this.mockExecutorControl = new MockExecutorController()
-            .controlExecute(executor)
-            .controlSubmit(executor)
-            .controlSchedule(executor)
-            .controlScheduleAtFixedRate(executor, MAX_SCHEDULES);
+                .controlExecute(executor)
+                .controlSubmit(executor)
+                .controlSchedule(executor)
+                .controlScheduleAtFixedRate(executor, MAX_SCHEDULES);
     }
 
     @Test
@@ -99,5 +99,4 @@ public class MockExecutorControllerTest {
         mockExecutorControl.advance(Duration.ofMillis(500));
         verify(task, times(MAX_SCHEDULES)).run();
     }
-
 }

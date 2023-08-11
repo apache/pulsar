@@ -42,8 +42,8 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
             CompletableFuture.completedFuture(PendingAckHandleDisabled.this);
 
     @Override
-    public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Integer>> positions) {
+    public CompletableFuture<Void> individualAcknowledgeMessage(
+            TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
@@ -64,7 +64,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public void syncBatchPositionAckSetForTransaction(PositionImpl position) {
-        //no operation
+        // no operation
     }
 
     @Override
@@ -74,7 +74,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public void clearIndividualPosition(Position position) {
-        //no-op
+        // no-op
     }
 
     @Override
@@ -106,6 +106,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     public PositionImpl getPositionInPendingAck(PositionImpl position) {
         return null;
     }
+
     public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
         return null;
     }

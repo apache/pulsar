@@ -60,7 +60,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>(){})
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>() {})
                 .thenApply(response -> convertGetSchemaResponseToSchemaInfo(tn, response));
     }
 
@@ -72,7 +72,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfoWithVersion> getSchemaInfoWithVersionAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>(){})
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>() {})
                 .thenApply(response -> convertGetSchemaResponseToSchemaInfoWithVersion(tn, response));
     }
 
@@ -85,7 +85,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic, long version) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = schemaPath(tn).path(Long.toString(version));
-        return asyncGetRequest(path, new FutureCallback<GetSchemaResponse>(){})
+        return asyncGetRequest(path, new FutureCallback<GetSchemaResponse>() {})
                 .thenApply(response -> convertGetSchemaResponseToSchemaInfo(tn, response));
     }
 
@@ -158,8 +158,9 @@ public class SchemasImpl extends BaseResource implements Schemas {
         TopicName tn = TopicName.get(topic);
         final CompletableFuture<IsCompatibilityResponse> future = new CompletableFuture<>();
         try {
-            request(compatibilityPath(tn)).async().post(Entity.json(payload),
-                    new InvocationCallback<IsCompatibilityResponse>() {
+            request(compatibilityPath(tn))
+                    .async()
+                    .post(Entity.json(payload), new InvocationCallback<IsCompatibilityResponse>() {
                         @Override
                         public void completed(IsCompatibilityResponse isCompatibilityResponse) {
                             future.complete(isCompatibilityResponse);
@@ -185,8 +186,9 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<Long> getVersionBySchemaAsync(String topic, PostSchemaPayload payload) {
         final CompletableFuture<Long> future = new CompletableFuture<>();
         try {
-            request(versionPath(TopicName.get(topic))).async().post(Entity.json(payload)
-                    , new InvocationCallback<LongSchemaVersionResponse>() {
+            request(versionPath(TopicName.get(topic)))
+                    .async()
+                    .post(Entity.json(payload), new InvocationCallback<LongSchemaVersionResponse>() {
                         @Override
                         public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
                             future.complete(longSchemaVersionResponse.getVersion());
@@ -212,7 +214,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<IsCompatibilityResponse> testCompatibilityAsync(String topic, SchemaInfo schemaInfo) {
         final CompletableFuture<IsCompatibilityResponse> future = new CompletableFuture<>();
         try {
-            request(compatibilityPath(TopicName.get(topic))).async()
+            request(compatibilityPath(TopicName.get(topic)))
+                    .async()
                     .post(
                             Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)),
                             new InvocationCallback<IsCompatibilityResponse>() {
@@ -241,19 +244,21 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<Long> getVersionBySchemaAsync(String topic, SchemaInfo schemaInfo) {
         final CompletableFuture<Long> future = new CompletableFuture<>();
         try {
-            request(versionPath(TopicName.get(topic))).async().post(
-                    Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)),
-                    new InvocationCallback<LongSchemaVersionResponse>() {
-                        @Override
-                        public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
-                            future.complete(longSchemaVersionResponse.getVersion());
-                        }
+            request(versionPath(TopicName.get(topic)))
+                    .async()
+                    .post(
+                            Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)),
+                            new InvocationCallback<LongSchemaVersionResponse>() {
+                                @Override
+                                public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
+                                    future.complete(longSchemaVersionResponse.getVersion());
+                                }
 
-                        @Override
-                        public void failed(Throwable throwable) {
-                            future.completeExceptionally(getApiException(throwable.getCause()));
-                        }
-                    });
+                                @Override
+                                public void failed(Throwable throwable) {
+                                    future.completeExceptionally(getApiException(throwable.getCause()));
+                                }
+                            });
         } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
@@ -271,8 +276,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
         TopicName topicName = TopicName.get(topic);
         return asyncGetRequest(path, new FutureCallback<GetAllVersionsSchemaResponse>() {})
                 .thenApply(response -> response.getGetSchemaResponses().stream()
-                        .map(getSchemaResponse ->
-                                convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
+                        .map(getSchemaResponse -> convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
                         .collect(Collectors.toList()));
     }
 
@@ -300,14 +304,14 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     // the util function converts `GetSchemaResponse` to `SchemaInfo`
-    static SchemaInfo convertGetSchemaResponseToSchemaInfo(TopicName tn,
-                                                           GetSchemaResponse response) {
+    static SchemaInfo convertGetSchemaResponseToSchemaInfo(TopicName tn, GetSchemaResponse response) {
 
         byte[] schema;
         if (response.getType() == SchemaType.KEY_VALUE) {
             try {
-                schema = DefaultImplementation.getDefaultImplementation().convertKeyValueDataStringToSchemaInfoSchema(
-                        response.getData().getBytes(UTF_8));
+                schema = DefaultImplementation.getDefaultImplementation()
+                        .convertKeyValueDataStringToSchemaInfoSchema(
+                                response.getData().getBytes(UTF_8));
             } catch (IOException conversionError) {
                 throw new RuntimeException(conversionError);
             }
@@ -324,18 +328,14 @@ public class SchemasImpl extends BaseResource implements Schemas {
                 .build();
     }
 
-    static SchemaInfoWithVersion convertGetSchemaResponseToSchemaInfoWithVersion(TopicName tn,
-                                                           GetSchemaResponse response) {
+    static SchemaInfoWithVersion convertGetSchemaResponseToSchemaInfoWithVersion(
+            TopicName tn, GetSchemaResponse response) {
 
-        return  SchemaInfoWithVersion
-                .builder()
+        return SchemaInfoWithVersion.builder()
                 .schemaInfo(convertGetSchemaResponseToSchemaInfo(tn, response))
                 .version(response.getVersion())
                 .build();
     }
-
-
-
 
     // the util function exists for backward compatibility concern
     static String convertSchemaDataToStringLegacy(SchemaInfo schemaInfo) throws IOException {
@@ -345,8 +345,9 @@ public class SchemasImpl extends BaseResource implements Schemas {
         }
 
         if (schemaInfo.getType() == SchemaType.KEY_VALUE) {
-           return DefaultImplementation.getDefaultImplementation().convertKeyValueSchemaInfoDataToString(
-                   DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo));
+            return DefaultImplementation.getDefaultImplementation()
+                    .convertKeyValueSchemaInfoDataToString(
+                            DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo));
         }
 
         return new String(schemaData, UTF_8);

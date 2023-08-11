@@ -103,8 +103,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public LedgerHandle createLedger(DigestType digestType, byte passwd[])
-            throws BKException, InterruptedException {
+    public LedgerHandle createLedger(DigestType digestType, byte passwd[]) throws BKException, InterruptedException {
         return createLedger(3, 2, digestType, passwd);
     }
 
@@ -115,31 +114,45 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public void asyncCreateLedger(int ensSize, int writeQuorumSize, int ackQuorumSize, final DigestType digestType,
-            final byte[] passwd, final CreateCallback cb, final Object ctx, Map<String, byte[]> properties) {
-        getProgrammedFailure().thenComposeAsync((res) -> {
-                try {
-                    long id = sequence.getAndIncrement();
-                    log.info("Creating ledger {}", id);
-                    PulsarMockLedgerHandle lh =
-                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
-                    ledgers.put(id, lh);
-                    return FutureUtils.value(lh);
-                } catch (Throwable t) {
-                    return FutureUtils.exception(t);
-                }
-            }, executor).whenCompleteAsync((lh, exception) -> {
-                    if (exception != null) {
-                        cb.createComplete(getExceptionCode(exception), null, ctx);
-                    } else {
-                        cb.createComplete(BKException.Code.OK, lh, ctx);
-                    }
-                }, executor);
+    public void asyncCreateLedger(
+            int ensSize,
+            int writeQuorumSize,
+            int ackQuorumSize,
+            final DigestType digestType,
+            final byte[] passwd,
+            final CreateCallback cb,
+            final Object ctx,
+            Map<String, byte[]> properties) {
+        getProgrammedFailure()
+                .thenComposeAsync(
+                        (res) -> {
+                            try {
+                                long id = sequence.getAndIncrement();
+                                log.info("Creating ledger {}", id);
+                                PulsarMockLedgerHandle lh =
+                                        new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
+                                ledgers.put(id, lh);
+                                return FutureUtils.value(lh);
+                            } catch (Throwable t) {
+                                return FutureUtils.exception(t);
+                            }
+                        },
+                        executor)
+                .whenCompleteAsync(
+                        (lh, exception) -> {
+                            if (exception != null) {
+                                cb.createComplete(getExceptionCode(exception), null, ctx);
+                            } else {
+                                cb.createComplete(BKException.Code.OK, lh, ctx);
+                            }
+                        },
+                        executor);
     }
 
     @Override
-    public LedgerHandle createLedger(int ensSize, int writeQuorumSize, int ackQuorumSize, DigestType digestType,
-            byte[] passwd) throws BKException, InterruptedException {
+    public LedgerHandle createLedger(
+            int ensSize, int writeQuorumSize, int ackQuorumSize, DigestType digestType, byte[] passwd)
+            throws BKException, InterruptedException {
         checkProgrammedFail();
 
         try {
@@ -155,31 +168,37 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public void asyncCreateLedger(int ensSize, int qSize, DigestType digestType, byte[] passwd, CreateCallback cb,
-            Object ctx) {
+    public void asyncCreateLedger(
+            int ensSize, int qSize, DigestType digestType, byte[] passwd, CreateCallback cb, Object ctx) {
         asyncCreateLedger(ensSize, qSize, qSize, digestType, passwd, cb, ctx, Collections.emptyMap());
     }
 
     @Override
     public void asyncOpenLedger(long lId, DigestType digestType, byte[] passwd, OpenCallback cb, Object ctx) {
-        getProgrammedFailure().thenComposeAsync((res) -> {
-                PulsarMockLedgerHandle lh = ledgers.get(lId);
-                if (lh == null) {
-                    return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
-                } else if (lh.digest != digestType) {
-                    return FutureUtils.exception(new BKException.BKDigestMatchException());
-                } else if (!Arrays.equals(lh.passwd, passwd)) {
-                    return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
-                } else {
-                    return FutureUtils.value(lh);
-                }
-            }, executor).whenCompleteAsync((ledger, exception) -> {
-                    if (exception != null) {
-                        cb.openComplete(getExceptionCode(exception), null, ctx);
-                    } else {
-                        cb.openComplete(BKException.Code.OK, ledger, ctx);
-                    }
-                }, executor);
+        getProgrammedFailure()
+                .thenComposeAsync(
+                        (res) -> {
+                            PulsarMockLedgerHandle lh = ledgers.get(lId);
+                            if (lh == null) {
+                                return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
+                            } else if (lh.digest != digestType) {
+                                return FutureUtils.exception(new BKException.BKDigestMatchException());
+                            } else if (!Arrays.equals(lh.passwd, passwd)) {
+                                return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
+                            } else {
+                                return FutureUtils.value(lh);
+                            }
+                        },
+                        executor)
+                .whenCompleteAsync(
+                        (ledger, exception) -> {
+                            if (exception != null) {
+                                cb.openComplete(getExceptionCode(exception), null, ctx);
+                            } else {
+                                cb.openComplete(BKException.Code.OK, ledger, ctx);
+                            }
+                        },
+                        executor);
     }
 
     @Override
@@ -189,20 +208,26 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     @Override
     public void asyncDeleteLedger(long lId, DeleteCallback cb, Object ctx) {
-        getProgrammedFailure().thenComposeAsync((res) -> {
-                if (ledgers.containsKey(lId)) {
-                    ledgers.remove(lId);
-                    return FutureUtils.value(null);
-                } else {
-                    return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
-                }
-            }, executor).whenCompleteAsync((res, exception) -> {
-                    if (exception != null) {
-                        cb.deleteComplete(getExceptionCode(exception), ctx);
-                    } else {
-                        cb.deleteComplete(BKException.Code.OK, ctx);
-                    }
-                }, executor);
+        getProgrammedFailure()
+                .thenComposeAsync(
+                        (res) -> {
+                            if (ledgers.containsKey(lId)) {
+                                ledgers.remove(lId);
+                                return FutureUtils.value(null);
+                            } else {
+                                return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
+                            }
+                        },
+                        executor)
+                .whenCompleteAsync(
+                        (res, exception) -> {
+                            if (exception != null) {
+                                cb.deleteComplete(getExceptionCode(exception), ctx);
+                            } else {
+                                cb.deleteComplete(BKException.Code.OK, ctx);
+                            }
+                        },
+                        executor);
     }
 
     @Override
@@ -221,32 +246,29 @@ public class PulsarMockBookKeeper extends BookKeeper {
         shutdown();
     }
 
-
-
     @Override
     public OpenBuilder newOpenLedgerOp() {
         return new OpenBuilderBase() {
             @Override
             public CompletableFuture<ReadHandle> execute() {
-                return getProgrammedFailure().thenCompose(
-                        (res) -> {
-                            int rc = validate();
-                            if (rc != BKException.Code.OK) {
-                                return FutureUtils.exception(BKException.create(rc));
-                            }
+                return getProgrammedFailure().thenCompose((res) -> {
+                    int rc = validate();
+                    if (rc != BKException.Code.OK) {
+                        return FutureUtils.exception(BKException.create(rc));
+                    }
 
-                            PulsarMockLedgerHandle lh = ledgers.get(ledgerId);
-                            if (lh == null) {
-                                return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
-                            } else if (lh.digest != DigestType.fromApiDigestType(digestType)) {
-                                return FutureUtils.exception(new BKException.BKDigestMatchException());
-                            } else if (!Arrays.equals(lh.passwd, password)) {
-                                return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
-                            } else {
-                                return FutureUtils.value(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
-                                                                                  lh.getLedgerMetadata(), lh.entries));
-                            }
-                        });
+                    PulsarMockLedgerHandle lh = ledgers.get(ledgerId);
+                    if (lh == null) {
+                        return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
+                    } else if (lh.digest != DigestType.fromApiDigestType(digestType)) {
+                        return FutureUtils.exception(new BKException.BKDigestMatchException());
+                    } else if (!Arrays.equals(lh.passwd, password)) {
+                        return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
+                    } else {
+                        return FutureUtils.value(new PulsarMockReadHandle(
+                                PulsarMockBookKeeper.this, ledgerId, lh.getLedgerMetadata(), lh.entries));
+                    }
+                });
             }
         };
     }
@@ -259,13 +281,16 @@ public class PulsarMockBookKeeper extends BookKeeper {
             @Override
             public CompletableFuture<Void> execute() {
                 CompletableFuture<Void> future = new CompletableFuture<>();
-                asyncDeleteLedger(ledgerId, (res, ctx) -> {
-                    if (res == BKException.Code.OK) {
-                        future.complete(null);
-                    } else {
-                        future.completeExceptionally(BKException.create(res));
-                    }
-                }, null);
+                asyncDeleteLedger(
+                        ledgerId,
+                        (res, ctx) -> {
+                            if (res == BKException.Code.OK) {
+                                future.complete(null);
+                            } else {
+                                future.completeExceptionally(BKException.create(res));
+                            }
+                        },
+                        null);
                 return future;
             }
 
@@ -319,7 +344,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     synchronized CompletableFuture<Void> getAddEntryFailure() {
-        if (!addEntryFailures.isEmpty()){
+        if (!addEntryFailures.isEmpty()) {
             return addEntryFailures.remove(0);
         }
         return failures.isEmpty() ? defaultResponse : failures.remove(0);
@@ -379,9 +404,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     private final RegistrationClient mockRegistrationClient = new RegistrationClient() {
         @Override
-        public void close() {
-
-        }
+        public void close() {}
 
         @Override
         public CompletableFuture<Versioned<Set<BookieId>>> getWritableBookies() {
@@ -404,9 +427,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         }
 
         @Override
-        public void unwatchWritableBookies(RegistrationListener listener) {
-
-        }
+        public void unwatchWritableBookies(RegistrationListener listener) {}
 
         @Override
         public CompletableFuture<Void> watchReadOnlyBookies(RegistrationListener listener) {
@@ -414,15 +435,17 @@ public class PulsarMockBookKeeper extends BookKeeper {
         }
 
         @Override
-        public void unwatchReadOnlyBookies(RegistrationListener listener) {
-
-        }
+        public void unwatchReadOnlyBookies(RegistrationListener listener) {}
     };
 
     private final MetadataClientDriver metadataClientDriver = new MetadataClientDriver() {
         @Override
-        public MetadataClientDriver initialize(ClientConfiguration conf, ScheduledExecutorService scheduler,
-                                               StatsLogger statsLogger, Optional<Object> ctx) throws MetadataException {
+        public MetadataClientDriver initialize(
+                ClientConfiguration conf,
+                ScheduledExecutorService scheduler,
+                StatsLogger statsLogger,
+                Optional<Object> ctx)
+                throws MetadataException {
             return this;
         }
 
@@ -447,14 +470,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
         }
 
         @Override
-        public void close() {
-
-        }
+        public void close() {}
 
         @Override
-        public void setSessionStateListener(SessionStateListener sessionStateListener) {
-
-        }
+        public void setSessionStateListener(SessionStateListener sessionStateListener) {}
     };
 
     @Override

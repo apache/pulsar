@@ -26,13 +26,7 @@ public class ZKContainer extends PulsarContainer<ZKContainer> {
     public static final String NAME = "zookeeper";
 
     public ZKContainer(String clusterName) {
-        super(
-            clusterName,
-            NAME,
-            NAME,
-            "bin/run-local-zk.sh",
-            ZK_PORT,
-            INVALID_PORT);
+        super(clusterName, NAME, NAME, "bin/run-local-zk.sh", ZK_PORT, INVALID_PORT);
     }
 
     @Override

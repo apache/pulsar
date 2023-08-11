@@ -68,12 +68,10 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
     }
 
     @Override
-    public void init(StateStoreContext ctx) {
-    }
+    public void init(StateStoreContext ctx) {}
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 
     @Override
     public void put(String key, ByteBuffer value) {
@@ -84,8 +82,7 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
     public CompletableFuture<Void> putAsync(String key, ByteBuffer value) {
         byte[] bytes = new byte[value.remaining()];
         value.get(bytes);
-        return store.put(getPath(key), bytes, Optional.empty())
-                .thenApply(__ -> null);
+        return store.put(getPath(key), bytes, Optional.empty()).thenApply(__ -> null);
     }
 
     @Override
@@ -105,10 +102,8 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
 
     @Override
     public CompletableFuture<ByteBuffer> getAsync(String key) {
-        return store.get(getPath(key))
-                .thenApply(optRes ->
-                        optRes.map(x -> ByteBuffer.wrap(x.getValue()))
-                                .orElse(null));
+        return store.get(getPath(key)).thenApply(optRes -> optRes.map(x -> ByteBuffer.wrap(x.getValue()))
+                .orElse(null));
     }
 
     @Override
@@ -118,9 +113,9 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
 
     @Override
     public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
-        return countersCache.readModifyUpdateOrCreate(getPath(key), optValue ->
-           optValue.orElse(0L) + amount
-        ).thenApply(__ -> null);
+        return countersCache
+                .readModifyUpdateOrCreate(getPath(key), optValue -> optValue.orElse(0L) + amount)
+                .thenApply(__ -> null);
     }
 
     @Override
@@ -130,8 +125,7 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
 
     @Override
     public CompletableFuture<Long> getCounterAsync(String key) {
-        return countersCache.get(getPath(key))
-                .thenApply(optValue -> optValue.orElse(0L));
+        return countersCache.get(getPath(key)).thenApply(optValue -> optValue.orElse(0L));
     }
 
     private String getPath(String key) {

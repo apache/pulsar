@@ -30,8 +30,8 @@ public class WindowImpl<T> implements Window<T> {
     private final Long startTimestamp;
     private final Long endTimestamp;
 
-    public WindowImpl(List<T> tuples, List<T> newTuples, List<T> expiredTuples,
-                      Long startTimestamp, Long endTimestamp) {
+    public WindowImpl(
+            List<T> tuples, List<T> newTuples, List<T> expiredTuples, Long startTimestamp, Long endTimestamp) {
         this.tuples = tuples;
         this.newTuples = newTuples;
         this.expiredTuples = expiredTuples;
@@ -66,8 +66,8 @@ public class WindowImpl<T> implements Window<T> {
 
     @Override
     public String toString() {
-        return "TupleWindowImpl{" + "tuples=" + tuples + ", newTuples=" + newTuples + ", expiredTuples="
-                + expiredTuples + '}';
+        return "TupleWindowImpl{" + "tuples=" + tuples + ", newTuples=" + newTuples + ", expiredTuples=" + expiredTuples
+                + '}';
     }
 
     @Override
@@ -87,9 +87,7 @@ public class WindowImpl<T> implements Window<T> {
         if (newTuples != null ? !newTuples.equals(that.newTuples) : that.newTuples != null) {
             return false;
         }
-        return expiredTuples != null ? expiredTuples.equals(that.expiredTuples)
-                : that.expiredTuples == null;
-
+        return expiredTuples != null ? expiredTuples.equals(that.expiredTuples) : that.expiredTuples == null;
     }
 
     @Override

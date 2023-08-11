@@ -95,8 +95,9 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
-    public void testLoadConfig() throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
-            IllegalAccessException, InvocationTargetException {
+    public void testLoadConfig()
+            throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
+                    IllegalAccessException, InvocationTargetException {
 
         File testConfigFile = createValidBrokerConfigFile();
         Method targetMethod = PulsarBrokerStarter.class.getDeclaredMethod("loadConfig", String.class);
@@ -107,8 +108,9 @@ public class PulsarBrokerStarterTest {
         assertTrue(returnValue instanceof ServiceConfiguration);
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
         assertEquals(serviceConfig.getMetadataStoreUrl(), "zk:z1.example.com,z2.example.com,z3.example.com");
-        assertEquals(serviceConfig.getConfigurationMetadataStoreUrl(), "zk:gz1.example.com,gz2.example.com,gz3.example"
-                + ".com/foo");
+        assertEquals(
+                serviceConfig.getConfigurationMetadataStoreUrl(),
+                "zk:gz1.example.com,gz2.example.com,gz3.example" + ".com/foo");
         assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
@@ -172,8 +174,9 @@ public class PulsarBrokerStarterTest {
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
     @Test
-    public void testLoadBalancerConfig() throws SecurityException, NoSuchMethodException, IOException,
-            IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+    public void testLoadBalancerConfig()
+            throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
+                    IllegalAccessException, InvocationTargetException {
 
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -221,8 +224,9 @@ public class PulsarBrokerStarterTest {
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
     @Test
-    public void testGlobalZooKeeperConfig() throws SecurityException, NoSuchMethodException, IOException,
-            IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+    public void testGlobalZooKeeperConfig()
+            throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
+                    IllegalAccessException, InvocationTargetException {
 
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -261,8 +265,9 @@ public class PulsarBrokerStarterTest {
         assertTrue(returnValue instanceof ServiceConfiguration);
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
         assertEquals(serviceConfig.getMetadataStoreUrl(), "zk:z1.example.com,z2.example.com,z3.example.com");
-        assertEquals(serviceConfig.getConfigurationMetadataStoreUrl(), "zk:z1.example.com,z2.example.com,z3.example"
-                + ".com");
+        assertEquals(
+                serviceConfig.getConfigurationMetadataStoreUrl(),
+                "zk:z1.example.com,z2.example.com,z3.example" + ".com");
         assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);

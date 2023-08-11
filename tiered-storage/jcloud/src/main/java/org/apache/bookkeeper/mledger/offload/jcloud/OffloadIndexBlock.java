@@ -92,12 +92,10 @@ public interface OffloadIndexBlock extends Closeable, OffloadIndexBlockV2 {
     }
 
     default long getStartEntryId(long ledgerId) {
-        return 0; //Offload index block v1 always start with 0;
+        return 0; // Offload index block v1 always start with 0;
     }
 
     default LedgerMetadata getLedgerMetadata(long ledgerId) {
         return getLedgerMetadata();
     }
-
 }
-

@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.websocket;
 
-
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.apache.pulsar.tests.integration.containers.WebSocketContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
-import java.util.Collections;
-import java.util.Map;
 
 /**
  * Test cases for websocket.
@@ -37,25 +36,27 @@ public class TestWebSocket extends WebSocketTestSuite {
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
-            String clusterName,
-            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+            String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
 
         Map<String, String> enableWebSocket = Collections.singletonMap("webSocketServiceEnabled", "true");
         specBuilder.brokerEnvs(enableWebSocket);
         specBuilder.proxyEnvs(enableWebSocket);
 
         specBuilder.externalService(WEBSOCKET, new WebSocketContainer(clusterName, WEBSOCKET));
-        specBuilder.externalServiceEnv(WEBSOCKET, ImmutableMap.<String, String>builder()
-                .put("configurationMetadataStoreUrl", CSContainer.NAME + ":" + CSContainer.CS_PORT)
-                .put("webServicePort", "" + WebSocketContainer.BROKER_HTTP_PORT)
-                .put("clusterName", clusterName)
-                .build());
+        specBuilder.externalServiceEnv(
+                WEBSOCKET,
+                ImmutableMap.<String, String>builder()
+                        .put("configurationMetadataStoreUrl", CSContainer.NAME + ":" + CSContainer.CS_PORT)
+                        .put("webServicePort", "" + WebSocketContainer.BROKER_HTTP_PORT)
+                        .put("clusterName", clusterName)
+                        .build());
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 
     @Test
     public void testExternalService() throws Exception {
-        WebSocketContainer service = (WebSocketContainer) pulsarCluster.getExternalServices().get(WEBSOCKET);
+        WebSocketContainer service =
+                (WebSocketContainer) pulsarCluster.getExternalServices().get(WEBSOCKET);
         testWebSocket(service.getWSUrl());
     }
 

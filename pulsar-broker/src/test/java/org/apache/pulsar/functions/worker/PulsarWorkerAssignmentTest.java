@@ -103,13 +103,16 @@ public class PulsarWorkerAssignmentTest {
         pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build());
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(pulsar.getWebServiceAddress())
+                .build());
 
         brokerStatsClient = admin.brokerStats();
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        final ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        final ClusterData clusterData =
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         final ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -153,12 +156,14 @@ public class PulsarWorkerAssignmentTest {
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper()
-                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
-        workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort().get());
+        workerConfig.setPulsarServiceUrl(
+                "pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
+        workerConfig.setPulsarWebServiceUrl(
+                "http://127.0.0.1:" + config.getWebServicePort().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -191,41 +196,89 @@ public class PulsarWorkerAssignmentTest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         final String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion,
-                functionName, "my.*", sinkTopic, subscriptionName);
+        FunctionConfig functionConfig =
+                createFunctionConfig(tenant, namespacePortion, functionName, "my.*", sinkTopic, subscriptionName);
         functionConfig.setParallelism(2);
 
         // (1) Create function with 2 instance
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sinkTopic).getSubscriptions().size() == 1
-                        && admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers()
-                                .size() == 2;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                                .getStats(sinkTopic)
+                                                .getSubscriptions()
+                                                .size()
+                                        == 1
+                                && admin.topics()
+                                                .getStats(sinkTopic)
+                                                .getSubscriptions()
+                                                .values()
+                                                .iterator()
+                                                .next()
+                                                .getConsumers()
+                                                .size()
+                                        == 2;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
         // validate 2 instances have been started
         assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().size(), 1);
-        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers().size(), 2);
+        assertEquals(
+                admin.topics()
+                        .getStats(sinkTopic)
+                        .getSubscriptions()
+                        .values()
+                        .iterator()
+                        .next()
+                        .getConsumers()
+                        .size(),
+                2);
 
         // (2) Update function with 1 instance
         functionConfig.setParallelism(1);
         // try to update function to test: update-function functionality
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sinkTopic).getSubscriptions().size() == 1
-                        && admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers()
-                                .size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        return admin.topics()
+                                                .getStats(sinkTopic)
+                                                .getSubscriptions()
+                                                .size()
+                                        == 1
+                                && admin.topics()
+                                                .getStats(sinkTopic)
+                                                .getSubscriptions()
+                                                .values()
+                                                .iterator()
+                                                .next()
+                                                .getConsumers()
+                                                .size()
+                                        == 1;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
         // validate pulsar sink consumer has started on the topic
-        log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
-        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers().size(), 1);
+        log.info(
+                "admin.topics().getStats(sinkTopic): {}",
+                new Gson().toJson(admin.topics().getStats(sinkTopic)));
+        assertEquals(
+                admin.topics()
+                        .getStats(sinkTopic)
+                        .getSubscriptions()
+                        .values()
+                        .iterator()
+                        .next()
+                        .getConsumers()
+                        .size(),
+                1);
     }
 
     @Test(timeOut = 60000, enabled = false)
@@ -249,30 +302,38 @@ public class PulsarWorkerAssignmentTest {
         // (1) Register functions with 2 instances
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                    "my.*", sinkTopic, subscriptionName);
+            functionConfig =
+                    createFunctionConfig(tenant, namespacePortion, functionName, "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
             // don't set any log topic
             admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
-        retryStrategically((test) -> {
-            try {
-                Map<String, Assignment> assgn = runtimeManager.getCurrentAssignments().values().iterator().next();
-                return assgn.size() == (totalFunctions * parallelism);
-            } catch (Exception e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        Map<String, Assignment> assgn = runtimeManager
+                                .getCurrentAssignments()
+                                .values()
+                                .iterator()
+                                .next();
+                        return assgn.size() == (totalFunctions * parallelism);
+                    } catch (Exception e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         // Validate registered assignments
-        Map<String, Assignment> assignments = runtimeManager.getCurrentAssignments().values().iterator().next();
+        Map<String, Assignment> assignments =
+                runtimeManager.getCurrentAssignments().values().iterator().next();
         assertEquals(assignments.size(), (totalFunctions * parallelism));
 
         // (2) Update function with prop=auto-ack and Delete 2 functions
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                    "my.*", sinkTopic, subscriptionName);
+            functionConfig =
+                    createFunctionConfig(tenant, namespacePortion, functionName, "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
             // Now set the log topic
             functionConfig.setLogTopic(logTopic);
@@ -284,14 +345,21 @@ public class PulsarWorkerAssignmentTest {
             String functionName = baseFunctionName + i;
             admin.functions().deleteFunction(tenant, namespacePortion, functionName);
         }
-        retryStrategically((test) -> {
-            try {
-                Map<String, Assignment> assgn = runtimeManager.getCurrentAssignments().values().iterator().next();
-                return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
-            } catch (Exception e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        Map<String, Assignment> assgn = runtimeManager
+                                .getCurrentAssignments()
+                                .values()
+                                .iterator()
+                                .next();
+                        return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
+                    } catch (Exception e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         // Validate registered assignments
         assignments = runtimeManager.getCurrentAssignments().values().iterator().next();
@@ -302,36 +370,50 @@ public class PulsarWorkerAssignmentTest {
         functionsWorkerService.stop();
         functionsWorkerService = new PulsarWorkerService();
         functionsWorkerService.init(workerConfig, dlUri, false);
-        functionsWorkerService.start(new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)),
+        functionsWorkerService.start(
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)),
                 null,
                 ErrorNotifier.getDefaultImpl());
         final FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
-        retryStrategically((test) -> {
-            try {
-                Map<String, Assignment> assgn = runtimeManager2.getCurrentAssignments().values().iterator().next();
-                return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
-            } catch (Exception e) {
-                return false;
-            }
-        }, 50, 150);
+        retryStrategically(
+                (test) -> {
+                    try {
+                        Map<String, Assignment> assgn = runtimeManager2
+                                .getCurrentAssignments()
+                                .values()
+                                .iterator()
+                                .next();
+                        return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
+                    } catch (Exception e) {
+                        return false;
+                    }
+                },
+                50,
+                150);
 
         // Validate registered assignments
-        assignments = runtimeManager2.getCurrentAssignments().values().iterator().next();
+        assignments =
+                runtimeManager2.getCurrentAssignments().values().iterator().next();
         assertEquals(assignments.size(), ((totalFunctions - totalDeletedFunction) * parallelism));
 
         // validate updated function prop = auto-ack=false and instance id
         for (int i = 0; i < (totalFunctions - totalDeletedFunction); i++) {
             final String functionName = baseFunctionName + i;
-            assertEquals(admin.functions().getFunction(tenant, namespacePortion, functionName).getLogTopic(), logTopic);
+            assertEquals(
+                    admin.functions()
+                            .getFunction(tenant, namespacePortion, functionName)
+                            .getLogTopic(),
+                    logTopic);
         }
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant,
-                                                         String namespace,
-                                                         String functionName,
-                                                         String sourceTopic,
-                                                         String sinkTopic,
-                                                         String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(
+            String tenant,
+            String namespace,
+            String functionName,
+            String sourceTopic,
+            String sinkTopic,
+            String subscriptionName) {
 
         final String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 
@@ -351,5 +433,4 @@ public class PulsarWorkerAssignmentTest {
 
         return functionConfig;
     }
-
 }

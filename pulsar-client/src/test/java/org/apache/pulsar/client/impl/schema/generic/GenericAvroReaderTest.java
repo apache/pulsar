@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
@@ -47,8 +46,7 @@ public class GenericAvroReaderTest {
         fooSchema = AvroSchema.of(Foo.class);
 
         fooV2Schema = AvroSchema.of(FooV2.class);
-        fooSchemaNotNull = AvroSchema.of(SchemaDefinition
-                .builder()
+        fooSchemaNotNull = AvroSchema.of(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false)
                 .withPojo(Foo.class)
                 .build());
@@ -72,7 +70,7 @@ public class GenericAvroReaderTest {
         byte[] fooBytes = fooSchema.encode(foo);
 
         GenericAvroReader genericAvroSchemaByWriterSchema = new GenericAvroReader(fooSchema.getAvroSchema());
-        GenericRecord genericRecordByWriterSchema =  genericAvroSchemaByWriterSchema.read(fooBytes);
+        GenericRecord genericRecordByWriterSchema = genericAvroSchemaByWriterSchema.read(fooBytes);
         assertEquals(genericRecordByWriterSchema.getField("field1"), "foo1");
         assertEquals(genericRecordByWriterSchema.getField("field2"), "bar1");
         assertEquals(genericRecordByWriterSchema.getField("fieldUnableNull"), "notNull");
@@ -82,7 +80,8 @@ public class GenericAvroReaderTest {
     public void testGenericAvroReaderByReaderSchema() {
         byte[] fooV2Bytes = fooV2Schema.encode(fooV2);
 
-        GenericAvroReader genericAvroSchemaByReaderSchema = new GenericAvroReader(fooV2Schema.getAvroSchema(), fooSchemaNotNull.getAvroSchema(), new byte[10]);
+        GenericAvroReader genericAvroSchemaByReaderSchema =
+                new GenericAvroReader(fooV2Schema.getAvroSchema(), fooSchemaNotNull.getAvroSchema(), new byte[10]);
         GenericRecord genericRecordByReaderSchema = genericAvroSchemaByReaderSchema.read(fooV2Bytes);
         assertEquals(genericRecordByReaderSchema.getField("fieldUnableNull"), "defaultValue");
         assertEquals(genericRecordByReaderSchema.getField("field1"), "foo1");
@@ -104,5 +103,4 @@ public class GenericAvroReaderTest {
         assertEquals(record.getField("field2"), "bar1");
         assertEquals(record.getField("fieldUnableNull"), "notNull");
     }
-
 }

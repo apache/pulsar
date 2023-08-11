@@ -24,17 +24,16 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 @Connector(
-    name = "jdbc-mariadb",
-    type = IOType.SINK,
-    help = "A simple JDBC sink for MariaDB that writes pulsar messages to a database table",
-    configClass = JdbcSinkConfig.class
-)
+        name = "jdbc-mariadb",
+        type = IOType.SINK,
+        help = "A simple JDBC sink for MariaDB that writes pulsar messages to a database table",
+        configClass = JdbcSinkConfig.class)
 public class MariadbJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 
     @Override
     public String generateUpsertQueryStatement() {
-        return JdbcUtils.buildInsertSql(tableDefinition)
-                + "ON DUPLICATE KEY UPDATE " + JdbcUtils.buildUpdateSqlSetPart(tableDefinition);
+        return JdbcUtils.buildInsertSql(tableDefinition) + "ON DUPLICATE KEY UPDATE "
+                + JdbcUtils.buildUpdateSqlSetPart(tableDefinition);
     }
 
     @Override

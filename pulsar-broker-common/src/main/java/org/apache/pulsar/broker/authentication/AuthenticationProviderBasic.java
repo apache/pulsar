@@ -124,8 +124,9 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             // For md5 algorithm
             if ((users.get(userId).startsWith("$apr1"))) {
                 List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
-                if (splitEncryptedPassword.size() != 4 || !encryptedPassword
-                        .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
+                if (splitEncryptedPassword.size() != 4
+                        || !encryptedPassword.equals(
+                                Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
                     errorCode = ErrorCode.INVALID_TOKEN;
                     throw new AuthenticationException(msg);
                 }
@@ -153,7 +154,8 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             } else if (authData.hasDataFromHttp()) {
                 String rawAuthToken = authData.getHttpHeader(HTTP_HEADER_NAME);
                 // parsing and validation
-                if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
+                if (StringUtils.isBlank(rawAuthToken)
+                        || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
                     incrementFailureMetric(ErrorCode.INVALID_HEADER);
                     throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
                 }

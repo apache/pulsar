@@ -56,7 +56,8 @@ public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
         influxDBClient = influxDBClientBuilder.build(influxDBSinkConfig);
 
         writeApi = influxDBClient.getWriteApiBlocking();
-        writePrecision = WritePrecision.fromValue(influxDBSinkConfig.getPrecision().toLowerCase());
+        writePrecision =
+                WritePrecision.fromValue(influxDBSinkConfig.getPrecision().toLowerCase());
     }
 
     @Override
@@ -145,9 +146,8 @@ public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
         } else if (value instanceof Utf8) {
             point.addField(fieldName, value.toString());
         } else {
-            throw new SchemaSerializationException("Unknown value type for field " + fieldName
-                    + ". Type: " + value.getClass());
+            throw new SchemaSerializationException(
+                    "Unknown value type for field " + fieldName + ". Type: " + value.getClass());
         }
     }
 }
-

@@ -42,8 +42,8 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public static final String USER_METRIC_PREFIX = "user_metric_";
 
-    public static final String[] METRICS_LABEL_NAMES =
-            {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
+    public static final String[] METRICS_LABEL_NAMES = {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"
+    };
 
     protected static final String[] EXCEPTION_METRICS_LABEL_NAMES;
 
@@ -52,10 +52,11 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         EXCEPTION_METRICS_LABEL_NAMES[METRICS_LABEL_NAMES.length] = "error";
     }
 
-    public static ComponentStatsManager getStatsManager(FunctionCollectorRegistry collectorRegistry,
-                                  String[] metricsLabels,
-                                  ScheduledExecutorService scheduledExecutorService,
-                                  Function.FunctionDetails.ComponentType componentType) {
+    public static ComponentStatsManager getStatsManager(
+            FunctionCollectorRegistry collectorRegistry,
+            String[] metricsLabels,
+            ScheduledExecutorService scheduledExecutorService,
+            Function.FunctionDetails.ComponentType componentType) {
         switch (componentType) {
             case FUNCTION:
                 return new FunctionStatsManager(collectorRegistry, metricsLabels, scheduledExecutorService);
@@ -68,20 +69,25 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         }
     }
 
-    public ComponentStatsManager(FunctionCollectorRegistry collectorRegistry,
-                                 String[] metricsLabels,
-                                 ScheduledExecutorService scheduledExecutorService) {
+    public ComponentStatsManager(
+            FunctionCollectorRegistry collectorRegistry,
+            String[] metricsLabels,
+            ScheduledExecutorService scheduledExecutorService) {
 
         this.collectorRegistry = collectorRegistry;
         this.metricsLabels = metricsLabels;
 
-        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> {
-            try {
-                reset();
-            } catch (Exception e) {
-                log.error("Failed to reset metrics for 1min window", e);
-            }
-        }, 1, 1, TimeUnit.MINUTES);
+        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        reset();
+                    } catch (Exception e) {
+                        log.error("Failed to reset metrics for 1min window", e);
+                    }
+                },
+                1,
+                1,
+                TimeUnit.MINUTES);
     }
 
     public abstract void reset();
@@ -126,17 +132,15 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract double getAvgProcessLatency1min();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
-    getLatestUserExceptions();
+    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestUserExceptions();
 
     public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
-    getLatestSystemExceptions();
+            getLatestSystemExceptions();
 
     public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
-    getLatestSourceExceptions();
+            getLatestSourceExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
-    getLatestSinkExceptions();
+    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions();
 
     public String getStatsAsString() throws IOException {
         StringWriter outputWriter = new StringWriter();
@@ -148,14 +152,14 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected InstanceCommunication.FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {
         InstanceCommunication.FunctionStatus.ExceptionInformation.Builder exceptionInfoBuilder =
-                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder().setMsSinceEpoch(ts);
+                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
+                        .setMsSinceEpoch(ts);
         String msg = th.getMessage();
         if (msg != null) {
             exceptionInfoBuilder.setExceptionString(msg);
         }
         return exceptionInfoBuilder.build();
     }
-
 
     @Override
     public void close() {

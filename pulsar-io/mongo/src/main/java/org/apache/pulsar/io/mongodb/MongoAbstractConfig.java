@@ -44,35 +44,27 @@ public abstract class MongoAbstractConfig implements Serializable {
             required = true,
             defaultValue = "",
             help = "The URI of MongoDB that the connector connects to "
-                    + "(see: https://docs.mongodb.com/manual/reference/connection-string/)"
-    )
+                    + "(see: https://docs.mongodb.com/manual/reference/connection-string/)")
     private final String mongoUri;
 
     @FieldDoc(
             defaultValue = "",
             help = "The database name to which the collection belongs "
                     + "and which must be watched for the source connector "
-                    + "(required for the sink connector)"
-    )
+                    + "(required for the sink connector)")
     private final String database;
 
     @FieldDoc(
             defaultValue = "",
             help = "The collection name where the messages are written "
                     + "or which is watched for the source connector "
-                    + "(required for the sink connector)"
-    )
+                    + "(required for the sink connector)")
     private final String collection;
 
-    @FieldDoc(
-            defaultValue = "" + DEFAULT_BATCH_SIZE,
-            help = "The batch size of write to or read from the database"
-    )
+    @FieldDoc(defaultValue = "" + DEFAULT_BATCH_SIZE, help = "The batch size of write to or read from the database")
     private final int batchSize;
 
-    @FieldDoc(
-            defaultValue = "" + DEFAULT_BATCH_TIME_MS,
-            help = "The batch operation interval in milliseconds")
+    @FieldDoc(defaultValue = "" + DEFAULT_BATCH_TIME_MS, help = "The batch operation interval in milliseconds")
     private final long batchTimeMs;
 
     public MongoAbstractConfig() {
@@ -85,8 +77,7 @@ public abstract class MongoAbstractConfig implements Serializable {
             @JsonProperty("database") String database,
             @JsonProperty("collection") String collection,
             @JsonProperty("batchSize") int batchSize,
-            @JsonProperty("batchTimeMs") long batchTimeMs
-    ) {
+            @JsonProperty("batchTimeMs") long batchTimeMs) {
         this.mongoUri = mongoUri;
         this.database = database;
         this.collection = collection;

@@ -40,16 +40,13 @@ public class PerfClientUtilsTest {
         }
 
         @Override
-        public void configure(Map<String, String> authParams) {
-        }
+        public void configure(Map<String, String> authParams) {}
 
         @Override
-        public void start() throws PulsarClientException {
-        }
+        public void start() throws PulsarClientException {}
 
         @Override
-        public void close() throws IOException {
-        }
+        public void close() throws IOException {}
     }
 
     @Test
@@ -71,7 +68,7 @@ public class PerfClientUtilsTest {
         args.tlsAllowInsecureConnection = true;
         args.maxLookupRequest = 100000;
 
-        final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
+        final ClientBuilderImpl builder = (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
 
         Assert.assertTrue(conf.isTlsHostnameVerificationEnable());
@@ -89,7 +86,6 @@ public class PerfClientUtilsTest {
         Assert.assertEquals(conf.getMaxLookupRequest(), 100000);
         Assert.assertNull(conf.getProxyServiceUrl());
         Assert.assertNull(conf.getProxyProtocol());
-
     }
 
     @Test
@@ -101,12 +97,11 @@ public class PerfClientUtilsTest {
         args.proxyServiceURL = "pulsar+ssl://my-proxy-pulsar:4443";
         args.proxyProtocol = ProxyProtocol.SNI;
 
-        final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
+        final ClientBuilderImpl builder = (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
 
         Assert.assertEquals(conf.getProxyServiceUrl(), "pulsar+ssl://my-proxy-pulsar:4443");
         Assert.assertEquals(conf.getProxyProtocol(), ProxyProtocol.SNI);
-
     }
 
     @Test
@@ -114,9 +109,11 @@ public class PerfClientUtilsTest {
 
         Path testConf = Files.createTempFile("test", ".conf");
         try {
-            Files.writeString(testConf, "brokerServiceUrl=pulsar+ssl://my-pulsar:6651\n"
-                    + "proxyServiceUrl=pulsar+ssl://my-proxy-pulsar:4443\n"
-                    + "proxyProtocol=SNI");
+            Files.writeString(
+                    testConf,
+                    "brokerServiceUrl=pulsar+ssl://my-pulsar:6651\n"
+                            + "proxyServiceUrl=pulsar+ssl://my-proxy-pulsar:4443\n"
+                            + "proxyProtocol=SNI");
 
             final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
 
@@ -139,9 +136,9 @@ public class PerfClientUtilsTest {
 
         Path testConf = Files.createTempFile("test", ".conf");
         try {
-            Files.writeString(testConf, "brokerServiceUrl=pulsar+ssl://my-pulsar:6651\n"
-                    + "proxyServiceUrl=\n"
-                    + "proxyProtocol=");
+            Files.writeString(
+                    testConf,
+                    "brokerServiceUrl=pulsar+ssl://my-pulsar:6651\n" + "proxyServiceUrl=\n" + "proxyProtocol=");
 
             final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
 
@@ -162,6 +159,5 @@ public class PerfClientUtilsTest {
 
 class PerformanceArgumentsTestDefault extends PerformanceBaseArguments {
     @Override
-    public void fillArgumentsFromProperties(Properties prop) {
-    }
+    public void fillArgumentsFromProperties(Properties prop) {}
 }

@@ -44,8 +44,11 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     private Consumer<T> consumer;
     private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
-    public SingleConsumerPulsarSource(PulsarClient pulsarClient, SingleConsumerPulsarSourceConfig pulsarSourceConfig,
-                                      Map<String, String> properties, ClassLoader functionClassLoader) {
+    public SingleConsumerPulsarSource(
+            PulsarClient pulsarClient,
+            SingleConsumerPulsarSourceConfig pulsarSourceConfig,
+            Map<String, String> properties,
+            ClassLoader functionClassLoader) {
         super(pulsarClient, pulsarSourceConfig, properties, functionClassLoader);
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarSourceConfig;
@@ -66,8 +69,11 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
         PulsarSourceConsumerConfig<T> pulsarSourceConsumerConfig =
                 buildPulsarSourceConsumerConfig(topic, pulsarSourceConfig.getConsumerConfig(), typeArg);
 
-        log.info("Creating consumer for topic : {}, schema : {}, schemaInfo: {}", topic,
-                pulsarSourceConsumerConfig.getSchema(), pulsarSourceConsumerConfig.getSchema().getSchemaInfo());
+        log.info(
+                "Creating consumer for topic : {}, schema : {}, schemaInfo: {}",
+                topic,
+                pulsarSourceConsumerConfig.getSchema(),
+                pulsarSourceConsumerConfig.getSchema().getSchemaInfo());
 
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();

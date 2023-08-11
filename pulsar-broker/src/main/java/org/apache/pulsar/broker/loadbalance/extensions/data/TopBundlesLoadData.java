@@ -43,5 +43,4 @@ public class TopBundlesLoadData {
             Objects.requireNonNull(bundleName);
         }
     }
-
 }

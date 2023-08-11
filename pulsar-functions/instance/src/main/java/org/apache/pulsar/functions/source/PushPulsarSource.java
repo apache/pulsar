@@ -29,10 +29,11 @@ public abstract class PushPulsarSource<T> extends PulsarSource<T> {
     private LinkedBlockingQueue<Record<T>> queue;
     private static final int DEFAULT_QUEUE_LENGTH = 1000;
 
-    public PushPulsarSource(PulsarClient pulsarClient,
-                            PulsarSourceConfig pulsarSourceConfig,
-                            Map<String, String> properties,
-                            ClassLoader functionClassLoader) {
+    public PushPulsarSource(
+            PulsarClient pulsarClient,
+            PulsarSourceConfig pulsarSourceConfig,
+            Map<String, String> properties,
+            ClassLoader functionClassLoader) {
         super(pulsarClient, pulsarSourceConfig, properties, functionClassLoader);
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
     }

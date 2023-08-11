@@ -39,10 +39,7 @@ public interface TransactionBufferClient {
      * @param lowWaterMark the low water mark of this txn;
      * @return the future represents the commit result
      */
-    CompletableFuture<TxnID> commitTxnOnTopic(String topic,
-                                              long txnIdMostBits,
-                                              long txnIdLeastBits,
-                                              long lowWaterMark);
+    CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, long lowWaterMark);
 
     /**
      * Abort the transaction associated with the topic.
@@ -53,10 +50,7 @@ public interface TransactionBufferClient {
      * @param lowWaterMark the low water mark of this txn
      * @return the future represents the abort result
      */
-    CompletableFuture<TxnID> abortTxnOnTopic(String topic,
-                                             long txnIdMostBits,
-                                             long txnIdLeastBits,
-                                             long lowWaterMark);
+    CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, long lowWaterMark);
 
     /**
      * Commit the transaction associated with the topic subscription.
@@ -68,11 +62,8 @@ public interface TransactionBufferClient {
      * @param lowWaterMark the low water mark of this txn
      * @return the future represents the commit result
      */
-    CompletableFuture<TxnID> commitTxnOnSubscription(String topic,
-                                                     String subscription,
-                                                     long txnIdMostBits,
-                                                     long txnIdLeastBits,
-                                                     long lowWaterMark);
+    CompletableFuture<TxnID> commitTxnOnSubscription(
+            String topic, String subscription, long txnIdMostBits, long txnIdLeastBits, long lowWaterMark);
 
     /**
      * Abort the transaction associated with the topic subscription.
@@ -84,11 +75,8 @@ public interface TransactionBufferClient {
      * @param lowWaterMark the low water mark of this txn
      * @return the future represents the abort result
      */
-    CompletableFuture<TxnID> abortTxnOnSubscription(String topic,
-                                                    String subscription,
-                                                    long txnIdMostBits,
-                                                    long txnIdLeastBits,
-                                                    long lowWaterMark);
+    CompletableFuture<TxnID> abortTxnOnSubscription(
+            String topic, String subscription, long txnIdMostBits, long txnIdLeastBits, long lowWaterMark);
 
     void close();
 

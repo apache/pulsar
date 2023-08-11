@@ -35,7 +35,8 @@ public class CursorManagementFunction implements Function<String, String> {
         PulsarAdmin adminClient = context.getPulsarAdmin();
         if (adminClient != null) {
             String topic = context.getCurrentRecord().getTopicName().isPresent()
-                    ? context.getCurrentRecord().getTopicName().get() : null;
+                    ? context.getCurrentRecord().getTopicName().get()
+                    : null;
             String subName = context.getTenant() + "/" + context.getNamespace() + "/" + context.getFunctionName();
             if (topic != null) {
                 // 1578188166 below is a random-pick timestamp

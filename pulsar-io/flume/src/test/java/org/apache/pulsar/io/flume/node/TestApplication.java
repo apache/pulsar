@@ -63,34 +63,36 @@ public class TestApplication {
 
         T lifeCycleAware = mock(klass);
 
-        final AtomicReference<LifecycleState> state =
-                new AtomicReference<LifecycleState>();
+        final AtomicReference<LifecycleState> state = new AtomicReference<LifecycleState>();
 
         state.set(LifecycleState.IDLE);
 
         when(lifeCycleAware.getLifecycleState()).then(new Answer<LifecycleState>() {
             @Override
-            public LifecycleState answer(InvocationOnMock invocation)
-                    throws Throwable {
+            public LifecycleState answer(InvocationOnMock invocation) throws Throwable {
                 return state.get();
             }
         });
 
         doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocation) throws Throwable {
-                state.set(LifecycleState.START);
-                return null;
-            }
-        }).when(lifeCycleAware).start();
+                    @Override
+                    public Void answer(InvocationOnMock invocation) throws Throwable {
+                        state.set(LifecycleState.START);
+                        return null;
+                    }
+                })
+                .when(lifeCycleAware)
+                .start();
 
         doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocation) throws Throwable {
-                state.set(LifecycleState.STOP);
-                return null;
-            }
-        }).when(lifeCycleAware).stop();
+                    @Override
+                    public Void answer(InvocationOnMock invocation) throws Throwable {
+                        state.set(LifecycleState.STOP);
+                        return null;
+                    }
+                })
+                .when(lifeCycleAware)
+                .stop();
 
         return lifeCycleAware;
     }
@@ -100,8 +102,7 @@ public class TestApplication {
 
         EventBus eventBus = new EventBus("test-event-bus");
 
-        MaterializedConfiguration materializedConfiguration = new
-                SimpleMaterializedConfiguration();
+        MaterializedConfiguration materializedConfiguration = new SimpleMaterializedConfiguration();
 
         SourceRunner sourceRunner = mockLifeCycle(SourceRunner.class);
         materializedConfiguration.addSourceRunner("test", sourceRunner);
@@ -111,7 +112,6 @@ public class TestApplication {
 
         Channel channel = mockLifeCycle(Channel.class);
         materializedConfiguration.addChannel("test", channel);
-
 
         ConfigurationProvider configurationProvider = mock(ConfigurationProvider.class);
         when(configurationProvider.getConfiguration()).thenReturn(materializedConfiguration);
@@ -139,14 +139,17 @@ public class TestApplication {
     @Test
     public void testFLUME1854() throws Exception {
         File configFile = new File(baseDir, "flume-conf.properties");
-        Files.copy(new File(getClass().getClassLoader()
-                .getResource("flume-conf.properties").getFile()), configFile);
+        Files.copy(
+                new File(getClass()
+                        .getClassLoader()
+                        .getResource("flume-conf.properties")
+                        .getFile()),
+                configFile);
         Random random = new Random();
         for (int i = 0; i < 3; i++) {
             EventBus eventBus = new EventBus("test-event-bus");
             PollingPropertiesFileConfigurationProvider configurationProvider =
-                    new PollingPropertiesFileConfigurationProvider("host1",
-                            configFile, eventBus, 1);
+                    new PollingPropertiesFileConfigurationProvider("host1", configFile, eventBus, 1);
             List<LifecycleAware> components = Lists.newArrayList();
             components.add(configurationProvider);
             Application application = new Application(components);
@@ -164,8 +167,12 @@ public class TestApplication {
         final long intervalMs = 1000L;
 
         File configFile = new File(baseDir, "flume-conf.properties");
-        Files.copy(new File(getClass().getClassLoader()
-                .getResource("flume-conf.properties.2786").getFile()), configFile);
+        Files.copy(
+                new File(getClass()
+                        .getClassLoader()
+                        .getResource("flume-conf.properties.2786")
+                        .getFile()),
+                configFile);
         File mockConfigFile = spy(configFile);
         when(mockConfigFile.lastModified()).then(new Answer<Long>() {
             @Override
@@ -177,18 +184,18 @@ public class TestApplication {
 
         EventBus eventBus = new EventBus(agentName + "-event-bus");
         PollingPropertiesFileConfigurationProvider configurationProvider =
-                new PollingPropertiesFileConfigurationProvider(agentName,
-                        mockConfigFile, eventBus, interval);
-        PollingPropertiesFileConfigurationProvider mockConfigurationProvider =
-                spy(configurationProvider);
+                new PollingPropertiesFileConfigurationProvider(agentName, mockConfigFile, eventBus, interval);
+        PollingPropertiesFileConfigurationProvider mockConfigurationProvider = spy(configurationProvider);
         doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocation) throws Throwable {
-                Thread.sleep(intervalMs);
-                invocation.callRealMethod();
-                return null;
-            }
-        }).when(mockConfigurationProvider).stop();
+                    @Override
+                    public Void answer(InvocationOnMock invocation) throws Throwable {
+                        Thread.sleep(intervalMs);
+                        invocation.callRealMethod();
+                        return null;
+                    }
+                })
+                .when(mockConfigurationProvider)
+                .stop();
 
         List<LifecycleAware> components = Lists.newArrayList();
         components.add(mockConfigurationProvider);
@@ -198,5 +205,4 @@ public class TestApplication {
         Thread.sleep(1500L);
         application.stop();
     }
-
 }

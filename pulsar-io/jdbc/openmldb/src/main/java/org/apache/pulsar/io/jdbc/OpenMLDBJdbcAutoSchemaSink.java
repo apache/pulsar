@@ -25,8 +25,5 @@ import org.apache.pulsar.io.core.annotations.IOType;
         name = "jdbc-openmldb",
         type = IOType.SINK,
         help = "A simple JDBC sink for OpenMLDB that writes pulsar messages to a database table",
-        configClass = JdbcSinkConfig.class
-)
-public class OpenMLDBJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
-
-}
+        configClass = JdbcSinkConfig.class)
+public class OpenMLDBJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {}

@@ -122,10 +122,10 @@ public class WindowManager<T> implements TriggerHandler {
 
         lock.lock();
         try {
-           /*
-            * scan the entire window to handle out of order events in
-            * the case of time based windows.
-            */
+            /*
+             * scan the entire window to handle out of order events in
+             * the case of time based windows.
+             */
             windowEvents = scanEvents(true);
             expired = new ArrayList<>(expiredEvents);
             expiredEvents.clear();
@@ -147,8 +147,8 @@ public class WindowManager<T> implements TriggerHandler {
             if (log.isDebugEnabled()) {
                 log.debug("invoking windowLifecycleListener onActivation, [{}] events in window.", events.size());
             }
-            windowLifecycleListener.onActivation(events, newEvents, expired,
-                    evictionPolicy.getContext().getReferenceTime());
+            windowLifecycleListener.onActivation(
+                    events, newEvents, expired, evictionPolicy.getContext().getReferenceTime());
         } else {
             log.debug("No events in the window, skipping onActivation");
         }
@@ -290,7 +290,6 @@ public class WindowManager<T> implements TriggerHandler {
 
     @Override
     public String toString() {
-        return "WindowManager{" + "evictionPolicy=" + evictionPolicy + ", triggerPolicy="
-                + triggerPolicy + '}';
+        return "WindowManager{" + "evictionPolicy=" + evictionPolicy + ", triggerPolicy=" + triggerPolicy + '}';
     }
 }

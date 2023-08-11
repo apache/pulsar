@@ -107,11 +107,16 @@ public class ConcurrentLongPairSet implements LongPairSet {
         }
 
         public ConcurrentLongPairSet build() {
-            return new ConcurrentLongPairSet(expectedItems, concurrencyLevel,
-                    mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
+            return new ConcurrentLongPairSet(
+                    expectedItems,
+                    concurrencyLevel,
+                    mapFillFactor,
+                    mapIdleFactor,
+                    autoShrink,
+                    expandFactor,
+                    shrinkFactor);
         }
     }
-
 
     /**
      * Represents a function that accepts an object of the {@code LongPair} type.
@@ -139,13 +144,24 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
     @Deprecated
     public ConcurrentLongPairSet(int expectedItems, int concurrencyLevel) {
-        this(expectedItems, concurrencyLevel, DefaultMapFillFactor, DefaultMapIdleFactor,
-                DefaultAutoShrink, DefaultExpandFactor, DefaultShrinkFactor);
+        this(
+                expectedItems,
+                concurrencyLevel,
+                DefaultMapFillFactor,
+                DefaultMapIdleFactor,
+                DefaultAutoShrink,
+                DefaultExpandFactor,
+                DefaultShrinkFactor);
     }
 
-    public ConcurrentLongPairSet(int expectedItems, int concurrencyLevel,
-                                 float mapFillFactor, float mapIdleFactor,
-                                 boolean autoShrink, float expandFactor, float shrinkFactor) {
+    public ConcurrentLongPairSet(
+            int expectedItems,
+            int concurrencyLevel,
+            float mapFillFactor,
+            float mapIdleFactor,
+            boolean autoShrink,
+            float expandFactor,
+            float shrinkFactor) {
         checkArgument(expectedItems > 0);
         checkArgument(concurrencyLevel > 0);
         checkArgument(expectedItems >= concurrencyLevel);
@@ -161,8 +177,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
         this.sections = new Section[numSections];
 
         for (int i = 0; i < numSections; i++) {
-            sections[i] = new Section(perSectionCapacity, mapFillFactor, mapIdleFactor,
-                    autoShrink, expandFactor, shrinkFactor);
+            sections[i] = new Section(
+                    perSectionCapacity, mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
         }
     }
 
@@ -299,8 +315,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
         private volatile int capacity;
         private final int initCapacity;
-        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER = AtomicIntegerFieldUpdater
-                .newUpdater(Section.class, "size");
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;
         private int resizeThresholdUp;
@@ -311,8 +327,13 @@ public class ConcurrentLongPairSet implements LongPairSet {
         private final float shrinkFactor;
         private final boolean autoShrink;
 
-        Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
-                float expandFactor, float shrinkFactor) {
+        Section(
+                int capacity,
+                float mapFillFactor,
+                float mapIdleFactor,
+                boolean autoShrink,
+                float expandFactor,
+                float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
             this.table = new long[2 * this.capacity];
@@ -707,5 +728,4 @@ public class ConcurrentLongPairSet implements LongPairSet {
         sb.append('}');
         return sb.toString();
     }
-
 }

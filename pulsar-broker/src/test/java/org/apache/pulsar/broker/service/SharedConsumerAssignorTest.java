@@ -75,8 +75,16 @@ public class SharedConsumerAssignorTest {
         // | 5        | A-1  | 2        | 3                |
         // | 6        | B-1  | 1        | 2               |
         // P.S. In the table above, The uuid represents the "<producer-name>-<sequence-id>" for non-chunks
-        assertEquals(toString(entryAndMetadataList), Arrays.asList(
-                "0:0@A-0", "0:1@A-1-0-3", "0:2@A-1-1-3", "0:3@B-0", "0:4@B-1-0-2", "0:5@A-1-2-3", "0:6@B-1-1-2"));
+        assertEquals(
+                toString(entryAndMetadataList),
+                Arrays.asList(
+                        "0:0@A-0",
+                        "0:1@A-1-0-3",
+                        "0:2@A-1-1-3",
+                        "0:3@B-0",
+                        "0:4@B-1-0-2",
+                        "0:5@A-1-2-3",
+                        "0:6@B-1-1-2"));
     }
 
     @Test
@@ -116,9 +124,11 @@ public class SharedConsumerAssignorTest {
         // However, since consumerA has no more permits, A-1-2-3 cannot be assigned to consumerA as well.
         // Therefore, A-1-2-3 was skipped and added to the replay queue.
         Map<Consumer, List<EntryAndMetadata>> result = assignor.assign(entryAndMetadataList, 2);
-        assertEquals(toString(result.getOrDefault(consumerA, Collections.emptyList())),
+        assertEquals(
+                toString(result.getOrDefault(consumerA, Collections.emptyList())),
                 Arrays.asList("0:0@A-0", "0:1@A-1-0-3", "0:2@A-1-1-3"));
-        assertEquals(toString(result.getOrDefault(consumerB, Collections.emptyList())),
+        assertEquals(
+                toString(result.getOrDefault(consumerB, Collections.emptyList())),
                 Arrays.asList("0:3@B-0", "0:4@B-1-0-2", "0:6@B-1-1-2"));
         assertEquals(toString(replayQueue), Collections.singletonList("0:5@A-1-2-3"));
         assertEquals(assignor.getUuidToConsumer().keySet(), Sets.newHashSet("A-1"));
@@ -131,7 +141,8 @@ public class SharedConsumerAssignorTest {
         result = assignor.assign(leftEntries, 2);
         // Since uuid "A-1" is still cached, A-1-2-3 will be dispatched to consumerA even if consumerB is the first
         // consumer returned by roundRobinConsumerSelector.get()
-        assertEquals(toString(result.getOrDefault(consumerA, Collections.emptyList())),
+        assertEquals(
+                toString(result.getOrDefault(consumerA, Collections.emptyList())),
                 Collections.singletonList("0:5@A-1-2-3"));
         assertNull(result.get(consumerB));
         assertTrue(replayQueue.isEmpty());
@@ -184,30 +195,27 @@ public class SharedConsumerAssignorTest {
         long sequenceId = 0L;
 
         void sendMessage() {
-            entryAndMetadataList.add(createEntryAndMetadata(entryId.getAndIncrement(),
-                    createMetadata(name, sequenceId++, null, null)));
+            entryAndMetadataList.add(
+                    createEntryAndMetadata(entryId.getAndIncrement(), createMetadata(name, sequenceId++, null, null)));
         }
 
         void sendChunk(int chunkId, int numChunks) {
-            entryAndMetadataList.add(createEntryAndMetadata(entryId.getAndIncrement(),
-                    createMetadata(name, sequenceId, chunkId, numChunks)));
+            entryAndMetadataList.add(createEntryAndMetadata(
+                    entryId.getAndIncrement(), createMetadata(name, sequenceId, chunkId, numChunks)));
             if (chunkId == numChunks - 1) {
                 sequenceId++;
             }
         }
     }
 
-    private static EntryAndMetadata createEntryAndMetadata(final long entryId,
-                                                           final MessageMetadata metadata) {
+    private static EntryAndMetadata createEntryAndMetadata(final long entryId, final MessageMetadata metadata) {
         final ByteBuf payload = Commands.serializeMetadataAndPayload(
                 Commands.ChecksumType.Crc32c, metadata, PulsarByteBufAllocator.DEFAULT.buffer());
         return EntryAndMetadata.create(EntryImpl.create(0L, entryId, payload));
     }
 
-    private static MessageMetadata createMetadata(final String producerName,
-                                                  final long sequenceId,
-                                                  final Integer chunkId,
-                                                  final Integer numChunks) {
+    private static MessageMetadata createMetadata(
+            final String producerName, final long sequenceId, final Integer chunkId, final Integer numChunks) {
         final MessageMetadata metadata = new MessageMetadata();
         metadata.setProducerName(producerName);
         metadata.setSequenceId(sequenceId);

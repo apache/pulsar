@@ -35,9 +35,14 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     private final boolean readCompacted;
 
-    NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
-                         boolean isReadCompacted) {
+    NonDurableCursorImpl(
+            BookKeeper bookkeeper,
+            ManagedLedgerConfig config,
+            ManagedLedgerImpl ledger,
+            String cursorName,
+            PositionImpl startCursorPosition,
+            CommandSubscribe.InitialPosition initialPosition,
+            boolean isReadCompacted) {
         super(bookkeeper, config, ledger, cursorName);
         this.readCompacted = isReadCompacted;
 
@@ -63,8 +68,11 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             recoverCursor(startCursorPosition);
         }
         STATE_UPDATER.set(this, State.Open);
-        log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
-                readPosition, markDeletePosition);
+        log.info(
+                "[{}] Created non-durable cursor read-position={} mark-delete-position={}",
+                ledger.getName(),
+                readPosition,
+                markDeletePosition);
     }
 
     private void recoverCursor(PositionImpl mdPosition) {
@@ -76,11 +84,14 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         // messagesConsumed is equal to the current backlog (negated).
         if (null != this.readPosition) {
             long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) <= 0
-                ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
+                    ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft()))
+                    : 0;
             messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
         } else {
-            log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
-                mdPosition, readPosition);
+            log.warn(
+                    "Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
+                    mdPosition,
+                    readPosition);
         }
     }
 
@@ -97,8 +108,11 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     }
 
     @Override
-    protected void internalAsyncMarkDelete(final PositionImpl newPosition, Map<String, Long> properties,
-            final MarkDeleteCallback callback, final Object ctx) {
+    protected void internalAsyncMarkDelete(
+            final PositionImpl newPosition,
+            Map<String, Long> properties,
+            final MarkDeleteCallback callback,
+            final Object ctx) {
         // Bypass persistence of mark-delete position and individually deleted messages info
 
         MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx);
@@ -138,8 +152,11 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     @Override
     public synchronized String toString() {
-        return MoreObjects.toStringHelper(this).add("ledger", ledger.getName()).add("ackPos", markDeletePosition)
-                .add("readPos", readPosition).toString();
+        return MoreObjects.toStringHelper(this)
+                .add("ledger", ledger.getName())
+                .add("ackPos", markDeletePosition)
+                .add("readPos", readPosition)
+                .toString();
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonDurableCursorImpl.class);

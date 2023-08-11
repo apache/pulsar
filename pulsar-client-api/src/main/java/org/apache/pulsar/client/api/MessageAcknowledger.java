@@ -143,8 +143,7 @@ public interface MessageAcknowledger {
      *            The {@code MessageId} to be cumulatively acknowledged
      * @param txn {@link Transaction} the transaction to cumulative ack
      */
-    CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId,
-                                                       Transaction txn);
+    CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Transaction txn);
 
     /**
      * The asynchronous version of {@link #acknowledgeCumulative(Message)}.

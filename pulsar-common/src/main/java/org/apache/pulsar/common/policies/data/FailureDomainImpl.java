@@ -29,20 +29,16 @@ import lombok.NoArgsConstructor;
 /**
  * The data of a failure domain configuration in a cluster.
  */
-@ApiModel(
-    value = "FailureDomain",
-    description = "The data of a failure domain configuration in a cluster"
-)
+@ApiModel(value = "FailureDomain", description = "The data of a failure domain configuration in a cluster")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public final class FailureDomainImpl implements FailureDomain {
 
     @ApiModelProperty(
-        name = "brokers",
-        value = "The collection of brokers in the same failure domain",
-        example = "[ 'broker-1', 'broker-2' ]"
-    )
+            name = "brokers",
+            value = "The collection of brokers in the same failure domain",
+            example = "[ 'broker-1', 'broker-2' ]")
     public Set<String> brokers;
 
     public static FailureDomainImplBuilder builder() {

@@ -61,5 +61,4 @@ public class SimpleBookKeeperTest extends MockedBookKeeperTestCase {
     }
 
     private static Logger log = LoggerFactory.getLogger(SimpleBookKeeperTest.class);
-
 }

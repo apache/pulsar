@@ -375,5 +375,4 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return
      */
     ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
-
 }

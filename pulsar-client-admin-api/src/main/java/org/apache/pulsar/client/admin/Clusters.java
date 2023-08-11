@@ -326,8 +326,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster)
-            throws PulsarAdminException;
+    Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster) throws PulsarAdminException;
 
     /**
      * Get the namespace isolation policies of a cluster asynchronously.
@@ -414,8 +413,7 @@ public interface Clusters {
      * @param cluster
      * @return
      */
-    CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
-            String cluster);
+    CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(String cluster);
 
     /**
      * Returns active broker with namespace-isolation policies attached to it.
@@ -510,7 +508,6 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-
     void deleteNamespaceIsolationPolicy(String cluster, String policyName) throws PulsarAdminException;
 
     /**
@@ -525,7 +522,6 @@ public interface Clusters {
      *
      * @return
      */
-
     CompletableFuture<Void> deleteNamespaceIsolationPolicyAsync(String cluster, String policyName);
 
     /**
@@ -550,8 +546,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    NamespaceIsolationData getNamespaceIsolationPolicy(String cluster, String policyName)
-            throws PulsarAdminException;
+    NamespaceIsolationData getNamespaceIsolationPolicy(String cluster, String policyName) throws PulsarAdminException;
 
     /**
      * Get a single namespace isolation policy for a cluster asynchronously.
@@ -564,8 +559,7 @@ public interface Clusters {
      *          Policy name
      *
      */
-    CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(String cluster,
-                                                                               String policyName);
+    CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(String cluster, String policyName);
 
     /**
      * Create a domain into cluster.
@@ -596,8 +590,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createFailureDomain(String cluster, String domainName, FailureDomain domain)
-            throws PulsarAdminException;
+    void createFailureDomain(String cluster, String domainName, FailureDomain domain) throws PulsarAdminException;
 
     /**
      * Create a domain into cluster asynchronously.
@@ -646,8 +639,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFailureDomain(String cluster, String domainName, FailureDomain domain)
-            throws PulsarAdminException;
+    void updateFailureDomain(String cluster, String domainName, FailureDomain domain) throws PulsarAdminException;
 
     /**
      * Update a domain into cluster asynchronously.
@@ -767,5 +759,4 @@ public interface Clusters {
      *
      */
     CompletableFuture<FailureDomain> getFailureDomainAsync(String cluster, String domainName);
-
 }

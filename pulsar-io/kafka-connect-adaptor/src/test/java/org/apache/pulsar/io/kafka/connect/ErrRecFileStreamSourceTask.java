@@ -29,5 +29,4 @@ public class ErrRecFileStreamSourceTask extends FileStreamSourceTask {
     public void commitRecord(SourceRecord record, RecordMetadata metadata) throws InterruptedException {
         throw new org.apache.kafka.connect.errors.ConnectException("blah");
     }
-
 }

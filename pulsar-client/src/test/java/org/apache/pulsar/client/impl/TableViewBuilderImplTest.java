@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -27,16 +35,6 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertNotNull;
 
 /**
  * Unit tests of {@link TablewViewBuilderImpl}.
@@ -52,29 +50,28 @@ public class TableViewBuilderImplTest {
         Reader reader = mock(Reader.class);
         when(reader.readNextAsync()).thenReturn(CompletableFuture.allOf());
         client = mock(PulsarClientImpl.class);
-        when(client.newReader(any(Schema.class)))
-            .thenReturn(new ReaderBuilderImpl(client, Schema.BYTES));
+        when(client.newReader(any(Schema.class))).thenReturn(new ReaderBuilderImpl(client, Schema.BYTES));
         when(client.createReaderAsync(any(ReaderConfigurationData.class), any(Schema.class)))
-            .thenReturn(CompletableFuture.completedFuture(reader));
+                .thenReturn(CompletableFuture.completedFuture(reader));
         tableViewBuilderImpl = new TableViewBuilderImpl(client, Schema.BYTES);
     }
 
     @Test
     public void testTableViewBuilderImpl() throws PulsarClientException {
-        TableView tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
-            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
-            .subscriptionName("testSubscriptionName")
-            .cryptoKeyReader(mock(CryptoKeyReader.class))
-            .cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
-            .create();
+        TableView tableView = tableViewBuilderImpl
+                .topic(TOPIC_NAME)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .subscriptionName("testSubscriptionName")
+                .cryptoKeyReader(mock(CryptoKeyReader.class))
+                .cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
+                .create();
 
         assertNotNull(tableView);
     }
 
     @Test
     public void testTableViewBuilderImplWhenOnlyTopicNameIsSet() throws PulsarClientException {
-        TableView tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
-            .create();
+        TableView tableView = tableViewBuilderImpl.topic(TOPIC_NAME).create();
 
         assertNotNull(tableView);
     }
@@ -90,8 +87,12 @@ public class TableViewBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testTableViewBuilderImplWhenAutoUpdatePartitionsIntervalIsSmallerThanOneSecond() throws PulsarClientException {
-        tableViewBuilderImpl.topic(TOPIC_NAME).autoUpdatePartitionsInterval(100, TimeUnit.MILLISECONDS).create();
+    public void testTableViewBuilderImplWhenAutoUpdatePartitionsIntervalIsSmallerThanOneSecond()
+            throws PulsarClientException {
+        tableViewBuilderImpl
+                .topic(TOPIC_NAME)
+                .autoUpdatePartitionsInterval(100, TimeUnit.MILLISECONDS)
+                .create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -106,16 +107,20 @@ public class TableViewBuilderImplTest {
 
     @Test
     public void testTableViewBuilderImplWithCryptoKeyReader() throws PulsarClientException {
-        TableView tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
-            .cryptoKeyReader(mock(CryptoKeyReader.class))
-            .create();
+        TableView tableView = tableViewBuilderImpl
+                .topic(TOPIC_NAME)
+                .cryptoKeyReader(mock(CryptoKeyReader.class))
+                .create();
 
         assertNotNull(tableView);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTableViewImplWhenDefaultCryptoKeyReaderIsNullString() throws PulsarClientException {
-        tableViewBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader((String) null).create();
+        tableViewBuilderImpl
+                .topic(TOPIC_NAME)
+                .defaultCryptoKeyReader((String) null)
+                .create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -125,11 +130,17 @@ public class TableViewBuilderImplTest {
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testTableViewImplWhenDefaultCryptoKeyReaderIsNullMap() throws PulsarClientException {
-        tableViewBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader((Map<String, String>) null).create();
+        tableViewBuilderImpl
+                .topic(TOPIC_NAME)
+                .defaultCryptoKeyReader((Map<String, String>) null)
+                .create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTableViewImplWhenDefaultCryptoKeyReaderIsEmptyMap() throws PulsarClientException {
-        tableViewBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader(new HashMap<String, String>()).create();
+        tableViewBuilderImpl
+                .topic(TOPIC_NAME)
+                .defaultCryptoKeyReader(new HashMap<String, String>())
+                .create();
     }
 }

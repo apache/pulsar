@@ -61,11 +61,10 @@ public class InfluxDBGenericRecordSink extends InfluxDBAbstractSink<GenericRecor
         if (null == tagsField) {
             tags = ImmutableMap.of();
         } else if (Map.class.isAssignableFrom(tagsField.getClass())) {
-            tags = ((Map<Object, Object>) tagsField).entrySet()
-                    .stream().collect(Collectors.toMap(
-                            entry -> entry.getKey().toString(),
-                            entry -> entry.getValue().toString())
-                    );
+            tags = ((Map<Object, Object>) tagsField)
+                    .entrySet().stream()
+                            .collect(Collectors.toMap(entry -> entry.getKey().toString(), entry -> entry.getValue()
+                                    .toString()));
         } else {
             // Field 'tags' that is not of Map type will be ignored
             tags = ImmutableMap.of();

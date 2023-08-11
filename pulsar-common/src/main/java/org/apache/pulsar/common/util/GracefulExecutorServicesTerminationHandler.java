@@ -38,15 +38,16 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 class GracefulExecutorServicesTerminationHandler {
-    private static final long SHUTDOWN_THREAD_COMPLETION_TIMEOUT_NANOS = Duration.ofMillis(100L).toNanos();
+    private static final long SHUTDOWN_THREAD_COMPLETION_TIMEOUT_NANOS =
+            Duration.ofMillis(100L).toNanos();
     private final List<ExecutorService> executors;
     private final CompletableFuture<Void> future;
     private final Duration shutdownTimeout;
     private final Duration terminationTimeout;
     private final CountDownLatch shutdownThreadCompletedLatch = new CountDownLatch(1);
 
-    GracefulExecutorServicesTerminationHandler(Duration shutdownTimeout, Duration terminationTimeout,
-                                               List<ExecutorService> executorServices) {
+    GracefulExecutorServicesTerminationHandler(
+            Duration shutdownTimeout, Duration terminationTimeout, List<ExecutorService> executorServices) {
         this.shutdownTimeout = shutdownTimeout;
         this.terminationTimeout = terminationTimeout;
         this.executors = Collections.unmodifiableList(new ArrayList<>(executorServices));
@@ -54,9 +55,8 @@ class GracefulExecutorServicesTerminationHandler {
         log.info("Starting termination handler for {} executors.", executors.size());
         for (ExecutorService executor : executors) {
             if (!executor.isShutdown()) {
-                throw new IllegalStateException(
-                        String.format("Executor %s should have been shutdown before entering the termination handler.",
-                                executor));
+                throw new IllegalStateException(String.format(
+                        "Executor %s should have been shutdown before entering the termination handler.", executor));
             }
         }
         if (haveExecutorsBeenTerminated()) {
@@ -66,10 +66,11 @@ class GracefulExecutorServicesTerminationHandler {
                 terminateExecutors();
                 markShutdownCompleted();
             } else {
-                Thread shutdownWaitingThread = new Thread(this::awaitShutdown, getClass().getSimpleName());
+                Thread shutdownWaitingThread =
+                        new Thread(this::awaitShutdown, getClass().getSimpleName());
                 shutdownWaitingThread.setDaemon(false);
                 shutdownWaitingThread.setUncaughtExceptionHandler((thread, exception) -> {
-                  log.error("Uncaught exception in shutdown thread {}", thread, exception);
+                    log.error("Uncaught exception in shutdown thread {}", thread, exception);
                 });
                 shutdownWaitingThread.start();
                 FutureUtil.whenCancelledOrTimedOut(future, () -> {
@@ -145,8 +146,8 @@ class GracefulExecutorServicesTerminationHandler {
                 if (!executor.isTerminated()) {
                     log.warn("Executor {} didn't shutdown after waiting for termination.", executor);
                     for (Runnable runnable : executor.shutdownNow()) {
-                        log.info("Execution in progress for runnable instance of {}: {}", runnable.getClass(),
-                                runnable);
+                        log.info(
+                                "Execution in progress for runnable instance of {}: {}", runnable.getClass(), runnable);
                     }
                 }
             }
@@ -156,8 +157,8 @@ class GracefulExecutorServicesTerminationHandler {
     @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED")
     private void waitUntilShutdownWaitingThreadIsCompleted() {
         try {
-            shutdownThreadCompletedLatch.await(terminationTimeout.toNanos()
-                    + SHUTDOWN_THREAD_COMPLETION_TIMEOUT_NANOS, TimeUnit.NANOSECONDS);
+            shutdownThreadCompletedLatch.await(
+                    terminationTimeout.toNanos() + SHUTDOWN_THREAD_COMPLETION_TIMEOUT_NANOS, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

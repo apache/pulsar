@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-
 import java.nio.charset.StandardCharsets;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -48,7 +47,8 @@ public class DynamicReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
     public void testConsumerImpl() throws PulsarClientException {
         String topic = "persistent://public/default/testConsumerImpl" + System.currentTimeMillis();
         @Cleanup
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName("my-sub")
                 .receiverQueueSize(5)
@@ -77,9 +77,9 @@ public class DynamicReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(consumer.receive());
             Assert.assertEquals(consumer.getAvailablePermits(), -6 + i);
         }
-        consumer.acknowledge(consumer.receive()); //8
-        consumer.acknowledge(consumer.receive()); //9
-        consumer.acknowledge(consumer.receive()); //10
+        consumer.acknowledge(consumer.receive()); // 8
+        consumer.acknowledge(consumer.receive()); // 9
+        consumer.acknowledge(consumer.receive()); // 10
         Assert.assertEquals(consumer.getAvailablePermits(), 0);
 
         for (int i = 0; i < 10; i++) {
@@ -93,13 +93,15 @@ public class DynamicReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://public/default/testMultiConsumerImpl" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 4);
         @Cleanup
-        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
+        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName("my-sub")
                 .receiverQueueSize(5)
                 .subscribe();
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topic).enableBatching(false).create();
         byte[] data = "data".getBytes(StandardCharsets.UTF_8);
         for (int i = 0; i < 30; i++) {
             producer.send(data);

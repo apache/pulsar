@@ -32,5 +32,4 @@ public class IdleHandler extends ChannelInboundHandlerAdapter {
             super.userEventTriggered(ctx, evt);
         }
     }
-
 }

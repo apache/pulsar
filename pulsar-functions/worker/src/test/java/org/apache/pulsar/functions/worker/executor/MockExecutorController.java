@@ -56,11 +56,11 @@ public class MockExecutorController {
 
         private final Runnable runnable;
         private final long scheduledAtMillis;
+
         @Getter
         private final CompletableFuture<Void> future;
 
-        public DeferredTask(Runnable runnable,
-                            long delayTimeMs) {
+        public DeferredTask(Runnable runnable, long delayTimeMs) {
             this.runnable = runnable;
             this.scheduledAtMillis = delayTimeMs + clock.millis();
             this.future = FutureUtils.createFuture();
@@ -98,8 +98,7 @@ public class MockExecutorController {
         }
 
         @Override
-        public Void get(long timeout, TimeUnit unit)
-                throws InterruptedException, ExecutionException, TimeoutException {
+        public Void get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             future.get(timeout, unit);
             return null;
         }
@@ -108,11 +107,11 @@ public class MockExecutorController {
             runnable.run();
             FutureUtils.complete(future, null);
         }
-
     }
 
     @Getter
     private final MockClock clock = new MockClock();
+
     private final List<DeferredTask> deferredTasks = new ArrayList<>();
 
     public MockExecutorController controlSubmit(ScheduledExecutorService service) {
@@ -130,11 +129,10 @@ public class MockExecutorController {
         return this;
     }
 
-    public MockExecutorController controlScheduleAtFixedRate(ScheduledExecutorService service,
-                                                             int maxInvocations) {
+    public MockExecutorController controlScheduleAtFixedRate(ScheduledExecutorService service, int maxInvocations) {
         doAnswer(answerAtFixedRate(this, maxInvocations))
-            .when(service)
-            .scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class));
+                .when(service)
+                .scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class));
         return this;
     }
 
@@ -149,10 +147,7 @@ public class MockExecutorController {
             for (int i = 0; i < numTimes; i++) {
                 long delayMs = unit.toMillis(initialDelay) + i * unit.toMillis(delay);
 
-                deferredTask = controller.addDelayedTask(
-                    controller,
-                    delayMs,
-                    task);
+                deferredTask = controller.addDelayedTask(controller, delayMs, task);
             }
             return deferredTask;
         };
@@ -160,34 +155,29 @@ public class MockExecutorController {
 
     private static Answer<ScheduledFuture<?>> answerDelay(MockExecutorController executor) {
         return invocationOnMock -> {
-
-           Runnable task = invocationOnMock.getArgument(0);
-           long value = invocationOnMock.getArgument(1);
-           TimeUnit unit = invocationOnMock.getArgument(2);
-           DeferredTask deferredTask = executor.addDelayedTask(executor, unit.toMillis(value), task);
-           if (value <= 0) {
-               task.run();
-               FutureUtils.complete(deferredTask.future, null);
-           }
-           return deferredTask;
-       };
+            Runnable task = invocationOnMock.getArgument(0);
+            long value = invocationOnMock.getArgument(1);
+            TimeUnit unit = invocationOnMock.getArgument(2);
+            DeferredTask deferredTask = executor.addDelayedTask(executor, unit.toMillis(value), task);
+            if (value <= 0) {
+                task.run();
+                FutureUtils.complete(deferredTask.future, null);
+            }
+            return deferredTask;
+        };
     }
 
     private static Answer<Future<?>> answerNow() {
         return invocationOnMock -> {
-
-           Runnable task = invocationOnMock.getArgument(0);
-           task.run();
-           SettableFuture<Void> future = SettableFuture.create();
-           future.set(null);
-           return future;
-       };
+            Runnable task = invocationOnMock.getArgument(0);
+            task.run();
+            SettableFuture<Void> future = SettableFuture.create();
+            future.set(null);
+            return future;
+        };
     }
 
-    private DeferredTask addDelayedTask(
-            MockExecutorController executor,
-            long delayTimeMs,
-            Runnable task) {
+    private DeferredTask addDelayedTask(MockExecutorController executor, long delayTimeMs, Runnable task) {
         checkArgument(delayTimeMs >= 0);
         DeferredTask deferredTask = new DeferredTask(task, delayTimeMs);
         executor.deferredTasks.add(deferredTask);
@@ -209,5 +199,4 @@ public class MockExecutorController {
             task.run();
         }
     }
-
 }

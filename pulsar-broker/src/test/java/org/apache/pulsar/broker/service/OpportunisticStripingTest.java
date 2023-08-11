@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.BookKeeper;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -26,8 +28,6 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertTrue;
 import org.testng.annotations.Test;
 
 /**
@@ -60,7 +60,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
         try (PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .build();) {
+                .build(); ) {
 
             final String ns1 = "prop/usc/opportunistic1";
             admin.namespaces().createNamespace(ns1);
@@ -78,10 +78,12 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
             clientConfiguration.setZkServers("localhost:" + this.bkEnsemble.getZookeeperPort());
 
             try (BookKeeper bkAdmin = BookKeeper.newBuilder(clientConfiguration).build()) {
-                try (ListLedgersResult list = bkAdmin.newListLedgersOp().execute().get();) {
+                try (ListLedgersResult list =
+                        bkAdmin.newListLedgersOp().execute().get(); ) {
                     int count = 0;
                     for (long ledgerId : list.toIterable()) {
-                        LedgerMetadata ledgerMetadata = bkAdmin.getLedgerMetadata(ledgerId).get();
+                        LedgerMetadata ledgerMetadata =
+                                bkAdmin.getLedgerMetadata(ledgerId).get();
                         assertEquals(2, ledgerMetadata.getEnsembleSize());
                         assertEquals(2, ledgerMetadata.getWriteQuorumSize());
                         assertEquals(2, ledgerMetadata.getAckQuorumSize());
@@ -92,5 +94,4 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
             }
         }
     }
-
 }

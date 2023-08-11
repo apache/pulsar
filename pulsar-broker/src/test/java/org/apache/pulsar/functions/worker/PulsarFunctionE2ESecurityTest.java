@@ -111,7 +111,7 @@ public class PulsarFunctionE2ESecurityTest {
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @BeforeMethod
@@ -145,15 +145,13 @@ public class PulsarFunctionE2ESecurityTest {
         config.setAnonymousUserRole(ANONYMOUS_ROLE);
         secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         Properties properties = new Properties();
-        properties.setProperty("tokenSecretKey",
-                AuthTokenUtils.encodeKeyBase64(secretKey));
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
         config.setProperties(properties);
 
         adminToken = AuthTokenUtils.createToken(secretKey, ADMIN_SUBJECT, Optional.empty());
 
         config.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        config.setBrokerClientAuthenticationParameters(
-                "token:" +  adminToken);
+        config.setBrokerClientAuthenticationParameters("token:" + adminToken);
         functionsWorkerService = createPulsarFunctionWorker(config);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
         pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
@@ -163,23 +161,28 @@ public class PulsarFunctionE2ESecurityTest {
         brokerWebServiceUrl = new URL(brokerServiceUrl);
 
         AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("token:" +  adminToken);
+        authToken.configure("token:" + adminToken);
 
-        superUserAdmin = spy(
-                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).authentication(authToken).build());
+        superUserAdmin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerServiceUrl)
+                .authentication(authToken)
+                .build());
 
         brokerStatsClient = superUserAdmin.brokerStats();
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(brokerWebServiceUrl.toString()).build();
+        ClusterData clusterData =
+                ClusterData.builder().serviceUrl(brokerWebServiceUrl.toString()).build();
         superUserAdmin.clusters().updateCluster(config.getClusterName(), clusterData);
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl())
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(this.workerConfig.getPulsarServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         if (isNotBlank(workerConfig.getBrokerClientAuthenticationPlugin())
                 && isNotBlank(workerConfig.getBrokerClientAuthenticationParameters())) {
-            clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
+            clientBuilder.authentication(
+                    workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
         }
         if (pulsarClient != null) {
@@ -193,7 +196,6 @@ public class PulsarFunctionE2ESecurityTest {
                 .build();
         superUserAdmin.tenants().updateTenant(TENANT, propAdmin);
 
-
         final String replNamespace = TENANT + "/" + NAMESPACE;
         superUserAdmin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
@@ -204,7 +206,7 @@ public class PulsarFunctionE2ESecurityTest {
                 .allowedClusters(Collections.singleton("use"))
                 .build();
         superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
-        superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
+        superUserAdmin.namespaces().createNamespace(TENANT2 + "/" + NAMESPACE);
 
         while (!functionsWorkerService.getLeaderService().isLeader()) {
             Thread.sleep(1000);
@@ -229,8 +231,13 @@ public class PulsarFunctionE2ESecurityTest {
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
-        System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
-                FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+        System.setProperty(
+                JAVA_INSTANCE_JAR_PROPERTY,
+                FutureUtil.class
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .getPath());
 
         workerConfig = new WorkerConfig();
         tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
@@ -239,12 +246,14 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper()
-                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
-        workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort().get());
+        workerConfig.setPulsarServiceUrl(
+                "pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
+        workerConfig.setPulsarWebServiceUrl(
+                "http://127.0.0.1:" + config.getWebServicePort().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -259,8 +268,7 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setWorkerId(workerId);
 
         workerConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        workerConfig.setBrokerClientAuthenticationParameters(
-                String.format("token:%s", adminToken));
+        workerConfig.setBrokerClientAuthenticationParameters(String.format("token:%s", adminToken));
 
         workerConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
         workerConfig.setAuthenticationProviders(config.getAuthenticationProviders());
@@ -272,12 +280,13 @@ public class PulsarFunctionE2ESecurityTest {
         return workerService;
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant,
-                                                         String namespace,
-                                                         String functionName,
-                                                         String sourceTopic,
-                                                         String sinkTopic,
-                                                         String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(
+            String tenant,
+            String namespace,
+            String functionName,
+            String sourceTopic,
+            String sinkTopic,
+            String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -306,19 +315,16 @@ public class PulsarFunctionE2ESecurityTest {
         final String functionName = "PulsarFunction-test";
         final String subscriptionName = "test-sub";
 
-
-
-        try (PulsarAdmin admin1 = spy(
-                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build())
-        ) {
+        try (PulsarAdmin admin1 =
+                spy(PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build())) {
 
             String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
 
-            FunctionConfig functionConfig = createFunctionConfig(TENANT, NAMESPACE, functionName,
-                    sourceTopic, sinkTopic, subscriptionName);
+            FunctionConfig functionConfig =
+                    createFunctionConfig(TENANT, NAMESPACE, functionName, sourceTopic, sinkTopic, subscriptionName);
 
-            FunctionConfig functionConfig2 =  createFunctionConfig(TENANT2, NAMESPACE, functionName,
-                    sourceTopic, sinkTopic, subscriptionName);
+            FunctionConfig functionConfig2 =
+                    createFunctionConfig(TENANT2, NAMESPACE, functionName, sourceTopic, sinkTopic, subscriptionName);
 
             // creating function should fail since admin1 doesn't have permissions granted yet
             try {
@@ -346,44 +352,77 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            assertTrue(retryStrategically((test) -> {
-                try {
-                    return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
-                            && admin1.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 50, 150));
+            assertTrue(retryStrategically(
+                    (test) -> {
+                        try {
+                            return admin1.functions()
+                                                    .getFunctionStatus(TENANT, NAMESPACE, functionName)
+                                                    .getNumRunning()
+                                            == 1
+                                    && admin1.topics()
+                                                    .getStats(sourceTopic)
+                                                    .getSubscriptions()
+                                                    .size()
+                                            == 1;
+                        } catch (PulsarAdminException e) {
+                            return false;
+                        }
+                    },
+                    50,
+                    150));
             // validate pulsar sink consumer has started on the topic
-            assertEquals(admin1.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+            assertEquals(
+                    admin1.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
             // create a producer that creates a topic at broker
-            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-                 Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe()) {
+            try (Producer<String> producer = pulsarClient
+                            .newProducer(Schema.STRING)
+                            .topic(sourceTopic)
+                            .create();
+                    Consumer<String> consumer = pulsarClient
+                            .newConsumer(Schema.STRING)
+                            .topic(sinkTopic)
+                            .subscriptionName("sub")
+                            .subscribe()) {
 
                 int totalMsgs = 5;
                 for (int i = 0; i < totalMsgs; i++) {
                     String data = "my-message-" + i;
-                    producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+                    producer.newMessage()
+                            .property(propertyKey, propertyValue)
+                            .value(data)
+                            .send();
                 }
-                retryStrategically((test) -> {
-                    try {
-                        SubscriptionStats subStats = admin1.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                        return subStats.getUnackedMessages() == 0;
-                    } catch (PulsarAdminException e) {
-                        return false;
-                    }
-                }, 50, 150);
+                retryStrategically(
+                        (test) -> {
+                            try {
+                                SubscriptionStats subStats = admin1.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .get(subscriptionName);
+                                return subStats.getUnackedMessages() == 0;
+                            } catch (PulsarAdminException e) {
+                                return false;
+                            }
+                        },
+                        50,
+                        150);
 
                 Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
                 String receivedPropertyValue = msg.getProperty(propertyKey);
                 assertEquals(propertyValue, receivedPropertyValue);
 
-
                 // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked
                 // messages
                 // due to publish failure
-                assertNotEquals(admin1.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+                assertNotEquals(
+                        admin1.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .values()
+                                .iterator()
+                                .next()
+                                .getUnackedMessages(),
                         totalMsgs);
 
                 // test update functions
@@ -399,13 +438,19 @@ public class PulsarFunctionE2ESecurityTest {
 
                 admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-                assertTrue(retryStrategically((test) -> {
-                    try {
-                        return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
-                    } catch (PulsarAdminException e) {
-                        return false;
-                    }
-                }, 50, 150));
+                assertTrue(retryStrategically(
+                        (test) -> {
+                            try {
+                                return admin1.functions()
+                                                .getFunctionStatus(TENANT, NAMESPACE, functionName)
+                                                .getNumRunning()
+                                        == 2;
+                            } catch (PulsarAdminException e) {
+                                return false;
+                            }
+                        },
+                        50,
+                        150));
 
                 // test getFunctionInfo
                 try {
@@ -539,18 +584,21 @@ public class PulsarFunctionE2ESecurityTest {
                     admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
                 }
 
-                assertTrue(retryStrategically((test) -> {
-                    try {
-                        TopicStats stats = admin1.topics().getStats(sourceTopic);
-                        boolean done = stats.getSubscriptions().size() == 0;
-                        if (!done) {
-                            log.info("Topic subscription is not cleaned up yet : {}", stats);
-                        }
-                        return done;
-                    } catch (PulsarAdminException e) {
-                        return false;
-                    }
-                }, 100, 150));
+                assertTrue(retryStrategically(
+                        (test) -> {
+                            try {
+                                TopicStats stats = admin1.topics().getStats(sourceTopic);
+                                boolean done = stats.getSubscriptions().size() == 0;
+                                if (!done) {
+                                    log.info("Topic subscription is not cleaned up yet : {}", stats);
+                                }
+                                return done;
+                            } catch (PulsarAdminException e) {
+                                return false;
+                            }
+                        },
+                        100,
+                        150));
             }
         }
     }
@@ -568,24 +616,26 @@ public class PulsarFunctionE2ESecurityTest {
         final String functionName = "PulsarFunction-test";
         final String subscriptionName = "test-sub";
 
-
         // create user admin client
         AuthenticationToken authToken1 = new AuthenticationToken();
-        authToken1.configure("token:" +  token1);
+        authToken1.configure("token:" + token1);
 
         AuthenticationToken authToken2 = new AuthenticationToken();
-        authToken2.configure("token:" +  token2);
+        authToken2.configure("token:" + token2);
 
-        try(PulsarAdmin admin1 = spy(
-                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).authentication(authToken1).build());
-            PulsarAdmin admin2 = spy(
-                    PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).authentication(authToken2).build())
-        ) {
+        try (PulsarAdmin admin1 = spy(PulsarAdmin.builder()
+                        .serviceHttpUrl(brokerServiceUrl)
+                        .authentication(authToken1)
+                        .build());
+                PulsarAdmin admin2 = spy(PulsarAdmin.builder()
+                        .serviceHttpUrl(brokerServiceUrl)
+                        .authentication(authToken2)
+                        .build())) {
 
             String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
 
-            FunctionConfig functionConfig = createFunctionConfig(TENANT, NAMESPACE, functionName,
-                    sourceTopic, sinkTopic, subscriptionName);
+            FunctionConfig functionConfig =
+                    createFunctionConfig(TENANT, NAMESPACE, functionName, sourceTopic, sinkTopic, subscriptionName);
 
             // creating function should fail since admin1 doesn't have permissions granted yet
             try {
@@ -615,51 +665,87 @@ public class PulsarFunctionE2ESecurityTest {
 
             // creating on another tenant should also fail
             try {
-                admin2.functions().createFunctionWithUrl(createFunctionConfig(TENANT2, NAMESPACE, functionName,
-                        sourceTopic, sinkTopic, subscriptionName), jarFilePathUrl);
+                admin2.functions()
+                        .createFunctionWithUrl(
+                                createFunctionConfig(
+                                        TENANT2, NAMESPACE, functionName, sourceTopic, sinkTopic, subscriptionName),
+                                jarFilePathUrl);
                 fail("client admin shouldn't have permissions to create function");
             } catch (PulsarAdminException.NotAuthorizedException e) {
 
             }
 
-            assertTrue(retryStrategically((test) -> {
-                try {
-                    return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
-                            && admin1.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 50, 150));
+            assertTrue(retryStrategically(
+                    (test) -> {
+                        try {
+                            return admin1.functions()
+                                                    .getFunctionStatus(TENANT, NAMESPACE, functionName)
+                                                    .getNumRunning()
+                                            == 1
+                                    && admin1.topics()
+                                                    .getStats(sourceTopic)
+                                                    .getSubscriptions()
+                                                    .size()
+                                            == 1;
+                        } catch (PulsarAdminException e) {
+                            return false;
+                        }
+                    },
+                    50,
+                    150));
             // validate pulsar sink consumer has started on the topic
-            assertEquals(admin1.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+            assertEquals(
+                    admin1.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
             // create a producer that creates a topic at broker
-            try(Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe()) {
+            try (Producer<String> producer = pulsarClient
+                            .newProducer(Schema.STRING)
+                            .topic(sourceTopic)
+                            .create();
+                    Consumer<String> consumer = pulsarClient
+                            .newConsumer(Schema.STRING)
+                            .topic(sinkTopic)
+                            .subscriptionName("sub")
+                            .subscribe()) {
 
                 int totalMsgs = 5;
                 for (int i = 0; i < totalMsgs; i++) {
                     String data = "my-message-" + i;
-                    producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+                    producer.newMessage()
+                            .property(propertyKey, propertyValue)
+                            .value(data)
+                            .send();
                 }
-                retryStrategically((test) -> {
-                    try {
-                        SubscriptionStats subStats = admin1.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                        return subStats.getUnackedMessages() == 0;
-                    } catch (PulsarAdminException e) {
-                        return false;
-                    }
-                }, 50, 150);
+                retryStrategically(
+                        (test) -> {
+                            try {
+                                SubscriptionStats subStats = admin1.topics()
+                                        .getStats(sourceTopic)
+                                        .getSubscriptions()
+                                        .get(subscriptionName);
+                                return subStats.getUnackedMessages() == 0;
+                            } catch (PulsarAdminException e) {
+                                return false;
+                            }
+                        },
+                        50,
+                        150);
 
                 Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
                 String receivedPropertyValue = msg.getProperty(propertyKey);
                 assertEquals(propertyValue, receivedPropertyValue);
 
-
                 // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked
                 // messages
                 // due to publish failure
-                assertNotEquals(admin1.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+                assertNotEquals(
+                        admin1.topics()
+                                .getStats(sourceTopic)
+                                .getSubscriptions()
+                                .values()
+                                .iterator()
+                                .next()
+                                .getUnackedMessages(),
                         totalMsgs);
             }
 
@@ -675,13 +761,19 @@ public class PulsarFunctionE2ESecurityTest {
 
             admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-            assertTrue(retryStrategically((test) -> {
-                try {
-                    return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 50, 150));
+            assertTrue(retryStrategically(
+                    (test) -> {
+                        try {
+                            return admin1.functions()
+                                            .getFunctionStatus(TENANT, NAMESPACE, functionName)
+                                            .getNumRunning()
+                                    == 2;
+                        } catch (PulsarAdminException e) {
+                            return false;
+                        }
+                    },
+                    50,
+                    150));
 
             // test getFunctionInfo
             try {
@@ -816,18 +908,21 @@ public class PulsarFunctionE2ESecurityTest {
                 admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
             }
 
-            assertTrue(retryStrategically((test) -> {
-                try {
-                    TopicStats stats = admin1.topics().getStats(sourceTopic);
-                    boolean done = stats.getSubscriptions().size() == 0;
-                    if (!done) {
-                        log.info("Topic subscription is not cleaned up yet : {}", stats);
-                    }
-                    return done;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 50, 150));
+            assertTrue(retryStrategically(
+                    (test) -> {
+                        try {
+                            TopicStats stats = admin1.topics().getStats(sourceTopic);
+                            boolean done = stats.getSubscriptions().size() == 0;
+                            if (!done) {
+                                log.info("Topic subscription is not cleaned up yet : {}", stats);
+                            }
+                            return done;
+                        } catch (PulsarAdminException e) {
+                            return false;
+                        }
+                    },
+                    50,
+                    150));
         }
     }
 }

@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import com.google.gson.Gson;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Toleration;
-import org.testng.annotations.Test;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNull;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link BasicKubernetesManifestCustomizerTest}.
@@ -65,7 +63,8 @@ public class BasicKubernetesManifestCustomizerTest {
 
     @Test
     public void TestMergeRuntimeOpts() {
-        Map<String, Object> configs = new Gson().fromJson(KubernetesRuntimeTest.createRuntimeCustomizerConfig(), HashMap.class);
+        Map<String, Object> configs =
+                new Gson().fromJson(KubernetesRuntimeTest.createRuntimeCustomizerConfig(), HashMap.class);
         BasicKubernetesManifestCustomizer customizer = new BasicKubernetesManifestCustomizer();
         customizer.initialize(configs);
         BasicKubernetesManifestCustomizer.RuntimeOpts newOpts = new BasicKubernetesManifestCustomizer.RuntimeOpts();
@@ -84,16 +83,30 @@ public class BasicKubernetesManifestCustomizerTest {
         newOpts.setNodeSelectorLabels(Collections.singletonMap("disktype", "ssd"));
         newOpts.setExtraAnnotations(Collections.singletonMap("functiontype", "sink"));
         newOpts.setExtraLabels(Collections.singletonMap("functiontype", "sink"));
-        BasicKubernetesManifestCustomizer.RuntimeOpts mergedOpts = BasicKubernetesManifestCustomizer.mergeRuntimeOpts(
-                customizer.getRuntimeOpts(), newOpts);
+        BasicKubernetesManifestCustomizer.RuntimeOpts mergedOpts =
+                BasicKubernetesManifestCustomizer.mergeRuntimeOpts(customizer.getRuntimeOpts(), newOpts);
 
         assertEquals(mergedOpts.getJobName(), "merged-name");
         assertEquals(mergedOpts.getTolerations().size(), 2);
         assertEquals(mergedOpts.getExtraAnnotations().size(), 2);
         assertEquals(mergedOpts.getExtraLabels().size(), 2);
         assertEquals(mergedOpts.getNodeSelectorLabels().size(), 2);
-        assertEquals(mergedOpts.getResourceRequirements().getLimits().get("cpu").getNumber().intValue(), 20);
-        assertEquals(mergedOpts.getResourceRequirements().getLimits().get("memory").getNumber().intValue(), 10240);
+        assertEquals(
+                mergedOpts
+                        .getResourceRequirements()
+                        .getLimits()
+                        .get("cpu")
+                        .getNumber()
+                        .intValue(),
+                20);
+        assertEquals(
+                mergedOpts
+                        .getResourceRequirements()
+                        .getLimits()
+                        .get("memory")
+                        .getNumber()
+                        .intValue(),
+                10240);
     }
 
     // Note: this test creates many new objects to ensure that the tests guarantees objects are not mutated
@@ -101,7 +114,12 @@ public class BasicKubernetesManifestCustomizerTest {
     @Test
     public void testMergeRuntimeOptsDoesNotModifyArguments() {
         BasicKubernetesManifestCustomizer.RuntimeOpts opts1 = new BasicKubernetesManifestCustomizer.RuntimeOpts(
-                "namespace1", "job1", new HashMap<>(), new HashMap<>(), new HashMap<>(), new V1ResourceRequirements(),
+                "namespace1",
+                "job1",
+                new HashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                new V1ResourceRequirements(),
                 new ArrayList<>());
 
         HashMap<String, String> testMap = new HashMap<>();
@@ -113,7 +131,7 @@ public class BasicKubernetesManifestCustomizerTest {
         V1ResourceRequirements requirements = new V1ResourceRequirements();
         requirements.setLimits(new HashMap<>());
         BasicKubernetesManifestCustomizer.RuntimeOpts opts2 = new BasicKubernetesManifestCustomizer.RuntimeOpts(
-                "namespace2", "job2", testMap, testMap, testMap,requirements, testList);
+                "namespace2", "job2", testMap, testMap, testMap, requirements, testList);
 
         // Merge the runtime opts
         BasicKubernetesManifestCustomizer.RuntimeOpts result =

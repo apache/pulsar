@@ -69,10 +69,10 @@ public class GracefulExecutorServicesShutdownTest {
         AtomicBoolean terminated = new AtomicBoolean();
         when(executorService.isTerminated()).thenAnswer(invocation -> terminated.get());
         when(executorService.shutdownNow()).thenAnswer(invocation -> {
-           terminated.set(true);
-           return null;
+            terminated.set(true);
+            return null;
         });
-        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation  -> {
+        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation -> {
             long timeout = invocation.getArgument(0);
             TimeUnit unit = invocation.getArgument(1);
             Thread.sleep(unit.toMillis(timeout));
@@ -98,7 +98,7 @@ public class GracefulExecutorServicesShutdownTest {
         when(executorService.isShutdown()).thenReturn(true);
         AtomicBoolean terminated = new AtomicBoolean();
         when(executorService.isTerminated()).thenAnswer(invocation -> terminated.get());
-        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation  -> {
+        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation -> {
             long timeout = invocation.getArgument(0);
             // wait half the time to simulate the termination completing
             timeout = timeout / 2;
@@ -119,7 +119,6 @@ public class GracefulExecutorServicesShutdownTest {
         assertTrue(future.isDone());
     }
 
-
     @Test
     public void shouldTerminateWhenFutureIsCancelled() throws InterruptedException, ExecutionException {
         // given
@@ -131,7 +130,7 @@ public class GracefulExecutorServicesShutdownTest {
         CompletableFuture<Boolean> awaitTerminationInterrupted = new CompletableFuture<>();
         when(executorService.isTerminated()).thenAnswer(invocation -> terminated.get());
         CountDownLatch awaitingTerminationEntered = new CountDownLatch(1);
-        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation  -> {
+        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation -> {
             long timeout = invocation.getArgument(0);
             TimeUnit unit = invocation.getArgument(1);
             awaitingTerminationEntered.countDown();

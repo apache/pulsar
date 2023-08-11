@@ -23,7 +23,6 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 /**
  * A class that extends the Java built-in Properties overriding.
  * {@link java.util.Properties#getProperty(String)} to allow ${ENV_VAR_NAME}-style environment

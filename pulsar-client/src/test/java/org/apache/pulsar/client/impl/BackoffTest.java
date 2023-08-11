@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -39,6 +38,7 @@ public class BackoffTest {
         long t1 = backoff.next();
         return t1 == t2;
     }
+
     @Test
     public void shouldBackoffTest() {
         // gives false
@@ -57,20 +57,14 @@ public class BackoffTest {
         backoff.next(); // 800
         assertFalse(withinTenPercentAndDecrementTimer(backoff, 400));
     }
-    
+
     @Test
     public void firstBackoffTimerTest() {
         Clock mockClock = Mockito.mock(Clock.class);
-        Mockito.when(mockClock.millis())
-            .thenReturn(0L)
-            .thenReturn(300L);
+        Mockito.when(mockClock.millis()).thenReturn(0L).thenReturn(300L);
 
-        Backoff backoff = new Backoff(
-            100, TimeUnit.MILLISECONDS,
-            60, TimeUnit.SECONDS,
-            1900, TimeUnit.MILLISECONDS,
-            mockClock
-        );
+        Backoff backoff =
+                new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 1900, TimeUnit.MILLISECONDS, mockClock);
 
         assertEquals(backoff.next(), 100);
 
@@ -80,7 +74,7 @@ public class BackoffTest {
         long diffBackOffTime = backoff.getFirstBackoffTimeInMillis() - firstBackOffTime;
         assertEquals(diffBackOffTime, 300);
     }
-    
+
     @Test
     public void basicTest() {
         Clock mockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
@@ -95,17 +89,13 @@ public class BackoffTest {
     public void maxTest() {
         Clock mockClock = Mockito.mock(Clock.class);
         Mockito.when(mockClock.millis())
-            .thenReturn(0L)
-            .thenReturn(10L)
-            .thenReturn(20L)
-            .thenReturn(40L);
+                .thenReturn(0L)
+                .thenReturn(10L)
+                .thenReturn(20L)
+                .thenReturn(40L);
 
-        Backoff backoff = new Backoff(
-            5, TimeUnit.MILLISECONDS,
-            20, TimeUnit.MILLISECONDS,
-            20, TimeUnit.MILLISECONDS,
-            mockClock
-        );
+        Backoff backoff =
+                new Backoff(5, TimeUnit.MILLISECONDS, 20, TimeUnit.MILLISECONDS, 20, TimeUnit.MILLISECONDS, mockClock);
 
         assertTrue(checkExactAndDecrementTimer(backoff, 5));
         assertTrue(withinTenPercentAndDecrementTimer(backoff, 10));
@@ -117,12 +107,8 @@ public class BackoffTest {
     public void mandatoryStopTest() {
         Clock mockClock = Mockito.mock(Clock.class);
 
-        Backoff backoff = new Backoff(
-            100, TimeUnit.MILLISECONDS,
-            60, TimeUnit.SECONDS,
-            1900, TimeUnit.MILLISECONDS,
-            mockClock
-        );
+        Backoff backoff =
+                new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 1900, TimeUnit.MILLISECONDS, mockClock);
 
         Mockito.when(mockClock.millis()).thenReturn(0L);
         assertTrue(checkExactAndDecrementTimer(backoff, 100));
@@ -185,5 +171,4 @@ public class BackoffTest {
         Mockito.when(mockClock.millis()).thenReturn(700L);
         assertTrue(withinTenPercentAndDecrementTimer(backoff, 800));
     }
-
 }

@@ -19,7 +19,6 @@
 /**
  * From Apache HTTP client
  */
-
 package org.apache.pulsar.common.tls;
 
 import java.util.Collections;
@@ -47,8 +46,8 @@ public final class PublicSuffixList {
     public PublicSuffixList(final DomainType type, final List<String> rules, final List<String> exceptions) {
         this.type = type;
         this.rules = Collections.unmodifiableList(rules);
-        this.exceptions = Collections
-                .unmodifiableList(exceptions != null ? exceptions : Collections.<String> emptyList());
+        this.exceptions =
+                Collections.unmodifiableList(exceptions != null ? exceptions : Collections.<String>emptyList());
     }
 
     public PublicSuffixList(final List<String> rules, final List<String> exceptions) {

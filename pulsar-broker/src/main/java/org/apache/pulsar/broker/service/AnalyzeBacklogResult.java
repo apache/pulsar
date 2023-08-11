@@ -42,5 +42,4 @@ public final class AnalyzeBacklogResult {
 
     private Position firstPosition;
     private Position lastPosition;
-
 }

@@ -27,14 +27,8 @@ public class ChunkMessageIdImplTest {
 
     @Test
     public void compareToTest() {
-        ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(
-                new MessageIdImpl(0, 0, 0),
-                new MessageIdImpl(1, 1, 1)
-        );
-        ChunkMessageIdImpl chunkMsgId2 = new ChunkMessageIdImpl(
-                new MessageIdImpl(2, 2, 2),
-                new MessageIdImpl(3, 3, 3)
-        );
+        ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(new MessageIdImpl(0, 0, 0), new MessageIdImpl(1, 1, 1));
+        ChunkMessageIdImpl chunkMsgId2 = new ChunkMessageIdImpl(new MessageIdImpl(2, 2, 2), new MessageIdImpl(3, 3, 3));
 
         assertEquals(chunkMsgId1.compareTo(chunkMsgId2), -1);
         assertEquals(chunkMsgId2.compareTo(chunkMsgId1), 1);
@@ -43,14 +37,8 @@ public class ChunkMessageIdImplTest {
 
     @Test
     public void hashCodeTest() {
-        ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(
-                new MessageIdImpl(0, 0, 0),
-                new MessageIdImpl(1, 1, 1)
-        );
-        ChunkMessageIdImpl chunkMsgId2 = new ChunkMessageIdImpl(
-                new MessageIdImpl(2, 2, 2),
-                new MessageIdImpl(3, 3, 3)
-        );
+        ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(new MessageIdImpl(0, 0, 0), new MessageIdImpl(1, 1, 1));
+        ChunkMessageIdImpl chunkMsgId2 = new ChunkMessageIdImpl(new MessageIdImpl(2, 2, 2), new MessageIdImpl(3, 3, 3));
 
         assertEquals(chunkMsgId1.hashCode(), chunkMsgId1.hashCode());
         assertNotEquals(chunkMsgId1.hashCode(), chunkMsgId2.hashCode());
@@ -58,14 +46,8 @@ public class ChunkMessageIdImplTest {
 
     @Test
     public void equalsTest() {
-        ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(
-                new MessageIdImpl(0, 0, 0),
-                new MessageIdImpl(1, 1, 1)
-        );
-        ChunkMessageIdImpl chunkMsgId2 = new ChunkMessageIdImpl(
-                new MessageIdImpl(2, 2, 2),
-                new MessageIdImpl(3, 3, 3)
-        );
+        ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(new MessageIdImpl(0, 0, 0), new MessageIdImpl(1, 1, 1));
+        ChunkMessageIdImpl chunkMsgId2 = new ChunkMessageIdImpl(new MessageIdImpl(2, 2, 2), new MessageIdImpl(3, 3, 3));
 
         MessageIdImpl msgId = new MessageIdImpl(1, 1, 1);
 
@@ -76,13 +58,10 @@ public class ChunkMessageIdImplTest {
 
     @Test
     public void serializeAndDeserializeTest() throws IOException {
-        ChunkMessageIdImpl chunkMessageId = new ChunkMessageIdImpl(
-                new MessageIdImpl(0, 0, 0),
-                new MessageIdImpl(1, 1, 1)
-        );
+        ChunkMessageIdImpl chunkMessageId =
+                new ChunkMessageIdImpl(new MessageIdImpl(0, 0, 0), new MessageIdImpl(1, 1, 1));
         byte[] serialized = chunkMessageId.toByteArray();
         ChunkMessageIdImpl deserialized = (ChunkMessageIdImpl) MessageIdImpl.fromByteArray(serialized);
         assertEquals(deserialized, chunkMessageId);
     }
-
 }

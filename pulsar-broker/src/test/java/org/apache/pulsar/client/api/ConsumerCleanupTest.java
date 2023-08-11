@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
+import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
@@ -26,8 +27,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.UUID;
 
 @Test(groups = "broker-api")
 public class ConsumerCleanupTest extends ProducerConsumerBase {
@@ -47,15 +46,15 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
     public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
             throws PulsarClientException, InterruptedException {
-        @Cleanup
-        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        @Cleanup PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())
                 .subscriptionName("test")
                 .isAckReceiptEnabled(ackReceiptEnabled)

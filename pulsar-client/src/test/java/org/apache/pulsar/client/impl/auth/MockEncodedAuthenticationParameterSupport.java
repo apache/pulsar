@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
-import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.PulsarClientException;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
+import org.apache.pulsar.client.api.PulsarClientException;
 
-public class MockEncodedAuthenticationParameterSupport implements Authentication, EncodedAuthenticationParameterSupport {
+public class MockEncodedAuthenticationParameterSupport
+        implements Authentication, EncodedAuthenticationParameterSupport {
     public Map<String, String> authParamsMap = new HashMap<>();
 
     @Override
@@ -52,17 +52,11 @@ public class MockEncodedAuthenticationParameterSupport implements Authentication
     }
 
     @Override
-    public void configure(Map<String, String> authParams) {
-
-    }
+    public void configure(Map<String, String> authParams) {}
 
     @Override
-    public void start() throws PulsarClientException {
-
-    }
+    public void start() throws PulsarClientException {}
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
 }

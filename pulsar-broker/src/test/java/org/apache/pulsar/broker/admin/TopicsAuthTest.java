@@ -66,9 +66,12 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     private final String testTopicName = "my-topic";
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
-    private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
-    private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
+    private static final String ADMIN_TOKEN =
+            Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+    private static final String PRODUCE_TOKEN =
+            Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
+    private static final String CONSUME_TOKEN =
+            Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
     @Override
     @BeforeMethod
@@ -76,8 +79,10 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         // enable auth&auth and use JWT at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
-        conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
-                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+        conf.getProperties()
+                .setProperty(
+                        "tokenSecretKey",
+                        "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
@@ -85,21 +90,20 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
         super.internalSetup();
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
-                ? brokerUrl.toString() : brokerUrlTls.toString())
-                .authentication(AuthenticationToken.class.getName(),
-                        ADMIN_TOKEN);
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
+                .authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN);
         admin = Mockito.spy(pulsarAdminBuilder.build());
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
-        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
-                Set.of(testLocalCluster)
-        ));
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace,
-                Set.of(testLocalCluster));
-        admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "producer",
-                EnumSet.of(AuthAction.produce));
-        admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "consumer",
-                EnumSet.of(AuthAction.consume));
+        admin.tenants()
+                .createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster)));
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testLocalCluster));
+        admin.namespaces()
+                .grantPermissionOnNamespace(
+                        testTenant + "/" + testNamespace, "producer", EnumSet.of(AuthAction.produce));
+        admin.namespaces()
+                .grantPermissionOnNamespace(
+                        testTenant + "/" + testNamespace, "consumer", EnumSet.of(AuthAction.consume));
     }
 
     @Override
@@ -110,9 +114,9 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "variations")
     public static Object[][] variations() {
-        return new Object[][]{
-                {CONSUME_TOKEN, 401},
-                {PRODUCE_TOKEN, 200}
+        return new Object[][] {
+            {CONSUME_TOKEN, 401},
+            {PRODUCE_TOKEN, 200}
         };
     }
 
@@ -136,8 +140,9 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         innerTestProduce(testTopicName, false, true, token, status);
     }
 
-    private void innerTestProduce(String createTopicName, boolean isPersistent, boolean isPartition,
-                                  String token, int status) throws Exception {
+    private void innerTestProduce(
+            String createTopicName, boolean isPersistent, boolean isPartition, String token, int status)
+            throws Exception {
         String topicPrefix = null;
         if (isPersistent == true) {
             topicPrefix = "persistent";
@@ -145,28 +150,30 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
             topicPrefix = "non-persistent";
         }
         if (isPartition == true) {
-            admin.topics().createPartitionedTopic(topicPrefix + "://" + testTenant + "/"
-                    + testNamespace + "/" + createTopicName, 5);
+            admin.topics()
+                    .createPartitionedTopic(
+                            topicPrefix + "://" + testTenant + "/" + testNamespace + "/" + createTopicName, 5);
         } else {
-            admin.topics().createNonPartitionedTopic(topicPrefix + "://" + testTenant + "/"
-                    + testNamespace + "/" + createTopicName);
+            admin.topics()
+                    .createNonPartitionedTopic(
+                            topicPrefix + "://" + testTenant + "/" + testNamespace + "/" + createTopicName);
         }
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        producerMessages.setKeySchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(
+                ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(schema.getSchemaInfo()));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
         producerMessages.setMessages(createMessages(message));
 
         WebTarget root = buildWebClient();
         String requestPath = null;
         if (isPartition == true) {
-            requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/"
-                    + createTopicName + "/partitions/2";
+            requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/" + createTopicName
+                    + "/partitions/2";
         } else {
             requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/" + createTopicName;
         }
@@ -179,9 +186,10 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     private static List<ProducerMessage> createMessages(String message) throws JsonProcessingException {
-        return ObjectMapperFactory.getMapper().reader()
-                .forType(new TypeReference<List<ProducerMessage>>() {
-                }).readValue(message);
+        return ObjectMapperFactory.getMapper()
+                .reader()
+                .forType(new TypeReference<List<ProducerMessage>>() {})
+                .readValue(message);
     }
 
     WebTarget buildWebClient() throws Exception {
@@ -190,9 +198,9 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        javax.ws.rs.client.ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig);
+        javax.ws.rs.client.ClientBuilder clientBuilder =
+                ClientBuilder.newBuilder().withConfig(httpConfig);
         Client client = clientBuilder.build();
         return client.target(brokerUrl.toString());
     }
-
 }

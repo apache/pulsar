@@ -48,8 +48,8 @@ import org.slf4j.LoggerFactory;
 public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStream {
     private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStreamImpl.class);
 
-    static final int[] BLOCK_END_PADDING = new int[]{ 0xFE, 0xDC, 0xDE, 0xAD };
-    static final byte[] BLOCK_END_PADDING_BYTES =  Ints.toByteArray(0xFEDCDEAD);
+    static final int[] BLOCK_END_PADDING = new int[] {0xFE, 0xDC, 0xDE, 0xAD};
+    static final byte[] BLOCK_END_PADDING_BYTES = Ints.toByteArray(0xFEDCDEAD);
 
     private final ByteBuf paddingBuf = PulsarByteBufAllocator.DEFAULT.buffer(128, 128);
 
@@ -83,14 +83,19 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         this.ledger = ledger;
         this.startEntryId = startEntryId;
         this.blockSize = blockSize;
-        this.dataBlockHeaderStream = DataBlockHeaderImpl.of(blockSize, startEntryId).toStream();
+        this.dataBlockHeaderStream =
+                DataBlockHeaderImpl.of(blockSize, startEntryId).toStream();
         this.blockEntryCount = 0;
         this.dataBlockFullOffset = blockSize;
         this.entriesByteBuf = Lists.newLinkedList();
     }
 
-    public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize,
-                                            LedgerOffloaderStats offloaderStats, String ledgerName) {
+    public BlockAwareSegmentInputStreamImpl(
+            ReadHandle ledger,
+            long startEntryId,
+            int blockSize,
+            LedgerOffloaderStats offloaderStats,
+            String ledgerName) {
         this(ledger, startEntryId, blockSize);
         this.offloaderStats = offloaderStats;
         this.managedLedgerName = ledgerName;
@@ -103,13 +108,12 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
 
         // once reach the end of entry buffer, read more, if there is more
         if (bytesReadOffset < dataBlockFullOffset
-            && entriesByteBuf.isEmpty()
-            && startEntryId + blockEntryCount <= ledger.getLastAddConfirmed()) {
+                && entriesByteBuf.isEmpty()
+                && startEntryId + blockEntryCount <= ledger.getLastAddConfirmed()) {
             entriesByteBuf = readNextEntriesFromLedger(startEntryId + blockEntryCount, ENTRIES_PER_READ);
         }
 
-        if (!entriesByteBuf.isEmpty()
-            && bytesReadOffset + entriesByteBuf.get(0).readableBytes() <= blockSize) {
+        if (!entriesByteBuf.isEmpty() && bytesReadOffset + entriesByteBuf.get(0).readableBytes() <= blockSize) {
             // always read from the first ByteBuf in the list, once read all of its content remove it.
             ByteBuf entryByteBuf = entriesByteBuf.get(0);
             int readableBytes = entryByteBuf.readableBytes();
@@ -136,8 +140,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             }
             paddingBuf.clear();
             for (int i = 0; i < Math.min(len, paddingBuf.capacity()); i++) {
-                paddingBuf.writeByte(BLOCK_END_PADDING_BYTES[(bytesReadOffset++ - dataBlockFullOffset)
-                    % BLOCK_END_PADDING_BYTES.length]);
+                paddingBuf.writeByte(BLOCK_END_PADDING_BYTES[
+                        (bytesReadOffset++ - dataBlockFullOffset) % BLOCK_END_PADDING_BYTES.length]);
             }
             return paddingBuf.retain();
         }
@@ -150,8 +154,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
 
         // once reach the end of entry buffer, read more, if there is more
         if (bytesReadOffset < dataBlockFullOffset
-            && entriesByteBuf.isEmpty()
-            && startEntryId + blockEntryCount <= ledger.getLastAddConfirmed()) {
+                && entriesByteBuf.isEmpty()
+                && startEntryId + blockEntryCount <= ledger.getLastAddConfirmed()) {
             entriesByteBuf = readNextEntriesFromLedger(startEntryId + blockEntryCount, ENTRIES_PER_READ);
         }
 
@@ -183,12 +187,14 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         long startTime = System.nanoTime();
         try (LedgerEntries ledgerEntriesOnce = ledger.readAsync(start, end).get()) {
             if (log.isDebugEnabled()) {
-                log.debug("read ledger entries. start: {}, end: {} cost {}", start, end,
+                log.debug(
+                        "read ledger entries. start: {}, end: {} cost {}",
+                        start,
+                        end,
                         TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTime));
             }
             if (offloaderStats != null && managedLedgerName != null) {
-                offloaderStats.recordReadLedgerLatency(topicName, System.nanoTime() - startTime,
-                        TimeUnit.NANOSECONDS);
+                offloaderStats.recordReadLedgerLatency(topicName, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
             }
 
             List<ByteBuf> entries = Lists.newLinkedList();
@@ -336,14 +342,12 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     }
 
     // Calculate the block size after uploaded `entryBytesAlreadyWritten` bytes
-    public static int calculateBlockSize(int maxBlockSize, ReadHandle readHandle,
-                                         long firstEntryToWrite, long entryBytesAlreadyWritten) {
+    public static int calculateBlockSize(
+            int maxBlockSize, ReadHandle readHandle, long firstEntryToWrite, long entryBytesAlreadyWritten) {
         return (int) Math.min(
-            maxBlockSize,
-            (readHandle.getLastAddConfirmed() - firstEntryToWrite + 1) * ENTRY_HEADER_SIZE
-                + (readHandle.getLength() - entryBytesAlreadyWritten)
-                + DataBlockHeaderImpl.getDataStartOffset());
+                maxBlockSize,
+                (readHandle.getLastAddConfirmed() - firstEntryToWrite + 1) * ENTRY_HEADER_SIZE
+                        + (readHandle.getLength() - entryBytesAlreadyWritten)
+                        + DataBlockHeaderImpl.getDataStartOffset());
     }
-
 }
-

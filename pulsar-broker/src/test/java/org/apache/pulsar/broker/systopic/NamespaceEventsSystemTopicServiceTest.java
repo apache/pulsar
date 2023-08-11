@@ -77,27 +77,26 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
     @Test
     public void testSchemaCompatibility() throws Exception {
-        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
-                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 =
+                systemTopicFactory.createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
         String topicName = systemTopicClientForNamespace1.getTopicName().toString();
         @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader(Schema.BYTES)
+        Reader<byte[]> reader = pulsarClient
+                .newReader(Schema.BYTES)
                 .topic(topicName)
                 .startMessageId(MessageId.earliest)
                 .create();
 
-        PersistentTopic topic =
-                (PersistentTopic) pulsar.getBrokerService()
-                        .getTopic(topicName, false)
-                        .join().get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topicName, false).join().get();
 
         Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
     }
 
     @Test
     public void testSystemTopicSchemaCompatibility() throws Exception {
-        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
-                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 =
+                systemTopicFactory.createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
         String topicName = systemTopicClientForNamespace1.getTopicName().toString();
         SystemTopic topic = new SystemTopic(topicName, mock(ManagedLedger.class), pulsar.getBrokerService());
 
@@ -106,22 +105,20 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
     @Test
     public void testSendAndReceiveNamespaceEvents() throws Exception {
-        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
-                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
-        TopicPolicies policies = TopicPolicies.builder()
-            .maxProducerPerTopic(10)
-            .build();
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 =
+                systemTopicFactory.createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+        TopicPolicies policies = TopicPolicies.builder().maxProducerPerTopic(10).build();
         PulsarEvent event = PulsarEvent.builder()
-            .eventType(EventType.TOPIC_POLICY)
-            .actionType(ActionType.INSERT)
-            .topicPoliciesEvent(TopicPoliciesEvent.builder()
-                .domain("persistent")
-                .tenant("system-topic")
-                .namespace(NamespaceName.get(NAMESPACE1).getLocalName())
-                .topic("my-topic")
-                .policies(policies)
-                .build())
-            .build();
+                .eventType(EventType.TOPIC_POLICY)
+                .actionType(ActionType.INSERT)
+                .topicPoliciesEvent(TopicPoliciesEvent.builder()
+                        .domain("persistent")
+                        .tenant("system-topic")
+                        .namespace(NamespaceName.get(NAMESPACE1).getLocalName())
+                        .topic("my-topic")
+                        .policies(policies)
+                        .build())
+                .build();
         systemTopicClientForNamespace1.newWriter().write(getEventKey(event), event);
         SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
         Message<PulsarEvent> received = reader.readNext();
@@ -164,9 +161,13 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("system-topic",
-            new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants().createTenant("system-topic", new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);

@@ -332,8 +332,7 @@ public interface Brokers {
      *                                  This helps control the speed of the unload operation during shutdown.
      * @param forcedTerminateTopic if true, topics will be forcefully terminated during the shutdown process.
      */
-    CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                                     boolean forcedTerminateTopic);
+    CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec, boolean forcedTerminateTopic);
 
     /**
      * Get version of broker.

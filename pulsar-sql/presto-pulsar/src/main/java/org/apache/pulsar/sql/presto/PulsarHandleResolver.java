@@ -59,8 +59,9 @@ public class PulsarHandleResolver implements ConnectorHandleResolver {
 
     static PulsarColumnHandle convertColumnHandle(ColumnHandle columnHandle) {
         requireNonNull(columnHandle, "columnHandle is null");
-        checkArgument(columnHandle instanceof PulsarColumnHandle, "columnHandle is not an instance of "
-            + "PulsarColumnHandle");
+        checkArgument(
+                columnHandle instanceof PulsarColumnHandle,
+                "columnHandle is not an instance of " + "PulsarColumnHandle");
         return (PulsarColumnHandle) columnHandle;
     }
 
@@ -72,8 +73,8 @@ public class PulsarHandleResolver implements ConnectorHandleResolver {
 
     static PulsarTableLayoutHandle convertLayout(ConnectorTableLayoutHandle layout) {
         requireNonNull(layout, "layout is null");
-        checkArgument(layout instanceof PulsarTableLayoutHandle, "layout is not an instance of "
-            + "PulsarTableLayoutHandle");
+        checkArgument(
+                layout instanceof PulsarTableLayoutHandle, "layout is not an instance of " + "PulsarTableLayoutHandle");
         return (PulsarTableLayoutHandle) layout;
     }
 

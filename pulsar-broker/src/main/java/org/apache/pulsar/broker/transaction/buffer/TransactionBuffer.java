@@ -195,8 +195,6 @@ public interface TransactionBuffer {
      */
     CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
 
-
-
     long getOngoingTxnCount();
 
     long getAbortedTxnCount();

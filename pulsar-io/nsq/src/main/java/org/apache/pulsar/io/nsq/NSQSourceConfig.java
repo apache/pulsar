@@ -41,26 +41,16 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
 public class NSQSourceConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
-
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "The topic you wish to transport into pulsar"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "The topic you wish to transport into pulsar")
     private String topic;
 
     @FieldDoc(
             required = false,
             defaultValue = "pulsar-transport-<topic>",
-            help = "The channel to use on the topic you want to transport"
-    )
+            help = "The channel to use on the topic you want to transport")
     private String channel;
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "",
-            help = "A comma-separated list of nsqlookupd hosts to contact"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "A comma-separated list of nsqlookupd hosts to contact")
     private String lookupds;
 
     public static NSQSourceConfig load(String yamlFile) throws IOException {
@@ -80,27 +70,26 @@ public class NSQSourceConfig implements Serializable {
         return config;
     }
 
-
     public void validate() throws IllegalArgumentException {
         if (getChannel() == null) {
             setChannel(String.format("pulsar-transport-%s", getTopic()));
         }
-        if (getTopic() == null || getLookupds() == null || getChannel() == null){
+        if (getTopic() == null || getLookupds() == null || getChannel() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }
     }
 
-    public List<String> getLookupds(){
-        if (StringUtils.isBlank(lookupds)){
+    public List<String> getLookupds() {
+        if (StringUtils.isBlank(lookupds)) {
             return Collections.emptyList();
         }
 
-        List<String> out = new ArrayList<String> ();
-        for (String s: StringUtils.split(lookupds, ",")) {
+        List<String> out = new ArrayList<String>();
+        for (String s : StringUtils.split(lookupds, ",")) {
             out.add(StringUtils.trim(s));
         }
 
-        if (CollectionUtils.isEmpty(out)){
+        if (CollectionUtils.isEmpty(out)) {
             return Collections.emptyList();
         }
         return out;

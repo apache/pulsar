@@ -59,10 +59,13 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     public static final String ATTRIBUTE_WORKER_SERVICE = "worker";
 
     private WorkerService workerService;
+
     @Context
     protected ServletContext servletContext;
+
     @Context
     protected HttpServletRequest httpRequest;
+
     @Context
     protected UriInfo uri;
 
@@ -101,12 +104,12 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @ApiOperation(
             value = "Fetches information about the Pulsar cluster running Pulsar Functions",
             response = WorkerInfo.class,
-            responseContainer = "List"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+            responseContainer = "List")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 503, message = "Worker service is not running")
+            })
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
@@ -116,12 +119,12 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Fetches info about the leader node of the Pulsar cluster running Pulsar Functions",
-            response = WorkerInfo.class
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+            response = WorkerInfo.class)
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 503, message = "Worker service is not running")
+            })
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
@@ -131,12 +134,12 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
-            response = Map.class
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+            response = Map.class)
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 503, message = "Worker service is not running")
+            })
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
@@ -146,59 +149,56 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
-            response = List.class
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
-    })
+            response = List.class)
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 400, message = "Invalid request"),
+                @ApiResponse(code = 408, message = "Request timeout")
+            })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return workers().getListOfConnectors(authParams());
     }
 
     @PUT
-    @ApiOperation(
-            value = "Triggers a rebalance of functions to workers"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
-    })
+    @ApiOperation(value = "Triggers a rebalance of functions to workers")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 400, message = "Invalid request"),
+                @ApiResponse(code = 408, message = "Request timeout")
+            })
     @Path("/rebalance")
     public void rebalance() {
         workers().rebalance(uri.getRequestUri(), authParams());
     }
 
     @PUT
-    @ApiOperation(
-            value = "Drains the specified worker, i.e., moves its work-assignments to other workers"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 409, message = "Drain already in progress"),
-            @ApiResponse(code = 503, message = "Worker service is not ready")
-    })
+    @ApiOperation(value = "Drains the specified worker, i.e., moves its work-assignments to other workers")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 400, message = "Invalid request"),
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 408, message = "Request timeout"),
+                @ApiResponse(code = 409, message = "Drain already in progress"),
+                @ApiResponse(code = 503, message = "Worker service is not ready")
+            })
     @Path("/leader/drain")
     public void drainAtLeader(@QueryParam("workerId") String workerId) {
         workers().drain(uri.getRequestUri(), workerId, authParams(), true);
     }
 
     @PUT
-    @ApiOperation(
-            value = "Drains this worker, i.e., moves its work-assignments to other workers"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 409, message = "Drain already in progress"),
-            @ApiResponse(code = 503, message = "Worker service is not ready")
-    })
+    @ApiOperation(value = "Drains this worker, i.e., moves its work-assignments to other workers")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 400, message = "Invalid request"),
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 408, message = "Request timeout"),
+                @ApiResponse(code = 409, message = "Drain already in progress"),
+                @ApiResponse(code = 503, message = "Worker service is not ready")
+            })
     @Path("/drain")
     public void drain() {
         workers().drain(uri.getRequestUri(), null, authParams(), false);
@@ -207,12 +207,12 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Get the status of the drain operation for the specified worker",
-            response = LongRunningProcessStatus.class
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 503, message = "Worker service is not ready")
-    })
+            response = LongRunningProcessStatus.class)
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 503, message = "Worker service is not ready")
+            })
     @Path("/leader/drain")
     public LongRunningProcessStatus getDrainStatus(@QueryParam("workerId") String workerId) {
         return workers().getDrainStatus(uri.getRequestUri(), workerId, authParams(), true);
@@ -221,12 +221,12 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Get the status of the drain operation of this worker",
-            response = LongRunningProcessStatus.class
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 503, message = "Worker service is not ready")
-    })
+            response = LongRunningProcessStatus.class)
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 503, message = "Worker service is not ready")
+            })
     @Path("/drain")
     public LongRunningProcessStatus getDrainStatus() {
         return workers().getDrainStatus(uri.getRequestUri(), null, authParams(), false);
@@ -235,11 +235,8 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Checks if this node is the leader and is ready to service requests",
-            response = Boolean.class
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+            response = Boolean.class)
+    @ApiResponses(value = {@ApiResponse(code = 503, message = "Worker service is not running")})
     @Path("/cluster/leader/ready")
     public Boolean isLeaderReady() {
         return workers().isLeaderReady(authParams());

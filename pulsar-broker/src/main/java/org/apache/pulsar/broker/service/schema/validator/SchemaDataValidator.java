@@ -71,10 +71,10 @@ public interface SchemaDataValidator {
             case AUTO_CONSUME:
             case AUTO_PUBLISH:
                 throw new InvalidSchemaDataException(
-                    "Schema " + schemaData.getType() + " is a client-side schema type");
+                        "Schema " + schemaData.getType() + " is a client-side schema type");
             case KEY_VALUE:
                 KeyValue<SchemaData, SchemaData> kvSchema =
-                    KeyValueSchemaCompatibilityCheck.decodeKeyValueSchemaData(schemaData);
+                        KeyValueSchemaCompatibilityCheck.decodeKeyValueSchemaData(schemaData);
                 validateSchemaData(kvSchema.getKey());
                 validateSchemaData(kvSchema.getValue());
                 break;
@@ -90,5 +90,4 @@ public interface SchemaDataValidator {
      * @throws InvalidSchemaDataException if the schema data is not in a valid form.
      */
     void validate(SchemaData schemaData) throws InvalidSchemaDataException;
-
 }

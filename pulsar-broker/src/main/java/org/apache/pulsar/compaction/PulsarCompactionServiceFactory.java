@@ -54,8 +54,10 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
     }
 
     protected Compactor newCompactor() throws PulsarServerException {
-        return new TwoPhaseCompactor(pulsarService.getConfiguration(),
-                pulsarService.getClient(), pulsarService.getBookKeeperClient(),
+        return new TwoPhaseCompactor(
+                pulsarService.getConfiguration(),
+                pulsarService.getClient(),
+                pulsarService.getBookKeeperClient(),
                 pulsarService.getCompactorExecutor());
     }
 

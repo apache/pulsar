@@ -27,8 +27,13 @@ import lombok.Data;
  */
 @Data
 @JsonInclude(JsonInclude.Include.ALWAYS)
-@JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",
-        "userExceptionsTotal", "avgProcessLatency" })
+@JsonPropertyOrder({
+    "receivedTotal",
+    "processedSuccessfullyTotal",
+    "systemExceptionsTotal",
+    "userExceptionsTotal",
+    "avgProcessLatency"
+})
 public class FunctionInstanceStatsDataBaseImpl implements FunctionInstanceStatsDataBase {
     /**
      * Total number of records function received from source for instance.

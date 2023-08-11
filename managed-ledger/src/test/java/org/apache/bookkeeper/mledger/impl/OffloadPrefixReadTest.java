@@ -30,7 +30,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -84,13 +83,18 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ledger.offloadPrefix(ledger.getLastConfirmedEntry());
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 3);
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getComplete());
-        Assert.assertFalse(ledger.getLedgersInfoAsList().get(2).getOffloadContext().getComplete());
+        Assert.assertTrue(
+                ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
+        Assert.assertTrue(
+                ledger.getLedgersInfoAsList().get(1).getOffloadContext().getComplete());
+        Assert.assertFalse(
+                ledger.getLedgersInfoAsList().get(2).getOffloadContext().getComplete());
 
-        UUID firstLedgerUUID = new UUID(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidMsb(),
+        UUID firstLedgerUUID = new UUID(
+                ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidMsb(),
                 ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidLsb());
-        UUID secondLedgerUUID = new UUID(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getUidMsb(),
+        UUID secondLedgerUUID = new UUID(
+                ledger.getLedgersInfoAsList().get(1).getOffloadContext().getUidMsb(),
                 ledger.getLedgersInfoAsList().get(1).getOffloadContext().getUidLsb());
 
         ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
@@ -98,22 +102,19 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         for (Entry e : cursor.readEntries(10)) {
             assertEquals(new String(e.getData()), "entry-" + i++);
         }
-        verify(offloader, times(1))
-                .readOffloaded(anyLong(), (UUID) any(), anyMap());
+        verify(offloader, times(1)).readOffloaded(anyLong(), (UUID) any(), anyMap());
         verify(offloader).readOffloaded(anyLong(), eq(firstLedgerUUID), anyMap());
 
         for (Entry e : cursor.readEntries(10)) {
             assertEquals(new String(e.getData()), "entry-" + i++);
         }
-        verify(offloader, times(2))
-                .readOffloaded(anyLong(), (UUID) any(), anyMap());
+        verify(offloader, times(2)).readOffloaded(anyLong(), (UUID) any(), anyMap());
         verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
 
         for (Entry e : cursor.readEntries(5)) {
             assertEquals(new String(e.getData()), "entry-" + i++);
         }
-        verify(offloader, times(2))
-                .readOffloaded(anyLong(), (UUID) any(), anyMap());
+        verify(offloader, times(2)).readOffloaded(anyLong(), (UUID) any(), anyMap());
 
         ledger.close();
         // Ensure that all the read handles had been closed
@@ -124,11 +125,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     public void testBookkeeperFirstOffloadRead() throws Exception {
         MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
         MockClock clock = new MockClock();
-        offloader.getOffloadPolicies()
-                .setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.BOOKKEEPER_FIRST);
-        //delete after 5 minutes
-        offloader.getOffloadPolicies()
-                .setManagedLedgerOffloadDeletionLagInMillis(300000L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.BOOKKEEPER_FIRST);
+        // delete after 5 minutes
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(300000L);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -136,7 +135,6 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         config.setRetentionSizeInMB(10);
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
-
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_bookkeeper_first_test_ledger", config);
 
@@ -149,8 +147,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ledger.offloadPrefix(ledger.getLastConfirmedEntry());
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 3);
-        assertEquals(ledger.getLedgersInfoAsList().stream()
-                .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
+        assertEquals(
+                ledger.getLedgersInfoAsList().stream()
+                        .filter(e -> e.getOffloadContext().getComplete())
+                        .count(),
+                2);
 
         LedgerInfo firstLedger = ledger.getLedgersInfoAsList().get(0);
         Assert.assertTrue(firstLedger.getOffloadContext().getComplete());
@@ -158,9 +159,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         secondLedger = ledger.getLedgersInfoAsList().get(1);
         Assert.assertTrue(secondLedger.getOffloadContext().getComplete());
 
-        UUID firstLedgerUUID = new UUID(firstLedger.getOffloadContext().getUidMsb(),
+        UUID firstLedgerUUID = new UUID(
+                firstLedger.getOffloadContext().getUidMsb(),
                 firstLedger.getOffloadContext().getUidLsb());
-        UUID secondLedgerUUID = new UUID(secondLedger.getOffloadContext().getUidMsb(),
+        UUID secondLedgerUUID = new UUID(
+                secondLedger.getOffloadContext().getUidMsb(),
                 secondLedger.getOffloadContext().getUidLsb());
 
         ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
@@ -169,8 +172,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);
         }
         // For offloaded first and not deleted ledgers, they should be read from bookkeeper.
-        verify(offloader, never())
-                .readOffloaded(anyLong(), (UUID) any(), anyMap());
+        verify(offloader, never()).readOffloaded(anyLong(), (UUID) any(), anyMap());
 
         // Delete offladed message from bookkeeper
         assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
@@ -183,28 +185,32 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         // assert bk ledger is deleted
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedger.getLedgerId()));
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
+        Assert.assertTrue(
+                ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
+        Assert.assertTrue(
+                ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
 
         for (Entry e : cursor.readEntries(10)) {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);
         }
 
         // Ledgers deleted from bookkeeper, now should read from offloader
-        verify(offloader, atLeastOnce())
-                .readOffloaded(anyLong(), (UUID) any(), anyMap());
+        verify(offloader, atLeastOnce()).readOffloaded(anyLong(), (UUID) any(), anyMap());
         verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
-
     }
-
 
     static class MockLedgerOffloader implements LedgerOffloader {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
-
-        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl                                                                                                                                                                                                                                                     .create("S3", "", "", "",
-                null, null,
-                null, null,
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
+                "S3",
+                "",
+                "",
+                "",
+                null,
+                null,
+                null,
+                null,
                 OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
@@ -212,16 +218,13 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 
-
         @Override
         public String getOffloadDriverName() {
             return "mock";
         }
 
         @Override
-        public CompletableFuture<Void> offload(ReadHandle ledger,
-                                               UUID uuid,
-                                               Map<String, String> extraMetadata) {
+        public CompletableFuture<Void> offload(ReadHandle ledger, UUID uuid, Map<String, String> extraMetadata) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
             try {
                 offloads.put(uuid, new MockOffloadReadHandle(ledger));
@@ -234,17 +237,18 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         @SneakyThrows
         @Override
-        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
-                                                           Map<String, String> offloadDriverMetadata) {
+        public CompletableFuture<ReadHandle> readOffloaded(
+                long ledgerId, UUID uuid, Map<String, String> offloadDriverMetadata) {
             return CompletableFuture.completedFuture(new VerifyClosingReadHandle(offloads.get(uuid)));
         }
 
         @Override
-        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid,
-                                                       Map<String, String> offloadDriverMetadata) {
+        public CompletableFuture<Void> deleteOffloaded(
+                long ledgerId, UUID uuid, Map<String, String> offloadDriverMetadata) {
             offloads.remove(uuid);
             return CompletableFuture.completedFuture(null);
-        };
+        }
+        ;
 
         @Override
         public OffloadPoliciesImpl getOffloadPolicies() {
@@ -252,9 +256,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public void close() {
-
-        }
+        public void close() {}
 
         private final AtomicInteger openedReadHandles = new AtomicInteger(0);
 
@@ -289,7 +291,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public long getId() { return id; }
+        public long getId() {
+            return id;
+        }
 
         @Override
         public LedgerMetadata getLedgerMetadata() {
@@ -305,7 +309,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
             List<LedgerEntry> readEntries = new ArrayList();
             for (long eid = firstEntry; eid <= lastEntry; eid++) {
-                ByteBuf buf = entries.get((int)eid).retainedSlice();
+                ByteBuf buf = entries.get((int) eid).retainedSlice();
                 readEntries.add(LedgerEntryImpl.create(id, eid, buf.readableBytes(), buf));
             }
             return CompletableFuture.completedFuture(LedgerEntriesImpl.create(readEntries));
@@ -342,9 +346,8 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId,
-                                                                                          long timeOutInMillis,
-                                                                                          boolean parallel) {
+        public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
+                long entryId, long timeOutInMillis, boolean parallel) {
             return unsupported();
         }
 
@@ -369,6 +372,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         private final byte[] password;
         private final Map<String, byte[]> customMetadata;
         private final long ledgerId;
+
         MockMetadata(LedgerMetadata toCopy) {
             ledgerId = toCopy.getLedgerId();
             ensembleSize = toCopy.getEnsembleSize();
@@ -391,13 +395,19 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public boolean hasPassword() { return true; }
+        public boolean hasPassword() {
+            return true;
+        }
 
         @Override
-        public State getState() { return state; }
+        public State getState() {
+            return state;
+        }
 
         @Override
-        public int getMetadataFormatVersion() { return metadataFormatVersion; }
+        public int getMetadataFormatVersion() {
+            return metadataFormatVersion;
+        }
 
         @Override
         public long getCToken() {
@@ -405,34 +415,54 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public int getEnsembleSize() { return ensembleSize; }
+        public int getEnsembleSize() {
+            return ensembleSize;
+        }
 
         @Override
-        public int getWriteQuorumSize() { return writeQuorumSize; }
+        public int getWriteQuorumSize() {
+            return writeQuorumSize;
+        }
 
         @Override
-        public int getAckQuorumSize() { return ackQuorumSize; }
+        public int getAckQuorumSize() {
+            return ackQuorumSize;
+        }
 
         @Override
-        public long getLastEntryId() { return lastEntryId; }
+        public long getLastEntryId() {
+            return lastEntryId;
+        }
 
         @Override
-        public long getLength() { return length; }
+        public long getLength() {
+            return length;
+        }
 
         @Override
-        public DigestType getDigestType() { return digestType; }
+        public DigestType getDigestType() {
+            return digestType;
+        }
 
         @Override
-        public byte[] getPassword() { return password; }
+        public byte[] getPassword() {
+            return password;
+        }
 
         @Override
-        public long getCtime() { return ctime; }
+        public long getCtime() {
+            return ctime;
+        }
 
         @Override
-        public boolean isClosed() { return isClosed; }
+        public boolean isClosed() {
+            return isClosed;
+        }
 
         @Override
-        public Map<String, byte[]> getCustomMetadata() { return customMetadata; }
+        public Map<String, byte[]> getCustomMetadata() {
+            return customMetadata;
+        }
 
         @Override
         public List<BookieId> getEnsembleAt(long entryId) {

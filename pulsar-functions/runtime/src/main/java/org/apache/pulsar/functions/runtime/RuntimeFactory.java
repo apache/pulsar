@@ -34,13 +34,15 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
  */
 public interface RuntimeFactory extends AutoCloseable {
 
-    void initialize(WorkerConfig workerConfig,
-                    AuthenticationConfig authenticationConfig,
-                    SecretsProviderConfigurator secretsProviderConfigurator,
-                    ConnectorsManager connectorsManager,
-                    FunctionsManager functionsManager,
-                    Optional<FunctionAuthProvider> authProvider,
-                    Optional<RuntimeCustomizer> runtimeCustomizer) throws Exception;
+    void initialize(
+            WorkerConfig workerConfig,
+            AuthenticationConfig authenticationConfig,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            ConnectorsManager connectorsManager,
+            FunctionsManager functionsManager,
+            Optional<FunctionAuthProvider> authProvider,
+            Optional<RuntimeCustomizer> runtimeCustomizer)
+            throws Exception;
 
     /**
      * Create a function container to execute a java instance.
@@ -51,16 +53,19 @@ public interface RuntimeFactory extends AutoCloseable {
      * @return function container to start/stop instance
      */
     Runtime createContainer(
-            InstanceConfig instanceConfig, String codeFile, String originalCodeFileName,
-            String transformFunctionFile, String originalTransformFunctionFileName,
-            Long expectedHealthCheckInterval) throws Exception;
+            InstanceConfig instanceConfig,
+            String codeFile,
+            String originalCodeFileName,
+            String transformFunctionFile,
+            String originalTransformFunctionFileName,
+            Long expectedHealthCheckInterval)
+            throws Exception;
 
     default boolean externallyManaged() {
         return false;
     }
 
-    default void doAdmissionChecks(Function.FunctionDetails functionDetails) {
-    }
+    default void doAdmissionChecks(Function.FunctionDetails functionDetails) {}
 
     default Optional<? extends FunctionAuthProvider> getAuthProvider() {
         return Optional.empty();
@@ -74,9 +79,7 @@ public interface RuntimeFactory extends AutoCloseable {
     void close();
 
     static RuntimeFactory getFuntionRuntimeFactory(String className) {
-        return Reflections
-                .createInstance(className, RuntimeFactory.class, Thread.currentThread().getContextClassLoader());
+        return Reflections.createInstance(
+                className, RuntimeFactory.class, Thread.currentThread().getContextClassLoader());
     }
-
 }
-

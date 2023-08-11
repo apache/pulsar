@@ -35,9 +35,12 @@ public interface BucketSnapshotStorage {
      * @param cursorName             the name of cursor is used to generate custom storage metadata
      * @return the future with bucketId(ledgerId).
      */
-    CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
-                                                 List<SnapshotSegment> bucketSnapshotSegments,
-                                                 String bucketKey, String topicName, String cursorName);
+    CompletableFuture<Long> createBucketSnapshot(
+            SnapshotMetadata snapshotMetadata,
+            List<SnapshotSegment> bucketSnapshotSegments,
+            String bucketKey,
+            String topicName,
+            String cursorName);
 
     /**
      * Get delayed message index bucket snapshot metadata.
@@ -55,8 +58,8 @@ public interface BucketSnapshotStorage {
      * @param lastSegmentEntryId entryId of last segment of sequence (include)
      * @return the future with snapshot segment
      */
-    CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
-                                                                      long lastSegmentEntryId);
+    CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(
+            long bucketId, long firstSegmentEntryId, long lastSegmentEntryId);
 
     /**
      * Get total byte length of delayed message index bucket snapshot.

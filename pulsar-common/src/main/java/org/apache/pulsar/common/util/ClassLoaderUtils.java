@@ -43,7 +43,7 @@ public class ClassLoaderUtils {
     public static ClassLoader loadJar(File jar) throws MalformedURLException {
         java.net.URL url = jar.toURI().toURL();
         return AccessController.doPrivileged(
-            (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[]{url}));
+                (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[] {url}));
     }
 
     public static ClassLoader extractClassLoader(File packageFile) throws Exception {
@@ -76,8 +76,7 @@ public class ClassLoaderUtils {
         }
 
         if (!klass.isAssignableFrom(objectClass)) {
-            throw new IllegalArgumentException(
-                    String.format("%s does not implement %s", className, klass.getName()));
+            throw new IllegalArgumentException(String.format("%s does not implement %s", className, klass.getName()));
         }
     }
 

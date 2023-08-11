@@ -38,7 +38,6 @@ public class TopicCompactionStrategyTest {
         }
     }
 
-
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testLoadInvalidTopicCompactionStrategy() {
         TopicCompactionStrategy.load("uknown", "uknown");

@@ -35,8 +35,8 @@ public class ClusterReplicationMetrics {
     public ClusterReplicationMetrics(String localCluster, boolean metricsEnabled) {
         metricsList = new ArrayList<>();
         this.localCluster = localCluster;
-        metricsMap = ConcurrentOpenHashMap.<String, ReplicationMetrics>newBuilder()
-                .build();
+        metricsMap =
+                ConcurrentOpenHashMap.<String, ReplicationMetrics>newBuilder().build();
         this.metricsEnabled = metricsEnabled;
     }
 

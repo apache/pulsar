@@ -54,13 +54,13 @@ class NegativeAcksTracker implements Closeable {
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
         this.timer = consumer.getClient().timer();
-        this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()),
-                MIN_NACK_DELAY_NANOS);
+        this.nackDelayNanos = Math.max(
+                TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()), MIN_NACK_DELAY_NANOS);
         this.negativeAckRedeliveryBackoff = conf.getNegativeAckRedeliveryBackoff();
         if (negativeAckRedeliveryBackoff != null) {
-            this.timerIntervalNanos = Math.max(
-                    TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(0)),
-                    MIN_NACK_DELAY_NANOS) / 3;
+            this.timerIntervalNanos =
+                    Math.max(TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(0)), MIN_NACK_DELAY_NANOS)
+                            / 3;
         } else {
             this.timerIntervalNanos = nackDelayNanos / 3;
         }

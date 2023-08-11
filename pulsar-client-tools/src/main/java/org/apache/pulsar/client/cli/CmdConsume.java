@@ -58,58 +58,88 @@ public class CmdConsume extends AbstractCmdConsume {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions = new ArrayList<String>();
 
-    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type.")
+    @Parameter(
+            names = {"-t", "--subscription-type"},
+            description = "Subscription type.")
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-    @Parameter(names = { "-m", "--subscription-mode" }, description = "Subscription mode.")
+    @Parameter(
+            names = {"-m", "--subscription-mode"},
+            description = "Subscription mode.")
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
-    @Parameter(names = { "-p", "--subscription-position" }, description = "Subscription position.")
+    @Parameter(
+            names = {"-p", "--subscription-position"},
+            description = "Subscription position.")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    @Parameter(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
+    @Parameter(
+            names = {"-s", "--subscription-name"},
+            required = true,
+            description = "Subscription name.")
     private String subscriptionName;
 
-    @Parameter(names = { "-n",
-            "--num-messages" }, description = "Number of messages to consume, 0 means to consume forever.")
+    @Parameter(
+            names = {"-n", "--num-messages"},
+            description = "Number of messages to consume, 0 means to consume forever.")
     private int numMessagesToConsume = 1;
 
-    @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
+    @Parameter(
+            names = {"--hex"},
+            description = "Display binary messages in hex.")
     private boolean displayHex = false;
 
-    @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
+    @Parameter(
+            names = {"--hide-content"},
+            description = "Do not write the message to console.")
     private boolean hideContent = false;
 
-    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
-            + "value 0 means to consume messages as fast as possible.")
+    @Parameter(
+            names = {"-r", "--rate"},
+            description = "Rate (in msg/sec) at which to consume, "
+                    + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
 
-    @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
+    @Parameter(
+            names = {"--regex"},
+            description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
 
-    @Parameter(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
+    @Parameter(
+            names = {"-q", "--queue-size"},
+            description = "Consumer receiver queue size.")
     private int receiverQueueSize = 0;
 
-    @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+    @Parameter(
+            names = {"-mc", "--max_chunked_msg"},
+            description = "Max pending chunk messages")
     private int maxPendingChunkedMessage = 0;
 
-    @Parameter(names = { "-ac",
-            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+    @Parameter(
+            names = {"-ac", "--auto_ack_chunk_q_full"},
+            description = "Auto ack for oldest message on queue is full")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    @Parameter(names = { "-ekv",
-            "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
+    @Parameter(
+            names = {"-ekv", "--encryption-key-value"},
+            description = "The URI of private key to decrypt payload, for example "
                     + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
 
-    @Parameter(names = { "-st", "--schema-type"},
+    @Parameter(
+            names = {"-st", "--schema-type"},
             description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     private String schemaType = "bytes";
 
-    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
+    @Parameter(
+            names = {"-pm", "--pool-messages"},
+            description = "Use the pooled message",
+            arity = 1)
     private boolean poolMessages = true;
 
-    @Parameter(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+    @Parameter(
+            names = {"-rs", "--replicated"},
+            description = "Whether the subscription status should be replicated")
     private boolean replicateSubscriptionState = false;
 
     public CmdConsume() {
@@ -146,7 +176,7 @@ public class CmdConsume extends AbstractCmdConsume {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
-        try (PulsarClient client = clientBuilder.build()){
+        try (PulsarClient client = clientBuilder.build()) {
             ConsumerBuilder<?> builder;
             Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
             if ("auto_consume".equals(schemaType)) {
@@ -181,7 +211,7 @@ public class CmdConsume extends AbstractCmdConsume {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
             }
 
-            try (Consumer<?> consumer = builder.subscribe();) {
+            try (Consumer<?> consumer = builder.subscribe(); ) {
                 RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
                 while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                     if (limiter != null) {
@@ -217,29 +247,42 @@ public class CmdConsume extends AbstractCmdConsume {
         }
 
         return returnCode;
-
     }
 
     @SuppressWarnings("deprecation")
     @VisibleForTesting
     public String getWebSocketConsumeUri(String topic) {
-        String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
-                serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
+        String serviceURLWithoutTrailingSlash =
+                serviceURL.substring(0, serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
 
         TopicName topicName = TopicName.get(topic);
         String wsTopic;
         if (topicName.isV2()) {
-            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getNamespacePortion(), topicName.getLocalName());
+            wsTopic = String.format(
+                    "%s/%s/%s/%s",
+                    topicName.getDomain(),
+                    topicName.getTenant(),
+                    topicName.getNamespacePortion(),
+                    topicName.getLocalName());
         } else {
-            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
+            wsTopic = String.format(
+                    "%s/%s/%s/%s/%s",
+                    topicName.getDomain(),
+                    topicName.getTenant(),
+                    topicName.getCluster(),
+                    topicName.getNamespacePortion(),
+                    topicName.getLocalName());
         }
 
-        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/")
-                + "consumer/%s/%s?subscriptionType=%s&subscriptionMode=%s";
-        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic, subscriptionName,
-                subscriptionType.toString(), subscriptionMode.toString());
+        String uriFormat =
+                "%s/ws" + (topicName.isV2() ? "/v2/" : "/") + "consumer/%s/%s?subscriptionType=%s&subscriptionMode=%s";
+        return String.format(
+                uriFormat,
+                serviceURLWithoutTrailingSlash,
+                wsTopic,
+                subscriptionName,
+                subscriptionType.toString(),
+                subscriptionMode.toString());
     }
 
     @SuppressWarnings("deprecation")
@@ -294,7 +337,8 @@ public class CmdConsume extends AbstractCmdConsume {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     try {
-                        String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
+                        String output = interpretByteArray(
+                                displayHex, Base64.getDecoder().decode(msg));
                         System.out.println(output); // print decode
                     } catch (Exception e) {
                         System.out.println(msg);
@@ -313,5 +357,4 @@ public class CmdConsume extends AbstractCmdConsume {
 
         return returnCode;
     }
-
 }

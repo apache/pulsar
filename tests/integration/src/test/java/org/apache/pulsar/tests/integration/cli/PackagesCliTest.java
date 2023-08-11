@@ -18,23 +18,21 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class PackagesCliTest extends TestRetrySupport {
 
@@ -87,18 +85,19 @@ public class PackagesCliTest extends TestRetrySupport {
     @Test(timeOut = 60000 * 8)
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";
-        ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
-                "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
+        ContainerExecResult result = runPackagesCommand(
+                "upload", "--description", "a test package", "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
         assertEquals(result.getExitCode(), 0);
 
         BrokerContainer container = pulsarCluster.getBroker(0);
         String downloadFile = "tmp-file-" + RandomStringUtils.randomAlphabetic(8);
-        String[] downloadCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "download",
-                "--path", downloadFile, testPackageName};
+        String[] downloadCmd = new String[] {
+            PulsarCluster.ADMIN_SCRIPT, "packages", "download", "--path", downloadFile, testPackageName
+        };
         result = container.execCmd(downloadCmd);
         assertEquals(result.getExitCode(), 0);
 
-        String[] diffCmd = new String[]{"diff", PulsarCluster.ADMIN_SCRIPT, downloadFile};
+        String[] diffCmd = new String[] {"diff", PulsarCluster.ADMIN_SCRIPT, downloadFile};
         result = container.execCmd(diffCmd);
         assertEquals(result.getExitCode(), 0);
 
@@ -118,8 +117,14 @@ public class PackagesCliTest extends TestRetrySupport {
         assertTrue(result.getStdout().contains("v1"));
 
         String contact = "test@apache.org";
-        result = runPackagesCommand("update-metadata", "--description", "a test package",
-                "--contact", contact, "-PpropertyA=A", testPackageName);
+        result = runPackagesCommand(
+                "update-metadata",
+                "--description",
+                "a test package",
+                "--contact",
+                contact,
+                "-PpropertyA=A",
+                testPackageName);
         assertEquals(result.getExitCode(), 0);
 
         result = runPackagesCommand("get-metadata", testPackageName);

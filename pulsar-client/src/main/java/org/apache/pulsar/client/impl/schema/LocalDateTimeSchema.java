@@ -31,57 +31,58 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class LocalDateTimeSchema extends AbstractSchema<LocalDateTime> {
 
-   private static final LocalDateTimeSchema INSTANCE;
-   private static final SchemaInfo SCHEMA_INFO;
-   public static final String DELIMITER = ":";
+    private static final LocalDateTimeSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+    public static final String DELIMITER = ":";
 
-   static {
-       SCHEMA_INFO = SchemaInfoImpl.builder()
-             .name("LocalDateTime")
-             .type(SchemaType.LOCAL_DATE_TIME)
-             .schema(new byte[0]).build();
-       INSTANCE = new LocalDateTimeSchema();
-   }
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("LocalDateTime")
+                .type(SchemaType.LOCAL_DATE_TIME)
+                .schema(new byte[0])
+                .build();
+        INSTANCE = new LocalDateTimeSchema();
+    }
 
-   public static LocalDateTimeSchema of() {
-      return INSTANCE;
-   }
+    public static LocalDateTimeSchema of() {
+        return INSTANCE;
+    }
 
-   @Override
-   public byte[] encode(LocalDateTime message) {
-      if (null == message) {
-         return null;
-      }
-      //LocalDateTime is accurate to nanoseconds and requires two value storage.
-      ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
-      buffer.putLong(message.toLocalDate().toEpochDay());
-      buffer.putLong(message.toLocalTime().toNanoOfDay());
-      return buffer.array();
-   }
+    @Override
+    public byte[] encode(LocalDateTime message) {
+        if (null == message) {
+            return null;
+        }
+        // LocalDateTime is accurate to nanoseconds and requires two value storage.
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+        buffer.putLong(message.toLocalDate().toEpochDay());
+        buffer.putLong(message.toLocalTime().toNanoOfDay());
+        return buffer.array();
+    }
 
-   @Override
-   public LocalDateTime decode(byte[] bytes) {
-      if (null == bytes) {
-         return null;
-      }
-      ByteBuffer buffer = ByteBuffer.wrap(bytes);
-      long epochDay = buffer.getLong();
-      long nanoOfDay = buffer.getLong();
-      return LocalDateTime.of(LocalDate.ofEpochDay(epochDay), LocalTime.ofNanoOfDay(nanoOfDay));
-   }
+    @Override
+    public LocalDateTime decode(byte[] bytes) {
+        if (null == bytes) {
+            return null;
+        }
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        long epochDay = buffer.getLong();
+        long nanoOfDay = buffer.getLong();
+        return LocalDateTime.of(LocalDate.ofEpochDay(epochDay), LocalTime.ofNanoOfDay(nanoOfDay));
+    }
 
-   @Override
-   public LocalDateTime decode(ByteBuf byteBuf) {
-      if (null == byteBuf) {
-         return null;
-      }
-      long epochDay = byteBuf.getLong(0);
-      long nanoOfDay = byteBuf.getLong(8);
-      return LocalDateTime.of(LocalDate.ofEpochDay(epochDay), LocalTime.ofNanoOfDay(nanoOfDay));
-   }
+    @Override
+    public LocalDateTime decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        long epochDay = byteBuf.getLong(0);
+        long nanoOfDay = byteBuf.getLong(8);
+        return LocalDateTime.of(LocalDate.ofEpochDay(epochDay), LocalTime.ofNanoOfDay(nanoOfDay));
+    }
 
-   @Override
-   public SchemaInfo getSchemaInfo() {
-      return SCHEMA_INFO;
-   }
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        return SCHEMA_INFO;
+    }
 }

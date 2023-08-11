@@ -20,7 +20,6 @@ package org.apache.pulsar.structuredeventlog.slf4j;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.StringReader;
@@ -38,7 +37,7 @@ import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.WriterAppender;
 import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig ;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.JsonLayout;
 import org.apache.pulsar.structuredeventlog.Event;
 import org.apache.pulsar.structuredeventlog.EventGroup;
@@ -48,7 +47,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class StructuredEventLogTest {
-    private final static String APPENDER_NAME = "stevlogtest";
+    private static final String APPENDER_NAME = "stevlogtest";
     StringWriter writer;
 
     @BeforeMethod
@@ -58,7 +57,6 @@ public class StructuredEventLogTest {
 
         writer = new StringWriter();
 
-
         LoggerConfig logConfig = config.getLoggerConfig(APPENDER_NAME);
         for (Map.Entry<String, Appender> a : logConfig.getAppenders().entrySet()) {
             if (a.getKey().equals(APPENDER_NAME)) {
@@ -67,7 +65,11 @@ public class StructuredEventLogTest {
         }
         logConfig.removeAppender(APPENDER_NAME);
 
-        JsonLayout layout = JsonLayout.newBuilder().setEventEol(true).setCompact(true).setProperties(true).build();
+        JsonLayout layout = JsonLayout.newBuilder()
+                .setEventEol(true)
+                .setCompact(true)
+                .setProperties(true)
+                .build();
         Appender appender = WriterAppender.createAppender(layout, null, writer, "stevlogtest", false, true);
         appender.start();
         logConfig.addAppender(appender, null, null);
@@ -89,10 +91,8 @@ public class StructuredEventLogTest {
         assertThat(logged.get(1).get("message"), equalTo("parent"));
         assertThat(logged.get(2).get("message"), equalTo("second"));
 
-        assertThat(contextMapField(logged.get(0), "traceId"),
-                   equalTo(contextMapField(logged.get(1), "traceId")));
-        assertThat(contextMapField(logged.get(0), "traceId"),
-                   not(equalTo(contextMapField(logged.get(2), "traceId"))));
+        assertThat(contextMapField(logged.get(0), "traceId"), equalTo(contextMapField(logged.get(1), "traceId")));
+        assertThat(contextMapField(logged.get(0), "traceId"), not(equalTo(contextMapField(logged.get(2), "traceId"))));
     }
 
     @Test
@@ -114,10 +114,8 @@ public class StructuredEventLogTest {
         assertThat(logged.get(3).get("message"), equalTo("second"));
 
         assertThat(contextMapField(logged.get(0), "parentId"), not(nullValue()));
-        assertThat(contextMapField(logged.get(0), "parentId"),
-                   equalTo(contextMapField(logged.get(1), "id")));
-        assertThat(contextMapField(logged.get(1), "parentId"),
-                   equalTo(contextMapField(logged.get(2), "id")));
+        assertThat(contextMapField(logged.get(0), "parentId"), equalTo(contextMapField(logged.get(1), "id")));
+        assertThat(contextMapField(logged.get(1), "parentId"), equalTo(contextMapField(logged.get(2), "id")));
         assertThat(contextMapField(logged.get(2), "parentId"), nullValue());
         assertThat(contextMapField(logged.get(3), "parentId"), nullValue());
     }
@@ -126,13 +124,8 @@ public class StructuredEventLogTest {
     public void testResources() throws Exception {
         StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
-        EventResources res = log.newEventResources()
-            .resource("r1", "v1")
-            .resource("r2", () -> "v2");
-        Event e1 = log.newRootEvent()
-            .resources(res)
-            .resource("r3", "v3")
-            .resource("r4", () -> "v4");
+        EventResources res = log.newEventResources().resource("r1", "v1").resource("r2", () -> "v2");
+        Event e1 = log.newRootEvent().resources(res).resource("r3", "v3").resource("r4", () -> "v4");
         Event e2 = e1.newChildEvent().resource("r5", "v5");
         e2.newChildEvent().resource("r6", "v6").log("child2");
         e2.log("child1");
@@ -170,18 +163,15 @@ public class StructuredEventLogTest {
         StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         EventResources res = log.newEventResources()
-            .resource(null, "v1")
-            .resource("r1", null)
-            .resource("r2", () -> null);
+                .resource(null, "v1")
+                .resource("r1", null)
+                .resource("r2", () -> null);
         Event e1 = log.newRootEvent()
-            .resources(res)
-            .resource(null, "v2")
-            .resource("r3", null)
-            .resource("r4", () -> null);
-        e1.newChildEvent()
-            .resource(null, "v3")
-            .resource("r5", null)
-            .log("child1");
+                .resources(res)
+                .resource(null, "v2")
+                .resource("r3", null)
+                .resource("r4", () -> null);
+        e1.newChildEvent().resource(null, "v3").resource("r5", null).log("child1");
         e1.log("parent");
 
         List<Map<String, Object>> logged = getLogged();
@@ -207,9 +197,7 @@ public class StructuredEventLogTest {
     public void testAttributes() throws Exception {
         StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
-        Event e1 = log.newRootEvent()
-            .attr("a1", "v1")
-            .attr("a2", () -> "v2");
+        Event e1 = log.newRootEvent().attr("a1", "v1").attr("a2", () -> "v2");
         Event e2 = e1.newChildEvent().attr("a3", "v3");
         e2.newChildEvent().resource("a4", "v4").log("child2");
         e2.log("child1");
@@ -241,16 +229,16 @@ public class StructuredEventLogTest {
         StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent()
-            .attr(null, "v1")
-            .attr("a1", null)
-            .attr("a2", () -> null)
-            .log("msg");
+                .attr(null, "v1")
+                .attr("a1", null)
+                .attr("a2", () -> null)
+                .log("msg");
 
         log.newRootEvent()
-            .attr(null, "v1")
-            .attr("a1", null)
-            .attr("a2", () -> null)
-            .log("msg");
+                .attr(null, "v1")
+                .attr("a1", null)
+                .attr("a2", () -> null)
+                .log("msg");
 
         List<Map<String, Object>> logged = getLogged();
         assertThat(logged.get(0).get("message"), equalTo("msg"));
@@ -289,9 +277,9 @@ public class StructuredEventLogTest {
         List<Map<String, Object>> logged = getLogged();
         assertThat(logged.get(0).get("message"), equalTo("info1"));
 
-        assertThat(((Map<String, Object>)logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
+        assertThat(((Map<String, Object>) logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
         assertThat(logged.get(1).get("message"), equalTo("info2"));
-        assertThat(((Map<String, Object>)logged.get(1).get("thrown")).get("message"), equalTo("cause2"));
+        assertThat(((Map<String, Object>) logged.get(1).get("thrown")).get("message"), equalTo("cause2"));
     }
 
     @Test
@@ -314,7 +302,7 @@ public class StructuredEventLogTest {
 
         List<Map<String, Object>> logged = getLogged();
         assertThat(logged.get(0).get("message"), equalTo("warn1"));
-        assertThat(((Map<String, Object>)logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
+        assertThat(((Map<String, Object>) logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
     }
 
     @Test
@@ -337,9 +325,8 @@ public class StructuredEventLogTest {
 
         List<Map<String, Object>> logged = getLogged();
         assertThat(logged.get(0).get("message"), equalTo("error1"));
-        assertThat(((Map<String, Object>)logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
+        assertThat(((Map<String, Object>) logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
     }
-
 
     @Test
     public void testTimedEvent() throws Exception {
@@ -356,7 +343,7 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(0), "durationMs"), equalTo("1234"));
     }
 
-    @EventGroup(component="foobar")
+    @EventGroup(component = "foobar")
     public enum Events {
         TEST_EVENT
     }
@@ -391,7 +378,7 @@ public class StructuredEventLogTest {
 
     @SuppressWarnings("unchecked")
     private Object contextMapField(Map<String, Object> map, String field) {
-        return ((Map<String, Object>)map.get("contextMap")).get(field);
+        return ((Map<String, Object>) map.get("contextMap")).get(field);
     }
 
     @SuppressWarnings("unchecked")
@@ -424,7 +411,7 @@ public class StructuredEventLogTest {
         }
 
         @Override
-        public ZoneId getZone( ) {
+        public ZoneId getZone() {
             return ZoneId.of("UTC");
         }
 
@@ -434,4 +421,3 @@ public class StructuredEventLogTest {
         }
     }
 }
-

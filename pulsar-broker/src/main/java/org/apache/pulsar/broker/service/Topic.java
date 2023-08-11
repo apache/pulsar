@@ -60,11 +60,9 @@ public interface Topic {
             return -1L;
         }
 
-        default void setOriginalProducerName(String originalProducerName) {
-        }
+        default void setOriginalProducerName(String originalProducerName) {}
 
-        default void setOriginalSequenceId(long originalSequenceId) {
-        }
+        default void setOriginalSequenceId(long originalSequenceId) {}
 
         /**
          * Return the producer name for the original producer.
@@ -82,35 +80,31 @@ public interface Topic {
 
         void completed(Exception e, long ledgerId, long entryId);
 
-        default void setMetadataFromEntryData(ByteBuf entryData) {
-        }
+        default void setMetadataFromEntryData(ByteBuf entryData) {}
 
         default long getHighestSequenceId() {
-            return  -1L;
+            return -1L;
         }
 
-        default void setOriginalHighestSequenceId(long originalHighestSequenceId) {
-
-        }
+        default void setOriginalHighestSequenceId(long originalHighestSequenceId) {}
 
         default long getOriginalHighestSequenceId() {
-            return  -1L;
+            return -1L;
         }
 
         default long getNumberOfMessages() {
-            return  1L;
+            return 1L;
         }
 
         default long getMsgSize() {
-            return  -1L;
+            return -1L;
         }
 
         default boolean isMarkerMessage() {
             return false;
         }
 
-        default void setProperty(String propertyName, Object value) {
-        }
+        default void setProperty(String propertyName, Object value) {}
 
         default Object getProperty(String propertyName) {
             return null;
@@ -124,9 +118,7 @@ public interface Topic {
             return -1L;
         }
 
-        default void setEntryTimestamp(long entryTimestamp) {
-
-        }
+        default void setEntryTimestamp(long entryTimestamp) {}
     }
 
     CompletableFuture<Void> initialize();
@@ -164,13 +156,21 @@ public interface Topic {
     long increasePublishLimitedTimes();
 
     @Deprecated
-    CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
-                                          int priorityLevel, String consumerName, boolean isDurable,
-                                          MessageId startMessageId,
-                                          Map<String, String> metadata, boolean readCompacted,
-                                          InitialPosition initialPosition,
-                                          long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
-                                          KeySharedMeta keySharedMeta);
+    CompletableFuture<Consumer> subscribe(
+            TransportCnx cnx,
+            String subscriptionName,
+            long consumerId,
+            SubType subType,
+            int priorityLevel,
+            String consumerName,
+            boolean isDurable,
+            MessageId startMessageId,
+            Map<String, String> metadata,
+            boolean readCompacted,
+            InitialPosition initialPosition,
+            long startMessageRollbackDurationSec,
+            boolean replicateSubscriptionState,
+            KeySharedMeta keySharedMeta);
 
     /**
      * Subscribe a topic.
@@ -179,8 +179,11 @@ public interface Topic {
      */
     CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
-    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
-            boolean replicateSubscriptionState, Map<String, String> properties);
+    CompletableFuture<Subscription> createSubscription(
+            String subscriptionName,
+            InitialPosition initialPosition,
+            boolean replicateSubscriptionState,
+            Map<String, String> properties);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
@@ -258,9 +261,13 @@ public interface Topic {
 
     BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
-    void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
-            StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
-            String namespaceName, boolean hydratePublishers);
+    void updateRates(
+            NamespaceStats nsStats,
+            NamespaceBundleStats currentBundleStats,
+            StatsOutputStream topicStatsStream,
+            ClusterReplicationMetrics clusterReplicationMetrics,
+            String namespaceName,
+            boolean hydratePublishers);
 
     Subscription getSubscription(String subscription);
 
@@ -268,12 +275,11 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
 
-    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                            boolean getEarliestTimeInBacklog);
+    TopicStatsImpl getStats(
+            boolean getPreciseBacklog, boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog);
 
-    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
-                                                              boolean subscriptionBacklogSize,
-                                                              boolean getEarliestTimeInBacklog);
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(
+            boolean getPreciseBacklog, boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -368,5 +374,4 @@ public interface Topic {
      * @return
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
-
 }

@@ -19,12 +19,9 @@
 package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.nio.charset.StandardCharsets;
-
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -77,7 +74,12 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "[1,2,3]");
 
         stream.startList();
-        stream.writeItem(1).writeItem(2).writeItem(3).writeItem(false).writeItem(1.0).writeItem("xyz");
+        stream.writeItem(1)
+                .writeItem(2)
+                .writeItem(3)
+                .writeItem(false)
+                .writeItem(1.0)
+                .writeItem("xyz");
         stream.endList();
         assertEquals(str(), "[1,2,3,false,1.0,\"xyz\"]");
     }

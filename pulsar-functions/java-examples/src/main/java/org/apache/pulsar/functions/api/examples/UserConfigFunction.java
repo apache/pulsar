@@ -31,4 +31,3 @@ public class UserConfigFunction implements Function<String, String> {
         return (String) context.getUserConfigValue("WhatToWrite").orElse("Not a nice way");
     }
 }
-

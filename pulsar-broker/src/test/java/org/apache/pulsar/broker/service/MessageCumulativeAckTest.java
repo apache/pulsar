@@ -38,9 +38,9 @@ import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -61,8 +61,7 @@ public class MessageCumulativeAckTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
-                .build();
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext().build();
 
         serverCnx = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnx).isActive();
@@ -70,13 +69,12 @@ public class MessageCumulativeAckTest {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getValue());
         when(serverCnx.ctx()).thenReturn(mock(ChannelHandlerContext.class));
-        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
-                .when(serverCnx).getCommandSender();
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx)).when(serverCnx).getCommandSender();
 
         String topicName = TopicName.get("MessageCumulativeAckTest").toString();
-        PersistentTopic persistentTopic = new PersistentTopic(topicName, mock(ManagedLedger.class), pulsarTestContext.getBrokerService());
-        sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
-            mock(ManagedCursorImpl.class), false));
+        PersistentTopic persistentTopic =
+                new PersistentTopic(topicName, mock(ManagedLedger.class), pulsarTestContext.getBrokerService());
+        sub = spy(new PersistentSubscription(persistentTopic, "sub-1", mock(ManagedCursorImpl.class), false));
         doNothing().when(sub).acknowledgeMessage(any(), any(), any());
     }
 
@@ -91,25 +89,35 @@ public class MessageCumulativeAckTest {
 
     @DataProvider(name = "individualAckModes")
     public static Object[][] individualAckModes() {
-        return new Object[][]{
-            {Shared},
-            {Key_Shared},
+        return new Object[][] {
+            {Shared}, {Key_Shared},
         };
     }
 
     @DataProvider(name = "notIndividualAckModes")
     public static Object[][] notIndividualAckModes() {
-        return new Object[][]{
-            {Exclusive},
-            {Failover},
+        return new Object[][] {
+            {Exclusive}, {Failover},
         };
     }
 
     @Test(timeOut = 5000, dataProvider = "individualAckModes")
     public void testAckWithIndividualAckMode(CommandSubscribe.SubType subType) throws Exception {
-        Consumer consumer = new Consumer(sub, subType, "topic-1", consumerId, 0,
-            "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+        Consumer consumer = new Consumer(
+                sub,
+                subType,
+                "topic-1",
+                consumerId,
+                0,
+                "Cons1",
+                true,
+                serverCnx,
+                "myrole-1",
+                emptyMap(),
+                false,
+                null,
+                MessageId.latest,
+                DEFAULT_CONSUMER_EPOCH);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);
@@ -122,9 +130,21 @@ public class MessageCumulativeAckTest {
 
     @Test(timeOut = 5000, dataProvider = "notIndividualAckModes")
     public void testAckWithNotIndividualAckMode(CommandSubscribe.SubType subType) throws Exception {
-        Consumer consumer = new Consumer(sub, subType, "topic-1", consumerId, 0,
-            "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+        Consumer consumer = new Consumer(
+                sub,
+                subType,
+                "topic-1",
+                consumerId,
+                0,
+                "Cons1",
+                true,
+                serverCnx,
+                "myrole-1",
+                emptyMap(),
+                false,
+                null,
+                MessageId.latest,
+                DEFAULT_CONSUMER_EPOCH);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);
@@ -137,9 +157,21 @@ public class MessageCumulativeAckTest {
 
     @Test(timeOut = 5000)
     public void testAckWithMoreThanNoneMessageIds() throws Exception {
-        Consumer consumer = new Consumer(sub, Failover, "topic-1", consumerId, 0,
-            "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+        Consumer consumer = new Consumer(
+                sub,
+                Failover,
+                "topic-1",
+                consumerId,
+                0,
+                "Cons1",
+                true,
+                serverCnx,
+                "myrole-1",
+                emptyMap(),
+                false,
+                null,
+                MessageId.latest,
+                DEFAULT_CONSUMER_EPOCH);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);

@@ -56,5 +56,4 @@ public class NonPersistentPartitionedTopicStatsImpl extends NonPersistentTopicSt
         partitions.clear();
         metadata.partitions = 0;
     }
-
 }

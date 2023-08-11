@@ -54,6 +54,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId) {
         return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException("Transaction buffer disable!"));
     }
+
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark) {
         return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException("Transaction buffer disable!"));
@@ -86,7 +87,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
 
     @Override
     public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
-        //no-op
+        // no-op
     }
 
     @Override

@@ -47,12 +47,15 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     private final long tcId;
     private final TransactionMetadataStoreService transactionMetadataStoreService;
 
-    TransactionTimeoutTrackerImpl(long tcId, Timer timer, long tickTimeMillis,
-                                  TransactionMetadataStoreService transactionMetadataStoreService) {
+    TransactionTimeoutTrackerImpl(
+            long tcId,
+            Timer timer,
+            long tickTimeMillis,
+            TransactionMetadataStoreService transactionMetadataStoreService) {
         this.tcId = tcId;
         this.transactionMetadataStoreService = transactionMetadataStoreService;
         this.timer = timer;
-        this.tickTimeMillis  = tickTimeMillis;
+        this.tickTimeMillis = tickTimeMillis;
         this.clock = Clock.systemUTC();
     }
 
@@ -62,7 +65,7 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
             this.transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
             return CompletableFuture.completedFuture(false);
         }
-        synchronized (this){
+        synchronized (this) {
             long nowTime = clock.millis();
             long transactionTimeoutTime = nowTime + timeout;
             priorityQueue.add(transactionTimeoutTime, tcId, sequenceId);
@@ -91,8 +94,8 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     public void start() {
         synchronized (this) {
             if (currentTimeout == null && !priorityQueue.isEmpty()) {
-                this.currentTimeout = this.timer.newTimeout(this,
-                        priorityQueue.peekN1() - this.clock.millis(), TimeUnit.MILLISECONDS);
+                this.currentTimeout = this.timer.newTimeout(
+                        this, priorityQueue.peekN1() - this.clock.millis(), TimeUnit.MILLISECONDS);
                 this.nowTaskTimeoutTime = priorityQueue.peekN1();
             }
         }
@@ -108,17 +111,16 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
 
     @Override
     public void run(Timeout timeout) {
-        synchronized (this){
-            while (!priorityQueue.isEmpty()){
+        synchronized (this) {
+            while (!priorityQueue.isEmpty()) {
                 long timeoutTime = priorityQueue.peekN1();
                 long nowTime = clock.millis();
-                if (timeoutTime < nowTime){
-                    transactionMetadataStoreService.endTransactionForTimeout(new TxnID(priorityQueue.peekN2(),
-                            priorityQueue.peekN3()));
+                if (timeoutTime < nowTime) {
+                    transactionMetadataStoreService.endTransactionForTimeout(
+                            new TxnID(priorityQueue.peekN2(), priorityQueue.peekN3()));
                     priorityQueue.pop();
                 } else {
-                    currentTimeout = timer
-                            .newTimeout(this, timeoutTime - clock.millis(), TimeUnit.MILLISECONDS);
+                    currentTimeout = timer.newTimeout(this, timeoutTime - clock.millis(), TimeUnit.MILLISECONDS);
                     nowTaskTimeoutTime = timeoutTime;
                     break;
                 }

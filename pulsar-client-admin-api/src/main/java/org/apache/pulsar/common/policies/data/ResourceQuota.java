@@ -79,5 +79,4 @@ public class ResourceQuota {
         this.bandwidthOut -= quota.bandwidthOut;
         this.memory -= quota.memory;
     }
-
 }

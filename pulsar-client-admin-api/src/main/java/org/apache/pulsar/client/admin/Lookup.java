@@ -50,7 +50,6 @@ public interface Lookup {
      */
     Map<String, String> lookupPartitionedTopic(String topic) throws PulsarAdminException;
 
-
     /**
      * Lookup a partitioned topic.
      *

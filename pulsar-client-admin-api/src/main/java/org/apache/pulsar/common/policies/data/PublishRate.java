@@ -44,8 +44,7 @@ public class PublishRate {
 
     public static PublishRate normalize(PublishRate publishRate) {
         if (publishRate != null
-            && (publishRate.publishThrottlingRateInMsg > 0
-            || publishRate.publishThrottlingRateInByte > 0)) {
+                && (publishRate.publishThrottlingRateInMsg > 0 || publishRate.publishThrottlingRateInByte > 0)) {
             return publishRate;
         } else {
             return null;
@@ -66,5 +65,4 @@ public class PublishRate {
         }
         return false;
     }
-
 }

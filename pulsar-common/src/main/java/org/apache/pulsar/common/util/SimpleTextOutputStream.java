@@ -26,8 +26,9 @@ import io.netty.util.CharsetUtil;
  */
 public class SimpleTextOutputStream {
     private final ByteBuf buffer;
-    private static final char[] hexChars = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e',
-            'f'};
+    private static final char[] hexChars = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    };
 
     public SimpleTextOutputStream(ByteBuf buffer) {
         this.buffer = buffer;

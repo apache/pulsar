@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClientException.MemoryBufferIsFullError;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -28,21 +32,15 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
 @Test(groups = "broker-api")
 public class MemoryLimitTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batchingAndMemoryLimit")
     public Object[][] provider() {
         return new Object[][] {
-                // "Batching, memoryLimit in kilo bytes"
-                {false, 100},
-                {true, 201} // batching need n(batches)*1024(allocated size) capacity, that is 100+101*1024 bytes
+            // "Batching, memoryLimit in kilo bytes"
+            {false, 100},
+            {true, 201} // batching need n(batches)*1024(allocated size) capacity, that is 100+101*1024 bytes
         };
     }
 
@@ -60,16 +58,14 @@ public class MemoryLimitTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchingAndMemoryLimit")
-    public void testRejectMessages(boolean batching, int memoryLimit)
-            throws Exception {
+    public void testRejectMessages(boolean batching, int memoryLimit) throws Exception {
         String topic = newTopicName();
 
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
 
-        @Cleanup
-        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
+        @Cleanup PulsarTestClient client = PulsarTestClient.create(clientBuilder);
 
         @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
@@ -89,9 +85,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         for (int i = 0; i < n; i++) {
             producer.sendAsync(new byte[1024]);
         }
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(5))
-                .until(() -> producer.getPendingQueueSize() == n);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> producer.getPendingQueueSize() == n);
         if (batching) {
             // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
             assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
@@ -107,9 +101,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         }
 
         client.allowReconnecting();
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(30))
-                .until(() -> producer.getPendingQueueSize() == 0);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).until(() -> producer.getPendingQueueSize() == 0);
         assertEquals(client.getMemoryLimitController().currentUsage(), 0);
 
         // We should now be able to send again
@@ -125,8 +117,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
 
-        @Cleanup
-        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
+        @Cleanup PulsarTestClient client = PulsarTestClient.create(clientBuilder);
 
         @Cleanup
         ProducerImpl<byte[]> p1 = (ProducerImpl<byte[]>) client.newProducer()

@@ -109,8 +109,8 @@ public final class FieldParser {
         }
 
         if (converter == null) {
-            throw new UnsupportedOperationException("Cannot convert from " + from.getClass().getName() + " to "
-                    + to.getName() + ". Requested converter does not exist.");
+            throw new UnsupportedOperationException("Cannot convert from "
+                    + from.getClass().getName() + " to " + to.getName() + ". Requested converter does not exist.");
         }
 
         // Convert the value.
@@ -118,8 +118,10 @@ public final class FieldParser {
             Object val = converter.invoke(to, from);
             return to.cast(val);
         } catch (Exception e) {
-            throw new RuntimeException("Cannot convert from " + from.getClass().getName() + " to " + to.getName()
-                    + ". Conversion failed with " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Cannot convert from " + from.getClass().getName() + " to " + to.getName()
+                            + ". Conversion failed with " + e.getMessage(),
+                    e);
         }
     }
 
@@ -146,8 +148,11 @@ public final class FieldParser {
                         setEmptyValue(v, f, obj);
                     }
                 } catch (Exception e) {
-                    throw new IllegalArgumentException(format("failed to initialize %s field while setting value %s",
-                            f.getName(), properties.get(f.getName())), e);
+                    throw new IllegalArgumentException(
+                            format(
+                                    "failed to initialize %s field while setting value %s",
+                                    f.getName(), properties.get(f.getName())),
+                            e);
                 }
             }
         });
@@ -176,13 +181,13 @@ public final class FieldParser {
                 return stringToSet(strValue, clazz);
             } else if (field.getType().equals(Map.class)) {
                 Class<?> valueClass =
-                    (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[1];
+                        (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[1];
                 return stringToMap(strValue, clazz, valueClass);
             } else if (field.getType().equals(Optional.class)) {
                 Type typeClazz = ((ParameterizedType) fieldType).getActualTypeArguments()[0];
                 if (typeClazz instanceof ParameterizedType) {
-                    throw new IllegalArgumentException(format("unsupported non-primitive Optional<%s> for %s",
-                            typeClazz.getClass(), field.getName()));
+                    throw new IllegalArgumentException(format(
+                            "unsupported non-primitive Optional<%s> for %s", typeClazz.getClass(), field.getName()));
                 }
                 return Optional.ofNullable(convert(strValue, (Class) typeClazz));
             } else {
@@ -219,7 +224,8 @@ public final class FieldParser {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));
             }
-        } else if (Number.class.isAssignableFrom(field.getType()) || fieldType.getClass().equals(String.class)) {
+        } else if (Number.class.isAssignableFrom(field.getType())
+                || fieldType.getClass().equals(String.class)) {
             field.set(obj, null);
         }
     }
@@ -231,10 +237,11 @@ public final class FieldParser {
     private static void initConverters() {
         Method[] methods = FieldParser.class.getDeclaredMethods();
         Arrays.stream(methods).forEach(method -> {
-
             if (method.getParameterTypes().length == 1) {
                 // Converter should accept 1 argument. This skips the convert() method.
-                CONVERTERS.put(method.getParameterTypes()[0].getName() + "_" + method.getReturnType().getName(),
+                CONVERTERS.put(
+                        method.getParameterTypes()[0].getName() + "_"
+                                + method.getReturnType().getName(),
                         method);
             }
         });
@@ -318,9 +325,11 @@ public final class FieldParser {
             return null;
         }
         String[] tokens = trim(val).split(",");
-        return Arrays.stream(tokens).map(t -> {
-            return convert(trim(t), type);
-        }).collect(Collectors.toList());
+        return Arrays.stream(tokens)
+                .map(t -> {
+                    return convert(trim(t), type);
+                })
+                .collect(Collectors.toList());
     }
 
     /**
@@ -337,9 +346,11 @@ public final class FieldParser {
             return null;
         }
         String[] tokens = trim(val).split(",");
-        return Arrays.stream(tokens).map(t -> {
-            return convert(trim(t), type);
-        }).collect(Collectors.toCollection(LinkedHashSet::new));
+        return Arrays.stream(tokens)
+                .map(t -> {
+                    return convert(trim(t), type);
+                })
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private static <K, V> Map<K, V> stringToMap(String strValue, Class<K> keyType, Class<V> valueType) {
@@ -350,8 +361,8 @@ public final class FieldParser {
         Map<K, V> map = new HashMap<>();
         for (String token : tokens) {
             String[] keyValue = trim(token).split("=");
-            checkArgument(keyValue.length == 2,
-                    strValue + " map-value is not in correct format key1=value,key2=value2");
+            checkArgument(
+                    keyValue.length == 2, strValue + " map-value is not in correct format key1=value,key2=value2");
             map.put(convert(trim(keyValue[0]), keyType), convert(trim(keyValue[1]), valueType));
         }
         return map;
@@ -380,7 +391,6 @@ public final class FieldParser {
      *            The Boolean to be converted.
      * @return The converted String value.
      */
-
     public static String booleanToString(Boolean value) {
         return value.toString();
     }

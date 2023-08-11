@@ -41,8 +41,7 @@ public class ProxyTopicStat {
     }
 
     public static class ProducerStats {
-        public ProducerStats() {
-        }
+        public ProducerStats() {}
 
         public ProducerStats(ProducerHandler handler) {
             this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
@@ -55,8 +54,7 @@ public class ProxyTopicStat {
 
     public static class ConsumerStats {
 
-        public ConsumerStats() {
-        }
+        public ConsumerStats() {}
 
         public ConsumerStats(ConsumerHandler handler) {
             this.subscriptionName = handler.getSubscription();
@@ -79,5 +77,4 @@ public class ProxyTopicStat {
         public SubscriptionMode subscriptionMode;
         public long numberOfMsgDelivered;
     }
-
 }

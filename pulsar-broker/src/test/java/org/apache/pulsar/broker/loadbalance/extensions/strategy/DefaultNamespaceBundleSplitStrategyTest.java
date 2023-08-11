@@ -110,7 +110,6 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         loadManager = mock(ExtensibleLoadManagerImpl.class);
         channel = mock(ServiceUnitStateChannelImpl.class);
 
-
         doReturn(mock(MetadataStoreExtended.class)).when(pulsar).getLocalMetadataStore();
         namespaceBundleFactory = spy(new NamespaceBundleFactory(pulsar, Hashing.crc32()));
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -131,12 +130,12 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         var namespaceBundle2 = namespaceBundleFactory.getBundle(
                 LoadManagerShared.getNamespaceNameFromBundleName(bundle2),
                 LoadManagerShared.getBundleRangeFromBundleName(bundle2));
-        doReturn(CompletableFuture.completedFuture(
-                List.of(splitBoundary1))).when(namespaceService).getSplitBoundary(
-                        eq(namespaceBundle1), eq((List<Long>)null), any());
-        doReturn(CompletableFuture.completedFuture(
-                List.of(splitBoundary2))).when(namespaceService).getSplitBoundary(
-                        eq(namespaceBundle2), eq((List<Long>)null), any());
+        doReturn(CompletableFuture.completedFuture(List.of(splitBoundary1)))
+                .when(namespaceService)
+                .getSplitBoundary(eq(namespaceBundle1), eq((List<Long>) null), any());
+        doReturn(CompletableFuture.completedFuture(List.of(splitBoundary2)))
+                .when(namespaceService)
+                .getSplitBoundary(eq(namespaceBundle2), eq((List<Long>) null), any());
 
         bundleStats = new LinkedHashMap<>();
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
@@ -156,7 +155,6 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         assertEquals(actual.size(), 1);
     }
 
-
     public void testNotEnoughTopics() {
         config.setLoadBalancerNamespaceBundleSplitConditionHitCountThreshold(0);
         bundleStats.values().forEach(v -> v.msgRateIn = config.getLoadBalancerNamespaceBundleMaxMsgRate() + 1);
@@ -171,7 +169,9 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         config.setLoadBalancerNamespaceBundleSplitConditionHitCountThreshold(0);
         bundleStats.values().forEach(v -> v.msgRateIn = config.getLoadBalancerNamespaceBundleMaxMsgRate() + 1);
         var strategy = new DefaultNamespaceBundleSplitStrategyImpl(new SplitCounter());
-        doReturn(config.getLoadBalancerNamespaceMaximumBundles()).when(namespaceService).getBundleCount(any());
+        doReturn(config.getLoadBalancerNamespaceMaximumBundles())
+                .when(namespaceService)
+                .getBundleCount(any());
         var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
         var expected = Set.of();
         assertEquals(actual, expected);
@@ -215,9 +215,12 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         var counter = spy(new SplitCounter());
         config.setLoadBalancerNamespaceBundleSplitConditionHitCountThreshold(0);
         bundleStats.values().forEach(v -> v.msgRateIn = config.getLoadBalancerNamespaceBundleMaxMsgRate() + 1);
-        doReturn(Map.of("tenant/namespace/0x00000000_0xFFFFFFFF",
-                new ServiceUnitStateData(ServiceUnitState.Splitting, broker, 1)).entrySet())
-                .when(channel).getOwnershipEntrySet();
+        doReturn(Map.of(
+                                "tenant/namespace/0x00000000_0xFFFFFFFF",
+                                new ServiceUnitStateData(ServiceUnitState.Splitting, broker, 1))
+                        .entrySet())
+                .when(channel)
+                .getOwnershipEntrySet();
         var strategy = new DefaultNamespaceBundleSplitStrategyImpl(counter);
         var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
         var expected = Set.of();
@@ -237,8 +240,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle1, broker, Map.of(
-                        childBundle11, Optional.empty(), childBundle12, Optional.empty()));
+                Split split = new Split(
+                        bundle1, broker, Map.of(childBundle11, Optional.empty(), childBundle12, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.MsgRate);
 
@@ -246,8 +249,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle2, broker, Map.of(
-                        childBundle21, Optional.empty(), childBundle22, Optional.empty()));
+                Split split = new Split(
+                        bundle2, broker, Map.of(childBundle21, Optional.empty(), childBundle22, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.MsgRate);
 
@@ -269,8 +272,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle1, broker, Map.of(
-                        childBundle11, Optional.empty(), childBundle12, Optional.empty()));
+                Split split = new Split(
+                        bundle1, broker, Map.of(childBundle11, Optional.empty(), childBundle12, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.Topics);
 
@@ -278,8 +281,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle2, broker, Map.of(
-                        childBundle21, Optional.empty(), childBundle22, Optional.empty()));
+                Split split = new Split(
+                        bundle2, broker, Map.of(childBundle21, Optional.empty(), childBundle22, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.Topics);
 
@@ -304,8 +307,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle1, broker, Map.of(
-                        childBundle11, Optional.empty(), childBundle12, Optional.empty()));
+                Split split = new Split(
+                        bundle1, broker, Map.of(childBundle11, Optional.empty(), childBundle12, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.Sessions);
 
@@ -313,8 +316,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle2, broker, Map.of(
-                        childBundle21, Optional.empty(), childBundle22, Optional.empty()));
+                Split split = new Split(
+                        bundle2, broker, Map.of(childBundle21, Optional.empty(), childBundle22, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.Sessions);
 
@@ -339,8 +342,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle1, broker, Map.of(
-                        childBundle11, Optional.empty(), childBundle12, Optional.empty()));
+                Split split = new Split(
+                        bundle1, broker, Map.of(childBundle11, Optional.empty(), childBundle12, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.Bandwidth);
 
@@ -348,8 +351,8 @@ public class DefaultNamespaceBundleSplitStrategyTest {
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                Split split = new Split(bundle2, broker, Map.of(
-                        childBundle21, Optional.empty(), childBundle22, Optional.empty()));
+                Split split = new Split(
+                        bundle2, broker, Map.of(childBundle21, Optional.empty(), childBundle22, Optional.empty()));
                 decision1.setSplit(split);
                 decision1.succeed(SplitDecision.Reason.Bandwidth);
 
@@ -361,5 +364,4 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             }
         }
     }
-
 }

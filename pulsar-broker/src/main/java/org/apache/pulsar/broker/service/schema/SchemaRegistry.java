@@ -34,8 +34,8 @@ public interface SchemaRegistry extends AutoCloseable {
 
     CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId);
 
-    CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
-                                                       SchemaCompatibilityStrategy strategy);
+    CompletableFuture<SchemaVersion> putSchemaIfAbsent(
+            String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy);
 
     CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force);
 
@@ -43,21 +43,19 @@ public interface SchemaRegistry extends AutoCloseable {
 
     CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully);
 
-    CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
-                                            SchemaCompatibilityStrategy strategy);
+    CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy);
 
-    CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
-                                                             SchemaCompatibilityStrategy strategy);
+    CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy);
 
     CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId);
 
     CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData);
 
-    CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
-                                                       SchemaCompatibilityStrategy strategy);
+    CompletableFuture<Void> checkConsumerCompatibility(
+            String schemaId, SchemaData schemaData, SchemaCompatibilityStrategy strategy);
 
-    CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
-                                                                  SchemaData schemaData);
+    CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(
+            List<SchemaAndMetadata> schemaAndMetadataList, SchemaData schemaData);
 
     SchemaVersion versionFromBytes(byte[] version);
 
@@ -81,9 +79,7 @@ public interface SchemaRegistry extends AutoCloseable {
                 return false;
             }
             SchemaAndMetadata that = (SchemaAndMetadata) o;
-            return version == that.version
-                    && Objects.equals(id, that.id)
-                    && Objects.equals(schema, that.schema);
+            return version == that.version && Objects.equals(id, that.id) && Objects.equals(schema, that.schema);
         }
 
         @Override
@@ -94,11 +90,10 @@ public interface SchemaRegistry extends AutoCloseable {
         @Override
         public String toString() {
             return MoreObjects.toStringHelper(this)
-                .add("id", id)
-                .add("schema", schema)
-                .add("version", version)
-                .toString();
+                    .add("id", id)
+                    .add("schema", schema)
+                    .add("version", version)
+                    .toString();
         }
     }
-
 }

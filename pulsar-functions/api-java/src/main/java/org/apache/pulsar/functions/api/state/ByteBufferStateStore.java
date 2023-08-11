@@ -72,5 +72,4 @@ public interface ByteBufferStateStore extends StateStore {
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getAsync(String key);
-
 }

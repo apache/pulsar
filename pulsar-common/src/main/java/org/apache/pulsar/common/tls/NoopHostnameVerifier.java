@@ -19,7 +19,6 @@
 /**
  * From Apache HTTP client
  */
-
 package org.apache.pulsar.common.tls;
 
 import javax.net.ssl.HostnameVerifier;
@@ -38,5 +37,4 @@ public class NoopHostnameVerifier implements HostnameVerifier {
     public final String toString() {
         return "NO_OP";
     }
-
 }

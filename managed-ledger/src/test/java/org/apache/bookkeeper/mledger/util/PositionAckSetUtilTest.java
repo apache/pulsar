@@ -18,18 +18,16 @@
  */
 package org.apache.bookkeeper.mledger.util;
 
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.testng.annotations.Test;
-
-import java.util.BitSet;
-
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.util.BitSet;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.testng.annotations.Test;
 
 public class PositionAckSetUtilTest {
 
@@ -108,6 +106,5 @@ public class PositionAckSetUtilTest {
         bitSetRecyclable = BitSetRecyclable.valueOf(positionOne.getAckSet());
         BitSetRecyclable bitSetRecyclableTwo = BitSetRecyclable.valueOf(bitSetTwo.toLongArray());
         assertEquals(bitSetRecyclable, bitSetRecyclableTwo);
-
     }
 }

@@ -31,9 +31,9 @@ import org.testng.annotations.Test;
 public class TrustManagerProxyTest {
     @DataProvider(name = "caDataProvider")
     public static Object[][] caDataProvider() {
-        return new Object[][]{
-                {"ca/multiple-ca.pem", 2},
-                {"ca/single-ca.pem", 1}
+        return new Object[][] {
+            {"ca/multiple-ca.pem", 2},
+            {"ca/single-ca.pem", 1}
         };
     }
 
@@ -43,8 +43,7 @@ public class TrustManagerProxyTest {
 
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         try {
-            TrustManagerProxy trustManagerProxy =
-                    new TrustManagerProxy(caPath, 120, scheduledExecutor);
+            TrustManagerProxy trustManagerProxy = new TrustManagerProxy(caPath, 120, scheduledExecutor);
             X509Certificate[] x509Certificates = trustManagerProxy.getAcceptedIssuers();
             assertNotNull(x509Certificates);
             assertEquals(Arrays.stream(x509Certificates).count(), count);

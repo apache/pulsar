@@ -45,10 +45,8 @@ public class AssignCounter {
         breakdownCounters = Map.of(
                 Success, new AtomicLong(),
                 Failure, new AtomicLong(),
-                Skip, new AtomicLong()
-        );
+                Skip, new AtomicLong());
     }
-
 
     public void incrementSuccess() {
         breakdownCounters.get(Success).incrementAndGet();

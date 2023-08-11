@@ -346,4 +346,3 @@ public interface ResourceQuotas {
      */
     CompletableFuture<Void> resetNamespaceBundleResourceQuotaAsync(String namespace, String bundle);
 }
-

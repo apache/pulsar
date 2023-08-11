@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +38,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -85,35 +83,40 @@ public class FilterEntryTest extends BrokerTestBase {
         internalCleanup();
     }
 
-
     @Test
     public void testOverride() throws Exception {
         conf.setAllowOverrideEntryFilters(true);
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false).topic(topic).create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
         for (int i = 0; i < 10; i++) {
             producer.send("test");
         }
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicReference(topic).get();
+        PersistentTopic topicRef = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topic).get();
 
         // set topic level entry filters
         EntryFilter mockFilter = mock(EntryFilter.class);
-        when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
-                EntryFilter.FilterResult.REJECT);
+        when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class)))
+                .thenReturn(EntryFilter.FilterResult.REJECT);
         setMockFilterToTopic(topicRef, List.of(mockFilter));
 
         EntryFilter mockFilter1 = mock(EntryFilter.class);
-        when(mockFilter1.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
-                EntryFilter.FilterResult.ACCEPT);
+        when(mockFilter1.filterEntry(any(Entry.class), any(FilterContext.class)))
+                .thenReturn(EntryFilter.FilterResult.ACCEPT);
         setMockBrokerFilter(List.of(mockFilter1));
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
                 .subscriptionInitialPosition(Earliest)
-                .subscriptionName(subName).subscribe();
+                .subscriptionName(subName)
+                .subscribe();
 
         int counter = 0;
         while (true) {
@@ -128,12 +131,14 @@ public class FilterEntryTest extends BrokerTestBase {
         // All normal messages can be received
         assertEquals(0, counter);
 
-
         conf.setAllowOverrideEntryFilters(false);
         consumer.close();
-        consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+        consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
                 .subscriptionInitialPosition(Earliest)
-                .subscriptionName(subName + "1").subscribe();
+                .subscriptionName(subName + "1")
+                .subscribe();
         int counter1 = 0;
         while (true) {
             Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
@@ -157,8 +162,8 @@ public class FilterEntryTest extends BrokerTestBase {
 
     @SneakyThrows
     private void setMockBrokerFilter(List<EntryFilter> mockFilter) {
-        FieldUtils.writeField(pulsar.getBrokerService().getEntryFilterProvider(),
-                "brokerEntryFilters", mockFilter, true);
+        FieldUtils.writeField(
+                pulsar.getBrokerService().getEntryFilterProvider(), "brokerEntryFilters", mockFilter, true);
     }
 
     @Test
@@ -168,13 +173,16 @@ public class FilterEntryTest extends BrokerTestBase {
         map.put("2", "2");
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
                 .subscriptionProperties(map)
                 .isAckReceiptEnabled(true)
-                .subscriptionName(subName).subscribe();
+                .subscriptionName(subName)
+                .subscribe();
         // mock entry filters
-        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        PersistentSubscription subscription = (PersistentSubscription)
+                pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName);
         Dispatcher dispatcher = subscription.getDispatcher();
         Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
         field.setAccessible(true);
@@ -182,14 +190,19 @@ public class FilterEntryTest extends BrokerTestBase {
         hasFilterField.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(
+                EntryFilterWithClassLoader.class, filter1, narClassLoader);
         EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(
+                EntryFilterWithClassLoader.class, filter2, narClassLoader);
         field.set(dispatcher, List.of(loader1, loader2));
         hasFilterField.set(dispatcher, true);
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false).topic(topic).create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
         for (int i = 0; i < 10; i++) {
             producer.send("test");
         }
@@ -216,14 +229,16 @@ public class FilterEntryTest extends BrokerTestBase {
 
         MessageIdImpl lastMsgId = null;
         for (int i = 0; i < 10; i++) {
-            lastMsgId = (MessageIdImpl) producer.newMessage().property("REJECT", "").value("1").send();
+            lastMsgId = (MessageIdImpl)
+                    producer.newMessage().property("REJECT", "").value("1").send();
         }
 
         // analyze the subscription and predict that
         // 10 messages will be rejected by the filter
         verifyBacklog(topic, subName, 10, 10, 0, 0, 10, 10, 0, 0);
 
-        consumer = pulsarClient.newConsumer(Schema.STRING)
+        consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .isAckReceiptEnabled(true)
                 .subscriptionProperties(map)
@@ -257,10 +272,17 @@ public class FilterEntryTest extends BrokerTestBase {
         });
         consumer.close();
 
-        consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionProperties(map)
-                .subscriptionName(subName).subscribe();
+        consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionProperties(map)
+                .subscriptionName(subName)
+                .subscribe();
         for (int i = 0; i < 10; i++) {
-            producer.newMessage().property(String.valueOf(i), String.valueOf(i)).value("1").send();
+            producer.newMessage()
+                    .property(String.valueOf(i), String.valueOf(i))
+                    .value("1")
+                    .send();
         }
         counter = 0;
         while (true) {
@@ -277,21 +299,20 @@ public class FilterEntryTest extends BrokerTestBase {
         producer.close();
         consumer.close();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicReference(topic).get();
+        PersistentTopic topicRef = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topic).get();
         setMockFilterToTopic(topicRef, List.of(loader1, loader2));
 
         cleanup();
         verify(loader1, times(1)).close();
         verify(loader2, times(1)).close();
-
     }
 
     @DataProvider(name = "topicProvider")
     public Object[][] topicProvider() {
-        return new Object[][]{
-                {"persistent://prop/ns-abc/topic" + UUID.randomUUID()},
-                {"non-persistent://prop/ns-abc/topic" + UUID.randomUUID()},
+        return new Object[][] {
+            {"persistent://prop/ns-abc/topic" + UUID.randomUUID()},
+            {"non-persistent://prop/ns-abc/topic" + UUID.randomUUID()},
         };
     }
 
@@ -299,14 +320,20 @@ public class FilterEntryTest extends BrokerTestBase {
     public void testFilteredMsgCount(String topic) throws Throwable {
         String subName = "sub";
 
-        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false).topic(topic).create();
-             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
-                     .subscriptionName(subName).subscribe()) {
+        try (Producer<String> producer = pulsarClient
+                        .newProducer(Schema.STRING)
+                        .enableBatching(false)
+                        .topic(topic)
+                        .create();
+                Consumer<String> consumer = pulsarClient
+                        .newConsumer(Schema.STRING)
+                        .topic(topic)
+                        .subscriptionName(subName)
+                        .subscribe()) {
 
             // mock entry filters
-            Subscription subscription = pulsar.getBrokerService()
-                    .getTopicReference(topic).get().getSubscription(subName);
+            Subscription subscription =
+                    pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName);
             Dispatcher dispatcher = subscription.getDispatcher();
             Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
@@ -314,9 +341,11 @@ public class FilterEntryTest extends BrokerTestBase {
             hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
-            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            EntryFilterWithClassLoader loader1 =
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
             EntryFilter filter2 = new EntryFilter2Test();
-            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+            EntryFilterWithClassLoader loader2 =
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 
@@ -325,9 +354,9 @@ public class FilterEntryTest extends BrokerTestBase {
             }
 
             for (int i = 0; i < 10; i++) {
-                assertNotNull(producer.newMessage().property("REJECT", "").value("1").send());
+                assertNotNull(
+                        producer.newMessage().property("REJECT", "").value("1").send());
             }
-
 
             int counter = 0;
             while (true) {
@@ -347,7 +376,6 @@ public class FilterEntryTest extends BrokerTestBase {
             assertEquals(filtered, 10);
         }
     }
-
 
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
@@ -377,27 +405,33 @@ public class FilterEntryTest extends BrokerTestBase {
         metadataConsumer2.put("matchValueReschedule", "FOR-1");
         final int numMessages = 200;
 
-        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false).topic(topic).create();
-             Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(topic)
-                     .subscriptionType(SubscriptionType.Shared)
-                     .properties(metadataConsumer1)
-                     .consumerName("consumer1")
-                     .receiverQueueSize(numMessages / 2)
-                     .subscriptionName(subName)
-                     .subscribe();
-             Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
-                     .subscriptionType(SubscriptionType.Shared)
-                     .properties(metadataConsumer2)
-                     .consumerName("consumer2")
-                     .topic(topic)
-                     .receiverQueueSize(numMessages / 2)
-                     .subscriptionName(subName)
-                     .subscribe()) {
+        try (Producer<String> producer = pulsarClient
+                        .newProducer(Schema.STRING)
+                        .enableBatching(false)
+                        .topic(topic)
+                        .create();
+                Consumer<String> consumer1 = pulsarClient
+                        .newConsumer(Schema.STRING)
+                        .topic(topic)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .properties(metadataConsumer1)
+                        .consumerName("consumer1")
+                        .receiverQueueSize(numMessages / 2)
+                        .subscriptionName(subName)
+                        .subscribe();
+                Consumer<String> consumer2 = pulsarClient
+                        .newConsumer(Schema.STRING)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .properties(metadataConsumer2)
+                        .consumerName("consumer2")
+                        .topic(topic)
+                        .receiverQueueSize(numMessages / 2)
+                        .subscriptionName(subName)
+                        .subscribe()) {
 
             // mock entry filters
-            PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
-                    .getTopicReference(topic).get().getSubscription(subName);
+            PersistentSubscription subscription = (PersistentSubscription)
+                    pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName);
             Dispatcher dispatcher = subscription.getDispatcher();
             Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
@@ -482,15 +516,20 @@ public class FilterEntryTest extends BrokerTestBase {
         }
     }
 
-
-    private void verifyBacklog(String topic, String subscription,
-                               int numEntries, int numMessages,
-                               int numEntriesAccepted, int numMessagesAccepted,
-                               int numEntriesRejected, int numMessagesRejected,
-                               int numEntriesRescheduled, int numMessagesRescheduled
-    ) throws Exception {
-        AnalyzeSubscriptionBacklogResult a1
-                = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
+    private void verifyBacklog(
+            String topic,
+            String subscription,
+            int numEntries,
+            int numMessages,
+            int numEntriesAccepted,
+            int numMessagesAccepted,
+            int numEntriesRejected,
+            int numMessagesRejected,
+            int numEntriesRescheduled,
+            int numMessagesRescheduled)
+            throws Exception {
+        AnalyzeSubscriptionBacklogResult a1 =
+                admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
         Assert.assertEquals(numEntries, a1.getEntries());
         Assert.assertEquals(numEntriesAccepted, a1.getFilterAcceptedEntries());
@@ -503,43 +542,50 @@ public class FilterEntryTest extends BrokerTestBase {
         Assert.assertEquals(numMessagesRescheduled, a1.getFilterRescheduledMessages());
     }
 
-
     @DataProvider(name = "overrideBrokerEntryFilters")
     public static Object[][] overrideBrokerEntryFilters() {
-        return new Object[][]{ {true}, {false} };
+        return new Object[][] {{true}, {false}};
     }
-
 
     @Test(dataProvider = "overrideBrokerEntryFilters")
     public void testExecuteInOrder(boolean overrideBrokerEntryFilters) throws Exception {
         conf.setAllowOverrideEntryFilters(true);
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false).topic(topic).create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
         for (int i = 0; i < 10; i++) {
             producer.send("test");
         }
 
         EntryFilter mockFilterReject = mock(EntryFilter.class);
-        when(mockFilterReject.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
-                EntryFilter.FilterResult.REJECT);
+        when(mockFilterReject.filterEntry(any(Entry.class), any(FilterContext.class)))
+                .thenReturn(EntryFilter.FilterResult.REJECT);
         EntryFilter mockFilterAccept = mock(EntryFilter.class);
-        when(mockFilterAccept.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
-                EntryFilter.FilterResult.ACCEPT);
+        when(mockFilterAccept.filterEntry(any(Entry.class), any(FilterContext.class)))
+                .thenReturn(EntryFilter.FilterResult.ACCEPT);
         if (overrideBrokerEntryFilters) {
-            setMockFilterToTopic((PersistentTopic) pulsar.getBrokerService()
-                    .getTopicReference(topic).get(), List.of(mockFilterReject, mockFilterAccept));
+            setMockFilterToTopic(
+                    (PersistentTopic)
+                            pulsar.getBrokerService().getTopicReference(topic).get(),
+                    List.of(mockFilterReject, mockFilterAccept));
         } else {
-            setMockFilterToTopic((PersistentTopic) pulsar.getBrokerService()
-                    .getTopicReference(topic).get(), List.of());
+            setMockFilterToTopic(
+                    (PersistentTopic)
+                            pulsar.getBrokerService().getTopicReference(topic).get(),
+                    List.of());
             setMockBrokerFilter(List.of(mockFilterReject, mockFilterAccept));
         }
 
-
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
                 .subscriptionInitialPosition(Earliest)
-                .subscriptionName(subName).subscribe();
+                .subscriptionName(subName)
+                .subscribe();
 
         int counter = 0;
         while (true) {
@@ -554,24 +600,29 @@ public class FilterEntryTest extends BrokerTestBase {
         // All normal messages can be received
         assertEquals(0, counter);
         consumer.close();
-        verify(mockFilterReject, times(10))
-                .filterEntry(any(Entry.class), any(FilterContext.class));
-        verify(mockFilterAccept, never())
-                .filterEntry(any(Entry.class), any(FilterContext.class));
+        verify(mockFilterReject, times(10)).filterEntry(any(Entry.class), any(FilterContext.class));
+        verify(mockFilterAccept, never()).filterEntry(any(Entry.class), any(FilterContext.class));
 
         if (overrideBrokerEntryFilters) {
-            setMockFilterToTopic((PersistentTopic) pulsar.getBrokerService()
-                    .getTopicReference(topic).get(), List.of(mockFilterAccept, mockFilterReject));
+            setMockFilterToTopic(
+                    (PersistentTopic)
+                            pulsar.getBrokerService().getTopicReference(topic).get(),
+                    List.of(mockFilterAccept, mockFilterReject));
         } else {
-            setMockFilterToTopic((PersistentTopic) pulsar.getBrokerService()
-                    .getTopicReference(topic).get(), List.of());
+            setMockFilterToTopic(
+                    (PersistentTopic)
+                            pulsar.getBrokerService().getTopicReference(topic).get(),
+                    List.of());
             setMockBrokerFilter(List.of(mockFilterAccept, mockFilterReject));
         }
 
         @Cleanup
-        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+        Consumer<String> consumer2 = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
                 .subscriptionInitialPosition(Earliest)
-                .subscriptionName(subName + "-2").subscribe();
+                .subscriptionName(subName + "-2")
+                .subscribe();
 
         counter = 0;
         while (true) {
@@ -584,11 +635,7 @@ public class FilterEntryTest extends BrokerTestBase {
             }
         }
         assertEquals(0, counter);
-        verify(mockFilterReject, times(20))
-                .filterEntry(any(Entry.class), any(FilterContext.class));
-        verify(mockFilterAccept, times(10))
-                .filterEntry(any(Entry.class), any(FilterContext.class));
-
-
+        verify(mockFilterReject, times(20)).filterEntry(any(Entry.class), any(FilterContext.class));
+        verify(mockFilterAccept, times(10)).filterEntry(any(Entry.class), any(FilterContext.class));
     }
 }

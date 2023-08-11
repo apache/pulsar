@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.io.rabbitmq.source;
 
-import org.apache.pulsar.io.rabbitmq.RabbitMQSourceConfig;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
+import org.apache.pulsar.io.rabbitmq.RabbitMQSourceConfig;
+import org.testng.annotations.Test;
 
 /**
  * RabbitMQSourceConfig test
@@ -119,8 +117,7 @@ public class RabbitMQSourceConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "host property not set.")
+    @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "host property not set.")
     public final void missingHostValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("port", "5672");
@@ -142,8 +139,9 @@ public class RabbitMQSourceConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "prefetchCount must be non-negative.")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "prefetchCount must be non-negative.")
     public final void invalidPrefetchCountTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");

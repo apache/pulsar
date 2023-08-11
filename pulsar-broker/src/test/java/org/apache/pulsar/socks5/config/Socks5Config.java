@@ -26,5 +26,4 @@ public class Socks5Config {
     private boolean enableAuth;
 
     private int port;
-
 }

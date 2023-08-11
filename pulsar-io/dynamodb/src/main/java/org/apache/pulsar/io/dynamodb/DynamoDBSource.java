@@ -43,8 +43,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
         name = "dynamodb",
         type = IOType.SOURCE,
         help = "A source connector that copies messages from DynamoDB Streams to Pulsar",
-        configClass = DynamoDBSourceConfig.class
-    )
+        configClass = DynamoDBSourceConfig.class)
 @Slf4j
 public class DynamoDBSource extends AbstractAwsConnector implements Source<byte[]> {
 
@@ -57,7 +56,6 @@ public class DynamoDBSource extends AbstractAwsConnector implements Source<byte[
     private Thread workerThread;
     private Throwable threadEx;
 
-
     @Override
     public void close() throws Exception {
         worker.shutdown();
@@ -66,22 +64,18 @@ public class DynamoDBSource extends AbstractAwsConnector implements Source<byte[
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         this.dynamodbSourceConfig = DynamoDBSourceConfig.load(config);
-        checkArgument(isNotBlank(dynamodbSourceConfig.getAwsDynamodbStreamArn()),
-                "empty dynamo-stream arn");
+        checkArgument(isNotBlank(dynamodbSourceConfig.getAwsDynamodbStreamArn()), "empty dynamo-stream arn");
         // Even if the endpoint is set, it seems to require a region to go with it
-        checkArgument(isNotBlank(dynamodbSourceConfig.getAwsRegion()),
-                     "The aws-region must be set");
-        checkArgument(isNotBlank(dynamodbSourceConfig.getAwsCredentialPluginParam()),
-                "empty aws-credential param");
+        checkArgument(isNotBlank(dynamodbSourceConfig.getAwsRegion()), "The aws-region must be set");
+        checkArgument(isNotBlank(dynamodbSourceConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
         if (dynamodbSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
             checkArgument((dynamodbSourceConfig.getStartAtTime() != null), "Timestamp must be specified");
         }
-        queue = new LinkedBlockingQueue<> (dynamodbSourceConfig.getReceiveQueueSize());
+        queue = new LinkedBlockingQueue<>(dynamodbSourceConfig.getReceiveQueueSize());
         workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
         AwsCredentialProviderPlugin credentialsProvider = createCredentialProvider(
-                dynamodbSourceConfig.getAwsCredentialPluginName(),
-                dynamodbSourceConfig.getAwsCredentialPluginParam());
+                dynamodbSourceConfig.getAwsCredentialPluginName(), dynamodbSourceConfig.getAwsCredentialPluginParam());
 
         AmazonDynamoDBStreams dynamoDBStreamsClient =
                 dynamodbSourceConfig.buildDynamoDBStreamsClient(credentialsProvider);
@@ -89,10 +83,11 @@ public class DynamoDBSource extends AbstractAwsConnector implements Source<byte[
                 new AmazonDynamoDBStreamsAdapterClient(dynamoDBStreamsClient);
         recordProcessorFactory = new StreamsRecordProcessorFactory(queue, dynamodbSourceConfig);
 
-        kinesisClientLibConfig = new KinesisClientLibConfiguration(dynamodbSourceConfig.getApplicationName(),
-                dynamodbSourceConfig.getAwsDynamodbStreamArn(),
-                credentialsProvider.getCredentialProvider(),
-                workerId)
+        kinesisClientLibConfig = new KinesisClientLibConfiguration(
+                        dynamodbSourceConfig.getApplicationName(),
+                        dynamodbSourceConfig.getAwsDynamodbStreamArn(),
+                        credentialsProvider.getCredentialProvider(),
+                        workerId)
                 .withRegionName(dynamodbSourceConfig.getAwsRegion())
                 .withInitialPositionInStream(dynamodbSourceConfig.getInitialPositionInStream());
 
@@ -100,7 +95,8 @@ public class DynamoDBSource extends AbstractAwsConnector implements Source<byte[
             kinesisClientLibConfig.withTimestampAtInitialPositionInStream(dynamodbSourceConfig.getStartAtTime());
         }
 
-        worker = StreamsWorkerFactory.createDynamoDbStreamsWorker(recordProcessorFactory,
+        worker = StreamsWorkerFactory.createDynamoDbStreamsWorker(
+                recordProcessorFactory,
                 kinesisClientLibConfig,
                 adapterClient,
                 dynamodbSourceConfig.buildDynamoDBClient(credentialsProvider),
@@ -128,5 +124,4 @@ public class DynamoDBSource extends AbstractAwsConnector implements Source<byte[
             throw ex;
         }
     }
-
 }

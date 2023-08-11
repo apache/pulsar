@@ -46,7 +46,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
     }
 
     @Override
-    protected  CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
+    protected CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
         return client.newProducer(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
                 .enableBatching(false)
@@ -86,21 +86,24 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public MessageId write(String key, PulsarEvent event) throws PulsarClientException {
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(event);
+            TypedMessageBuilder<PulsarEvent> builder =
+                    producer.newMessage().key(key).value(event);
             setReplicateCluster(event, builder);
             return builder.send();
         }
 
         @Override
         public CompletableFuture<MessageId> writeAsync(String key, PulsarEvent event) {
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(event);
+            TypedMessageBuilder<PulsarEvent> builder =
+                    producer.newMessage().key(key).value(event);
             setReplicateCluster(event, builder);
             return builder.sendAsync();
         }
 
         @Override
         public MessageId delete(String key, PulsarEvent event) throws PulsarClientException {
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(null);
+            TypedMessageBuilder<PulsarEvent> builder =
+                    producer.newMessage().key(key).value(null);
             setReplicateCluster(event, builder);
             return builder.send();
         }
@@ -108,12 +111,11 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public CompletableFuture<MessageId> deleteAsync(String key, PulsarEvent event) {
             validateActionType(event);
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(null);
+            TypedMessageBuilder<PulsarEvent> builder =
+                    producer.newMessage().key(key).value(null);
             setReplicateCluster(event, builder);
             return builder.sendAsync();
         }
-
-
 
         @Override
         public void close() throws IOException {
@@ -160,8 +162,8 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         private final org.apache.pulsar.client.api.Reader<PulsarEvent> reader;
         private final TopicPoliciesSystemTopicClient systemTopic;
 
-        private TopicPolicyReader(org.apache.pulsar.client.api.Reader<PulsarEvent> reader,
-                                  TopicPoliciesSystemTopicClient systemTopic) {
+        private TopicPolicyReader(
+                org.apache.pulsar.client.api.Reader<PulsarEvent> reader, TopicPoliciesSystemTopicClient systemTopic) {
             this.reader = reader;
             this.systemTopic = systemTopic;
         }

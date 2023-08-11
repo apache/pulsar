@@ -70,8 +70,8 @@ public abstract class MockedBookKeeperTestCase {
     @BeforeMethod(alwaysRun = true)
     public void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
-        metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create("memory:local",
-                MetadataStoreConfig.builder().build()));
+        metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create(
+                "memory:local", MetadataStoreConfig.builder().build()));
         try {
             // start bookkeeper service
             startBookKeeper();
@@ -100,7 +100,10 @@ public abstract class MockedBookKeeperTestCase {
 
     @BeforeClass(alwaysRun = true)
     public void setUpClass() {
-        executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
+        executor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(2)
+                .name("test")
+                .build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
@@ -117,11 +120,14 @@ public abstract class MockedBookKeeperTestCase {
      */
     protected void startBookKeeper() throws Exception {
         for (int i = 0; i < numBookies; i++) {
-            metadataStore.put("/ledgers/available/192.168.1.1:" + (5000 + i), "".getBytes(),
-                    Optional.empty()).join();
+            metadataStore
+                    .put("/ledgers/available/192.168.1.1:" + (5000 + i), "".getBytes(), Optional.empty())
+                    .join();
         }
 
-        metadataStore.put("/ledgers/LAYOUT", "1\nflat:1".getBytes(), Optional.empty()).join();
+        metadataStore
+                .put("/ledgers/LAYOUT", "1\nflat:1".getBytes(), Optional.empty())
+                .join();
 
         bkc = new PulsarMockBookKeeper(executor);
     }
@@ -134,5 +140,4 @@ public abstract class MockedBookKeeperTestCase {
         metadataStore.close();
         metadataStore.setAlwaysFail(new MetadataStoreException("error"));
     }
-
 }

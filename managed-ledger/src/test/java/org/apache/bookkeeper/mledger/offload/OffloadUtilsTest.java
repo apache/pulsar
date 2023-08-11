@@ -18,13 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.offload;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
 
 public class OffloadUtilsTest {
 
@@ -38,7 +36,7 @@ public class OffloadUtilsTest {
         map.put("key1", "value1");
         map.put("key2", "value2");
 
-        //only one copy of the offload metadata information is stored in metadata store,
+        // only one copy of the offload metadata information is stored in metadata store,
         // and the original properties need to be cleared during offload
         OffloadUtils.setOffloadDriverMetadata(builder, "offload", map);
 
@@ -53,5 +51,4 @@ public class OffloadUtilsTest {
         Assert.assertEquals(offloadDriverMetadata.getProperties(0).getValue(), "value1");
         Assert.assertEquals(offloadDriverMetadata.getProperties(1).getValue(), "value2");
     }
-
 }

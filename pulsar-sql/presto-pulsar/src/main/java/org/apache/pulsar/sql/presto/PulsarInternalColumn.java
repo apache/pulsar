@@ -37,43 +37,42 @@ import java.util.function.Consumer;
  */
 public class PulsarInternalColumn {
 
+    public static final PulsarInternalColumn PARTITION = new PulsarInternalColumn(
+            "__partition__", IntegerType.INTEGER, "The partition number which the message belongs to");
 
-    public static final PulsarInternalColumn PARTITION = new PulsarInternalColumn("__partition__",
-            IntegerType.INTEGER, "The partition number which the message belongs to");
+    public static final PulsarInternalColumn EVENT_TIME = new PulsarInternalColumn(
+            "__event_time__",
+            TimestampType.TIMESTAMP,
+            "Application defined timestamp in milliseconds of when the event occurred");
 
-    public static final PulsarInternalColumn EVENT_TIME = new PulsarInternalColumn("__event_time__",
-            TimestampType.TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
+    public static final PulsarInternalColumn PUBLISH_TIME = new PulsarInternalColumn(
+            "__publish_time__", TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published");
 
-    public static final PulsarInternalColumn PUBLISH_TIME = new PulsarInternalColumn("__publish_time__",
-            TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published");
+    public static final PulsarInternalColumn MESSAGE_ID = new PulsarInternalColumn(
+            "__message_id__", VarcharType.VARCHAR, "The message ID of the message used to generate this row");
 
-    public static final PulsarInternalColumn MESSAGE_ID = new PulsarInternalColumn("__message_id__",
-            VarcharType.VARCHAR, "The message ID of the message used to generate this row");
+    public static final PulsarInternalColumn SEQUENCE_ID = new PulsarInternalColumn(
+            "__sequence_id__", BigintType.BIGINT, "The sequence ID of the message used to generate this row");
 
-    public static final PulsarInternalColumn SEQUENCE_ID = new PulsarInternalColumn("__sequence_id__",
-            BigintType.BIGINT, "The sequence ID of the message used to generate this row");
+    public static final PulsarInternalColumn PRODUCER_NAME = new PulsarInternalColumn(
+            "__producer_name__",
+            VarcharType.VARCHAR,
+            "The name of the producer that publish the message used to generate this row");
 
-    public static final PulsarInternalColumn PRODUCER_NAME = new PulsarInternalColumn("__producer_name__",
-            VarcharType.VARCHAR, "The name of the producer that publish the message used to generate this row");
+    public static final PulsarInternalColumn KEY =
+            new PulsarInternalColumn("__key__", VarcharType.VARCHAR, "The partition key for the topic");
 
-    public static final PulsarInternalColumn KEY = new PulsarInternalColumn("__key__",
-            VarcharType.VARCHAR, "The partition key for the topic");
+    public static final PulsarInternalColumn PROPERTIES =
+            new PulsarInternalColumn("__properties__", VarcharType.VARCHAR, "User defined properties");
 
-    public static final PulsarInternalColumn PROPERTIES = new PulsarInternalColumn("__properties__",
-            VarcharType.VARCHAR, "User defined properties");
-
-    private static Set<PulsarInternalColumn> internalFields = ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME,
-            MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
-
+    private static Set<PulsarInternalColumn> internalFields = ImmutableSet.of(
+            PARTITION, EVENT_TIME, PUBLISH_TIME, MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
 
     private final String name;
     private final Type type;
     private final String comment;
 
-    PulsarInternalColumn(
-            String name,
-            Type type,
-            String comment) {
+    PulsarInternalColumn(String name, Type type, String comment) {
         checkArgument(!isNullOrEmpty(name), "name is null or is empty");
         this.name = name;
         this.type = requireNonNull(type, "type is null");
@@ -89,16 +88,28 @@ public class PulsarInternalColumn {
     }
 
     PulsarColumnHandle getColumnHandle(String connectorId, boolean hidden) {
-        return new PulsarColumnHandle(connectorId,
+        return new PulsarColumnHandle(
+                connectorId,
                 getName(),
                 getType(),
                 hidden,
-                true, getName(), null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
+                true,
+                getName(),
+                null,
+                null,
+                PulsarColumnHandle.HandleKeyValueType.NONE);
     }
 
     PulsarColumnMetadata getColumnMetadata(boolean hidden) {
-        return new PulsarColumnMetadata(name, type, comment, null, hidden, true,
-                PulsarColumnHandle.HandleKeyValueType.NONE, new PulsarColumnMetadata.DecoderExtraInfo());
+        return new PulsarColumnMetadata(
+                name,
+                type,
+                comment,
+                null,
+                hidden,
+                true,
+                PulsarColumnHandle.HandleKeyValueType.NONE,
+                new PulsarColumnMetadata.DecoderExtraInfo());
     }
 
     public static Set<PulsarInternalColumn> getInternalFields() {
@@ -115,5 +126,4 @@ public class PulsarInternalColumn {
         });
         return builder.build();
     }
-
 }

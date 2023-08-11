@@ -62,11 +62,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     }
 
     @Override
-    public void registerFunctionInstance(String fid,
-                                         String eid,
-                                         List<String> requiredJarFiles,
-                                         List<URL> requiredClasspaths)
-            throws IOException {
+    public void registerFunctionInstance(
+            String fid, String eid, List<String> requiredJarFiles, List<URL> requiredClasspaths) throws IOException {
         if (fid == null) {
             throw new NullPointerException("FunctionID not set");
         }
@@ -89,28 +86,20 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                     }
 
                     cacheFunctions.put(
-                        fid,
-                        new FunctionCacheEntry(
-                            requiredJarFiles,
-                            requiredClasspaths,
-                            urls,
-                            eid, rootClassLoader));
+                            fid,
+                            new FunctionCacheEntry(requiredJarFiles, requiredClasspaths, urls, eid, rootClassLoader));
                 } catch (Throwable cause) {
                     Exceptions.rethrowIOException(cause);
                 }
             } else {
-                entry.register(
-                    eid,
-                    requiredJarFiles,
-                    requiredClasspaths);
+                entry.register(eid, requiredJarFiles, requiredClasspaths);
             }
         }
     }
 
     @Override
-    public void registerFunctionInstanceWithArchive(String fid, String eid,
-                                                    String narArchive, String narExtractionDirectory)
-            throws IOException {
+    public void registerFunctionInstanceWithArchive(
+            String fid, String eid, String narArchive, String narExtractionDirectory) throws IOException {
         if (fid == null) {
             throw new NullPointerException("FunctionID not set");
         }
@@ -125,8 +114,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
             // Create new cache entry
             try {
-                cacheFunctions
-                        .put(fid, new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory));
+                cacheFunctions.put(
+                        fid, new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory));
             } catch (Throwable cause) {
                 Exceptions.rethrowIOException(cause);
             }
@@ -134,8 +123,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     }
 
     @Override
-    public void unregisterFunctionInstance(String fid,
-                                           String eid) {
+    public void unregisterFunctionInstance(String fid, String eid) {
         synchronized (cacheFunctions) {
             FunctionCacheEntry entry = cacheFunctions.get(fid);
 
@@ -154,6 +142,4 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
             cacheFunctions.values().forEach(FunctionCacheEntry::close);
         }
     }
-
-
 }

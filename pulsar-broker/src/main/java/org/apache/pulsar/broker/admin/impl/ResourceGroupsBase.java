@@ -43,7 +43,8 @@ public abstract class ResourceGroupsBase extends AdminResource {
     protected ResourceGroup internalGetResourceGroup(String rgName) {
         try {
             validateSuperUserAccess();
-            ResourceGroup resourceGroup = resourceGroupResources().getResourceGroup(rgName)
+            ResourceGroup resourceGroup = resourceGroupResources()
+                    .getResourceGroup(rgName)
                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "ResourceGroup does not exist"));
             return resourceGroup;
         } catch (RestException re) {
@@ -57,8 +58,9 @@ public abstract class ResourceGroupsBase extends AdminResource {
     protected void internalUpdateResourceGroup(String rgName, ResourceGroup rgConfig) {
 
         try {
-            ResourceGroup resourceGroup = resourceGroupResources().getResourceGroup(rgName).orElseThrow(() ->
-                    new RestException(Response.Status.NOT_FOUND, "ResourceGroup does not exist"));
+            ResourceGroup resourceGroup = resourceGroupResources()
+                    .getResourceGroup(rgName)
+                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "ResourceGroup does not exist"));
 
             /*
              * assuming read-modify-write
@@ -88,14 +90,13 @@ public abstract class ResourceGroupsBase extends AdminResource {
     }
 
     protected void internalCreateResourceGroup(String rgName, ResourceGroup rgConfig) {
-        rgConfig.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs() == null
-                ? -1 : rgConfig.getPublishRateInMsgs());
-        rgConfig.setPublishRateInBytes(rgConfig.getPublishRateInBytes() == null
-                ? -1 : rgConfig.getPublishRateInBytes());
-        rgConfig.setDispatchRateInMsgs(rgConfig.getDispatchRateInMsgs() == null
-                ? -1 : rgConfig.getDispatchRateInMsgs());
-        rgConfig.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes() == null
-                ? -1 : rgConfig.getDispatchRateInBytes());
+        rgConfig.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs() == null ? -1 : rgConfig.getPublishRateInMsgs());
+        rgConfig.setPublishRateInBytes(
+                rgConfig.getPublishRateInBytes() == null ? -1 : rgConfig.getPublishRateInBytes());
+        rgConfig.setDispatchRateInMsgs(
+                rgConfig.getDispatchRateInMsgs() == null ? -1 : rgConfig.getDispatchRateInMsgs());
+        rgConfig.setDispatchRateInBytes(
+                rgConfig.getDispatchRateInBytes() == null ? -1 : rgConfig.getDispatchRateInBytes());
         try {
             resourceGroupResources().createResourceGroup(rgName, rgConfig);
             log.info("[{}] Created ResourceGroup {}", clientAppId(), rgName);
@@ -106,8 +107,8 @@ public abstract class ResourceGroupsBase extends AdminResource {
             log.error("[{}] Failed to create ResourceGroup {}", clientAppId(), rgName, e);
             throw new RestException(e);
         }
-
     }
+
     protected void internalCreateOrUpdateResourceGroup(String rgName, ResourceGroup rgConfig) {
         try {
             validateSuperUserAccess();

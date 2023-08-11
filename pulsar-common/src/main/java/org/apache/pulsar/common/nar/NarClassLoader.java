@@ -139,11 +139,12 @@ public class NarClassLoader extends URLClassLoader {
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
     public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("nar.extraction.tmpdir") != null
-            ? System.getProperty("nar.extraction.tmpdir") : System.getProperty("java.io.tmpdir");
+            ? System.getProperty("nar.extraction.tmpdir")
+            : System.getProperty("java.io.tmpdir");
 
-    static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
-                                                String narExtractionDirectory)
-        throws IOException {
+    static NarClassLoader getFromArchive(
+            File narPath, Set<String> additionalJars, ClassLoader parent, String narExtractionDirectory)
+            throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
         return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
             @SneakyThrows
@@ -209,7 +210,7 @@ public class NarClassLoader extends URLClassLoader {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
 
         try (BufferedReader reader = new BufferedReader(
-            new InputStreamReader(new FileInputStream(serviceDefPath), StandardCharsets.UTF_8))) {
+                new InputStreamReader(new FileInputStream(serviceDefPath), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();

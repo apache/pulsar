@@ -72,27 +72,30 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         final int sendMessages = 100;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/retry-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
 
         for (int i = 0; i < sendMessages; i++) {
             producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
@@ -111,7 +114,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
         int totalInDeadLetter = 0;
         do {
             Message<byte[]> message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info(
+                    "dead letter consumer received message : {} {}",
+                    message.getMessageId(),
+                    new String(message.getData()));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -119,7 +125,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         deadLetterConsumer.close();
         consumer.close();
 
-        Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> checkConsumer = this.pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -128,7 +135,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+            log.info(
+                    "check consumer received message : {} {}",
+                    checkMessage.getMessageId(),
+                    new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
 
@@ -139,6 +149,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
     public static class Foo {
         @Nullable
         private String field1;
+
         @Nullable
         private String field2;
     }
@@ -147,8 +158,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
     public static class FooV2 {
         @Nullable
         private String field1;
+
         @Nullable
         private String field2;
+
         @Nullable
         private String field3;
     }
@@ -164,22 +177,27 @@ public class RetryTopicTest extends ProducerConsumerBase {
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(topic)
                 .enableBatching(false)
                 .create();
         @Cleanup
-        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> consumer = pulsarClient
+                .newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
                 .subscriptionName(subName)
                 .isAckReceiptEnabled(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder().retryLetterTopic(retryTopic)
-                        .maxRedeliverCount(Integer.MAX_VALUE).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .retryLetterTopic(retryTopic)
+                        .maxRedeliverCount(Integer.MAX_VALUE)
+                        .build())
                 .subscribe();
         @Cleanup
-        Consumer<GenericRecord> retryTopicConsumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> retryTopicConsumer = pulsarClient
+                .newConsumer(Schema.AUTO_CONSUME())
                 .topic(retryTopic)
                 .subscriptionName(retrySubName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -190,13 +208,15 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 Foo foo = new Foo();
                 foo.field1 = i + "";
                 foo.field2 = i + "";
-                messageIds.add(producer.newMessage(Schema.AVRO(Foo.class)).value(foo).send());
+                messageIds.add(
+                        producer.newMessage(Schema.AVRO(Foo.class)).value(foo).send());
             } else {
                 FooV2 foo = new FooV2();
                 foo.field1 = i + "";
                 foo.field2 = i + "";
                 foo.field3 = i + "";
-                messageIds.add(producer.newMessage(Schema.AVRO(FooV2.class)).value(foo).send());
+                messageIds.add(
+                        producer.newMessage(Schema.AVRO(FooV2.class)).value(foo).send());
             }
         }
         producer.close();
@@ -206,7 +226,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
             Message<GenericRecord> message = consumer.receive();
             log.info(
                     "consumer received message (schema={}) : {} {}",
-                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+                    message.getReaderSchema().get(),
+                    message.getMessageId(),
+                    new String(message.getData()));
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             assertTrue(messageIds.contains(message.getMessageId()));
             totalReceived++;
@@ -218,7 +240,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
             Message<GenericRecord> message = consumer.receive();
             log.info(
                     "consumer received retry message (schema={}) : {} {}",
-                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+                    message.getReaderSchema().get(),
+                    message.getMessageId(),
+                    new String(message.getData()));
             consumer.acknowledge(message);
             retryTopicMessageIds.add(message.getMessageId());
             assertFalse(messageIds.contains(message.getMessageId()));
@@ -261,31 +285,34 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         final int sendMessages = 10;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);
-        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
+        @Cleanup PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/retry-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
 
         Set<String> originMessageIds = new HashSet<>();
         for (int i = 0; i < sendMessages; i++) {
-            MessageId msgId = producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
+            MessageId msgId =
+                    producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
             originMessageIds.add(msgId.toString());
         }
 
@@ -311,7 +338,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
         Set<String> deadLetterMessageIds = new HashSet<>();
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
+            log.info(
+                    "dead letter consumer received message : {} {}",
+                    message.getMessageId(),
                     new String(message.getData()));
             // dead letter message
             if (message.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
@@ -325,7 +354,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         assertEquals(deadLetterMessageIds, originMessageIds);
 
-        Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> checkConsumer = this.pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -334,7 +364,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
+            log.info(
+                    "check consumer received message : {} {}",
+                    checkMessage.getMessageId(),
                     new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
@@ -352,7 +384,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
             if (i > 0) {
                 String value = message.getProperty("custom_key");
                 assertEquals(value, "custom_value" + (i - 1));
-                assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
+                assertEquals(
+                        message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
                         message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
             }
         }
@@ -360,7 +393,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         Message<byte[]> message = deadLetterConsumer.receive();
         String value = message.getProperty("custom_key");
         assertEquals(value, "custom_value" + maxRedeliveryCount);
-        assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
+        assertEquals(
+                message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
                 message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
 
         producer.close();
@@ -368,9 +402,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
         deadLetterConsumer.close();
     }
 
-    //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
+    // Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
     @Test
-    public void testRetryTopicNameForCompatibility () throws Exception {
+    public void testRetryTopicNameForCompatibility() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
 
         final String oldRetryTopic = "persistent://my-property/my-ns/my-subscription-RETRY";
@@ -384,26 +418,29 @@ public class RetryTopicTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(oldRetryTopic, 2);
         admin.topics().createPartitionedTopic(oldDeadLetterTopic, 2);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(oldDeadLetterTopic)
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
 
         for (int i = 0; i < sendMessages; i++) {
             producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
@@ -422,7 +459,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info(
+                    "dead letter consumer received message : {} {}",
+                    message.getMessageId(),
+                    new String(message.getData()));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -430,7 +470,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         deadLetterConsumer.close();
         consumer.close();
 
-        Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> checkConsumer = this.pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -439,7 +480,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+            log.info(
+                    "check consumer received message : {} {}",
+                    checkMessage.getMessageId(),
+                    new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
 
@@ -461,31 +505,33 @@ public class RetryTopicTest extends ProducerConsumerBase {
         int sendMessages = 100;
 
         // subscribe to the original topics before publish
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic1, topic2)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
                 .ackTimeout(1, TimeUnit.SECONDS)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
         // subscribe to the DLQ topics before consuming original topics
-        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> deadLetterConsumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/retry-topic-1-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Producer<byte[]> producer1 = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic1)
-                .create();
+        Producer<byte[]> producer1 =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic1).create();
 
-        Producer<byte[]> producer2 = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic2)
-                .create();
+        Producer<byte[]> producer2 =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic2).create();
 
         for (int i = 0; i < sendMessages; i++) {
             producer1.send(String.format("Hello Pulsar [%d]", i).getBytes());
@@ -500,14 +546,20 @@ public class RetryTopicTest extends ProducerConsumerBase {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {} - total = {}",
-                message.getMessageId(), new String(message.getData()), ++totalReceived);
+            log.info(
+                    "consumer received message : {} {} - total = {}",
+                    message.getMessageId(),
+                    new String(message.getData()),
+                    ++totalReceived);
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info(
+                    "dead letter consumer received message : {} {}",
+                    message.getMessageId(),
+                    new String(message.getData()));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -515,7 +567,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         deadLetterConsumer.close();
         consumer.close();
 
-        Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> checkConsumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic1, topic2)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -524,7 +577,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+            log.info(
+                    "check consumer received message : {} {}",
+                    checkMessage.getMessageId(),
+                    new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
 
@@ -538,7 +594,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         final int sendMessages = 100;
 
         // subscribe before publish
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -551,15 +608,15 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/retry-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
         for (int i = 0; i < sendMessages; i++) {
             producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
         }
@@ -575,15 +632,19 @@ public class RetryTopicTest extends ProducerConsumerBase {
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info(
+                    "dead letter consumer received message : {} {}",
+                    message.getMessageId(),
+                    new String(message.getData()));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
         deadLetterConsumer.close();
         consumer.close();
         @Cleanup
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> checkConsumer = newPulsarClient1.newConsumer(Schema.BYTES)
+        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> checkConsumer = newPulsarClient1
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -591,12 +652,14 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .subscribe();
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+            log.info(
+                    "check consumer received message : {} {}",
+                    checkMessage.getMessageId(),
+                    new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
         checkConsumer.close();
     }
-
 
     @Test(timeOut = 30000L)
     public void testRetryTopicException() throws Exception {
@@ -604,7 +667,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         final int maxRedeliveryCount = 2;
         final int sendMessages = 1;
         // subscribe before publish
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
@@ -617,9 +681,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
         for (int i = 0; i < sendMessages; i++) {
             producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
         }
@@ -651,32 +714,33 @@ public class RetryTopicTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-
     @Test(timeOut = 30000L)
     public void testRetryProducerWillCloseByConsumer() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
+        final String topicName =
+                "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
         final String subscriptionName = "sub1";
         final String topicRetry = topicName + "-" + subscriptionName + "-RETRY";
         final String topicDLQ = topicName + "-" + subscriptionName + "-DLQ";
 
         // Trigger the DLQ and retry topic creation.
-        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        final Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic(topicDLQ).maxRedeliverCount(2).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .deadLetterTopic(topicDLQ)
+                        .maxRedeliverCount(2)
+                        .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
+        final Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
         // send messages.
         for (int i = 0; i < 5; i++) {
-            producer.newMessage()
-                    .value("msg-" + i)
-                    .sendAsync();
+            producer.newMessage().value("msg-" + i).sendAsync();
         }
         producer.flush();
         for (int i = 0; i < 20; i++) {
@@ -697,5 +761,4 @@ public class RetryTopicTest extends ProducerConsumerBase {
         admin.topics().delete(topicRetry, false);
         admin.topics().delete(topicDLQ, false);
     }
-
 }

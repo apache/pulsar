@@ -41,30 +41,24 @@ public class AlluxioAbstractConfig implements Serializable {
 
     private static final long serialVersionUID = 3727671407445918309L;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The hostname of Alluxio master")
+    @FieldDoc(required = true, defaultValue = "", help = "The hostname of Alluxio master")
     private String alluxioMasterHost;
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "19998",
-        help = "The port that Alluxio master node runs on")
+    @FieldDoc(required = true, defaultValue = "19998", help = "The port that Alluxio master node runs on")
     private int alluxioMasterPort = 19998;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The Alluxio directory from which files should be read from or written to")
+            required = true,
+            defaultValue = "",
+            help = "The Alluxio directory from which files should be read from or written to")
     private String alluxioDir;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "When `alluxio.security.authentication.type` is set to `SIMPLE` or `CUSTOM`, user application uses"
-            + " this property to indicate the user requesting Alluxio service. If it is not set explicitly,"
-            + " the OS login user is used")
+            required = false,
+            defaultValue = "",
+            help = "When `alluxio.security.authentication.type` is set to `SIMPLE` or `CUSTOM`, user application uses"
+                    + " this property to indicate the user requesting Alluxio service. If it is not set explicitly,"
+                    + " the OS login user is used")
     private String securityLoginUser;
 
     public void validate() {

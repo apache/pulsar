@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -82,12 +81,10 @@ public class AuthenticationProviderListTest {
         Properties propertiesA = new Properties();
         propertiesA.setProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX, "a");
         propertiesA.setProperty(
-            "a" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
-            AuthTokenUtils.encodeKeyBase64(keyPairA.getPublic()));
+                "a" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
+                AuthTokenUtils.encodeKeyBase64(keyPairA.getPublic()));
         propertiesA.setProperty(
-            "a" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG,
-            SignatureAlgorithm.ES256.getValue()
-        );
+                "a" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG, SignatureAlgorithm.ES256.getValue());
         ServiceConfiguration confA = new ServiceConfiguration();
         confA.setProperties(propertiesA);
         providerA.initialize(confA);
@@ -95,42 +92,44 @@ public class AuthenticationProviderListTest {
         Properties propertiesB = new Properties();
         propertiesB.setProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX, "b");
         propertiesB.setProperty(
-            "b" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
-            AuthTokenUtils.encodeKeyBase64(keyPairB.getPublic()));
+                "b" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
+                AuthTokenUtils.encodeKeyBase64(keyPairB.getPublic()));
         propertiesB.setProperty(
-            "b" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG,
-            SignatureAlgorithm.RS512.getValue()
-        );
+                "b" + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG, SignatureAlgorithm.RS512.getValue());
         ServiceConfiguration confB = new ServiceConfiguration();
         confB.setProperties(propertiesB);
         providerB.initialize(confB);
 
-        this.authProvider = new AuthenticationProviderList(Lists.newArrayList(
-            providerA, providerB
-        ));
+        this.authProvider = new AuthenticationProviderList(Lists.newArrayList(providerA, providerB));
 
         // generate tokens
         PrivateKey privateKeyA = AuthTokenUtils.decodePrivateKey(
-            Decoders.BASE64.decode(AuthTokenUtils.encodeKeyBase64(keyPairA.getPrivate())),
-            SignatureAlgorithm.ES256
-        );
+                Decoders.BASE64.decode(AuthTokenUtils.encodeKeyBase64(keyPairA.getPrivate())),
+                SignatureAlgorithm.ES256);
         this.tokenAA = AuthTokenUtils.createToken(privateKeyA, SUBJECT_A, Optional.empty());
         this.tokenAB = AuthTokenUtils.createToken(privateKeyA, SUBJECT_B, Optional.empty());
-        this.expiringTokenAA = AuthTokenUtils.createToken(privateKeyA, SUBJECT_A,
-            Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
-        this.expiringTokenAB = AuthTokenUtils.createToken(privateKeyA, SUBJECT_B,
-            Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+        this.expiringTokenAA = AuthTokenUtils.createToken(
+                privateKeyA,
+                SUBJECT_A,
+                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+        this.expiringTokenAB = AuthTokenUtils.createToken(
+                privateKeyA,
+                SUBJECT_B,
+                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
 
         PrivateKey privateKeyB = AuthTokenUtils.decodePrivateKey(
-            Decoders.BASE64.decode(AuthTokenUtils.encodeKeyBase64(keyPairB.getPrivate())),
-            SignatureAlgorithm.RS512
-        );
+                Decoders.BASE64.decode(AuthTokenUtils.encodeKeyBase64(keyPairB.getPrivate())),
+                SignatureAlgorithm.RS512);
         this.tokenBA = AuthTokenUtils.createToken(privateKeyB, SUBJECT_A, Optional.empty());
         this.tokenBB = AuthTokenUtils.createToken(privateKeyB, SUBJECT_B, Optional.empty());
-        this.expiringTokenBA = AuthTokenUtils.createToken(privateKeyB, SUBJECT_A,
-            Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
-        this.expiringTokenBB = AuthTokenUtils.createToken(privateKeyB, SUBJECT_B,
-            Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+        this.expiringTokenBA = AuthTokenUtils.createToken(
+                privateKeyB,
+                SUBJECT_A,
+                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+        this.expiringTokenBB = AuthTokenUtils.createToken(
+                privateKeyB,
+                SUBJECT_B,
+                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -162,17 +161,19 @@ public class AuthenticationProviderListTest {
     }
 
     private void testAuthenticateAsync(String token, String expectedSubject) throws Exception {
-        String actualSubject = authProvider.authenticateAsync(new AuthenticationDataSource() {
-            @Override
-            public boolean hasDataFromCommand() {
-                return true;
-            }
+        String actualSubject = authProvider
+                .authenticateAsync(new AuthenticationDataSource() {
+                    @Override
+                    public boolean hasDataFromCommand() {
+                        return true;
+                    }
 
-            @Override
-            public String getCommandData() {
-                return token;
-            }
-        }).get();
+                    @Override
+                    public String getCommandData() {
+                        return token;
+                    }
+                })
+                .get();
         assertEquals(actualSubject, expectedSubject);
     }
 
@@ -184,14 +185,9 @@ public class AuthenticationProviderListTest {
         testAuthenticateAsync(tokenBB, SUBJECT_B);
     }
 
-
     private AuthenticationState newAuthState(String token, String expectedSubject) throws Exception {
         // Must pass the token to the newAuthState for legacy reasons.
-        AuthenticationState authState = authProvider.newAuthState(
-            AuthData.of(token.getBytes(UTF_8)),
-            null,
-            null
-        );
+        AuthenticationState authState = authProvider.newAuthState(AuthData.of(token.getBytes(UTF_8)), null, null);
         authState.authenticateAsync(AuthData.of(token.getBytes(UTF_8))).get();
         assertEquals(authState.getAuthRole(), expectedSubject);
         assertTrue(authState.isComplete());
@@ -199,8 +195,7 @@ public class AuthenticationProviderListTest {
         return authState;
     }
 
-    private void verifyAuthStateExpired(AuthenticationState authState, String expectedSubject)
-        throws Exception {
+    private void verifyAuthStateExpired(AuthenticationState authState, String expectedSubject) throws Exception {
         assertEquals(authState.getAuthRole(), expectedSubject);
         assertTrue(authState.isComplete());
         assertTrue(authState.isExpired());
@@ -219,7 +214,6 @@ public class AuthenticationProviderListTest {
         verifyAuthStateExpired(authStateAB, SUBJECT_B);
         verifyAuthStateExpired(authStateBA, SUBJECT_A);
         verifyAuthStateExpired(authStateBB, SUBJECT_B);
-
     }
 
     @Test
@@ -260,5 +254,4 @@ public class AuthenticationProviderListTest {
         verify(requestBB).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_B));
         verify(requestBB).setAttribute(eq(AuthenticatedDataAttributeName), isA(AuthenticationDataSource.class));
     }
-
 }

@@ -71,5 +71,4 @@ public class DefaultCryptoKeyReaderBuilder implements Cloneable {
     public DefaultCryptoKeyReaderBuilder clone() {
         return new DefaultCryptoKeyReaderBuilder(conf.clone());
     }
-
 }

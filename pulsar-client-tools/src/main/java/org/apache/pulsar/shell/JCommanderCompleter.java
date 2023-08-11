@@ -56,33 +56,31 @@ public class JCommanderCompleter {
         private final ConfigStore configStore;
     }
 
-    private JCommanderCompleter() {
-    }
+    private JCommanderCompleter() {}
 
-    public static List<Completer> createCompletersForCommand(String program,
-                                                             JCommander command,
-                                                             ShellContext shellContext) {
+    public static List<Completer> createCompletersForCommand(
+            String program, JCommander command, ShellContext shellContext) {
         command.setProgramName(program);
-        return createCompletersForCommand(Collections.emptyList(),
-                command,
-                Arrays.asList(NullCompleter.INSTANCE),
-                shellContext);
+        return createCompletersForCommand(
+                Collections.emptyList(), command, Arrays.asList(NullCompleter.INSTANCE), shellContext);
     }
 
-    private static List<Completer> createCompletersForCommand(List<Completer> preCompleters,
-                                                              JCommander command,
-                                                              List<Completer> postCompleters,
-                                                              ShellContext shellContext) {
+    private static List<Completer> createCompletersForCommand(
+            List<Completer> preCompleters,
+            JCommander command,
+            List<Completer> postCompleters,
+            ShellContext shellContext) {
         List<Completer> all = new ArrayList<>();
         addCompletersForCommand(preCompleters, postCompleters, all, command, shellContext);
         return all;
     }
 
-    private static void addCompletersForCommand(List<Completer> preCompleters,
-                                                List<Completer> postCompleters,
-                                                List<Completer> result,
-                                                JCommander command,
-                                                ShellContext shellContext) {
+    private static void addCompletersForCommand(
+            List<Completer> preCompleters,
+            List<Completer> postCompleters,
+            List<Completer> result,
+            JCommander command,
+            ShellContext shellContext) {
         final Collection<Completers.OptDesc> options;
         final Map<String, JCommander> subCommands;
         final ParameterDescription mainParameterValue;
@@ -90,17 +88,16 @@ public class JCommanderCompleter {
         if (command.getObjects().get(0) instanceof CmdBase) {
             CmdBase cmdBase = (CmdBase) command.getObjects().get(0);
             subCommands = cmdBase.getJcommander().getCommands();
-            mainParameterValue = cmdBase.getJcommander().getMainParameter() == null ? null :
-                    cmdBase.getJcommander().getMainParameterValue();
-            options = cmdBase.getJcommander().getParameters()
-                    .stream()
+            mainParameterValue = cmdBase.getJcommander().getMainParameter() == null
+                    ? null
+                    : cmdBase.getJcommander().getMainParameterValue();
+            options = cmdBase.getJcommander().getParameters().stream()
                     .map(option -> createOptionDescriptors(option, shellContext))
                     .collect(Collectors.toList());
         } else {
             subCommands = command.getCommands();
             mainParameterValue = command.getMainParameter() == null ? null : command.getMainParameterValue();
-            options = command.getParameters()
-                    .stream()
+            options = command.getParameters().stream()
                     .map(option -> createOptionDescriptors(option, shellContext))
                     .collect(Collectors.toList());
         }
@@ -128,7 +125,6 @@ public class JCommanderCompleter {
         }
     }
 
-
     @SneakyThrows
     private static Completers.OptDesc createOptionDescriptors(ParameterDescription param, ShellContext shellContext) {
         Completer valueCompleter = getCompleter(param, shellContext);
@@ -150,7 +146,8 @@ public class JCommanderCompleter {
     private static Completer getCompleter(ParameterDescription param, ShellContext shellContext) {
 
         Completer valueCompleter = null;
-        boolean isBooleanArg = param.getObject() instanceof Boolean || param.getDefault() instanceof Boolean
+        boolean isBooleanArg = param.getObject() instanceof Boolean
+                || param.getDefault() instanceof Boolean
                 || param.getObject().getClass().isAssignableFrom(Boolean.class);
         if (!isBooleanArg) {
             valueCompleter = getCustomCompleter(param, shellContext);
@@ -177,8 +174,9 @@ public class JCommanderCompleter {
                     @Override
                     @SneakyThrows
                     public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates) {
-                        new StringsCompleter(shellContext.configStore.listConfigs()
-                                .stream().map(ConfigStore.ConfigEntry::getName).collect(Collectors.toList()))
+                        new StringsCompleter(shellContext.configStore.listConfigs().stream()
+                                        .map(ConfigStore.ConfigEntry::getName)
+                                        .collect(Collectors.toList()))
                                 .complete(reader, line, candidates);
                     }
                 };
@@ -188,7 +186,7 @@ public class JCommanderCompleter {
     }
 
     @Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
-    @Target({ FIELD })
+    @Target({FIELD})
     public @interface ParameterCompleter {
 
         enum Type {
@@ -197,7 +195,5 @@ public class JCommanderCompleter {
         }
 
         Type type();
-
     }
-
 }

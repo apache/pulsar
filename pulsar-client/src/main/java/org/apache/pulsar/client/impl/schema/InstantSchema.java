@@ -29,56 +29,57 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class InstantSchema extends AbstractSchema<Instant> {
 
-   private static final InstantSchema INSTANCE;
-   private static final SchemaInfo SCHEMA_INFO;
+    private static final InstantSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
 
-   static {
-       SCHEMA_INFO = SchemaInfoImpl.builder()
-             .name("Instant")
-             .type(SchemaType.INSTANT)
-             .schema(new byte[0]).build();
-       INSTANCE = new InstantSchema();
-   }
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("Instant")
+                .type(SchemaType.INSTANT)
+                .schema(new byte[0])
+                .build();
+        INSTANCE = new InstantSchema();
+    }
 
-   public static InstantSchema of() {
-      return INSTANCE;
-   }
+    public static InstantSchema of() {
+        return INSTANCE;
+    }
 
-   @Override
-   public byte[] encode(Instant message) {
-      if (null == message) {
-         return null;
-      }
-      // Instant is accurate to nanoseconds and requires two value storage.
-      ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES + Integer.BYTES);
-      buffer.putLong(message.getEpochSecond());
-      buffer.putInt(message.getNano());
-      return buffer.array();
-   }
+    @Override
+    public byte[] encode(Instant message) {
+        if (null == message) {
+            return null;
+        }
+        // Instant is accurate to nanoseconds and requires two value storage.
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES + Integer.BYTES);
+        buffer.putLong(message.getEpochSecond());
+        buffer.putInt(message.getNano());
+        return buffer.array();
+    }
 
-   @Override
-   public Instant decode(byte[] bytes) {
-      if (null == bytes) {
-         return null;
-      }
-      ByteBuffer buffer = ByteBuffer.wrap(bytes);
-      long epochSecond = buffer.getLong();
-      int nanos = buffer.getInt();
-      return Instant.ofEpochSecond(epochSecond, nanos);
-   }
+    @Override
+    public Instant decode(byte[] bytes) {
+        if (null == bytes) {
+            return null;
+        }
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        long epochSecond = buffer.getLong();
+        int nanos = buffer.getInt();
+        return Instant.ofEpochSecond(epochSecond, nanos);
+    }
 
-   @Override
-   public Instant decode(ByteBuf byteBuf) {
-      if (null == byteBuf) {
-         return null;
-      }
-      long epochSecond = byteBuf.readLong();
-      int nanos = byteBuf.readInt();
-      return Instant.ofEpochSecond(epochSecond, nanos);
-   }
+    @Override
+    public Instant decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        long epochSecond = byteBuf.readLong();
+        int nanos = byteBuf.readInt();
+        return Instant.ofEpochSecond(epochSecond, nanos);
+    }
 
-   @Override
-   public SchemaInfo getSchemaInfo() {
-      return SCHEMA_INFO;
-   }
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        return SCHEMA_INFO;
+    }
 }

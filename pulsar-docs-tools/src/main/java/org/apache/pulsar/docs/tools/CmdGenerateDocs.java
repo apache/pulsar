@@ -36,14 +36,12 @@ public class CmdGenerateDocs {
 
     @Parameter(
             names = {"-h", "--help"},
-            description = "Display help information"
-    )
+            description = "Display help information")
     public boolean help;
 
     @Parameter(
             names = {"-n", "--command-names"},
-            description = "List of command names"
-    )
+            description = "List of command names")
     private List<String> commandNames = new ArrayList<>();
 
     private static final String name = "gen-doc";
@@ -64,7 +62,7 @@ public class CmdGenerateDocs {
         tmpCmd.setProgramName(jcommander.getProgramName() + " " + name);
         try {
             if (args == null) {
-                args = new String[]{};
+                args = new String[] {};
             }
             tmpCmd.parse(args);
         } catch (Exception e) {
@@ -107,8 +105,7 @@ public class CmdGenerateDocs {
         if (null != desc && !desc.isEmpty()) {
             sb.append(desc).append("\n");
         }
-        sb.append("\n\n```shell\n")
-                .append("$ ");
+        sb.append("\n\n```shell\n").append("$ ");
         if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
             sb.append(jcommander.getProgramName()).append(" ");
         }
@@ -125,20 +122,28 @@ public class CmdGenerateDocs {
                         sb.append(subDesc).append("\n");
                     }
                     sb.append("```shell\n$ ");
-                    if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
+                    if (null != jcommander.getProgramName()
+                            && !jcommander.getProgramName().isEmpty()) {
                         sb.append(jcommander.getProgramName()).append(" ");
                     }
-                    sb.append(module).append(" ").append(subK).append(" options").append("\n```\n\n");
-                    List<ParameterDescription> options = cmdObj.getCommands().get(subK).getParameters();
+                    sb.append(module)
+                            .append(" ")
+                            .append(subK)
+                            .append(" options")
+                            .append("\n```\n\n");
+                    List<ParameterDescription> options =
+                            cmdObj.getCommands().get(subK).getParameters();
                     if (options.size() > 0) {
                         sb.append("|Flag|Description|Default|\n");
                         sb.append("|---|---|---|\n");
                     }
-                    options.forEach((option) ->
-                            sb.append("| `").append(option.getNames())
-                                    .append("` | ").append(option.getDescription().replace("\n", " "))
-                                    .append("|").append(option.getDefault()).append("|\n")
-                    );
+                    options.forEach((option) -> sb.append("| `")
+                            .append(option.getNames())
+                            .append("` | ")
+                            .append(option.getDescription().replace("\n", " "))
+                            .append("|")
+                            .append(option.getDefault())
+                            .append("|\n"));
                 }
             });
         } else {
@@ -146,15 +151,15 @@ public class CmdGenerateDocs {
             sb.append("|Flag|Description|Default|\n");
             sb.append("|---|---|---|\n");
             List<ParameterDescription> options = cmd.getParameters();
-            options.stream().sorted(Comparator.comparing(ParameterDescription::getLongestName))
-                    .forEach((option) ->
-                            sb.append("| `")
-                                    .append(option.getNames())
-                                    .append("` | ")
-                                    .append(option.getDescription().replace("\n", " "))
-                                    .append("|")
-                                    .append(option.getDefault()).append("|\n")
-                    );
+            options.stream()
+                    .sorted(Comparator.comparing(ParameterDescription::getLongestName))
+                    .forEach((option) -> sb.append("| `")
+                            .append(option.getNames())
+                            .append("` | ")
+                            .append(option.getDescription().replace("\n", " "))
+                            .append("|")
+                            .append(option.getDefault())
+                            .append("|\n"));
         }
         return sb.toString();
     }

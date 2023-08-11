@@ -48,8 +48,11 @@ public class BrokerProxyValidator {
     private final List<Pattern> allowedHostNames;
     private final boolean allowAnyHostName;
 
-    public BrokerProxyValidator(AddressResolver<InetSocketAddress> inetSocketAddressResolver, String allowedHostNames,
-                                String allowedIPAddresses, String allowedTargetPorts) {
+    public BrokerProxyValidator(
+            AddressResolver<InetSocketAddress> inetSocketAddressResolver,
+            String allowedHostNames,
+            String allowedIPAddresses,
+            String allowedTargetPorts) {
         this.inetSocketAddressResolver = inetSocketAddressResolver;
         List<String> allowedHostNamesStrings = parseCommaSeparatedConfigValue(allowedHostNames);
         if (allowedHostNamesStrings.contains(ALLOW_ANY)) {
@@ -58,7 +61,8 @@ public class BrokerProxyValidator {
         } else {
             this.allowAnyHostName = false;
             this.allowedHostNames = allowedHostNamesStrings.stream()
-                    .map(BrokerProxyValidator::parseWildcardPattern).collect(Collectors.toList());
+                    .map(BrokerProxyValidator::parseWildcardPattern)
+                    .collect(Collectors.toList());
         }
         List<String> allowedIPAddressesStrings = parseCommaSeparatedConfigValue(allowedIPAddresses);
         if (allowedIPAddressesStrings.contains(ALLOW_ANY)) {
@@ -66,15 +70,18 @@ public class BrokerProxyValidator {
             this.allowedIPAddresses = Collections.emptyList();
         } else {
             allowAnyIPAddress = false;
-            this.allowedIPAddresses = allowedIPAddressesStrings.stream().map(IPAddressString::new)
+            this.allowedIPAddresses = allowedIPAddressesStrings.stream()
+                    .map(IPAddressString::new)
                     .filter(ipAddressString -> {
                         if (ipAddressString.isValid()) {
                             return true;
                         } else {
-                            throw new IllegalArgumentException("Invalid IP address filter '" + ipAddressString + "'",
+                            throw new IllegalArgumentException(
+                                    "Invalid IP address filter '" + ipAddressString + "'",
                                     ipAddressString.getAddressStringException());
                         }
-                    }).map(IPAddressString::getAddress)
+                    })
+                    .map(IPAddressString::getAddress)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
         }
@@ -84,30 +91,30 @@ public class BrokerProxyValidator {
             this.allowedTargetPorts = new int[0];
         } else {
             allowAnyTargetPort = false;
-            this.allowedTargetPorts =
-                    allowedTargetPortsStrings.stream().mapToInt(Integer::parseInt).toArray();
+            this.allowedTargetPorts = allowedTargetPortsStrings.stream()
+                    .mapToInt(Integer::parseInt)
+                    .toArray();
         }
     }
 
     private static Pattern parseWildcardPattern(String wildcardPattern) {
-        String regexPattern =
-                Collections.list(new StringTokenizer(wildcardPattern, "*", true))
-                        .stream()
-                        .map(String::valueOf)
-                        .map(token -> {
-                            if ("*".equals(token)) {
-                                return ".*";
-                            } else {
-                                return Pattern.quote(token);
-                            }
-                        }).collect(Collectors.joining());
-        return Pattern.compile(
-                "^" + regexPattern + "$",
-                Pattern.CASE_INSENSITIVE);
+        String regexPattern = Collections.list(new StringTokenizer(wildcardPattern, "*", true)).stream()
+                .map(String::valueOf)
+                .map(token -> {
+                    if ("*".equals(token)) {
+                        return ".*";
+                    } else {
+                        return Pattern.quote(token);
+                    }
+                })
+                .collect(Collectors.joining());
+        return Pattern.compile("^" + regexPattern + "$", Pattern.CASE_INSENSITIVE);
     }
 
     private static List<String> parseCommaSeparatedConfigValue(String configValue) {
-        return Arrays.stream(configValue.split(SEPARATOR)).map(String::trim).filter(s -> s.length() > 0)
+        return Arrays.stream(configValue.split(SEPARATOR))
+                .map(String::trim)
+                .filter(s -> s.length() > 0)
                 .collect(Collectors.toList());
     }
 

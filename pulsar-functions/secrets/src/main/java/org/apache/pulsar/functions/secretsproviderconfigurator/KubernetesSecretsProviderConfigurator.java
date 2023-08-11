@@ -70,8 +70,8 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
     // is attached as secretRef to the environment variables
     // of a pod and kubernetes magically makes the secret pointed to by this combination available as a env variable.
     @Override
-    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                          Function.FunctionDetails functionDetails) {
+    public void configureKubernetesRuntimeSecretsProvider(
+            V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails) {
         V1Container container = null;
         for (V1Container v1Container : podSpec.getContainers()) {
             if (v1Container.getName().equals(functionsContainerName)) {
@@ -83,13 +83,13 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
             throw new RuntimeException("No FunctionContainer found");
         }
         if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {
-            }.getType();
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             for (Map.Entry<String, Object> entry : secretsMap.entrySet()) {
                 final V1EnvVar secretEnv = new V1EnvVar();
                 Map<String, String> kv = (Map<String, String>) entry.getValue();
-                secretEnv.name(entry.getKey())
+                secretEnv
+                        .name(entry.getKey())
                         .valueFrom(new V1EnvVarSource()
                                 .secretKeyRef(new V1SecretKeySelector()
                                         .name(kv.get(idKey))
@@ -100,24 +100,26 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
     }
 
     @Override
-    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                       Function.FunctionDetails functionDetails) {
+    public void configureProcessRuntimeSecretsProvider(
+            ProcessBuilder processBuilder, Function.FunctionDetails functionDetails) {
         throw new RuntimeException("KubernetesSecretsProviderConfigurator should only be setup for Kubernetes Runtime");
     }
 
     @Override
     public Type getSecretObjectType() {
-        return new TypeToken<Map<String, String>>() {
-        }.getType();
+        return new TypeToken<Map<String, String>>() {}.getType();
     }
 
     // The secret object should be of type Map<String, String> and it should contain "id" and "key"
     @Override
-    public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName,
-                                  Function.FunctionDetails functionDetails) {
+    public void doAdmissionChecks(
+            AppsV1Api appsV1Api,
+            CoreV1Api coreV1Api,
+            String jobNamespace,
+            String jobName,
+            Function.FunctionDetails functionDetails) {
         if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {
-            }.getType();
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
 
             for (Object object : secretsMap.values()) {

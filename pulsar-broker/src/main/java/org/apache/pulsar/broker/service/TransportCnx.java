@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 public interface TransportCnx {
 
     String getClientVersion();
+
     String getProxyVersion();
 
     SocketAddress clientAddress();

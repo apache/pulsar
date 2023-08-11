@@ -51,17 +51,17 @@ public class DelayMessagingTest extends PulsarTestSuite {
         String deadLetterTopic = topic + "-DLT";
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
+        PulsarClient pulsarClient =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         final int redeliverCnt = 10;
         final int delayTimeSeconds = 5;
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName("test")
                 .subscriptionType(SubscriptionType.Shared)
@@ -86,14 +86,16 @@ public class DelayMessagingTest extends PulsarTestSuite {
         // receive retry messages
         for (int i = 0; i < redeliverCnt; i++) {
             message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
-            Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
-                    + delayTimeSeconds * 2 + "s");
+            Assert.assertNotNull(
+                    message,
+                    "Consumer can't receive message in double delayTimeSeconds time " + delayTimeSeconds * 2 + "s");
             log.info("receive msg. reConsumeTimes: {}", message.getProperty("RECONSUMETIMES"));
             consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
         }
 
         @Cleanup
-        Consumer<byte[]> dltConsumer = pulsarClient.newConsumer()
+        Consumer<byte[]> dltConsumer = pulsarClient
+                .newConsumer()
                 .topic(deadLetterTopic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("test")
@@ -102,5 +104,4 @@ public class DelayMessagingTest extends PulsarTestSuite {
         message = dltConsumer.receive(10, TimeUnit.SECONDS);
         Assert.assertNotNull(message, "Dead letter topic consumer can't receive message.");
     }
-
 }

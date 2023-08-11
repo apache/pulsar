@@ -22,8 +22,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
-
 import com.google.common.collect.Sets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -36,9 +38,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 @Test(groups = "broker")
 public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
@@ -56,8 +55,10 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         super.internalSetup();
         createDefaultTenantInfo();
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(configClusterName)));
+        admin.tenants()
+                .createTenant(
+                        NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                        new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(configClusterName)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
     }
 
@@ -73,8 +74,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
 
         @Cleanup
-        LoadDataStore<MyClass> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, MyClass.class);
+        LoadDataStore<MyClass> loadDataStore = LoadDataStoreFactory.create(pulsar.getClient(), topic, MyClass.class);
         loadDataStore.startTableView();
         MyClass myClass1 = new MyClass("1", 1);
         loadDataStore.pushAsync("key1", myClass1).get();
@@ -95,9 +95,9 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         assertEquals(loadDataStore.size(), 2);
 
         loadDataStore.removeAsync("key2").get();
-        Awaitility.await().untilAsserted(() -> assertFalse(loadDataStore.get("key2").isPresent()));
+        Awaitility.await()
+                .untilAsserted(() -> assertFalse(loadDataStore.get("key2").isPresent()));
         assertEquals(loadDataStore.size(), 1);
-
     }
 
     @Test
@@ -106,8 +106,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
 
         @Cleanup
-        LoadDataStore<Integer> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
+        LoadDataStore<Integer> loadDataStore = LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
         loadDataStore.startTableView();
 
         Map<String, Integer> map = new HashMap<>();
@@ -130,8 +129,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTableViewRestart() throws Exception {
         String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
-        LoadDataStore<Integer> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
+        LoadDataStore<Integer> loadDataStore = LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
 
         loadDataStore.startTableView();
         loadDataStore.pushAsync("1", 1).get();
@@ -148,7 +146,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         }
         assertNotNull(ex);
         loadDataStore.startTableView();
-        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
     }
-
 }

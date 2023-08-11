@@ -42,7 +42,5 @@ public class DataGeneratorSource implements Source<Person> {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

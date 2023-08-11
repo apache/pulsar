@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static org.testng.Assert.assertEquals;
-
 import java.nio.charset.StandardCharsets;
-
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -39,29 +37,27 @@ public class DefaultSchemasTest {
 
     @BeforeClass
     public void setup() throws PulsarClientException {
-        client = PulsarClient.builder()
-                .serviceUrl("pulsar://localhost:6650")
-                .build();
+        client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
     }
 
     @Test
     public void testConsumerInstantiation() {
-        ConsumerBuilder<String> stringConsumerBuilder = client.newConsumer(new StringSchema())
-                .topic(TEST_TOPIC);
+        ConsumerBuilder<String> stringConsumerBuilder =
+                client.newConsumer(new StringSchema()).topic(TEST_TOPIC);
         Assert.assertNotNull(stringConsumerBuilder);
     }
 
     @Test
     public void testProducerInstantiation() {
-        ProducerBuilder<String> stringProducerBuilder = client.newProducer(new StringSchema())
-                .topic(TEST_TOPIC);
+        ProducerBuilder<String> stringProducerBuilder =
+                client.newProducer(new StringSchema()).topic(TEST_TOPIC);
         Assert.assertNotNull(stringProducerBuilder);
     }
 
     @Test
     public void testReaderInstantiation() {
-        ReaderBuilder<String> stringReaderBuilder = client.newReader(new StringSchema())
-                .topic(TEST_TOPIC);
+        ReaderBuilder<String> stringReaderBuilder =
+                client.newReader(new StringSchema()).topic(TEST_TOPIC);
         Assert.assertNotNull(stringReaderBuilder);
     }
 
@@ -73,7 +69,7 @@ public class DefaultSchemasTest {
         assertEquals(testString, stringSchema.decode(testBytes));
         assertEquals(stringSchema.encode(testString), testBytes);
 
-         byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
+        byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
         StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
         assertEquals(testString, stringSchemaUtf16.decode(bytes2));
         assertEquals(stringSchemaUtf16.encode(testString), bytes2);

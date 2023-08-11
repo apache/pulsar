@@ -83,6 +83,5 @@ public interface SchemaCompatibilityCheck {
                 throw new IncompatibleSchemaException("Schema compatibility strategy is ALWAYS_INCOMPATIBLE");
             }
         }
-
     };
 }

@@ -22,7 +22,9 @@ package org.apache.pulsar.packages.management.core.common;
  * PackageType used to identify the package type. Currently we have three types of packages, function, sink and source.
  */
 public enum PackageType {
-    FUNCTION("function"), SINK("sink"), SOURCE("source");
+    FUNCTION("function"),
+    SINK("sink"),
+    SOURCE("source");
 
     private final String value;
 

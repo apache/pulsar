@@ -25,11 +25,10 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 @Connector(
-    name = "jdbc-postgres",
-    type = IOType.SINK,
-    help = "A simple JDBC sink for PostgreSQL that writes pulsar messages to a database table",
-    configClass = JdbcSinkConfig.class
-)
+        name = "jdbc-postgres",
+        type = IOType.SINK,
+        help = "A simple JDBC sink for PostgreSQL that writes pulsar messages to a database table",
+        configClass = JdbcSinkConfig.class)
 public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 
     @Override
@@ -38,8 +37,7 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
         if (keyColumns.isEmpty()) {
             throw new IllegalStateException("UPSERT is not supported if 'key' config is not set.");
         }
-        final String keys = keyColumns.stream().map(JdbcUtils.ColumnId::getName)
-                .collect(Collectors.joining(","));
+        final String keys = keyColumns.stream().map(JdbcUtils.ColumnId::getName).collect(Collectors.joining(","));
         return JdbcUtils.buildInsertSql(tableDefinition)
                 + " ON CONFLICT(" + keys + ") "
                 + "DO UPDATE SET " + JdbcUtils.buildUpdateSqlSetPart(tableDefinition);

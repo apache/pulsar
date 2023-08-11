@@ -51,8 +51,13 @@ public interface TransactionBufferHandler {
      * @param action transaction action type
      * @return TxnId
      */
-    CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-        long txnIdLeastBits, TxnAction action, long lowWaterMark);
+    CompletableFuture<TxnID> endTxnOnSubscription(
+            String topic,
+            String subscription,
+            long txnIdMostBits,
+            long txnIdLeastBits,
+            TxnAction action,
+            long lowWaterMark);
 
     /**
      * Handle response of end transaction on topic.

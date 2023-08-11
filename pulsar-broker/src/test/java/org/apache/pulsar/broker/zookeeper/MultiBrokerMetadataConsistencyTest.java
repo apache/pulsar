@@ -44,8 +44,7 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
 
     TestZKServer testZKServer;
 
-    private final List<MetadataStoreExtended> needCloseStore =
-            new ArrayList<>();
+    private final List<MetadataStoreExtended> needCloseStore = new ArrayList<>();
 
     @Override
     protected void doInitConf() throws Exception {
@@ -77,13 +76,11 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
 
     @Override
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
-        MetadataStoreExtended metadataStore = createMetadataStore(
-                MultiBrokerMetadataConsistencyTest.class.getName()
-                        + "metadata_store");
+        MetadataStoreExtended metadataStore =
+                createMetadataStore(MultiBrokerMetadataConsistencyTest.class.getName() + "metadata_store");
 
-        MetadataStoreExtended configurationStore = createMetadataStore(
-                MultiBrokerMetadataConsistencyTest.class.getName()
-                        + "configuration_store");
+        MetadataStoreExtended configurationStore =
+                createMetadataStore(MultiBrokerMetadataConsistencyTest.class.getName() + "configuration_store");
 
         needCloseStore.add(metadataStore);
         needCloseStore.add(configurationStore);
@@ -96,7 +93,8 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
     @NotNull
     protected MetadataStoreExtended createMetadataStore(String name) {
         try {
-            return MetadataStoreExtended.create(testZKServer.getConnectionString(),
+            return MetadataStoreExtended.create(
+                    testZKServer.getConnectionString(),
                     MetadataStoreConfig.builder().metadataStoreName(name).build());
         } catch (MetadataStoreException e) {
             throw new RuntimeException(e);

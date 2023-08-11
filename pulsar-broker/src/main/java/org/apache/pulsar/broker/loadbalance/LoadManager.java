@@ -148,8 +148,8 @@ public interface LoadManager {
         try {
             final ServiceConfiguration conf = pulsar.getConfiguration();
             // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = Reflections.createInstance(conf.getLoadManagerClassName(),
-                    Thread.currentThread().getContextClassLoader());
+            final Object loadManagerInstance = Reflections.createInstance(
+                    conf.getLoadManagerClassName(), Thread.currentThread().getContextClassLoader());
             if (loadManagerInstance instanceof LoadManager casted) {
                 casted.initialize(pulsar);
                 return casted;
@@ -169,5 +169,4 @@ public interface LoadManager {
         // If we failed to create a load manager, default to SimpleLoadManagerImpl.
         return new SimpleLoadManagerImpl(pulsar);
     }
-
 }

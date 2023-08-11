@@ -90,7 +90,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "use",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
@@ -105,12 +110,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "topicType")
     public Object[][] topicTypeProvider() {
-        return new Object[][] { { TopicDomain.persistent.value() }, { TopicDomain.non_persistent.value() } };
+        return new Object[][] {{TopicDomain.persistent.value()}, {TopicDomain.non_persistent.value()}};
     }
 
     @DataProvider(name = "namespaceNames")
     public Object[][] namespaceNameProvider() {
-        return new Object[][] { { "ns1" }, { "global" } };
+        return new Object[][] {{"ns1"}, {"global"}};
     }
 
     /**
@@ -141,34 +146,40 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         // validate partition topic is created
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
-                startPartitions);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, startPartitions);
 
         // create consumer and subscriptions : check subscriptions
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
-        Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        Consumer<byte[]> consumer1 = client.newConsumer()
+                .topic(partitionedTopicName)
+                .subscriptionName(subName1)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
         assertEquals(admin.topics().getSubscriptions(partitionedTopicName), List.of(subName1));
-        Consumer<byte[]> consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
-                Set.of(subName1, subName2));
+        Consumer<byte[]> consumer2 = client.newConsumer()
+                .topic(partitionedTopicName)
+                .subscriptionName(subName2)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)), Set.of(subName1, subName2));
 
         // (1) update partitions
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions);
         // verify new partitions have been created
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
-                newPartitions);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, newPartitions);
         // (2) No Msg loss: verify new partitions have the same existing subscription names
-        final String newPartitionTopicName = TopicName.get(partitionedTopicName).getPartition(startPartitions + 1)
+        final String newPartitionTopicName = TopicName.get(partitionedTopicName)
+                .getPartition(startPartitions + 1)
                 .toString();
 
         // (3) produce messages to all partitions including newly created partitions (RoundRobin)
-        Producer<byte[]> producer = client.newProducer().topic(partitionedTopicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-            .create();
+        Producer<byte[]> producer = client.newProducer()
+                .topic(partitionedTopicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
         final int totalMessages = newPartitions * 2;
         for (int i = 0; i < totalMessages; i++) {
             String message = "message-" + i;
@@ -178,10 +189,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         // (4) verify existing subscription has not lost any message: create new consumer with sub-2: it will load all
         // newly created partition topics
         consumer2.close();
-        consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
-                Set.of(subName1, subName2));
+        consumer2 = client.newConsumer()
+                .topic(partitionedTopicName)
+                .subscriptionName(subName2)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)), Set.of(subName1, subName2));
 
         assertEquals(new HashSet<>(admin.topics().getList("prop-xyz/use/ns1")).size(), newPartitions);
 
@@ -202,10 +215,17 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
         assertEquals(topicStats.getPartitions().keySet(), partitionSet);
         for (int i = 0; i < newPartitions; i++) {
-            TopicStats partitionStats = topicStats.getPartitions()
+            TopicStats partitionStats = topicStats
+                    .getPartitions()
                     .get(TopicName.get(partitionedTopicName).getPartition(i).toString());
             assertEquals(partitionStats.getPublishers().size(), 1);
-            assertEquals(partitionStats.getSubscriptions().get(subName2).getConsumers().size(), 1);
+            assertEquals(
+                    partitionStats
+                            .getSubscriptions()
+                            .get(subName2)
+                            .getConsumers()
+                            .size(),
+                    1);
             assertEquals(partitionStats.getSubscriptions().get(subName2).getMsgBacklog(), 2, 1);
         }
 
@@ -234,7 +254,9 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
-        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(persistentTopicName)
+                .subscriptionName("my-sub")
                 .subscribe();
 
         publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10, 0);
@@ -267,11 +289,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     private void publishMessagesOnTopic(String topicName, int messages, int startIdx) throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         for (int i = startIdx; i < (messages + startIdx); i++) {
             String message = "message-" + i;
@@ -334,23 +357,33 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 50.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 50.0));
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
-        ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
 
         final double newThrottleRate = 100;
         final int newEnsembleSize = 5;
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(newEnsembleSize, 3, 3, newThrottleRate));
 
-        retryStrategically((test) -> managedLedger.getConfig().getEnsembleSize() == newEnsembleSize
-                && cursor.getThrottleMarkDelete() != newThrottleRate, 5, 200);
+        retryStrategically(
+                (test) -> managedLedger.getConfig().getEnsembleSize() == newEnsembleSize
+                        && cursor.getThrottleMarkDelete() != newThrottleRate,
+                5,
+                200);
 
         // (1) verify cursor.markDelete has been updated
         assertEquals(cursor.getThrottleMarkDelete(), newThrottleRate);
@@ -359,7 +392,6 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         producer.close();
         consumer.close();
-
     }
 
     /**
@@ -378,7 +410,8 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
-        Topic topic = pulsar.getBrokerService().getTopicIfExists(topicName).join().get();
+        Topic topic =
+                pulsar.getBrokerService().getTopicIfExists(topicName).join().get();
         final boolean isPersistentTopic = topic instanceof PersistentTopic;
 
         // (1) unload the topic
@@ -394,7 +427,9 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         // unload the topic
         unloadTopic(topicName, isPersistentTopic);
         // producer will retry and recreate the topic
-        Awaitility.await().until(() -> pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        Awaitility.await()
+                .until(() ->
+                        pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         // topic should be loaded by this time
         topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
@@ -430,8 +465,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention("prop-xyz/use/ns1", new RetentionPolicies(10, 10));
 
         // create consumer and subscription
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
 
         assertEquals(admin.topics().getSubscriptions(topicName), List.of("my-sub"));
 
@@ -459,9 +498,14 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         // reset position at resetMessageId
         admin.topics().resetCursor(topicName, "my-sub", messageId);
 
-        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Shared).subscribe();
-        MessageIdImpl msgId2 = (MessageIdImpl) consumer.receive(1, TimeUnit.SECONDS).getMessageId();
+        consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        MessageIdImpl msgId2 =
+                (MessageIdImpl) consumer.receive(1, TimeUnit.SECONDS).getMessageId();
         assertEquals(resetMessageId, msgId2);
 
         int receivedAfterReset = 1; // start with 1 because we have already received 1 msg
@@ -504,11 +548,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         for (int i = startIdx; i < (messages + startIdx); i++) {
             String message = "message-" + i;
@@ -544,30 +589,47 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPeerCluster() throws Exception {
-        admin.clusters().createCluster("us-west1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080").build());
-        admin.clusters().createCluster("us-west2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
-        admin.clusters().createCluster("us-east1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080").build());
-        admin.clusters().createCluster("us-east2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
+        admin.clusters()
+                .createCluster(
+                        "us-west1",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.west1.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-west2",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.west2.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-east1",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.east1.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-east2",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.east2.example.com:8080")
+                                .build());
 
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(List.of("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), List.of("us-west2"));
         assertNull(admin.clusters().getCluster("us-west2").getPeerClusterNames());
         // update cluster with duplicate peer-clusters in the list
-        admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(
-                List.of("us-west2", "us-east1", "us-west2", "us-east1", "us-west2", "us-east1")));
-        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
-                List.of("us-west2", "us-east1"));
+        admin.clusters()
+                .updatePeerClusterNames(
+                        "us-west1",
+                        Sets.newLinkedHashSet(
+                                List.of("us-west2", "us-east1", "us-west2", "us-east1", "us-west2", "us-east1")));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), List.of("us-west2", "us-east1"));
         admin.clusters().updatePeerClusterNames("us-west1", null);
         assertNull(admin.clusters().getCluster("us-west1").getPeerClusterNames());
 
         // Check name validation
         try {
-            admin.clusters().updatePeerClusterNames("us-west1",
-                    Sets.newLinkedHashSet(List.of("invalid-cluster")));
+            admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(List.of("invalid-cluster")));
             fail("should have failed");
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
@@ -589,33 +651,54 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testReplicationPeerCluster() throws Exception {
-        admin.clusters().createCluster("us-west1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080").build());
-        admin.clusters().createCluster("us-west2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
-        admin.clusters().createCluster("us-west3",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
-        admin.clusters().createCluster("us-west4",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
-        admin.clusters().createCluster("us-east1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080").build());
-        admin.clusters().createCluster("us-east2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
+        admin.clusters()
+                .createCluster(
+                        "us-west1",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.west1.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-west2",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.west2.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-west3",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.west2.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-west4",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.west2.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-east1",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.east1.example.com:8080")
+                                .build());
+        admin.clusters()
+                .createCluster(
+                        "us-east2",
+                        ClusterData.builder()
+                                .serviceUrl("http://broker.messaging.east2.example.com:8080")
+                                .build());
         admin.clusters().createCluster("global", ClusterData.builder().build());
 
         final String property = "peer-prop";
-        Set<String> allowedClusters = Set.of("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
-                "us-east2");
+        Set<String> allowedClusters = Set.of("us-west1", "us-west2", "us-west3", "us-west4", "us-east1", "us-east2");
         TenantInfoImpl propConfig = new TenantInfoImpl(Set.of("test"), allowedClusters);
         admin.tenants().createTenant(property, propConfig);
 
         final String namespace = property + "/global/conflictPeer";
         admin.namespaces().createNamespace(namespace);
 
-        admin.clusters().updatePeerClusterNames("us-west1",
-                Sets.newLinkedHashSet(List.of("us-west2", "us-west3")));
-        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
-                List.of("us-west2", "us-west3"));
+        admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(List.of("us-west2", "us-west3")));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), List.of("us-west2", "us-west3"));
 
         // (1) no conflicting peer
         Set<String> clusterIds = Set.of("us-east1", "us-east2");
@@ -643,15 +726,16 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void clusterFailureDomain() throws PulsarAdminException {
 
         final String cluster = pulsar.getConfiguration().getClusterName();
-        admin.clusters().createCluster(cluster,
-                ClusterData.builder()
-                        .serviceUrl(pulsar.getSafeWebServiceAddress())
-                        .serviceUrlTls(pulsar.getWebServiceAddressTls())
-                        .build());
+        admin.clusters()
+                .createCluster(
+                        cluster,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getSafeWebServiceAddress())
+                                .serviceUrlTls(pulsar.getWebServiceAddressTls())
+                                .build());
         // create
-        FailureDomain domain = FailureDomain.builder()
-                .brokers(Set.of("b1", "b2", "b3"))
-                .build();
+        FailureDomain domain =
+                FailureDomain.builder().brokers(Set.of("b1", "b2", "b3")).build();
         admin.clusters().createFailureDomain(cluster, "domain-1", domain);
         admin.clusters().updateFailureDomain(cluster, "domain-1", domain);
 
@@ -698,8 +782,8 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceAntiAffinityGroup(ns2, antiAffinityGroup);
         admin.namespaces().setNamespaceAntiAffinityGroup(ns3, antiAffinityGroup);
 
-        Set<String> namespaces = new HashSet<>(
-                admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "use", antiAffinityGroup));
+        Set<String> namespaces =
+                new HashSet<>(admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "use", antiAffinityGroup));
         assertEquals(namespaces.size(), 3);
         assertTrue(namespaces.contains(ns1));
         assertTrue(namespaces.contains(ns2));
@@ -719,16 +803,18 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         Set<String> topicNames = new HashSet<>();
         for (int i = 0; i < totalTopics; i++) {
             topicNames.add(topicName + i);
-            Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName + i)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
+            Producer<byte[]> producer = pulsarClient
+                    .newProducer()
+                    .topic(topicName + i)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .create();
             producer.close();
         }
 
         for (int i = 0; i < totalTopics; i++) {
-            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i).get();
+            Topic topic =
+                    pulsar.getBrokerService().getTopicReference(topicName + i).get();
             assertNotNull(topic);
         }
 
@@ -746,26 +832,38 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String producerName = "myProducer";
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
-        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(subscriberName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
         Producer<byte[]> producer = client.newProducer()
-            .topic(topic)
-            .producerName(producerName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topic)
+                .producerName(producerName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
-        retryStrategically((test) -> {
-            TopicStats stats;
-            try {
-                stats = admin.topics().getStats(topic);
-                return stats.getPublishers().size() > 0 && stats.getSubscriptions().get(subscriberName) != null
-                        && stats.getSubscriptions().get(subscriberName).getConsumers().size() > 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 200);
+        retryStrategically(
+                (test) -> {
+                    TopicStats stats;
+                    try {
+                        stats = admin.topics().getStats(topic);
+                        return stats.getPublishers().size() > 0
+                                && stats.getSubscriptions().get(subscriberName) != null
+                                && stats.getSubscriptions()
+                                                .get(subscriberName)
+                                                .getConsumers()
+                                                .size()
+                                        > 0;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                5,
+                200);
 
         TopicStats topicStats = admin.topics().getStats(topic);
         assertEquals(topicStats.getPublishers().size(), 1);
@@ -796,11 +894,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         String topic = "persistent://prop_xyz/use/my-namespace/my-topic";
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topic)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         TopicStats stats = admin.topics().getStats(topic);
         assertEquals(stats.getPublishers().size(), 1);

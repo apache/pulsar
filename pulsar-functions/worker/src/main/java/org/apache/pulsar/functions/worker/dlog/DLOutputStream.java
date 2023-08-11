@@ -28,45 +28,42 @@ import org.apache.distributedlog.api.DistributedLogManager;
  */
 public class DLOutputStream extends OutputStream {
 
-  private final DistributedLogManager dlm;
-  private final AppendOnlyStreamWriter writer;
+    private final DistributedLogManager dlm;
+    private final AppendOnlyStreamWriter writer;
 
-  public DLOutputStream(DistributedLogManager dlm,
-                        AppendOnlyStreamWriter writer) {
-    this.dlm = dlm;
-    this.writer = writer;
-  }
+    public DLOutputStream(DistributedLogManager dlm, AppendOnlyStreamWriter writer) {
+        this.dlm = dlm;
+        this.writer = writer;
+    }
 
-  @Override
-  public void write(int b) throws IOException {
-    byte[] data = new byte[] {
-        (byte) b
-    };
-    write(data);
-  }
+    @Override
+    public void write(int b) throws IOException {
+        byte[] data = new byte[] {(byte) b};
+        write(data);
+    }
 
-  @Override
-  public void write(byte[] b, int off, int len) throws IOException {
-    // TODO: avoid array copy by using the new bytebuf api
-    byte[] newData = new byte[len];
-    System.arraycopy(b, off, newData, 0, len);
-    write(newData);
-  }
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        // TODO: avoid array copy by using the new bytebuf api
+        byte[] newData = new byte[len];
+        System.arraycopy(b, off, newData, 0, len);
+        write(newData);
+    }
 
-  @Override
-  public void write(byte[] b) throws IOException {
-    writer.write(b);
-  }
+    @Override
+    public void write(byte[] b) throws IOException {
+        writer.write(b);
+    }
 
-  @Override
-  public void flush() throws IOException {
-    writer.force(false);
-  }
+    @Override
+    public void flush() throws IOException {
+        writer.force(false);
+    }
 
-  @Override
-  public void close() throws IOException {
-    writer.markEndOfStream();
-    writer.close();
-    dlm.close();
-  }
+    @Override
+    public void close() throws IOException {
+        writer.markEndOfStream();
+        writer.close();
+        dlm.close();
+    }
 }

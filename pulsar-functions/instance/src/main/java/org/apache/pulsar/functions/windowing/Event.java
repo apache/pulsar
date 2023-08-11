@@ -53,5 +53,4 @@ public interface Event<T> {
      * @return true if this is a watermark event
      */
     boolean isWatermark();
-
 }

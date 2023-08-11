@@ -74,7 +74,8 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
             }
             return cache.get(BytesSchemaVersion.of(schemaVersion));
         } catch (ExecutionException e) {
-            LOG.error("Can't get generic schema for topic %s schema version %s",
+            LOG.error(
+                    "Can't get generic schema for topic %s schema version %s",
                     topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
             return FutureUtil.failedFuture(e.getCause());
         }
@@ -101,9 +102,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
         }
     }
 
-
     public static SchemaInfo defaultSchema() {
         return Schema.BYTES.getSchemaInfo();
     }
-
 }

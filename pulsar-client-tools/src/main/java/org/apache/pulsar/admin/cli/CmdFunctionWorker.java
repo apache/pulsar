@@ -40,8 +40,7 @@ public class CmdFunctionWorker extends CmdBase {
             runCmd();
         }
 
-        void processArguments() throws Exception {
-        }
+        void processArguments() throws Exception {}
 
         abstract void runCmd() throws Exception;
     }
@@ -85,7 +84,6 @@ public class CmdFunctionWorker extends CmdBase {
     @Parameters(commandDescription = "Get the assignments of the functions across the worker cluster")
     class GetFunctionAssignments extends BaseCommand {
 
-
         @Override
         void runCmd() throws Exception {
             print(getAdmin().worker().getAssignments());
@@ -111,5 +109,4 @@ public class CmdFunctionWorker extends CmdBase {
         jcommander.addCommand("get-function-assignments", new GetFunctionAssignments());
         jcommander.addCommand("rebalance", new Rebalance());
     }
-
 }

@@ -134,9 +134,7 @@ public interface LedgerOffloader {
      *                      purposes
      * @return a future, which when completed, denotes that the offload has been successful.
      */
-    CompletableFuture<Void> offload(ReadHandle ledger,
-                                    UUID uid,
-                                    Map<String, String> extraMetadata);
+    CompletableFuture<Void> offload(ReadHandle ledger, UUID uid, Map<String, String> extraMetadata);
 
     /**
      * Begin offload the passed in ledgers to longterm storage, it will finish
@@ -162,9 +160,8 @@ public interface LedgerOffloader {
      * @return an OffloaderHandle, which when `completeFuture()` completed, denotes that the offload has been
      * successful.
      */
-    default CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uid, long beginLedger,
-                                                              long beginEntry,
-                                                              Map<String, String> driverMetadata) {
+    default CompletableFuture<OffloadHandle> streamingOffload(
+            ManagedLedger ml, UUID uid, long beginLedger, long beginEntry, Map<String, String> driverMetadata) {
         throw new UnsupportedOperationException();
     }
 
@@ -180,8 +177,7 @@ public interface LedgerOffloader {
      * @param offloadDriverMetadata offload driver metadata
      * @return a future, which when completed, returns a ReadHandle
      */
-    CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid,
-                                                Map<String, String> offloadDriverMetadata);
+    CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata);
 
     /**
      * Delete a ledger from long term storage.
@@ -195,11 +191,10 @@ public interface LedgerOffloader {
      * @return a future, which when completed, signifies that the ledger has
      *         been deleted
      */
-    CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
-                                            Map<String, String> offloadDriverMetadata);
+    CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata);
 
-    default CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
-                                                        Map<String, String> offloadDriverMetadata) {
+    default CompletableFuture<ReadHandle> readOffloaded(
+            long ledgerId, MLDataFormats.OffloadContext ledgerContext, Map<String, String> offloadDriverMetadata) {
         throw new UnsupportedOperationException();
     }
 
@@ -226,9 +221,8 @@ public interface LedgerOffloader {
      * @param offloadDriverMetadata additional metadata
      * @throws ManagedLedgerException
      */
-    default void scanLedgers(OffloadedLedgerMetadataConsumer consumer,
-                             Map<String, String> offloadDriverMetadata) throws ManagedLedgerException {
+    default void scanLedgers(OffloadedLedgerMetadataConsumer consumer, Map<String, String> offloadDriverMetadata)
+            throws ManagedLedgerException {
         throw ManagedLedgerException.getManagedLedgerException(new UnsupportedOperationException());
     }
 }
-

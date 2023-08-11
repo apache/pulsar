@@ -26,7 +26,8 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
  */
 public interface MessagePayloadFactory {
 
-    MessagePayloadFactory DEFAULT = DefaultImplementation.getDefaultImplementation().newDefaultMessagePayloadFactory();
+    MessagePayloadFactory DEFAULT =
+            DefaultImplementation.getDefaultImplementation().newDefaultMessagePayloadFactory();
 
     /**
      * Create a payload whose underlying buffer refers to a byte array.

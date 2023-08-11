@@ -21,10 +21,8 @@ package org.apache.pulsar.zookeeper;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Collections;
 import java.util.List;
-
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -32,19 +30,16 @@ import org.testng.annotations.Test;
 public class LocalBookkeeperEnsembleTest {
 
     @BeforeMethod
-    void setup() throws Exception {
-    }
+    void setup() throws Exception {}
 
     @AfterMethod(alwaysRun = true)
-    void teardown() throws Exception {
-    }
+    void teardown() throws Exception {}
 
     @Test
     public void testAdvertisedAddress() throws Exception {
         final int numBk = 1;
 
-        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(
-            numBk, 0, 0, null, null, true, "127.0.0.2");
+        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(numBk, 0, 0, null, null, true, "127.0.0.2");
         ensemble.startStandalone();
 
         List<String> bookies = ensemble.getZkClient().getChildren("/ledgers/available", false);

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.fail;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -63,32 +63,33 @@ public class ClientBuilderImplTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testClientBuilderWithServiceUrlAndServiceUrlProvider() throws PulsarClientException {
-        PulsarClient.builder().serviceUrlProvider(new ServiceUrlProvider() {
-            @Override
-            public void initialize(PulsarClient client) {
+        PulsarClient.builder()
+                .serviceUrlProvider(new ServiceUrlProvider() {
+                    @Override
+                    public void initialize(PulsarClient client) {}
 
-            }
-
-            @Override
-            public String getServiceUrl() {
-                return "pulsar://localhost:6650";
-            }
-        }).serviceUrl("pulsar://localhost:6650").build();
+                    @Override
+                    public String getServiceUrl() {
+                        return "pulsar://localhost:6650";
+                    }
+                })
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testClientBuilderWithBlankServiceUrlInServiceUrlProvider() throws PulsarClientException {
-        PulsarClient.builder().serviceUrlProvider(new ServiceUrlProvider() {
-            @Override
-            public void initialize(PulsarClient client) {
+        PulsarClient.builder()
+                .serviceUrlProvider(new ServiceUrlProvider() {
+                    @Override
+                    public void initialize(PulsarClient client) {}
 
-            }
-
-            @Override
-            public String getServiceUrl() {
-                return "";
-            }
-        }).build();
+                    @Override
+                    public String getServiceUrl() {
+                        return "";
+                    }
+                })
+                .build();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -111,7 +112,7 @@ public class ClientBuilderImplTest {
         try {
             PulsarClient.builder().connectionMaxIdleSeconds(30);
             fail();
-        } catch (IllegalArgumentException e){
+        } catch (IllegalArgumentException e) {
         }
     }
 
@@ -146,8 +147,9 @@ public class ClientBuilderImplTest {
     }
 
     private void assertAuthWithSecret(Authentication authentication, String secret) {
-        assertThat(authentication).isInstanceOfSatisfying(MockAuthenticationSecret.class,
-                (auth) -> assertThat(auth.getSecret()).isEqualTo(secret));
+        assertThat(authentication)
+                .isInstanceOfSatisfying(MockAuthenticationSecret.class, (auth) -> assertThat(auth.getSecret())
+                        .isEqualTo(secret));
     }
 
     @Test
@@ -214,8 +216,11 @@ public class ClientBuilderImplTest {
 
     @SneakyThrows
     private Authentication createClientAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:8080").loadConf(confProps).build()) {
-            return ((PulsarClientImpl)client).conf.getAuthentication();
+        try (PulsarClient client = PulsarClient.builder()
+                .serviceUrl("http://localhost:8080")
+                .loadConf(confProps)
+                .build()) {
+            return ((PulsarClientImpl) client).conf.getAuthentication();
         }
     }
 
@@ -227,7 +232,7 @@ public class ClientBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 
@@ -253,16 +258,13 @@ public class ClientBuilderImplTest {
         }
 
         @Override
-        public void start() throws PulsarClientException {
-        }
+        public void start() throws PulsarClientException {}
 
         @Override
-        public void close() throws IOException {
-        }
+        public void close() throws IOException {}
 
         public String getSecret() {
             return secret;
         }
     }
-
 }

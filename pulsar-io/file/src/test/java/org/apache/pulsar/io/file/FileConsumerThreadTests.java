@@ -23,13 +23,11 @@ import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.fail;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.mockito.Mockito;
@@ -47,7 +45,7 @@ public class FileConsumerThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
 
         try {
@@ -82,7 +80,7 @@ public class FileConsumerThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
 
         try {
@@ -117,7 +115,7 @@ public class FileConsumerThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("inputDirectory", directory.toString());
 
         try {

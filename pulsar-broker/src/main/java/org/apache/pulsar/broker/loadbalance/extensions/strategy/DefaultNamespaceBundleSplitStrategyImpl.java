@@ -67,7 +67,6 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
         splitConditionHitCounts = new HashMap<>();
         splittingBundles = new HashMap<>();
         this.counter = counter;
-
     }
 
     @Override
@@ -95,7 +94,8 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
             }
         }
 
-        Map<String, NamespaceBundleStats> bundleStatsMap = pulsar.getBrokerService().getBundleStats();
+        Map<String, NamespaceBundleStats> bundleStatsMap =
+                pulsar.getBrokerService().getBundleStats();
         NamespaceBundleFactory namespaceBundleFactory =
                 pulsar.getNamespaceService().getNamespaceBundleFactory();
 
@@ -107,27 +107,23 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
             final NamespaceBundleStats stats = entry.getValue();
             if (stats.topics < 2) {
                 if (debug) {
-                    log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG
-                            + " The topic count is less than 2.", bundle));
+                    log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG + " The topic count is less than 2.", bundle));
                 }
                 continue;
             }
 
             if (!channel.isOwner(bundle)) {
                 if (debug) {
-                    log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG
-                            + " This broker is not the owner.", bundle));
+                    log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " This broker is not the owner.", bundle));
                 }
                 continue;
             }
 
             final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
             final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-            if (!namespaceBundleFactory
-                    .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
+            if (!namespaceBundleFactory.canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
                 if (debug) {
-                    log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG
-                            + " Invalid bundle range:%s.", bundle, bundleRange));
+                    log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG + " Invalid bundle range:%s.", bundle, bundleRange));
                 }
                 counter.update(Failure, Unknown);
                 continue;
@@ -166,25 +162,29 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                             bundle,
                             splitConditionHitCounts.getOrDefault(bundle, 0),
                             splitConditionHitCountThreshold,
-                            stats.topics, maxBundleTopics,
-                            stats.producerCount, stats.consumerCount, maxBundleSessions,
-                            totalMessageRate, maxBundleMsgRate,
+                            stats.topics,
+                            maxBundleTopics,
+                            stats.producerCount,
+                            stats.consumerCount,
+                            maxBundleSessions,
+                            totalMessageRate,
+                            maxBundleMsgRate,
                             totalMessageThroughput / LoadManagerShared.MIBI,
-                            maxBundleBandwidth / LoadManagerShared.MIBI
-                    ));
+                            maxBundleBandwidth / LoadManagerShared.MIBI));
                 }
                 continue;
             }
 
             final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
             try {
-                final int bundleCount = pulsar.getNamespaceService()
-                        .getBundleCount(NamespaceName.get(namespace));
-                if ((bundleCount + namespaceBundleCount.getOrDefault(namespace, 0))
-                        >= maxBundleCount) {
+                final int bundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get(namespace));
+                if ((bundleCount + namespaceBundleCount.getOrDefault(namespace, 0)) >= maxBundleCount) {
                     if (debug) {
-                        log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG + " Namespace:%s has too many bundles:%d",
-                                bundle, namespace, bundleCount));
+                        log.info(String.format(
+                                CANNOT_SPLIT_BUNDLE_MSG + " Namespace:%s has too many bundles:%d",
+                                bundle,
+                                namespace,
+                                bundleCount));
                     }
                     continue;
                 }
@@ -200,11 +200,12 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                 var splittingBundle = etr.getKey();
                 if (splittingBundle.startsWith(namespace)) {
                     var splittingBundleRange = etr.getValue();
-                    if (splittingBundleRange.startsWith(ranges[0])
-                            || splittingBundleRange.endsWith(ranges[1])) {
+                    if (splittingBundleRange.startsWith(ranges[0]) || splittingBundleRange.endsWith(ranges[1])) {
                         if (debug) {
-                            log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG
-                                    + " (parent) bundle:%s is in Splitting state.", bundle, splittingBundle));
+                            log.info(String.format(
+                                    CANNOT_SPLIT_BUNDLE_MSG + " (parent) bundle:%s is in Splitting state.",
+                                    bundle,
+                                    splittingBundle));
                         }
                         foundSplittingBundle = true;
                         break;
@@ -223,24 +224,25 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                                 + "Message Rate: %.2f/%d (msgs/s), "
                                 + "Message Throughput: %.2f/%d (MB/s)",
                         bundle,
-                        stats.topics, maxBundleTopics,
-                        stats.producerCount, stats.consumerCount, maxBundleSessions,
-                        totalMessageRate, maxBundleMsgRate,
+                        stats.topics,
+                        maxBundleTopics,
+                        stats.producerCount,
+                        stats.consumerCount,
+                        maxBundleSessions,
+                        totalMessageRate,
+                        maxBundleMsgRate,
                         totalMessageThroughput / LoadManagerShared.MIBI,
-                        maxBundleBandwidth / LoadManagerShared.MIBI
-                ));
+                        maxBundleBandwidth / LoadManagerShared.MIBI));
             }
             var decision = new SplitDecision();
             var namespaceService = pulsar.getNamespaceService();
-            var namespaceBundle = namespaceService.getNamespaceBundleFactory()
-                    .getBundle(namespaceName, bundleRange);
-            NamespaceBundleSplitAlgorithm algorithm =
-                    namespaceService.getNamespaceBundleSplitAlgorithmByName(
-                            conf.getDefaultNamespaceBundleSplitAlgorithm());
+            var namespaceBundle = namespaceService.getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
+            NamespaceBundleSplitAlgorithm algorithm = namespaceService.getNamespaceBundleSplitAlgorithmByName(
+                    conf.getDefaultNamespaceBundleSplitAlgorithm());
             List<Long> splitBoundary = null;
             try {
                 splitBoundary = namespaceService
-                        .getSplitBoundary(namespaceBundle,  null, algorithm)
+                        .getSplitBoundary(namespaceBundle, null, algorithm)
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (Throwable e) {
                 counter.update(Failure, Unknown);
@@ -254,15 +256,19 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
             }
             if (splitBoundary.size() != 1) {
                 counter.update(Failure, Unknown);
-                log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " The size of split boundaries is not 1. "
-                        + "splitBoundary:%s", bundle, splitBoundary));
+                log.warn(String.format(
+                        CANNOT_SPLIT_BUNDLE_MSG + " The size of split boundaries is not 1. " + "splitBoundary:%s",
+                        bundle,
+                        splitBoundary));
                 continue;
             }
 
             var parentRange = namespaceBundle.getKeyRange();
-            var leftChildBundle = namespaceBundleFactory.getBundle(namespaceBundle.getNamespaceObject(),
+            var leftChildBundle = namespaceBundleFactory.getBundle(
+                    namespaceBundle.getNamespaceObject(),
                     NamespaceBundleFactory.getRange(parentRange.lowerEndpoint(), splitBoundary.get(0)));
-            var rightChildBundle = namespaceBundleFactory.getBundle(namespaceBundle.getNamespaceObject(),
+            var rightChildBundle = namespaceBundleFactory.getBundle(
+                    namespaceBundle.getNamespaceObject(),
                     NamespaceBundleFactory.getRange(splitBoundary.get(0), parentRange.upperEndpoint()));
             Map<String, Optional<String>> splitServiceUnitToDestBroker = Map.of(
                     leftChildBundle.getBundleRange(), Optional.empty(),
@@ -277,13 +283,13 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
             namespaceBundleFactory.invalidateBundleCache(NamespaceName.get(namespaceName));
             if (decisionCache.size() == maxSplitCount) {
                 if (debug) {
-                    log.info(CANNOT_CONTINUE_SPLIT_MSG
-                                    + "Too many bundles split in this cycle {} / {}.",
-                            decisionCache.size(), maxSplitCount);
+                    log.info(
+                            CANNOT_CONTINUE_SPLIT_MSG + "Too many bundles split in this cycle {} / {}.",
+                            decisionCache.size(),
+                            maxSplitCount);
                 }
                 break;
             }
-
         }
         return decisionCache;
     }

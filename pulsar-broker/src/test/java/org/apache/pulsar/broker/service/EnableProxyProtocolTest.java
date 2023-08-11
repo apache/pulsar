@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.Unpooled;
+import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -32,12 +35,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.net.InetSocketAddress;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
 @Test(groups = "broker")
-public class EnableProxyProtocolTest extends BrokerTestBase  {
+public class EnableProxyProtocolTest extends BrokerTestBase {
 
     @BeforeClass
     @Override
@@ -60,11 +59,15 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         final int messages = 100;
 
         @Cleanup
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
                 .subscribe();
 
         @Cleanup
-        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        org.apache.pulsar.client.api.Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < messages; i++) {
             producer.send(("Message-" + i).getBytes());
         }
@@ -79,17 +82,27 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
     }
 
     @Test
-    public void testProxyProtocol() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
+    public void testProxyProtocol()
+            throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
         final String namespace = "prop/ns-abc";
         final String topicName = "persistent://" + namespace + "/testProxyProtocol";
         final String subName = "my-subscriber-name";
         PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
-        CompletableFuture<ClientCnx> cnx = client.getCnxPool().getConnection(InetSocketAddress.createUnresolved("localhost", pulsar.getBrokerListenPort().get()));
+        CompletableFuture<ClientCnx> cnx = client.getCnxPool()
+                .getConnection(InetSocketAddress.createUnresolved(
+                        "localhost", pulsar.getBrokerListenPort().get()));
         // Simulate the proxy protcol message
-        cnx.get().ctx().channel().writeAndFlush(Unpooled.copiedBuffer("PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes()));
-        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscribe();
-        org.apache.pulsar.broker.service.Consumer c = pulsar.getBrokerService().getTopicReference(topicName).get().getSubscription(subName).getConsumers().get(0);
+        cnx.get()
+                .ctx()
+                .channel()
+                .writeAndFlush(Unpooled.copiedBuffer("PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes()));
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        org.apache.pulsar.broker.service.Consumer c = pulsar.getBrokerService()
+                .getTopicReference(topicName)
+                .get()
+                .getSubscription(subName)
+                .getConsumers()
+                .get(0);
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(c.cnx().hasHAProxyMessage()));
         TopicStats topicStats = admin.topics().getStats(topicName);
         Assert.assertEquals(topicStats.getSubscriptions().size(), 1);

@@ -64,42 +64,50 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
 
     @DataProvider(name = "partitionedTopic")
     public Object[][] partitionedTopicProvider() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
-
 
     @Test
     public void testRemoveClusterFromNamespace() throws Exception {
-        admin1.tenants().createTenant("pulsar1",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
-                        Sets.newHashSet("r1", "r2", "r3")));
+        admin1.tenants()
+                .createTenant(
+                        "pulsar1",
+                        new TenantInfoImpl(
+                                Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
 
         admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r2", "r3"));
 
-        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient("r3",
-                pulsar1.getBrokerService().pulsar().getPulsarResources().getClusterResources()
-                .getCluster("r3"));
+        PulsarClient repClient1 = pulsar1.getBrokerService()
+                .getReplicationClient(
+                        "r3",
+                        pulsar1.getBrokerService()
+                                .pulsar()
+                                .getPulsarResources()
+                                .getClusterResources()
+                                .getCluster("r3"));
         Assert.assertNotNull(repClient1);
         Assert.assertFalse(repClient1.isClosed());
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         final String topicName = "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
 
-        Producer<byte[]> producer = client.newProducer()
-                .topic(topicName)
-                .create();
+        Producer<byte[]> producer = client.newProducer().topic(topicName).create();
 
         producer.send("Pulsar".getBytes());
 
         producer.close();
         client.close();
 
-        Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
-                .get().getReplicators().get("r3");
+        Replicator replicator = pulsar1.getBrokerService()
+                .getTopicReference(topicName)
+                .get()
+                .getReplicators()
+                .get("r3");
 
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
 
@@ -108,7 +116,8 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> Assert.assertFalse(replicator.isConnected()));
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(repClient1.isClosed()));
 
-        Awaitility.await().untilAsserted(() -> Assert.assertNull(
-                pulsar1.getBrokerService().getReplicationClients().get("r3")));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertNull(
+                        pulsar1.getBrokerService().getReplicationClients().get("r3")));
     }
 }

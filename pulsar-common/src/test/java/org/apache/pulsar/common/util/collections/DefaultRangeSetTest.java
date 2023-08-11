@@ -18,17 +18,14 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import org.testng.annotations.Test;
-
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import org.testng.annotations.Test;
 
 public class DefaultRangeSetTest {
-    static final LongPairRangeSet.LongPairConsumer<LongPairRangeSet.LongPair> consumer =
-            LongPairRangeSet.LongPair::new;
-    static final LongPairRangeSet.RangeBoundConsumer<LongPairRangeSet.LongPair> reverseConsumer =
-            pair -> pair;
+    static final LongPairRangeSet.LongPairConsumer<LongPairRangeSet.LongPair> consumer = LongPairRangeSet.LongPair::new;
+    static final LongPairRangeSet.RangeBoundConsumer<LongPairRangeSet.LongPair> reverseConsumer = pair -> pair;
 
     @Test
     public void testBehavior() {
@@ -58,8 +55,7 @@ public class DefaultRangeSetTest {
 
         rangeSet.addOpenClosed(9, 0, 10, 10);
         set.addOpenClosed(9, 0, 10, 10);
-        assertTrue(rangeSet.contains(10,1));
-        assertTrue(set.contains(10,1));
-
+        assertTrue(rangeSet.contains(10, 1));
+        assertTrue(set.contains(10, 1));
     }
 }

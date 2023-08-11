@@ -39,8 +39,10 @@ public class NamespaceName implements ServiceUnitId {
     private final String cluster;
     private final String localName;
 
-    private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
+    private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder()
+            .maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build(new CacheLoader<String, NamespaceName>() {
                 @Override
                 public NamespaceName load(String name) throws Exception {
                     return new NamespaceName(name);
@@ -117,9 +119,11 @@ public class NamespaceName implements ServiceUnitId {
                 throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace);
             }
         } catch (IllegalArgumentException | NullPointerException e) {
-            throw new IllegalArgumentException("Invalid namespace format."
-                    + " expected <tenant>/<namespace> or <tenant>/<cluster>/<namespace> "
-                    + "but got: " + namespace, e);
+            throw new IllegalArgumentException(
+                    "Invalid namespace format."
+                            + " expected <tenant>/<namespace> or <tenant>/<cluster>/<namespace> "
+                            + "but got: " + namespace,
+                    e);
         }
         this.namespace = namespace;
     }
@@ -190,7 +194,8 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     public static void validateNamespaceName(String tenant, String cluster, String namespace) {
-        if ((tenant == null || tenant.isEmpty()) || (cluster == null || cluster.isEmpty())
+        if ((tenant == null || tenant.isEmpty())
+                || (cluster == null || cluster.isEmpty())
                 || (namespace == null || namespace.isEmpty())) {
             throw new IllegalArgumentException(
                     String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace));

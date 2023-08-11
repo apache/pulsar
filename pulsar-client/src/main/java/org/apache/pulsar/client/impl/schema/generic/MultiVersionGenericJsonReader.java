@@ -36,8 +36,8 @@ import org.slf4j.LoggerFactory;
  */
 public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericReader {
 
-    public MultiVersionGenericJsonReader(boolean useProvidedSchemaAsReaderSchema, Schema readerSchema,
-                                         SchemaInfo schemaInfo, List<Field> fields) {
+    public MultiVersionGenericJsonReader(
+            boolean useProvidedSchemaAsReaderSchema, Schema readerSchema, SchemaInfo schemaInfo, List<Field> fields) {
         super(useProvidedSchemaAsReaderSchema, new GenericJsonReader(fields, schemaInfo), readerSchema);
     }
 
@@ -45,7 +45,8 @@ public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericRe
     protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            LOG.info("Load schema reader for version({}), schema is : {}",
+            LOG.info(
+                    "Load schema reader for version({}), schema is : {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                     schemaInfo.getSchemaDefinition());
             Schema readerSchema;
@@ -54,13 +55,15 @@ public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericRe
             } else {
                 readerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
             }
-            return new GenericJsonReader(schemaVersion.get(),
-                    readerSchema.getFields()
-                            .stream()
+            return new GenericJsonReader(
+                    schemaVersion.get(),
+                    readerSchema.getFields().stream()
                             .map(f -> new Field(f.name(), f.pos()))
-                            .collect(Collectors.toList()), schemaInfo);
+                            .collect(Collectors.toList()),
+                    schemaInfo);
         } else {
-            LOG.warn("No schema found for version({}), use latest schema : {}",
+            LOG.warn(
+                    "No schema found for version({}), use latest schema : {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                     this.readerSchema);
             return providerSchemaReader;

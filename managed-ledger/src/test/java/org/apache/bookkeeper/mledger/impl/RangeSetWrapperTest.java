@@ -31,9 +31,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -42,7 +42,7 @@ public class RangeSetWrapperTest {
 
     static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
     static final RangeBoundConsumer<LongPair> reverseConvert = (pair) -> pair;
-    
+
     ManagedLedgerImpl managedLedger;
     RangeSetWrapper<LongPair> set;
     ManagedLedgerConfig managedLedgerConfig;
@@ -65,14 +65,11 @@ public class RangeSetWrapperTest {
     }
 
     @AfterMethod
-    public void clean() throws Exception {
-    }
+    public void clean() throws Exception {}
 
     @Test
     public void testDirtyLedger() {
-        RangeSetWrapper<LongPair> rangeSetWrapper = new RangeSetWrapper<>(consumer,
-                reverseConvert,
-                managedCursor);
+        RangeSetWrapper<LongPair> rangeSetWrapper = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         // Test add range
         rangeSetWrapper.addOpenClosed(10, 0, 20, 0);
         assertEquals(rangeSetWrapper.size(), 1);
@@ -407,8 +404,8 @@ public class RangeSetWrapperTest {
         set.remove(Range.openClosed(new LongPair(0, 0), new LongPair(0, Integer.MAX_VALUE - 1)));
         ranges = new ArrayList<>(set.asRanges());
         count = 0;
-        assertEquals(ranges.get(count++),
-                (Range.openClosed(new LongPair(0, Integer.MAX_VALUE - 1), new LongPair(1, 5))));
+        assertEquals(
+                ranges.get(count++), (Range.openClosed(new LongPair(0, Integer.MAX_VALUE - 1), new LongPair(1, 5))));
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(1, 10), new LongPair(1, 15))));
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(1, 20), new LongPair(2, 10))));
         assertEquals(ranges.get(count), (Range.openClosed(new LongPair(2, 25), new LongPair(2, 28))));
@@ -462,7 +459,8 @@ public class RangeSetWrapperTest {
         gSet.add(Range.closed(new LongPair(4, 12), new LongPair(4, 20)));
 
         LongPair position = new LongPair(0, 99);
-        assertEquals(set.rangeContaining(position.getKey(), position.getValue()),
+        assertEquals(
+                set.rangeContaining(position.getKey(), position.getValue()),
                 Range.closed(new LongPair(0, 98), new LongPair(0, 100)));
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
@@ -471,7 +469,8 @@ public class RangeSetWrapperTest {
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
         position = new LongPair(3, 13);
-        assertEquals(set.rangeContaining(position.getKey(), position.getValue()),
+        assertEquals(
+                set.rangeContaining(position.getKey(), position.getValue()),
                 Range.closed(new LongPair(3, 12), new LongPair(3, 20)));
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
@@ -479,7 +478,6 @@ public class RangeSetWrapperTest {
         assertNull(set.rangeContaining(position.getKey(), position.getValue()));
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
     }
-
 
     private List<Range<LongPair>> getConnectedRange(Set<Range<LongPair>> gRanges) {
         List<Range<LongPair>> gRangeConnected = new ArrayList();
@@ -491,11 +489,14 @@ public class RangeSetWrapperTest {
             }
             LongPair previousUpper = lastRange.upperEndpoint();
             LongPair currentLower = range.lowerEndpoint();
-            int previousUpperValue = (int) (lastRange.upperBoundType().equals(BoundType.CLOSED)
-                    ? previousUpper.getValue()
-                    : previousUpper.getValue() - 1);
-            int currentLowerValue = (int) (range.lowerBoundType().equals(BoundType.CLOSED) ? currentLower.getValue()
-                    : currentLower.getValue() + 1);
+            int previousUpperValue = (int)
+                    (lastRange.upperBoundType().equals(BoundType.CLOSED)
+                            ? previousUpper.getValue()
+                            : previousUpper.getValue() - 1);
+            int currentLowerValue = (int)
+                    (range.lowerBoundType().equals(BoundType.CLOSED)
+                            ? currentLower.getValue()
+                            : currentLower.getValue() + 1);
             boolean connected =
                     previousUpper.getKey() == currentLower.getKey() && (previousUpperValue >= currentLowerValue);
             if (connected) {
@@ -505,11 +506,12 @@ public class RangeSetWrapperTest {
                 lastRange = range;
             }
         }
-        int lowerOpenValue = (int) (lastRange.lowerBoundType().equals(BoundType.CLOSED)
-                ? (lastRange.lowerEndpoint().getValue() - 1)
-                : lastRange.lowerEndpoint().getValue());
-        lastRange = Range.openClosed(new LongPair(lastRange.lowerEndpoint().getKey(), lowerOpenValue),
-                lastRange.upperEndpoint());
+        int lowerOpenValue = (int)
+                (lastRange.lowerBoundType().equals(BoundType.CLOSED)
+                        ? (lastRange.lowerEndpoint().getValue() - 1)
+                        : lastRange.lowerEndpoint().getValue());
+        lastRange = Range.openClosed(
+                new LongPair(lastRange.lowerEndpoint().getKey(), lowerOpenValue), lastRange.upperEndpoint());
         gRangeConnected.add(lastRange);
         return gRangeConnected;
     }

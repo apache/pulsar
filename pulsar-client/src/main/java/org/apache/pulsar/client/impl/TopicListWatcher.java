@@ -39,8 +39,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private static final Logger log = LoggerFactory.getLogger(TopicListWatcher.class);
 
     private static final AtomicLongFieldUpdater<TopicListWatcher> CREATE_WATCHER_DEADLINE_UPDATER =
-            AtomicLongFieldUpdater
-                    .newUpdater(TopicListWatcher.class, "createWatcherDeadline");
+            AtomicLongFieldUpdater.newUpdater(TopicListWatcher.class, "createWatcherDeadline");
 
     private final PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener;
     private final String name;
@@ -56,18 +55,22 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<>();
     private final AtomicReference<ClientCnx> clientCnxUsedForWatcherRegistration = new AtomicReference<>();
 
-
-    public TopicListWatcher(PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener,
-                            PulsarClientImpl client, Pattern topicsPattern, long watcherId,
-                            NamespaceName namespace, String topicsHash,
-                            CompletableFuture<TopicListWatcher> watcherFuture) {
+    public TopicListWatcher(
+            PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener,
+            PulsarClientImpl client,
+            Pattern topicsPattern,
+            long watcherId,
+            NamespaceName namespace,
+            String topicsHash,
+            CompletableFuture<TopicListWatcher> watcherFuture) {
         super(client, topicsPattern.pattern());
         this.topicsChangeListener = topicsChangeListener;
         this.name = "Watcher(" + topicsPattern + ")";
-        this.connectionHandler = new ConnectionHandler(this,
+        this.connectionHandler = new ConnectionHandler(
+                this,
                 new BackoffBuilder()
-                        .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
-                                TimeUnit.NANOSECONDS)
+                        .setInitialTime(
+                                client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                         .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                         .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                         .create(),
@@ -88,8 +91,11 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
             exception.setPreviousExceptions(previousExceptions);
             if (watcherFuture.completeExceptionally(exception)) {
                 setState(State.Failed);
-                log.info("[{}] Watcher creation failed for {} with non-retriable error {}",
-                        topic, name, exception.getMessage());
+                log.info(
+                        "[{}] Watcher creation failed for {} with non-retriable error {}",
+                        topic,
+                        name,
+                        exception.getMessage());
                 deregisterFromClientCnx();
             }
         } else {
@@ -108,24 +114,26 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
             return CompletableFuture.completedFuture(null);
         }
 
-        log.info("[{}][{}] Creating topic list watcher on cnx {}, watcherId {}",
-                topic, getHandlerName(), cnx.ctx().channel(), watcherId);
+        log.info(
+                "[{}][{}] Creating topic list watcher on cnx {}, watcherId {}",
+                topic,
+                getHandlerName(),
+                cnx.ctx().channel(),
+                watcherId);
 
         long requestId = client.newRequestId();
 
-        CREATE_WATCHER_DEADLINE_UPDATER
-                .compareAndSet(this, 0L, System.currentTimeMillis()
-                        + client.getConfiguration().getOperationTimeoutMs());
+        CREATE_WATCHER_DEADLINE_UPDATER.compareAndSet(
+                this, 0L, System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs());
 
         final CompletableFuture<Void> future = new CompletableFuture<>();
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         synchronized (this) {
             setClientCnx(cnx);
-            BaseCommand watchRequest = Commands.newWatchTopicList(requestId, watcherId, namespace.toString(),
-                            topicsPattern.pattern(), topicsHash);
+            BaseCommand watchRequest = Commands.newWatchTopicList(
+                    requestId, watcherId, namespace.toString(), topicsPattern.pattern(), topicsHash);
 
             cnx.newWatchTopicList(watchRequest, requestId)
-
                     .thenAccept(response -> {
                         synchronized (TopicListWatcher.this) {
                             if (!changeToReadyState()) {
@@ -143,7 +151,8 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
 
                         watcherFuture.complete(this);
                         future.complete(null);
-                    }).exceptionally((e) -> {
+                    })
+                    .exceptionally((e) -> {
                         deregisterFromClientCnx();
                         if (getState() == State.Closing || getState() == State.Closed) {
                             // Watcher was closed while reconnecting, close the connection to make sure the broker
@@ -152,20 +161,25 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                             future.complete(null);
                             return null;
                         }
-                        log.warn("[{}][{}] Failed to create topic list watcher on {}",
-                                topic, getHandlerName(), cnx.channel().remoteAddress());
+                        log.warn(
+                                "[{}][{}] Failed to create topic list watcher on {}",
+                                topic,
+                                getHandlerName(),
+                                cnx.channel().remoteAddress());
 
                         if (e.getCause() instanceof PulsarClientException
                                 && PulsarClientException.isRetriableError(e.getCause())
                                 && System.currentTimeMillis()
-                                    < CREATE_WATCHER_DEADLINE_UPDATER.get(TopicListWatcher.this)) {
+                                        < CREATE_WATCHER_DEADLINE_UPDATER.get(TopicListWatcher.this)) {
                             future.completeExceptionally(e.getCause());
                         } else if (!watcherFuture.isDone()) {
                             // unable to create new watcher, fail operation
                             setState(State.Failed);
-                            watcherFuture.completeExceptionally(
-                                    PulsarClientException.wrap(e, String.format("Failed to create topic list watcher %s"
-                                                    + "when connecting to the broker", getHandlerName())));
+                            watcherFuture.completeExceptionally(PulsarClientException.wrap(
+                                    e,
+                                    String.format(
+                                            "Failed to create topic list watcher %s" + "when connecting to the broker",
+                                            getHandlerName())));
                         } else {
                             // watcher was subscribed and connected, but we got some error, keep trying
                             future.completeExceptionally(e.getCause());
@@ -210,7 +224,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         }
 
         setState(State.Closing);
-
 
         long requestId = client.newRequestId();
 

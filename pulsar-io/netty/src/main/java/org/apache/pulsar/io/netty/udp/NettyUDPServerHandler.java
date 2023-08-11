@@ -43,6 +43,7 @@ public class NettyUDPServerHandler extends SimpleChannelInboundHandler<DatagramP
     public NettyUDPServerHandler(NettySource nettySource) {
         this.nettySource = nettySource;
     }
+
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, DatagramPacket packet) throws Exception {
         byte[] bytes = ByteBufUtil.getBytes(packet.content());
@@ -60,5 +61,4 @@ public class NettyUDPServerHandler extends SimpleChannelInboundHandler<DatagramP
         private final Optional<String> key;
         private final byte[] value;
     }
-
 }

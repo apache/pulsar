@@ -24,15 +24,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -76,7 +74,8 @@ public class JavaInstanceRunnableTest {
     private JavaInstanceRunnable createRunnable(String outputSerde) throws Exception {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (outputSerde != null) {
-            functionDetailsBuilder.setSink(SinkSpec.newBuilder().setSerDeClassName(outputSerde).build());
+            functionDetailsBuilder.setSink(
+                    SinkSpec.newBuilder().setSerDeClassName(outputSerde).build());
         }
         return createRunnable(functionDetailsBuilder.build());
     }
@@ -85,8 +84,8 @@ public class JavaInstanceRunnableTest {
         ClientBuilder clientBuilder = mock(ClientBuilder.class);
         when(clientBuilder.build()).thenReturn(null);
         InstanceConfig config = createInstanceConfig(functionDetails);
-        JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, clientBuilder, null, null, null, null, null, null, null, null);
+        JavaInstanceRunnable javaInstanceRunnable =
+                new JavaInstanceRunnable(config, clientBuilder, null, null, null, null, null, null, null, null);
         return javaInstanceRunnable;
     }
 
@@ -165,11 +164,13 @@ public class JavaInstanceRunnableTest {
     }
 
     @NotNull
-    private JavaInstanceRunnable getJavaInstanceRunnable(boolean autoAck,
-                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
+    private JavaInstanceRunnable getJavaInstanceRunnable(
+            boolean autoAck, org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees)
+            throws Exception {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setAutoAck(autoAck)
-                .setProcessingGuarantees(processingGuarantees).build();
+                .setProcessingGuarantees(processingGuarantees)
+                .build();
         JavaInstanceRunnable javaInstanceRunnable = createRunnable(functionDetails);
 
         Field stats = JavaInstanceRunnable.class.getDeclaredField("stats");
@@ -183,20 +184,19 @@ public class JavaInstanceRunnableTest {
     public void testStatsManagerNull() throws Exception {
         JavaInstanceRunnable javaInstanceRunnable = createRunnable((String) null);
 
-        Assert.assertEquals(javaInstanceRunnable.getFunctionStatus().build(),
+        Assert.assertEquals(
+                javaInstanceRunnable.getFunctionStatus().build(),
                 InstanceCommunication.FunctionStatus.newBuilder().build());
 
-        Assert.assertEquals(javaInstanceRunnable.getMetrics(), InstanceCommunication.MetricsData.newBuilder().build());
+        Assert.assertEquals(
+                javaInstanceRunnable.getMetrics(),
+                InstanceCommunication.MetricsData.newBuilder().build());
     }
 
     @Test
     public void testSinkConfigParsingPreservesOriginalType() throws Exception {
         final Map<String, Object> parsedConfig = JavaInstanceRunnable.parseComponentConfig(
-                "{\"ttl\": 9223372036854775807}",
-                new InstanceConfig(),
-                null,
-                FunctionDetails.ComponentType.SINK
-        );
+                "{\"ttl\": 9223372036854775807}", new InstanceConfig(), null, FunctionDetails.ComponentType.SINK);
         Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }
@@ -204,15 +204,10 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testSourceConfigParsingPreservesOriginalType() throws Exception {
         final Map<String, Object> parsedConfig = JavaInstanceRunnable.parseComponentConfig(
-                "{\"ttl\": 9223372036854775807}",
-                new InstanceConfig(),
-                null,
-                FunctionDetails.ComponentType.SOURCE
-        );
+                "{\"ttl\": 9223372036854775807}", new InstanceConfig(), null, FunctionDetails.ComponentType.SOURCE);
         Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }
-
 
     public static class ConnectorTestConfig1 {
         public String field1;
@@ -220,17 +215,17 @@ public class JavaInstanceRunnableTest {
 
     @DataProvider(name = "configIgnoreUnknownFields")
     public static Object[][] configIgnoreUnknownFields() {
-        return new Object[][]{
-                {false, FunctionDetails.ComponentType.SINK},
-                {true, FunctionDetails.ComponentType.SINK},
-                {false, FunctionDetails.ComponentType.SOURCE},
-                {true, FunctionDetails.ComponentType.SOURCE}
+        return new Object[][] {
+            {false, FunctionDetails.ComponentType.SINK},
+            {true, FunctionDetails.ComponentType.SINK},
+            {false, FunctionDetails.ComponentType.SOURCE},
+            {true, FunctionDetails.ComponentType.SOURCE}
         };
     }
 
     @Test(dataProvider = "configIgnoreUnknownFields")
-    public void testSinkConfigIgnoreUnknownFields(boolean ignoreUnknownConfigFields,
-                                                  FunctionDetails.ComponentType type) throws Exception {
+    public void testSinkConfigIgnoreUnknownFields(boolean ignoreUnknownConfigFields, FunctionDetails.ComponentType type)
+            throws Exception {
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         final ConnectorDefinition connectorDefinition = new ConnectorDefinition();
         if (type == FunctionDetails.ComponentType.SINK) {
@@ -238,17 +233,13 @@ public class JavaInstanceRunnableTest {
         } else {
             connectorDefinition.setSourceConfigClass(ConnectorTestConfig1.class.getName());
         }
-        when(narClassLoader.getServiceDefinition(any())).thenReturn(ObjectMapperFactory
-                .getMapper().writer().writeValueAsString(connectorDefinition));
+        when(narClassLoader.getServiceDefinition(any()))
+                .thenReturn(ObjectMapperFactory.getMapper().writer().writeValueAsString(connectorDefinition));
         final InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
 
         final Map<String, Object> parsedConfig = JavaInstanceRunnable.parseComponentConfig(
-                "{\"field1\": \"value\", \"field2\": \"value2\"}",
-                instanceConfig,
-                narClassLoader,
-                type
-        );
+                "{\"field1\": \"value\", \"field2\": \"value2\"}", instanceConfig, narClassLoader, type);
         if (ignoreUnknownConfigFields) {
             Assert.assertEquals(parsedConfig.size(), 1);
             Assert.assertEquals(parsedConfig.get("field1"), "value");
@@ -263,6 +254,7 @@ public class JavaInstanceRunnableTest {
         public static int constantField = 1;
         public String field1;
         private long withGetter;
+
         @JsonIgnore
         private ConnectorTestConfig1 ignore;
 
@@ -273,8 +265,8 @@ public class JavaInstanceRunnableTest {
 
     @Test
     public void testBeanPropertiesReader() throws Exception {
-        final List<String> beanProperties = JavaInstanceRunnable.BeanPropertiesReader
-                .getBeanProperties(ConnectorTestConfig2.class);
+        final List<String> beanProperties =
+                JavaInstanceRunnable.BeanPropertiesReader.getBeanProperties(ConnectorTestConfig2.class);
         Assert.assertEquals(new TreeSet<>(beanProperties), new TreeSet<>(Arrays.asList("field1", "withGetter")));
     }
 }

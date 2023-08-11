@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import com.google.common.collect.Sets;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -49,8 +51,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import com.google.common.collect.Sets;
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Test(groups = "broker-impl")
 public class MessageRedeliveryTest extends ProducerConsumerBase {
@@ -71,7 +71,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     /**
@@ -88,8 +88,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         this.conf.setManagedLedgerUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
         @Cleanup("shutdownNow")
-        final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
-                new DefaultThreadFactory("pulsar"));
+        final ScheduledExecutorService executor =
+                Executors.newScheduledThreadPool(20, new DefaultThreadFactory("pulsar"));
         final String ns1 = "my-property/brok-ns1";
         final String subName = "my-subscriber-name";
         final int numMessages = 50;
@@ -97,13 +97,24 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         final String topic1 = "persistent://" + ns1 + "/my-topic";
 
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                .subscriptionName(subName).subscriptionType(SubscriptionType.Shared).receiverQueueSize(10)
-                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
-        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                .subscriptionName(subName).subscriptionType(SubscriptionType.Shared).receiverQueueSize(10)
-                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic1)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topic1)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        ProducerImpl<byte[]> producer =
+                (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
 
         for (int i = 0; i < numMessages; i++) {
             String message = "my-message-" + i;
@@ -171,10 +182,11 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         // (4) here we consume all messages but consumer1 only acked alternate messages.
         assertNotEquals(ackedMessages.size(), numMessages);
 
-        PersistentTopic pTopic = (PersistentTopic) this.pulsar.getBrokerService().getTopicIfExists(topic1).get()
-                .get();
+        PersistentTopic pTopic = (PersistentTopic)
+                this.pulsar.getBrokerService().getTopicIfExists(topic1).get().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) pTopic.getManagedLedger();
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ml.getCursors().iterator().next();
 
         // (5) now, close consumer1 and let broker deliver consumer1's unack messages to consumer2
         consumer1.close();
@@ -196,10 +208,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                     // Ok
                     break;
                 }
-                if (ackedMessages.size() == numMessages)
-                    latch2.countDown();
+                if (ackedMessages.size() == numMessages) latch2.countDown();
             }
-
         });
 
         latch2.await(20000, TimeUnit.MILLISECONDS);
@@ -216,8 +226,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         producer.close();
         consumer2.close();
-
-
     }
 
     @Test
@@ -226,7 +234,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         final String subName = "my-sub";
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
@@ -234,10 +243,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                 .subscribe();
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topic).enableBatching(false).create();
 
         producer.send("Pulsar".getBytes());
 
@@ -259,18 +266,20 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "enableBatch")
-    public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+    public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception {
         final String topic = "testRedeliveryAddEpoch";
         final String subName = "my-sub";
         @Cleanup
-        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe());
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)
                 .create();
@@ -326,7 +335,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         int receiveQueueSize = 4;
 
         @Cleanup
-        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .receiverQueueSize(receiveQueueSize)
                 .autoScaledReceiverQueueSizeEnabled(false)
@@ -335,7 +345,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                 .subscribe());
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)
                 .create();
@@ -354,20 +365,24 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "enableBatch")
-    public void testBatchReceiveRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+    public void testBatchReceiveRedeliveryAddEpoch(boolean enableBatch) throws Exception {
         final String topic = "testBatchReceiveRedeliveryAddEpoch";
         final String subName = "my-sub";
 
         @Cleanup
-        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
-                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(1000, TimeUnit.MILLISECONDS).build())
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                        .timeout(1000, TimeUnit.MILLISECONDS)
+                        .build())
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe());
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)
                 .create();
@@ -419,25 +434,26 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
     @DataProvider(name = "enableBatch")
     public static Object[][] enableBatch() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
-
     @Test(dataProvider = "enableBatch")
-    public void testMultiConsumerRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+    public void testMultiConsumerRedeliveryAddEpoch(boolean enableBatch) throws Exception {
         final String topic = "testMultiConsumerRedeliveryAddEpoch";
         final String subName = "my-sub";
         admin.topics().createPartitionedTopic(topic, 5);
         final int messageNumber = 50;
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)
                 .create();
@@ -457,7 +473,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < messageNumber; i++) {
             message = consumer.receive();
             // message consumer epoch is 1
-            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+            assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
         }
 
         // can't receive message again
@@ -470,7 +486,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < messageNumber; i++) {
             message = consumer.receive();
             // message consumer epoch is 2
-            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+            assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
         }
 
         // can't receive message again
@@ -479,7 +495,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "enableBatch", invocationCount = 10)
-    public void testMultiConsumerBatchRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+    public void testMultiConsumerBatchRedeliveryAddEpoch(boolean enableBatch) throws Exception {
 
         final String topic = "testMultiConsumerBatchRedeliveryAddEpoch";
         final String subName = "my-sub";
@@ -487,15 +503,19 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         final int messageNumber = 50;
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
-                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(2, TimeUnit.SECONDS).build())
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                        .timeout(2, TimeUnit.SECONDS)
+                        .build())
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)
                 .create();
@@ -517,7 +537,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
             Messages<String> messages = consumer.batchReceive();
             receiveNum += messages.size();
             for (Message<String> message : messages) {
-                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+                assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
             }
         }
 
@@ -532,7 +552,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
             Messages<String> messages = consumer.batchReceive();
             receiveNum += messages.size();
             for (Message<String> message : messages) {
-                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+                assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
             }
         }
 

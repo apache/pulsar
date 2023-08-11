@@ -151,16 +151,18 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
         this.isRoleClaimNotSubject = !ROLE_CLAIM_DEFAULT.equals(roleClaim);
-        this.acceptedTimeLeewaySeconds = getConfigValueAsInt(config, ACCEPTED_TIME_LEEWAY_SECONDS,
-                ACCEPTED_TIME_LEEWAY_SECONDS_DEFAULT);
+        this.acceptedTimeLeewaySeconds =
+                getConfigValueAsInt(config, ACCEPTED_TIME_LEEWAY_SECONDS, ACCEPTED_TIME_LEEWAY_SECONDS_DEFAULT);
         boolean requireHttps = getConfigValueAsBoolean(config, REQUIRE_HTTPS, REQUIRE_HTTPS_DEFAULT);
-        this.fallbackDiscoveryMode = FallbackDiscoveryMode.valueOf(getConfigValueAsString(config,
-                FALLBACK_DISCOVERY_MODE, FallbackDiscoveryMode.DISABLED.name()));
-        this.issuers = validateIssuers(getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS), requireHttps,
+        this.fallbackDiscoveryMode = FallbackDiscoveryMode.valueOf(
+                getConfigValueAsString(config, FALLBACK_DISCOVERY_MODE, FallbackDiscoveryMode.DISABLED.name()));
+        this.issuers = validateIssuers(
+                getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS),
+                requireHttps,
                 fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED);
 
-        int connectionTimeout = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
-                HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT);
+        int connectionTimeout =
+                getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS, HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT);
         int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
         String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
         SslContext sslContext = null;
@@ -215,13 +217,12 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_DECODING_JWT);
             return CompletableFuture.failedFuture(e);
         }
-        return authenticateToken(token)
-                .whenComplete((jwt, e) -> {
-                    if (jwt != null) {
-                        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-                    }
-                    // Failure metrics are incremented within methods above
-                });
+        return authenticateToken(token).whenComplete((jwt, e) -> {
+            if (jwt != null) {
+                AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+            }
+            // Failure metrics are incremented within methods above
+        });
     }
 
     /**
@@ -300,27 +301,24 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_DECODING_JWT);
             return CompletableFuture.failedFuture(e);
         }
-        return verifyIssuerAndGetJwk(jwt)
-                .thenCompose(jwk -> {
-                    try {
-                        if (!jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
-                            incrementFailureMetric(AuthenticationExceptionCode.ALGORITHM_MISMATCH);
-                            return CompletableFuture.failedFuture(
-                                    new AuthenticationException("JWK's alg [" + jwk.getAlgorithm()
-                                            + "] does not match JWT's alg [" + jwt.getAlgorithm() + "]"));
-                        }
-                        // Verify the JWT signature
-                        // Throws exception if any verification check fails
-                        return CompletableFuture
-                                .completedFuture(verifyJWT(jwk.getPublicKey(), jwt.getAlgorithm(), jwt));
-                    } catch (InvalidPublicKeyException e) {
-                        incrementFailureMetric(AuthenticationExceptionCode.INVALID_PUBLIC_KEY);
-                        return CompletableFuture.failedFuture(
-                                new AuthenticationException("Invalid public key: " + e.getMessage()));
-                    } catch (AuthenticationException e) {
-                        return CompletableFuture.failedFuture(e);
-                    }
-                });
+        return verifyIssuerAndGetJwk(jwt).thenCompose(jwk -> {
+            try {
+                if (!jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
+                    incrementFailureMetric(AuthenticationExceptionCode.ALGORITHM_MISMATCH);
+                    return CompletableFuture.failedFuture(new AuthenticationException("JWK's alg [" + jwk.getAlgorithm()
+                            + "] does not match JWT's alg [" + jwt.getAlgorithm() + "]"));
+                }
+                // Verify the JWT signature
+                // Throws exception if any verification check fails
+                return CompletableFuture.completedFuture(verifyJWT(jwk.getPublicKey(), jwt.getAlgorithm(), jwt));
+            } catch (InvalidPublicKeyException e) {
+                incrementFailureMetric(AuthenticationExceptionCode.INVALID_PUBLIC_KEY);
+                return CompletableFuture.failedFuture(
+                        new AuthenticationException("Invalid public key: " + e.getMessage()));
+            } catch (AuthenticationException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        });
     }
 
     /**
@@ -336,20 +334,23 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             return CompletableFuture.failedFuture(new AuthenticationException("Issuer cannot be null"));
         } else if (this.issuers.contains(jwt.getIssuer())) {
             // Retrieve the metadata: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
-            return openIDProviderMetadataCache.getOpenIDProviderMetadataForIssuer(jwt.getIssuer())
+            return openIDProviderMetadataCache
+                    .getOpenIDProviderMetadataForIssuer(jwt.getIssuer())
                     .thenCompose(metadata -> jwksCache.getJwk(metadata.getJwksUri(), jwt.getKeyId()));
         } else if (fallbackDiscoveryMode == FallbackDiscoveryMode.KUBERNETES_DISCOVER_TRUSTED_ISSUER) {
-            return openIDProviderMetadataCache.getOpenIDProviderMetadataForKubernetesApiServer(jwt.getIssuer())
+            return openIDProviderMetadataCache
+                    .getOpenIDProviderMetadataForKubernetesApiServer(jwt.getIssuer())
                     .thenCompose(metadata ->
                             openIDProviderMetadataCache.getOpenIDProviderMetadataForIssuer(metadata.getIssuer()))
                     .thenCompose(metadata -> jwksCache.getJwk(metadata.getJwksUri(), jwt.getKeyId()));
         } else if (fallbackDiscoveryMode == FallbackDiscoveryMode.KUBERNETES_DISCOVER_PUBLIC_KEYS) {
-            return openIDProviderMetadataCache.getOpenIDProviderMetadataForKubernetesApiServer(jwt.getIssuer())
+            return openIDProviderMetadataCache
+                    .getOpenIDProviderMetadataForKubernetesApiServer(jwt.getIssuer())
                     .thenCompose(__ -> jwksCache.getJwkFromKubernetesApiServer(jwt.getKeyId()));
         } else {
             incrementFailureMetric(AuthenticationExceptionCode.UNSUPPORTED_ISSUER);
-            return CompletableFuture
-                    .failedFuture(new AuthenticationException("Issuer not allowed: " + jwt.getIssuer()));
+            return CompletableFuture.failedFuture(
+                    new AuthenticationException("Issuer not allowed: " + jwt.getIssuer()));
         }
     }
 
@@ -374,9 +375,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
      * @throws AuthenticationException if the Public Key's algorithm is not supported or if the algorithm param does not
      * match the Public Key's actual algorithm.
      */
-    DecodedJWT verifyJWT(PublicKey publicKey,
-                                String publicKeyAlg,
-                                DecodedJWT jwt) throws AuthenticationException {
+    DecodedJWT verifyJWT(PublicKey publicKey, String publicKeyAlg, DecodedJWT jwt) throws AuthenticationException {
         if (publicKeyAlg == null) {
             incrementFailureMetric(AuthenticationExceptionCode.UNSUPPORTED_ALGORITHM);
             throw new AuthenticationException("PublicKey algorithm cannot be null");
@@ -414,7 +413,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
         // We verify issuer when retrieving the PublicKey, so it is not verified here.
         // The claim presence requirements are based on https://openid.net/specs/openid-connect-basic-1_0.html#IDToken
-         Verification verifierBuilder = JWT.require(alg)
+        Verification verifierBuilder = JWT.require(alg)
                 .acceptLeeway(acceptedTimeLeewaySeconds)
                 .withAnyOfAudience(allowedAudiences)
                 .withClaimPresence(RegisteredClaims.ISSUED_AT)

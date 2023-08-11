@@ -89,9 +89,14 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         lookupUrl = new URI(pulsarContainer.getPlainTextPulsarBrokerUrl());
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarContainer.getPulsarAdminUrl())
+                .build();
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(
+                                new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
     }
@@ -112,7 +117,10 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
     }
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
+        return PulsarClient.builder()
+                .serviceUrl(url)
+                .statsInterval(intervalInSecs, TimeUnit.SECONDS)
+                .build();
     }
 
     @Test
@@ -160,16 +168,30 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         final int totalMsg = 10;
 
         Set<String> messageSet = new HashSet<>();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader()).subscribe();
-        Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
-                .topic(topicName).subscriptionName("my-subscriber-name-normal")
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/myrsa-topic1")
+                .subscriptionName("my-subscriber-name")
+                .cryptoKeyReader(new EncKeyReader())
+                .subscribe();
+        Consumer<byte[]> normalConsumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name-normal")
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/my-ns/myrsa-topic1")
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
+        Producer<byte[]> producer2 = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/my-ns/myrsa-topic1")
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
 
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
@@ -201,10 +223,11 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         consumer.close();
     }
 
-    protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
-                                                     T expectedMessage) {
+    protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage, T expectedMessage) {
         // Make sure that messages are received in order
-        assertEquals(receivedMessage, expectedMessage,
+        assertEquals(
+                receivedMessage,
+                expectedMessage,
                 "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
 
         // Make sure that there are no duplicates
@@ -292,26 +315,45 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         String topicName = "persistent://my-property/my-ns/myrsa-topic2";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
-                .cryptoKeyReader(new EncKeyReader()).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .addEncryptionKey(encryptionKeyName)
+                .compressionType(CompressionType.LZ4)
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
 
         @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
-                .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
-                .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> consumer1 = newPulsarClient
+                .newConsumer()
+                .topicsPattern(topicName)
+                .subscriptionName("my-subscriber-name")
+                .cryptoKeyReader(new EncKeyReader())
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
-                .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
-                .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> consumer2 = newPulsarClient1
+                .newConsumer()
+                .topicsPattern(topicName)
+                .subscriptionName("my-subscriber-name")
+                .cryptoKeyReader(new InvalidKeyReader())
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        Consumer<byte[]> consumer3 = newPulsarClient2
+                .newConsumer()
+                .topicsPattern(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
 
         int numberOfMessages = 100;
         String message = "my-message";
@@ -394,21 +436,29 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         MessageImpl<byte[]> msg = null;
         Set<String> messageSet = new HashSet<>();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                .subscriptionName("my-subscriber-name")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         // 1. Invalid key name
         try {
-            pulsarClient.newProducer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
-                    .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
+            pulsarClient
+                    .newProducer()
+                    .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                    .addEncryptionKey("client-non-existant-rsa.pem")
+                    .cryptoKeyReader(new EncKeyReader())
+                    .create();
             Assert.fail("Producer creation should not suceed if failing to read key");
         } catch (Exception e) {
             // ok
         }
 
         // 2. Producer with valid key name
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .addEncryptionKey("client-rsa.pem")
                 .cryptoKeyReader(new EncKeyReader())
@@ -428,9 +478,13 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 4. Set consumer config to consume even if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
-                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                .subscriptionName("my-subscriber-name")
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         int msgNum = 0;
         try {
@@ -438,8 +492,11 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             String expectedMessage = "my-message-" + msgNum++;
-            Assert.assertNotEquals(receivedMessage, expectedMessage, "Received encrypted message " + receivedMessage
-                    + " should not match the expected message " + expectedMessage);
+            Assert.assertNotEquals(
+                    receivedMessage,
+                    expectedMessage,
+                    "Received encrypted message " + receivedMessage + " should not match the expected message "
+                            + expectedMessage);
             consumer.acknowledgeCumulative(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -449,9 +506,14 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         // 5. Set keyreader and failure action
         consumer.close();
         // Set keyreader
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
-                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
-                .cryptoKeyReader(new EncKeyReader()).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                .subscriptionName("my-subscriber-name")
+                .cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
+                .cryptoKeyReader(new EncKeyReader())
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         for (int i = msgNum; i < totalMsg - 1; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
@@ -469,9 +531,13 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 6. Set consumer config to discard if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
-                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                .subscriptionName("my-subscriber-name")
+                .cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         // Receive should proceed and discard encrypted messages
         msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
@@ -523,12 +589,19 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             }
         }
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic3")
-                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
-                .cryptoKeyReader(new EncKeyReader()).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/my-ns/myrsa-topic3")
+                .addEncryptionKey(encryptionKeyName)
+                .compressionType(CompressionType.LZ4)
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic3")
-                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topicsPattern("persistent://my-property/my-ns/myrsa-topic3")
+                .subscriptionName("my-subscriber-name")
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscribe();
 
         String message = "my-message";
@@ -546,8 +619,8 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             throws Exception {
         Optional<EncryptionContext> ctx = msg.getEncryptionCtx();
         assertTrue(ctx.isPresent());
-        EncryptionContext encryptionCtx = ctx
-                .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
+        EncryptionContext encryptionCtx =
+                ctx.orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
 
         Map<String, EncryptionContext.EncryptionKey> keys = encryptionCtx.getKeys();
         assertEquals(keys.size(), 1);
@@ -578,9 +651,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             msgMetadata.setEncryptionAlgo(encAlgo);
         }
 
-        msgMetadata.addEncryptionKey()
-                .setKey(encryptionKeyName)
-                .setValue(dataKey);
+        msgMetadata.addEncryptionKey().setKey(encryptionKeyName).setValue(dataKey);
 
         ByteBuffer decryptedPayload = ByteBuffer.allocate(crypto.getMaxOutputSize(payloadBuf.remaining()));
         crypto.decrypt(() -> msgMetadata, payloadBuf, decryptedPayload, reader);
@@ -591,8 +662,8 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         if (batchSize > 0) {
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
-            uncompressedPayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                    singleMessageMetadata, 0, batchSize);
+            uncompressedPayload =
+                    Commands.deSerializeSingleMessageInBatch(uncompressedPayload, singleMessageMetadata, 0, batchSize);
         }
 
         byte[] data = new byte[uncompressedPayload.readableBytes()];
@@ -600,5 +671,4 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         uncompressedPayload.release();
         return new String(data);
     }
-
 }

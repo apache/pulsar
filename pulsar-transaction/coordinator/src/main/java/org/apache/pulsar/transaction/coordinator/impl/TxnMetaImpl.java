@@ -95,9 +95,7 @@ class TxnMetaImpl implements TxnMeta {
      */
     private synchronized void checkTxnStatus(TxnStatus expectedStatus) throws InvalidTxnStatusException {
         if (this.txnStatus != expectedStatus) {
-            throw new InvalidTxnStatusException(
-                txnID, expectedStatus, txnStatus
-            );
+            throw new InvalidTxnStatusException(txnID, expectedStatus, txnStatus);
         }
     }
 
@@ -141,13 +139,12 @@ class TxnMetaImpl implements TxnMeta {
      * @throws InvalidTxnStatusException
      */
     @Override
-    public synchronized TxnMetaImpl updateTxnStatus(TxnStatus newStatus,
-                                                    TxnStatus expectedStatus)
-        throws InvalidTxnStatusException {
+    public synchronized TxnMetaImpl updateTxnStatus(TxnStatus newStatus, TxnStatus expectedStatus)
+            throws InvalidTxnStatusException {
         checkTxnStatus(expectedStatus);
         if (!TransactionUtil.canTransitionTo(txnStatus, newStatus)) {
             throw new InvalidTxnStatusException(
-                "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
+                    "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
         }
         this.txnStatus = newStatus;
         return this;

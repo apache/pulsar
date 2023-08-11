@@ -38,9 +38,8 @@ public class RandomAdditionalServlet extends HttpServlet implements AdditionalSe
 
     @Override
     public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-        sequenceLength = Integer.parseInt(
-                pulsarConfiguration.getProperties().getProperty("randomServletSequenceLength"));
-
+        sequenceLength =
+                Integer.parseInt(pulsarConfiguration.getProperties().getProperty("randomServletSequenceLength"));
     }
 
     @Override
@@ -54,15 +53,13 @@ public class RandomAdditionalServlet extends HttpServlet implements AdditionalSe
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         resp.setContentType("text/plain");
-        List<Integer> numbers = IntStream.range(0, sequenceLength).boxed()
-                .collect(Collectors.toCollection(ArrayList::new));
+        List<Integer> numbers =
+                IntStream.range(0, sequenceLength).boxed().collect(Collectors.toCollection(ArrayList::new));
         Collections.shuffle(numbers);
         String responseBody = numbers.stream().map(Object::toString).collect(Collectors.joining(","));
         ServletOutputStream output = resp.getOutputStream();

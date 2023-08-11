@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.sql.presto.decoder.protobufnative;
 
+import static java.lang.String.format;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.EnumValue;
@@ -27,17 +33,9 @@ import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.SqlVarbinary;
 import io.trino.spi.type.Type;
-import org.apache.pulsar.sql.presto.decoder.DecoderTestUtil;
-
 import java.util.List;
 import java.util.Map;
-
-import static java.lang.String.format;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import org.apache.pulsar.sql.presto.decoder.DecoderTestUtil;
 
 /**
  * TestUtil for ProtobufNativeDecoder.
@@ -132,10 +130,10 @@ public class ProtobufNativeDecoderTestUtil extends DecoderTestUtil {
 
         assertEquals(block.getPositionCount(), expected.size() * 2);
         Type valueType = ((MapType) type).getValueType();
-        //protobuf3 keyType only support integral or string type
+        // protobuf3 keyType only support integral or string type
         Type keyType = ((MapType) type).getKeyType();
 
-        //check value
+        // check value
         if (valueType instanceof ArrayType) {
             for (int index = 0; index < block.getPositionCount(); index += 2) {
                 Object actualKey = getObjectValue(keyType, block, index);
@@ -145,7 +143,11 @@ public class ProtobufNativeDecoderTestUtil extends DecoderTestUtil {
                     continue;
                 }
                 Block arrayBlock = block.getObject(index + 1, Block.class);
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkArrayValues(arrayBlock, valueType, keyValue);
             }
         } else if (valueType instanceof MapType) {
@@ -157,7 +159,11 @@ public class ProtobufNativeDecoderTestUtil extends DecoderTestUtil {
                     continue;
                 }
                 Block mapBlock = block.getObject(index + 1, Block.class);
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkMapValues(mapBlock, valueType, keyValue);
             }
         } else if (valueType instanceof RowType) {
@@ -169,19 +175,26 @@ public class ProtobufNativeDecoderTestUtil extends DecoderTestUtil {
                     continue;
                 }
                 Block rowBlock = block.getObject(index + 1, Block.class);
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkRowValues(rowBlock, valueType, keyValue);
             }
         } else {
             for (int index = 0; index < block.getPositionCount(); index += 2) {
                 Object actualKey = getObjectValue(keyType, block, index);
                 assertTrue(expected.keySet().stream().anyMatch(e -> e.equals(actualKey)));
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkPrimitiveValue(getObjectValue(valueType, block, index + 1), keyValue);
             }
         }
     }
-
 
     public void checkRowValues(Block block, Type type, Object value) {
         assertNotNull(type, "Type is null");
@@ -195,8 +208,9 @@ public class ProtobufNativeDecoderTestUtil extends DecoderTestUtil {
         assertEquals(block.getPositionCount(), rowType.getFields().size(), "Presto type field size mismatch");
         for (int fieldIndex = 0; fieldIndex < rowType.getFields().size(); fieldIndex++) {
             RowType.Field rowField = rowType.getFields().get(fieldIndex);
-            Object expectedValue =
-                    record.getField(((DynamicMessage) value).getDescriptorForType().findFieldByName(rowField.getName().get()));
+            Object expectedValue = record.getField(((DynamicMessage) value)
+                    .getDescriptorForType()
+                    .findFieldByName(rowField.getName().get()));
 
             if (block.isNull(fieldIndex)) {
                 assertNull(expectedValue);
@@ -205,5 +219,4 @@ public class ProtobufNativeDecoderTestUtil extends DecoderTestUtil {
             checkField(block, rowField.getType(), fieldIndex, expectedValue);
         }
     }
-
 }

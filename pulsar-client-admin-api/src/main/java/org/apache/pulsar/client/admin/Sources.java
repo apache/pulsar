@@ -212,8 +212,7 @@ public interface Sources {
      * @param updateOptions
      *            options for the update operations
      */
-    CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName,
-                                              UpdateOptions updateOptions);
+    CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions);
 
     /**
      * Update the configuration for a source.
@@ -372,8 +371,7 @@ public interface Sources {
      * @throws PulsarAdminException
      */
     SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(
-            String tenant, String namespace, String source, int id)
-            throws PulsarAdminException;
+            String tenant, String namespace, String source, int id) throws PulsarAdminException;
 
     /**
      * Gets the current status of a source instance asynchronously.

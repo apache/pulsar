@@ -43,8 +43,8 @@ public class InstanceStateManager implements StateManager {
     public void registerStore(StateStore store) {
         final String storeName = store.fqsn();
 
-        checkArgument(!stores.containsKey(storeName),
-            String.format("Store %s has already been registered.", storeName));
+        checkArgument(
+                !stores.containsKey(storeName), String.format("Store %s has already been registered.", storeName));
 
         stores.put(storeName, store);
     }

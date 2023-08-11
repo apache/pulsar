@@ -43,5 +43,4 @@ public class ProtobufNativeSchemaData {
      * protobuf v3 rootFileDescriptorName.
      **/
     private String rootFileDescriptorName;
-
 }

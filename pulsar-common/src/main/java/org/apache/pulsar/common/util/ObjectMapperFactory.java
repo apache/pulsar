@@ -152,9 +152,7 @@ public class ObjectMapperFactory {
     }
 
     private static ObjectMapper createObjectMapperWithIncludeAlways() {
-        return MAPPER_REFERENCE
-                .get().getObjectMapper().copy()
-                .setSerializationInclusion(Include.ALWAYS);
+        return MAPPER_REFERENCE.get().getObjectMapper().copy().setSerializationInclusion(Include.ALWAYS);
     }
 
     public static ObjectMapper create() {
@@ -174,8 +172,8 @@ public class ObjectMapperFactory {
         // enable Jackson Java 8 support modules
         // https://github.com/FasterXML/jackson-modules-java8
         mapper.registerModule(new ParameterNamesModule())
-            .registerModule(new Jdk8Module())
-            .registerModule(new JavaTimeModule());
+                .registerModule(new Jdk8Module())
+                .registerModule(new JavaTimeModule());
 
         setAnnotationsModule(mapper);
         return mapper;
@@ -188,7 +186,6 @@ public class ObjectMapperFactory {
     public static MapperReference getMapper() {
         return MAPPER_REFERENCE.get();
     }
-
 
     public static MapperReference getMapperWithIncludeAlways() {
         return INSTANCE_WITH_INCLUDE_ALWAYS.get();

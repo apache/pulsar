@@ -87,5 +87,4 @@ public interface GenericRecord extends GenericObject {
     default Object getNativeObject() {
         throw new UnsupportedOperationException();
     }
-
 }

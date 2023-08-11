@@ -19,15 +19,11 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
-import java.util.Map;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.core.type.TypeReference;
-
-import org.apache.pulsar.common.policies.data.BrokerAssignment;
-import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
@@ -39,9 +35,8 @@ public class NamespaceOwnershipStatusTest {
                 + "\"ns-2\":{\"broker_assignment\":\"primary\",\"is_controlled\":true,\"is_active\":false},"
                 + "\"ns-3\":{\"broker_assignment\":\"secondary\",\"is_controlled\":true,\"is_active\":true}}";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        Map<String, NamespaceOwnershipStatus> nsMap = jsonMapper.readValue(jsonStr.getBytes(),
-                new TypeReference<Map<String, NamespaceOwnershipStatus>>() {
-                });
+        Map<String, NamespaceOwnershipStatus> nsMap =
+                jsonMapper.readValue(jsonStr.getBytes(), new TypeReference<Map<String, NamespaceOwnershipStatus>>() {});
         assertEquals(nsMap.size(), 3);
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);

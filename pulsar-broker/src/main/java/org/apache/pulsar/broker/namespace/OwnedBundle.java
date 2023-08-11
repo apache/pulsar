@@ -45,6 +45,7 @@ public class OwnedBundle {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
+
     private static final int FALSE = 0;
     private static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<OwnedBundle> IS_ACTIVE_UPDATER =
@@ -59,7 +60,8 @@ public class OwnedBundle {
     public OwnedBundle(NamespaceBundle suName) {
         this.bundle = suName;
         IS_ACTIVE_UPDATER.set(this, TRUE);
-    };
+    }
+    ;
 
     /**
      * Constructor to allow set initial active flag.
@@ -101,8 +103,8 @@ public class OwnedBundle {
         return handleUnloadRequest(pulsar, timeout, timeoutUnit, true);
     }
 
-    public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit,
-                                                       boolean closeWithoutWaitingClientDisconnect) {
+    public CompletableFuture<Void> handleUnloadRequest(
+            PulsarService pulsar, long timeout, TimeUnit timeoutUnit, boolean closeWithoutWaitingClientDisconnect) {
         long unloadBundleStartTime = System.nanoTime();
         // Need a per namespace RenetrantReadWriteLock
         // Here to do a writeLock to set the flag and proceed to check and close connections
@@ -133,10 +135,11 @@ public class OwnedBundle {
         LOG.info("Disabling ownership: {}", this.bundle);
 
         // close topics forcefully
-        return pulsar.getNamespaceService().getOwnershipCache()
+        return pulsar.getNamespaceService()
+                .getOwnershipCache()
                 .updateBundleState(this.bundle, false)
-                .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(
-                        bundle, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit))
+                .thenCompose(v -> pulsar.getBrokerService()
+                        .unloadServiceUnit(bundle, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit))
                 .handle((numUnloadedTopics, ex) -> {
                     if (ex != null) {
                         // ignore topic-close failure to unload bundle
@@ -151,11 +154,16 @@ public class OwnedBundle {
                 .thenCompose(v -> {
                     // delete ownership node on zk
                     return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
-                }).whenComplete((ignored, ex) -> {
-                    double unloadBundleTime = TimeUnit.NANOSECONDS
-                            .toMillis((System.nanoTime() - unloadBundleStartTime));
-                    LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle,
-                            unloadedTopics, unloadBundleTime, ex);
+                })
+                .whenComplete((ignored, ex) -> {
+                    double unloadBundleTime =
+                            TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - unloadBundleStartTime));
+                    LOG.info(
+                            "Unloading {} namespace-bundle with {} topics completed in {} ms",
+                            this.bundle,
+                            unloadedTopics,
+                            unloadBundleTime,
+                            ex);
                 });
     }
 

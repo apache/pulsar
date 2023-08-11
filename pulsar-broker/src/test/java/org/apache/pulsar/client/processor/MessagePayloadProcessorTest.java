@@ -19,12 +19,12 @@
 package org.apache.pulsar.client.processor;
 
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import io.netty.buffer.ByteBuf;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -56,10 +56,13 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants().createTenant("public", new TenantInfoImpl(Sets.newHashSet("appid"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default", Sets.newHashSet("test"));
     }
 
@@ -72,20 +75,20 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
     @DataProvider
     public static Object[][] config() {
         return new Object[][] {
-                // numPartitions / enableBatching / batchingMaxMessages
-                { 1, true, 1 },
-                { 1, true, 4 },
-                { 1, false, 1 },
-                { 3, false, 1 }
+            // numPartitions / enableBatching / batchingMaxMessages
+            {1, true, 1},
+            {1, true, 4},
+            {1, false, 1},
+            {3, false, 1}
         };
     }
 
     @DataProvider
     public static Object[][] customBatchConfig() {
         return new Object[][] {
-                // numMessages / batchingMaxMessages
-                { 10, 1 },
-                { 10, 4 }
+            // numMessages / batchingMaxMessages
+            {10, 1},
+            {10, 4}
         };
     }
 
@@ -101,7 +104,8 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
         }
 
         @Cleanup
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        final Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatching)
                 .batchingMaxMessages(batchingMaxMessages)
@@ -128,7 +132,8 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
 
         final DefaultProcessorWithRefCnt processor = new DefaultProcessorWithRefCnt();
         @Cleanup
-        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        final Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -188,19 +193,20 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "customBatchConfig")
     public void testCustomProcessor(final int numMessages, final int batchingMaxMessages) throws Exception {
-        final String topic = "persistent://public/default/testCustomProcessor-"
-                + numMessages + "-" + batchingMaxMessages;
+        final String topic =
+                "persistent://public/default/testCustomProcessor-" + numMessages + "-" + batchingMaxMessages;
 
         @Cleanup
-        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        final Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .messagePayloadProcessor(new CustomBatchPayloadProcessor())
                 .subscribe();
 
-        final PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().orElse(null);
+        final PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topic).get().orElse(null);
         Assert.assertNotNull(persistentTopic);
 
         final String messagePrefix = "msg-";

@@ -20,7 +20,6 @@
  * This file is derived from BookKeeperClusterTestCase from Apache BookKeeper
  * http://bookkeeper.apache.org
  */
-
 package org.apache.pulsar.packages.management.storage.bookkeeper.bookkeeper.test;
 
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.BOOKIE_SCOPE;
@@ -133,6 +132,7 @@ public abstract class BookKeeperClusterTestCase {
     private final List<Integer> bookiePorts = new ArrayList<>();
 
     SynchronousQueue<Throwable> asyncExceptions = new SynchronousQueue<>();
+
     protected void captureThrowable(Runnable c) {
         try {
             c.run();
@@ -181,8 +181,11 @@ public abstract class BookKeeperClusterTestCase {
             // start bookkeeper service
             this.metadataServiceUri = getMetadataServiceUri(ledgersRootPath);
             startBKCluster(metadataServiceUri);
-            LOG.info("Setup testcase {} @ metadata service {} in {} ms.",
-                    testName, metadataServiceUri,  sw.elapsed(TimeUnit.MILLISECONDS));
+            LOG.info(
+                    "Setup testcase {} @ metadata service {} in {} ms.",
+                    testName,
+                    metadataServiceUri,
+                    sw.elapsed(TimeUnit.MILLISECONDS));
         } catch (Exception e) {
             LOG.error("Error setting up", e);
             throw e;
@@ -297,7 +300,7 @@ public abstract class BookKeeperClusterTestCase {
         } else {
             port = 0;
         }
-        return newServerConfiguration(port, f, new File[] { f });
+        return newServerConfiguration(port, f, new File[] {f});
     }
 
     protected ClientConfiguration newClientConfiguration() {
@@ -456,7 +459,12 @@ public abstract class BookKeeperClusterTestCase {
     public void setBookieToReadOnly(BookieId addr) throws Exception {
         Optional<ServerTester> tester = byAddress(addr);
         if (tester.isPresent()) {
-            tester.get().getServer().getBookie().getStateManager().transitionToReadOnlyMode().get();
+            tester.get()
+                    .getServer()
+                    .getBookie()
+                    .getStateManager()
+                    .transitionToReadOnlyMode()
+                    .get();
         }
     }
 
@@ -486,8 +494,11 @@ public abstract class BookKeeperClusterTestCase {
     public ServerConfiguration killBookieAndWaitForZK(int index) throws Exception {
         ServerTester tester = servers.get(index); // IKTODO: this method is awful
         ServerConfiguration ret = killBookie(index);
-        while (zkc.exists(ZKMetadataDriverBase.resolveZkLedgersRootPath(baseConf) + "/" + AVAILABLE_NODE + "/"
-                + tester.getServer().getBookieId().toString(), false) != null) {
+        while (zkc.exists(
+                        ZKMetadataDriverBase.resolveZkLedgersRootPath(baseConf) + "/" + AVAILABLE_NODE + "/"
+                                + tester.getServer().getBookieId().toString(),
+                        false)
+                != null) {
             Thread.sleep(500);
         }
         return ret;
@@ -504,8 +515,7 @@ public abstract class BookKeeperClusterTestCase {
      * @throws InterruptedException
      * @throws IOException
      */
-    public CountDownLatch sleepBookie(BookieId addr, final int seconds)
-            throws Exception {
+    public CountDownLatch sleepBookie(BookieId addr, final int seconds) throws Exception {
         Optional<ServerTester> tester = byAddress(addr);
         if (tester.isPresent()) {
             CountDownLatch latch = new CountDownLatch(1);
@@ -541,8 +551,7 @@ public abstract class BookKeeperClusterTestCase {
      * @throws InterruptedException
      * @throws IOException
      */
-    public void sleepBookie(BookieId addr, final CountDownLatch l)
-            throws InterruptedException, IOException {
+    public void sleepBookie(BookieId addr, final CountDownLatch l) throws InterruptedException, IOException {
         final CountDownLatch suspendLatch = new CountDownLatch(1);
         sleepBookie(addr, l, suspendLatch);
         suspendLatch.await();
@@ -584,8 +593,7 @@ public abstract class BookKeeperClusterTestCase {
      * @throws KeeperException
      * @throws BookieException
      */
-    public void restartBookies()
-            throws Exception {
+    public void restartBookies() throws Exception {
         restartBookies(c -> c);
     }
 
@@ -610,8 +618,7 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
-    public void restartBookies(Function<ServerConfiguration, ServerConfiguration> reconfFunction)
-            throws Exception {
+    public void restartBookies(Function<ServerConfiguration, ServerConfiguration> reconfFunction) throws Exception {
         // shut down bookie server
         List<ServerConfiguration> confs = new ArrayList<>();
         for (ServerTester server : servers) {
@@ -634,20 +641,17 @@ public abstract class BookKeeperClusterTestCase {
      *
      * @throws IOException
      */
-    public int startNewBookie()
-            throws Exception {
+    public int startNewBookie() throws Exception {
         return startNewBookieAndReturnAddress().getPort();
     }
 
-    public BookieSocketAddress startNewBookieAndReturnAddress()
-            throws Exception {
+    public BookieSocketAddress startNewBookieAndReturnAddress() throws Exception {
         ServerConfiguration conf = newServerConfiguration();
         LOG.info("Starting new bookie on port: {}", conf.getBookiePort());
         return startAndAddBookie(conf).getServer().getLocalAddress();
     }
 
-    public BookieId startNewBookieAndReturnBookieId()
-            throws Exception {
+    public BookieId startNewBookieAndReturnBookieId() throws Exception {
         ServerConfiguration conf = newServerConfiguration();
         LOG.info("Starting new bookie on port: {}", conf.getBookiePort());
         return startAndAddBookie(conf).getServer().getBookieId();
@@ -672,8 +676,7 @@ public abstract class BookKeeperClusterTestCase {
      *            Server Configuration Object
      *
      */
-    protected ServerTester startBookie(ServerConfiguration conf)
-            throws Exception {
+    protected ServerTester startBookie(ServerConfiguration conf) throws Exception {
         ServerTester tester = new ServerTester(conf);
 
         if (bkc == null) {
@@ -681,9 +684,8 @@ public abstract class BookKeeperClusterTestCase {
         }
 
         BookieId address = tester.getServer().getBookieId();
-        Future<?> waitForBookie = conf.isForceReadOnlyBookie()
-                ? bkc.waitForReadOnlyBookie(address)
-                : bkc.waitForWritableBookie(address);
+        Future<?> waitForBookie =
+                conf.isForceReadOnlyBookie() ? bkc.waitForReadOnlyBookie(address) : bkc.waitForWritableBookie(address);
 
         tester.getServer().start();
 
@@ -700,16 +702,14 @@ public abstract class BookKeeperClusterTestCase {
      * Start a bookie with the given bookie instance. Also, starts the auto
      * recovery for this bookie, if isAutoRecoveryEnabled is true.
      */
-    protected ServerTester startBookie(ServerConfiguration conf, final Bookie b)
-            throws Exception {
+    protected ServerTester startBookie(ServerConfiguration conf, final Bookie b) throws Exception {
         ServerTester tester = new ServerTester(conf, b);
         if (bkc == null) {
             bkc = new BookKeeperTestClient(baseClientConf, new TestStatsProvider());
         }
         BookieId address = tester.getServer().getBookieId();
-        Future<?> waitForBookie = conf.isForceReadOnlyBookie()
-                ? bkc.waitForReadOnlyBookie(address)
-                : bkc.waitForWritableBookie(address);
+        Future<?> waitForBookie =
+                conf.isForceReadOnlyBookie() ? bkc.waitForReadOnlyBookie(address) : bkc.waitForWritableBookie(address);
 
         tester.getServer().start();
 
@@ -765,7 +765,7 @@ public abstract class BookKeeperClusterTestCase {
      * Will stops all the auto recovery processes for the bookie cluster, if
      * isAutoRecoveryEnabled is true.
      */
-    public void stopReplicationService() throws Exception{
+    public void stopReplicationService() throws Exception {
         for (ServerTester t : servers) {
             t.stopAutoRecovery();
         }
@@ -779,16 +779,14 @@ public abstract class BookKeeperClusterTestCase {
                 ReplicationWorker replicationWorker = t.getReplicationWorker();
 
                 // found a candidate Auditor + ReplicationWorker
-                if (a != null && a.isRunning()
-                        && replicationWorker != null && replicationWorker.isRunning()) {
+                if (a != null && a.isRunning() && replicationWorker != null && replicationWorker.isRunning()) {
                     int deathWatchInterval = t.getConfiguration().getDeathWatchInterval();
                     Thread.sleep(deathWatchInterval + 1000);
                 }
 
                 // double check, because in the meantime AutoRecoveryDeathWatcher may have killed the
                 // AutoRecovery daemon
-                if (a != null && a.isRunning()
-                        && replicationWorker != null && replicationWorker.isRunning()) {
+                if (a != null && a.isRunning() && replicationWorker != null && replicationWorker.isRunning()) {
                     LOG.info("Found Auditor Bookie {}", t.server.getBookieId());
                     return a;
                 }
@@ -854,33 +852,44 @@ public abstract class BookKeeperClusterTestCase {
             lmFactory = metadataDriver.getLedgerManagerFactory();
             ledgerManager = lmFactory.newLedgerManager();
 
-            LegacyCookieValidation cookieValidation = new LegacyCookieValidation(
-                    conf, registrationManager);
+            LegacyCookieValidation cookieValidation = new LegacyCookieValidation(conf, registrationManager);
             cookieValidation.checkCookies(Main.storageDirectoriesFromConf(conf));
 
             DiskChecker diskChecker = BookieResources.createDiskChecker(conf);
-            LedgerDirsManager ledgerDirsManager = BookieResources.createLedgerDirsManager(
-                    conf, diskChecker, bookieStats.scope(LD_LEDGER_SCOPE));
+            LedgerDirsManager ledgerDirsManager =
+                    BookieResources.createLedgerDirsManager(conf, diskChecker, bookieStats.scope(LD_LEDGER_SCOPE));
             LedgerDirsManager indexDirsManager = BookieResources.createIndexDirsManager(
                     conf, diskChecker, bookieStats.scope(LD_INDEX_SCOPE), ledgerDirsManager);
 
             UncleanShutdownDetection uncleanShutdownDetection = new UncleanShutdownDetectionImpl(ledgerDirsManager);
 
             storage = BookieResources.createLedgerStorage(
-                    conf, ledgerManager, ledgerDirsManager, indexDirsManager,
-                    bookieStats, allocator);
+                    conf, ledgerManager, ledgerDirsManager, indexDirsManager, bookieStats, allocator);
 
             if (conf.isForceReadOnlyBookie()) {
-                bookie = new ReadOnlyBookie(conf, registrationManager, storage,
-                        diskChecker, ledgerDirsManager, indexDirsManager,
-                        bookieStats, allocator, BookieServiceInfo.NO_INFO);
+                bookie = new ReadOnlyBookie(
+                        conf,
+                        registrationManager,
+                        storage,
+                        diskChecker,
+                        ledgerDirsManager,
+                        indexDirsManager,
+                        bookieStats,
+                        allocator,
+                        BookieServiceInfo.NO_INFO);
             } else {
-                bookie = new BookieImpl(conf, registrationManager, storage,
-                        diskChecker, ledgerDirsManager, indexDirsManager,
-                        bookieStats, allocator, BookieServiceInfo.NO_INFO);
+                bookie = new BookieImpl(
+                        conf,
+                        registrationManager,
+                        storage,
+                        diskChecker,
+                        ledgerDirsManager,
+                        indexDirsManager,
+                        bookieStats,
+                        allocator,
+                        BookieServiceInfo.NO_INFO);
             }
-            server = new BookieServer(conf, bookie, rootStatsLogger, allocator,
-                    uncleanShutdownDetection);
+            server = new BookieServer(conf, bookie, rootStatsLogger, allocator, uncleanShutdownDetection);
             address = BookieImpl.getBookieAddress(conf);
 
             autoRecovery = null;
@@ -897,8 +906,8 @@ public abstract class BookKeeperClusterTestCase {
             storage = null;
 
             bookie = b;
-            server = new BookieServer(conf, b, provider.getStatsLogger(""),
-                    allocator, new MockUncleanShutdownDetection());
+            server = new BookieServer(
+                    conf, b, provider.getStatsLogger(""), allocator, new MockUncleanShutdownDetection());
             address = BookieImpl.getBookieAddress(conf);
 
             autoRecovery = null;

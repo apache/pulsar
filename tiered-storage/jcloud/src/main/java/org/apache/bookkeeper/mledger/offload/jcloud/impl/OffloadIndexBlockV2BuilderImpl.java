@@ -51,7 +51,6 @@ public class OffloadIndexBlockV2BuilderImpl implements OffloadIndexBlockBuilder,
     private long streamingOffset = 0;
     private final SortedMap<Long, List<OffloadIndexEntryImpl>> entryMap = new TreeMap<>();
 
-
     public OffloadIndexBlockV2BuilderImpl() {
         this.entries = Lists.newArrayList();
         this.ledgerMetadataMap = new HashMap<>();
@@ -122,9 +121,9 @@ public class OffloadIndexBlockV2BuilderImpl implements OffloadIndexBlockBuilder,
         } else if (magic == OffloadIndexBlockV2Impl.getIndexMagicWord()) {
             return OffloadIndexBlockV2Impl.get(magic, dataInputStream);
         } else {
-            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x or 0x%x",
-                    magic, OffloadIndexBlockImpl.getIndexMagicWord(),
-                    OffloadIndexBlockV2Impl.getIndexMagicWord()));
+            throw new IOException(String.format(
+                    "Invalid MagicWord. read: 0x%x  expected: 0x%x or 0x%x",
+                    magic, OffloadIndexBlockImpl.getIndexMagicWord(), OffloadIndexBlockV2Impl.getIndexMagicWord()));
         }
     }
 
@@ -146,5 +145,4 @@ public class OffloadIndexBlockV2BuilderImpl implements OffloadIndexBlockBuilder,
         checkState(dataHeaderLength > 0);
         return OffloadIndexBlockV2Impl.get(ledgerMetadataMap, dataObjectLength, dataHeaderLength, entryMap);
     }
-
 }

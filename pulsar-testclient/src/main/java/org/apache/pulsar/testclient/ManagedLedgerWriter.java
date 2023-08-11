@@ -67,8 +67,8 @@ import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerWriter {
 
-    private static final ExecutorService executor = Executors
-            .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
+    private static final ExecutorService executor =
+            Executors.newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
 
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
@@ -81,61 +81,85 @@ public class ManagedLedgerWriter {
     @Parameters(commandDescription = "Write directly on managed-ledgers")
     static class Arguments {
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Help message",
+                help = true)
         boolean help;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Write rate msg/s across managed ledgers")
+        @Parameter(
+                names = {"-r", "--rate"},
+                description = "Write rate msg/s across managed ledgers")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size")
+        @Parameter(
+                names = {"-s", "--size"},
+                description = "Message size")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" },
-                description = "Number of managed ledgers", validateWith = PositiveNumberParameterValidator.class)
+        @Parameter(
+                names = {"-t", "--num-topic"},
+                description = "Number of managed ledgers",
+                validateWith = PositiveNumberParameterValidator.class)
         public int numManagedLedgers = 1;
 
-        @Parameter(names = { "--threads" },
-                description = "Number of threads writing", validateWith = PositiveNumberParameterValidator.class)
+        @Parameter(
+                names = {"--threads"},
+                description = "Number of threads writing",
+                validateWith = PositiveNumberParameterValidator.class)
         public int numThreads = 1;
 
         @Deprecated
-        @Parameter(names = {"-zk", "--zookeeperServers"},
+        @Parameter(
+                names = {"-zk", "--zookeeperServers"},
                 description = "ZooKeeper connection string",
                 hidden = true)
         public String zookeeperServers;
 
-        @Parameter(names = {"-md",
-                "--metadata-store"}, description = "Metadata store service URL. For example: zk:my-zk:2181")
+        @Parameter(
+                names = {"-md", "--metadata-store"},
+                description = "Metadata store service URL. For example: zk:my-zk:2181")
         private String metadataStoreUrl;
 
-        @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
+        @Parameter(
+                names = {"-o", "--max-outstanding"},
+                description = "Max number of outstanding requests")
         public int maxOutstanding = 1000;
 
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single bookie")
+        @Parameter(
+                names = {"-c", "--max-connections"},
+                description = "Max number of TCP connections to a single bookie")
         public int maxConnections = 1;
 
-        @Parameter(names = { "-m",
-                "--num-messages" },
+        @Parameter(
+                names = {"-m", "--num-messages"},
                 description = "Number of messages to publish in total. If <= 0, it will keep publishing")
         public long numMessages = 0;
 
-        @Parameter(names = { "-e", "--ensemble-size" }, description = "Ledger ensemble size")
+        @Parameter(
+                names = {"-e", "--ensemble-size"},
+                description = "Ledger ensemble size")
         public int ensembleSize = 1;
 
-        @Parameter(names = { "-w", "--write-quorum" }, description = "Ledger write quorum")
+        @Parameter(
+                names = {"-w", "--write-quorum"},
+                description = "Ledger write quorum")
         public int writeQuorum = 1;
 
-        @Parameter(names = { "-a", "--ack-quorum" }, description = "Ledger ack quorum")
+        @Parameter(
+                names = {"-a", "--ack-quorum"},
+                description = "Ledger ack quorum")
         public int ackQuorum = 1;
 
-        @Parameter(names = { "-dt", "--digest-type" }, description = "BookKeeper digest type")
+        @Parameter(
+                names = {"-dt", "--digest-type"},
+                description = "BookKeeper digest type")
         public DigestType digestType = DigestType.CRC32C;
 
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
+        @Parameter(
+                names = {"-time", "--test-duration"},
+                description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
-
     }
 
     public static void main(String[] args) throws Exception {
@@ -174,7 +198,8 @@ public class ManagedLedgerWriter {
         payloadBuffer.writerIndex(arguments.msgSize);
 
         // Now processing command line arguments
-        String managedLedgerPrefix = "test-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
+        String managedLedgerPrefix =
+                "test-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
 
         if (arguments.metadataStoreUrl == null) {
             arguments.metadataStoreUrl = arguments.zookeeperServers;
@@ -192,8 +217,11 @@ public class ManagedLedgerWriter {
         mlFactoryConf.setMaxCacheSize(0);
 
         @Cleanup
-        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.metadataStoreUrl,
-                MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(
+                arguments.metadataStoreUrl,
+                MetadataStoreConfig.builder()
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .build());
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkConf, mlFactoryConf);
 
         ManagedLedgerConfig mlConf = new ManagedLedgerConfig();
@@ -213,21 +241,27 @@ public class ManagedLedgerWriter {
             String name = String.format("%s-%03d", managedLedgerPrefix, i);
             CompletableFuture<ManagedLedger> future = new CompletableFuture<>();
             futures.add(future);
-            factory.asyncOpen(name, mlConf, new OpenLedgerCallback() {
+            factory.asyncOpen(
+                    name,
+                    mlConf,
+                    new OpenLedgerCallback() {
 
-                @Override
-                public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                    future.complete(ledger);
-                }
+                        @Override
+                        public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                            future.complete(ledger);
+                        }
 
-                @Override
-                public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, null, null);
+                        @Override
+                        public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    },
+                    null,
+                    null);
         }
 
-        List<ManagedLedger> managedLedgers = futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
+        List<ManagedLedger> managedLedgers =
+                futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
         log.info("Created {} managed ledgers", managedLedgers.size());
 
@@ -240,8 +274,8 @@ public class ManagedLedgerWriter {
         Collections.shuffle(managedLedgers);
         AtomicBoolean isDone = new AtomicBoolean();
 
-        Map<Integer, List<ManagedLedger>> managedLedgersPerThread = allocateToThreads(managedLedgers,
-                arguments.numThreads);
+        Map<Integer, List<ManagedLedger>> managedLedgersPerThread =
+                allocateToThreads(managedLedgers, arguments.numThreads);
 
         for (int i = 0; i < arguments.numThreads; i++) {
             List<ManagedLedger> managedLedgersForThisThread = managedLedgersPerThread.get(i);
@@ -290,8 +324,10 @@ public class ManagedLedgerWriter {
                         for (int j = 0; j < nunManagedLedgersForThisThread; j++) {
                             if (arguments.testTime > 0) {
                                 if (System.nanoTime() > testEndTime) {
-                                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of "
-                                            + "production) --------------", arguments.testTime);
+                                    log.info(
+                                            "------------- DONE (reached the maximum duration: [{} seconds] of "
+                                                    + "production) --------------",
+                                            arguments.testTime);
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);
@@ -300,8 +336,10 @@ public class ManagedLedgerWriter {
 
                             if (numMessagesForThisThread > 0) {
                                 if (totalSent++ >= numMessagesForThisThread) {
-                                    log.info("------------- DONE (reached the maximum number: [{}] of production) "
-                                            + "--------------", numMessagesForThisThread);
+                                    log.info(
+                                            "------------- DONE (reached the maximum number: [{}] of production) "
+                                                    + "--------------",
+                                            numMessagesForThisThread);
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);
@@ -367,7 +405,6 @@ public class ManagedLedgerWriter {
 
         factory.shutdown();
     }
-
 
     public static <T> Map<Integer, List<T>> allocateToThreads(List<T> managedLedgers, int numThreads) {
 

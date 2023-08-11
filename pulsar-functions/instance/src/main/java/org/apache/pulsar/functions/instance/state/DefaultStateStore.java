@@ -24,5 +24,4 @@ import org.apache.pulsar.functions.api.state.CounterStateStore;
 /**
  * The default state store interface.
  */
-public interface DefaultStateStore extends ByteBufferStateStore, CounterStateStore {
-}
+public interface DefaultStateStore extends ByteBufferStateStore, CounterStateStore {}

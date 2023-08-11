@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-
 /**
  * This Function simulates a pulsar function encountering failing on a particular message.
  */
@@ -35,4 +34,3 @@ public class ConsistentlyFailingFunction implements Function<String, String> {
         }
     }
 }
-

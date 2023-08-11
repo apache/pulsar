@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.admin;
 
 import static org.testng.Assert.assertNotNull;
-
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -45,14 +44,11 @@ public class AdminTest extends MessagingBase {
         String topicName = getNonPartitionedTopic("replicated-state", true);
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl.get())
-                .build();
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
 
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
+        final PulsarClient client =
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         @Cleanup
         final Producer<String> producer = client.newProducer(Schema.STRING)
@@ -61,7 +57,9 @@ public class AdminTest extends MessagingBase {
                 .create();
 
         for (int i = 0; i < 10; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+            MessageId messageId = producer.newMessage()
+                    .value(producer.getProducerName() + "-" + i)
+                    .send();
             assertNotNull(messageId);
         }
 

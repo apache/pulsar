@@ -84,11 +84,10 @@ import org.slf4j.LoggerFactory;
  *
  */
 @Connector(
-    name = "kinesis",
-    type = IOType.SINK,
-    help = "A sink connector that copies messages from Pulsar to Kinesis",
-    configClass = KinesisSinkConfig.class
-)
+        name = "kinesis",
+        type = IOType.SINK,
+        help = "A sink connector that copies messages from Pulsar to Kinesis",
+        configClass = KinesisSinkConfig.class)
 public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObject> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSink.class);
@@ -114,8 +113,8 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
     public static final String METRICS_TOTAL_FAILURE = "_kinesis_total_failure_";
 
     private void sendUserRecord(ProducerSendCallback producerSendCallback) {
-        ListenableFuture<UserRecordResult> addRecordResult = kinesisProducer.addUserRecord(this.streamName,
-                producerSendCallback.partitionedKey, producerSendCallback.data);
+        ListenableFuture<UserRecordResult> addRecordResult = kinesisProducer.addUserRecord(
+                this.streamName, producerSendCallback.partitionedKey, producerSendCallback.data);
         addCallback(addRecordResult, producerSendCallback, directExecutor());
     }
 
@@ -123,7 +122,9 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
     public void write(Record<GenericObject> record) throws Exception {
         // kpl-thread captures publish-failure. fail the publish on main pulsar-io-thread to maintain the ordering
         if (kinesisSinkConfig.isRetainOrdering() && previousPublishFailed == TRUE) {
-            LOG.warn("Skip acking message to retain ordering with previous failed message {}-{}", this.streamName,
+            LOG.warn(
+                    "Skip acking message to retain ordering with previous failed message {}-{}",
+                    this.streamName,
                     record.getRecordSequence());
             throw new IllegalStateException("kinesis queue has publish failure");
         }
@@ -159,9 +160,9 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
         this.sinkContext = sinkContext;
 
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint())
-                        || isNotBlank(kinesisSinkConfig.getAwsRegion()),
-                      "Either the aws-end-point or aws-region must be set");
+        checkArgument(
+                isNotBlank(kinesisSinkConfig.getAwsEndpoint()) || isNotBlank(kinesisSinkConfig.getAwsRegion()),
+                "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
         KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration();
@@ -178,9 +179,8 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
             kinesisConfig.setVerifyCertificate(false);
         }
         AWSCredentialsProvider credentialsProvider = createCredentialProvider(
-                kinesisSinkConfig.getAwsCredentialPluginName(),
-                kinesisSinkConfig.getAwsCredentialPluginParam())
-            .getCredentialProvider();
+                        kinesisSinkConfig.getAwsCredentialPluginName(), kinesisSinkConfig.getAwsCredentialPluginParam())
+                .getCredentialProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
@@ -191,7 +191,8 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
         }
         IS_PUBLISH_FAILED.set(this, FALSE);
 
-        LOG.info("Kinesis sink started. {}",
+        LOG.info(
+                "Kinesis sink started. {}",
                 ReflectionToStringBuilder.toString(kinesisConfig, ToStringStyle.SHORT_PREFIX_STYLE));
     }
 
@@ -209,8 +210,12 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(KinesisSink kinesisSink, Record<GenericObject> resultContext, long startTime,
-                                           String partitionedKey, ByteBuffer data) {
+        static ProducerSendCallback create(
+                KinesisSink kinesisSink,
+                Record<GenericObject> resultContext,
+                long startTime,
+                String partitionedKey,
+                ByteBuffer data) {
             ProducerSendCallback sendCallback = RECYCLER.get();
             sendCallback.resultContext = resultContext;
             sendCallback.kinesisSink = kinesisSink;
@@ -218,9 +223,13 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
             sendCallback.partitionedKey = partitionedKey;
             sendCallback.data = data;
             if (kinesisSink.kinesisSinkConfig.isRetainOrdering() && sendCallback.backoff == null) {
-                sendCallback.backoff = new Backoff(kinesisSink.kinesisSinkConfig.getRetryInitialDelayInMillis(),
-                        TimeUnit.MILLISECONDS, kinesisSink.kinesisSinkConfig.getRetryMaxDelayInMillis(),
-                        TimeUnit.MILLISECONDS, 0, TimeUnit.SECONDS);
+                sendCallback.backoff = new Backoff(
+                        kinesisSink.kinesisSinkConfig.getRetryInitialDelayInMillis(),
+                        TimeUnit.MILLISECONDS,
+                        kinesisSink.kinesisSinkConfig.getRetryMaxDelayInMillis(),
+                        TimeUnit.MILLISECONDS,
+                        0,
+                        TimeUnit.SECONDS);
             }
             return sendCallback;
         }
@@ -247,8 +256,10 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
         @Override
         public void onSuccess(UserRecordResult result) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Successfully published message for {}-{} with latency {}",
-                        kinesisSink.streamName, result.getShardId(),
+                LOG.debug(
+                        "Successfully published message for {}-{} with latency {}",
+                        kinesisSink.streamName,
+                        result.getShardId(),
                         TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime)));
             }
             if (kinesisSink.sinkContext != null) {
@@ -265,19 +276,36 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
                 // If the exception is UserRecordFailedException, we need to extract it to see real error messages.
                 UserRecordFailedException failedException = (UserRecordFailedException) exception;
                 StringBuffer stringBuffer = new StringBuffer();
-                failedException.getResult().getAttempts().forEach(attempt ->
-                        stringBuffer.append(String.format("errorMessage:%s, errorCode:%s, delay:%d, duration:%d;",
-                                attempt.getErrorMessage(), attempt.getErrorCode(), attempt.getDelay(), attempt.getDuration())));
-                LOG.error("[{}] Failed to published message for replicator of {}-{}: Attempts:{}",
-                        kinesisSink.streamName, resultContext.getPartitionId(),
-                        resultContext.getRecordSequence(), stringBuffer);
+                failedException
+                        .getResult()
+                        .getAttempts()
+                        .forEach(attempt -> stringBuffer.append(String.format(
+                                "errorMessage:%s, errorCode:%s, delay:%d, duration:%d;",
+                                attempt.getErrorMessage(),
+                                attempt.getErrorCode(),
+                                attempt.getDelay(),
+                                attempt.getDuration())));
+                LOG.error(
+                        "[{}] Failed to published message for replicator of {}-{}: Attempts:{}",
+                        kinesisSink.streamName,
+                        resultContext.getPartitionId(),
+                        resultContext.getRecordSequence(),
+                        stringBuffer);
             } else {
                 if (StringUtils.isEmpty(exception.getMessage())) {
-                    LOG.error("[{}] Failed to published message for replicator of {}-{}", kinesisSink.streamName,
-                        resultContext.getPartitionId(), resultContext.getRecordSequence(), exception);
+                    LOG.error(
+                            "[{}] Failed to published message for replicator of {}-{}",
+                            kinesisSink.streamName,
+                            resultContext.getPartitionId(),
+                            resultContext.getRecordSequence(),
+                            exception);
                 } else {
-                    LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
-                        resultContext.getPartitionId(), resultContext.getRecordSequence(), exception.getMessage());
+                    LOG.error(
+                            "[{}] Failed to published message for replicator of {}-{}, {} ",
+                            kinesisSink.streamName,
+                            resultContext.getPartitionId(),
+                            resultContext.getRecordSequence(),
+                            exception.getMessage());
                 }
             }
             kinesisSink.previousPublishFailed = TRUE;
@@ -286,10 +314,14 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
             }
             if (backoff != null) {
                 long nextDelay = backoff.next();
-                LOG.info("[{}] Retry to publish message for replicator of {}-{} after {} ms.", kinesisSink.streamName,
-                        resultContext.getPartitionId(), resultContext.getRecordSequence(), nextDelay);
-                kinesisSink.scheduledExecutor.schedule(() -> kinesisSink.sendUserRecord(this),
-                        nextDelay, TimeUnit.MICROSECONDS);
+                LOG.info(
+                        "[{}] Retry to publish message for replicator of {}-{} after {} ms.",
+                        kinesisSink.streamName,
+                        resultContext.getPartitionId(),
+                        resultContext.getRecordSequence(),
+                        nextDelay);
+                kinesisSink.scheduledExecutor.schedule(
+                        () -> kinesisSink.sendUserRecord(this), nextDelay, TimeUnit.MICROSECONDS);
             } else {
                 recycle();
             }
@@ -304,14 +336,12 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
             case FULL_MESSAGE_IN_FB:
                 return Utils.serializeRecordToFlatBuffer(record);
             case FULL_MESSAGE_IN_JSON_EXPAND_VALUE:
-                return ByteBuffer.wrap(
-                        Utils.serializeRecordToJsonExpandingValue(objectMapper, record,
-                                kinesisSinkConfig.isJsonFlatten())
-                                .getBytes(StandardCharsets.UTF_8));
+                return ByteBuffer.wrap(Utils.serializeRecordToJsonExpandingValue(
+                                objectMapper, record, kinesisSinkConfig.isJsonFlatten())
+                        .getBytes(StandardCharsets.UTF_8));
             default:
                 // send raw-message
                 return ByteBuffer.wrap(Utils.getMessage(record).getData());
         }
     }
-
 }

@@ -30,28 +30,22 @@ public class DisabledTxnLogBufferedWriterMetricsStats extends TxnLogBufferedWrit
 
         private static final DisabledCollectorRegistry INSTANCE = new DisabledCollectorRegistry();
 
-        public void register(Collector m) {
-        }
-        public void unregister(Collector m) {
-        }
+        public void register(Collector m) {}
+
+        public void unregister(Collector m) {}
     }
 
     private DisabledTxnLogBufferedWriterMetricsStats() {
         super("disabled", new String[0], new String[0], DisabledCollectorRegistry.INSTANCE);
     }
 
-    public void close() {
-    }
+    public void close() {}
 
-    public void triggerFlushByRecordsCount(int recordCount, long bytesSize, long delayMillis) {
-    }
+    public void triggerFlushByRecordsCount(int recordCount, long bytesSize, long delayMillis) {}
 
-    public void triggerFlushByBytesSize(int recordCount, long bytesSize, long delayMillis) {
-    }
+    public void triggerFlushByBytesSize(int recordCount, long bytesSize, long delayMillis) {}
 
-    public void triggerFlushByByMaxDelay(int recordCount, long bytesSize, long delayMillis) {
-    }
+    public void triggerFlushByByMaxDelay(int recordCount, long bytesSize, long delayMillis) {}
 
-    public void triggerFlushByLargeSingleData(int recordCount, long bytesSize, long delayMillis) {
-    }
+    public void triggerFlushByLargeSingleData(int recordCount, long bytesSize, long delayMillis) {}
 }

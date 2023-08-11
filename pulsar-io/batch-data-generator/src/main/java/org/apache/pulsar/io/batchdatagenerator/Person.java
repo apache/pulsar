@@ -40,9 +40,11 @@ public class Person {
     private String password;
     private Sex sex;
     private String telephoneNumber;
+
     @org.apache.avro.reflect.AvroSchema("""
             { "type": "long", "logicalType": "timestamp-millis" }""")
     private long dateOfBirth;
+
     private Integer age;
     private Company company;
     private String companyEmail;
@@ -54,27 +56,27 @@ public class Person {
         MALE,
         FEMALE;
 
-        private Sex() {
-        }
+        private Sex() {}
     }
 
     public Person(io.codearte.jfairy.producer.person.Person person) {
-        this(new Address(person.getAddress()),
-             person.getFirstName(),
-             person.getMiddleName(),
-             person.getLastName(),
-             person.getEmail(),
-             person.getUsername(),
-             person.getPassword(),
-             Sex.valueOf(person.getSex().name()),
-             person.getTelephoneNumber(),
-             person.getDateOfBirth().getMillis(),
-             person.getAge(),
-             new Company(person.getCompany()),
-             person.getCompanyEmail(),
-             person.getNationalIdentityCardNumber(),
-             person.getNationalIdentificationNumber(),
-             person.getPassportNumber());
+        this(
+                new Address(person.getAddress()),
+                person.getFirstName(),
+                person.getMiddleName(),
+                person.getLastName(),
+                person.getEmail(),
+                person.getUsername(),
+                person.getPassword(),
+                Sex.valueOf(person.getSex().name()),
+                person.getTelephoneNumber(),
+                person.getDateOfBirth().getMillis(),
+                person.getAge(),
+                new Company(person.getCompany()),
+                person.getCompanyEmail(),
+                person.getNationalIdentityCardNumber(),
+                person.getNationalIdentificationNumber(),
+                person.getPassportNumber());
     }
 
     @Data
@@ -85,11 +87,9 @@ public class Person {
         private String domain;
         private String email;
         private String vatIdentificationNumber;
+
         public Company(io.codearte.jfairy.producer.company.Company company) {
-            this(company.getName(),
-                 company.getDomain(),
-                 company.getEmail(),
-                 company.getVatIdentificationNumber());
+            this(company.getName(), company.getDomain(), company.getEmail(), company.getVatIdentificationNumber());
         }
     }
 
@@ -104,11 +104,12 @@ public class Person {
         protected String city;
 
         public Address(io.codearte.jfairy.producer.person.Address address) {
-            this(address.getStreet(),
-                 address.getStreetNumber(),
-                 address.getApartmentNumber(),
-                 address.getPostalCode(),
-                 address.getCity());
+            this(
+                    address.getStreet(),
+                    address.getStreetNumber(),
+                    address.getApartmentNumber(),
+                    address.getPostalCode(),
+                    address.getCity());
         }
     }
 }

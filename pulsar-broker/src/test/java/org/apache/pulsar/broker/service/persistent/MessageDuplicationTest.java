@@ -73,7 +73,8 @@ public class MessageDuplicationTest {
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, persistentTopic, managedLedger);
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(
+                MessageDeduplication.class, pulsarService, persistentTopic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         String producerName1 = "producer1";
@@ -166,7 +167,8 @@ public class MessageDuplicationTest {
         serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
-        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
+        MessageDeduplication messageDeduplication =
+                spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         ManagedCursor managedCursor = mock(ManagedCursor.class);
@@ -218,7 +220,8 @@ public class MessageDuplicationTest {
         assertFalse(inactiveProducers.containsKey(producerName3));
         field = MessageDeduplication.class.getDeclaredField("highestSequencedPushed");
         field.setAccessible(true);
-        ConcurrentOpenHashMap<String, Long> highestSequencedPushed = (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
+        ConcurrentOpenHashMap<String, Long> highestSequencedPushed =
+                (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
 
         assertEquals((long) highestSequencedPushed.get(producerName1), 2L);
         assertFalse(highestSequencedPushed.containsKey(producerName2));
@@ -239,25 +242,28 @@ public class MessageDuplicationTest {
         doReturn(mock(CompactionServiceFactory.class)).when(pulsarService).getCompactionServiceFactory();
 
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
+        MessageDeduplication messageDeduplication =
+                spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
         doReturn(true).when(messageDeduplication).isEnabled();
-
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
 
         doAnswer(invocationOnMock -> {
-            Object[] args = invocationOnMock.getArguments();
-            Runnable test = (Runnable) args[0];
-            test.run();
-            return null;
-        }).when(eventLoopGroup).submit(any(Runnable.class));
+                    Object[] args = invocationOnMock.getArguments();
+                    Runnable test = (Runnable) args[0];
+                    test.run();
+                    return null;
+                })
+                .when(eventLoopGroup)
+                .submit(any(Runnable.class));
 
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(eventLoopGroup).when(brokerService).executor();
         doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
 
-        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
+        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(
+                PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
 
         String producerName1 = "producer1";
         ByteBuf byteBuf1 = getMessage(producerName1, 0);
@@ -339,7 +345,8 @@ public class MessageDuplicationTest {
         publishContext1 = getPublishContext(producerName1, 6);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
         verify(managedLedger, times(5)).asyncAddEntry(any(ByteBuf.class), any(), any());
-        verify(publishContext1, times(1)).completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
+        verify(publishContext1, times(1))
+                .completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
 
         // complete seq 6 message eventually
         persistentTopic.addComplete(new PositionImpl(0, 5), null, publishContext1);
@@ -386,7 +393,6 @@ public class MessageDuplicationTest {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
-
     }
 
     public ByteBuf getMessage(String producerName, long seqId) {
@@ -411,9 +417,7 @@ public class MessageDuplicationTest {
             }
 
             @Override
-            public void completed(Exception e, long ledgerId, long entryId) {
-
-            }
+            public void completed(Exception e, long ledgerId, long entryId) {}
         });
     }
 
@@ -435,9 +439,7 @@ public class MessageDuplicationTest {
             }
 
             @Override
-            public void completed(Exception e, long ledgerId, long entryId) {
-
-            }
+            public void completed(Exception e, long ledgerId, long entryId) {}
         });
     }
 }

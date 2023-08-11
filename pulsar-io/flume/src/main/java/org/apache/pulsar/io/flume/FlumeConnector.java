@@ -37,8 +37,7 @@ import org.slf4j.LoggerFactory;
 
 public class FlumeConnector {
 
-    private static final Logger log = LoggerFactory
-            .getLogger(FlumeConnector.class);
+    private static final Logger log = LoggerFactory.getLogger(FlumeConnector.class);
 
     protected Application application;
 
@@ -55,25 +54,23 @@ public class FlumeConnector {
                 EventBus eventBus = new EventBus(agentName + "-event-bus");
                 List<LifecycleAware> components = Lists.newArrayList();
                 PollingZooKeeperConfigurationProvider zookeeperConfigurationProvider =
-                        new PollingZooKeeperConfigurationProvider(
-                                agentName, zkConnectionStr, baseZkPath, eventBus);
+                        new PollingZooKeeperConfigurationProvider(agentName, zkConnectionStr, baseZkPath, eventBus);
                 components.add(zookeeperConfigurationProvider);
                 application = new Application(components);
                 eventBus.register(application);
             } else {
                 StaticZooKeeperConfigurationProvider zookeeperConfigurationProvider =
-                        new StaticZooKeeperConfigurationProvider(
-                                agentName, zkConnectionStr, baseZkPath);
+                        new StaticZooKeeperConfigurationProvider(agentName, zkConnectionStr, baseZkPath);
                 application = new Application();
                 application.handleConfigurationEvent(zookeeperConfigurationProvider.getConfiguration());
             }
 
         } else {
             File configurationFile = new File(flumeConfig.getConfFile());
-             /*
-         * The following is to ensure that by default the agent will fail on
-         * startup if the file does not exist.
-         */
+            /*
+             * The following is to ensure that by default the agent will fail on
+             * startup if the file does not exist.
+             */
             if (!configurationFile.exists()) {
                 // If command line invocation, then need to fail fast
                 if (System.getProperty(Constants.SYSPROP_CALLED_FROM_SERVICE) == null) {
@@ -81,8 +78,7 @@ public class FlumeConnector {
                     try {
                         path = configurationFile.getCanonicalPath();
                     } catch (IOException ex) {
-                        log.error("Failed to read canonical path for file: " + path,
-                                ex);
+                        log.error("Failed to read canonical path for file: " + path, ex);
                     }
                     throw new ParseException("The specified configuration file does not exist: " + path);
                 }
@@ -92,8 +88,7 @@ public class FlumeConnector {
             if (reload) {
                 EventBus eventBus = new EventBus(agentName + "-event-bus");
                 PollingPropertiesFileConfigurationProvider configurationProvider =
-                        new PollingPropertiesFileConfigurationProvider(
-                                agentName, configurationFile, eventBus, 30);
+                        new PollingPropertiesFileConfigurationProvider(agentName, configurationFile, eventBus, 30);
                 components.add(configurationProvider);
                 application = new Application(components);
                 eventBus.register(application);

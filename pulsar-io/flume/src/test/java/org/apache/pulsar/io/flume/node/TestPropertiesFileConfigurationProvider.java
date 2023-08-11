@@ -37,12 +37,12 @@ import org.testng.annotations.Test;
 
 public class TestPropertiesFileConfigurationProvider {
 
-    private static final Logger LOGGER =
-            LoggerFactory.getLogger(TestPropertiesFileConfigurationProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestPropertiesFileConfigurationProvider.class);
 
-    private static final File TESTFILE = new File(
-            TestPropertiesFileConfigurationProvider.class.getClassLoader()
-                    .getResource("flume-conf.properties").getFile());
+    private static final File TESTFILE = new File(TestPropertiesFileConfigurationProvider.class
+            .getClassLoader()
+            .getResource("flume-conf.properties")
+            .getFile());
 
     private PropertiesFileConfigurationProvider provider;
 
@@ -52,9 +52,7 @@ public class TestPropertiesFileConfigurationProvider {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() {
-
-    }
+    public void tearDown() {}
 
     @Test
     public void testPropertyRead() {
@@ -62,9 +60,9 @@ public class TestPropertiesFileConfigurationProvider {
         FlumeConfiguration configuration = provider.getFlumeConfiguration();
         assertNotNull(configuration);
 
-    /*
-     * Test the known errors in the file
-     */
+        /*
+         * Test the known errors in the file
+         */
         List<String> expected = Lists.newArrayList();
         expected.add("host5 CONFIG_ERROR");
         expected.add("host5 INVALID_PROPERTY");
@@ -88,8 +86,7 @@ public class TestPropertiesFileConfigurationProvider {
         Collections.sort(actual);
         assertEquals(actual, expected);
 
-        AgentConfiguration agentConfiguration =
-                configuration.getConfigurationFor("host1");
+        AgentConfiguration agentConfiguration = configuration.getConfigurationFor("host1");
         assertNotNull(agentConfiguration);
 
         LOGGER.info(agentConfiguration.getPrevalidationConfig());

@@ -47,7 +47,8 @@ public class TenantTest extends PulsarTestSuite {
     @Test
     public void testGetNonExistTenantCmd() {
         String tenantName = randomName();
-        ContainerExecException ex = expectThrows(ContainerExecException.class,
+        ContainerExecException ex = expectThrows(
+                ContainerExecException.class,
                 () -> pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName));
         assertTrue(ex.getResult().getStderr().contains("Tenant does not exist"));
     }
@@ -71,14 +72,22 @@ public class TenantTest extends PulsarTestSuite {
         String tenantName = randomName();
         List<String> adminRoles = Arrays.asList("role1", "role2");
         List<String> allowedClusters = Collections.singletonList(pulsarCluster.getClusterName());
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", tenantName, "--admin-roles",
-                String.join(",", adminRoles), "--allowed-clusters", String.join(",", allowedClusters));
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "create",
+                tenantName,
+                "--admin-roles",
+                String.join(",", adminRoles),
+                "--allowed-clusters",
+                String.join(",", allowedClusters));
 
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName);
         TenantInfo tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
         assertNotNull(tenantInfo);
         assertNotNull(tenantInfo.getAdminRoles());
-        assertEquals(tenantInfo.getAdminRoles().stream().sorted().toArray(), adminRoles.stream().sorted().toArray());
+        assertEquals(
+                tenantInfo.getAdminRoles().stream().sorted().toArray(),
+                adminRoles.stream().sorted().toArray());
         assertEquals(tenantInfo.getAllowedClusters(), allowedClusters);
 
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "delete", tenantName);
@@ -86,7 +95,8 @@ public class TenantTest extends PulsarTestSuite {
 
     @Test
     public void testCreateExistTenantCmd() {
-        ContainerExecException ex = expectThrows(ContainerExecException.class,
+        ContainerExecException ex = expectThrows(
+                ContainerExecException.class,
                 () -> pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", "public"));
         assertTrue(ex.getResult().getStderr().contains("Tenant already exist"));
     }
@@ -95,25 +105,35 @@ public class TenantTest extends PulsarTestSuite {
     public void testUpdateTenantCmdWithAdminRolesAndAllowedClustersFlags() throws Exception {
         String tenantName = randomName();
         List<String> adminRoles = Arrays.asList("role1", "role2");
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", tenantName, "--admin-roles",
-                String.join(",", adminRoles));
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants", "create", tenantName, "--admin-roles", String.join(",", adminRoles));
 
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName);
         TenantInfo tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
         assertNotNull(tenantInfo);
         assertNotNull(tenantInfo.getAdminRoles());
-        assertEquals(tenantInfo.getAdminRoles().stream().sorted().toArray(), adminRoles.stream().sorted().toArray());
+        assertEquals(
+                tenantInfo.getAdminRoles().stream().sorted().toArray(),
+                adminRoles.stream().sorted().toArray());
         assertFalse(tenantInfo.getAllowedClusters().isEmpty());
 
         adminRoles = Arrays.asList("role3", "role4");
         List<String> allowedClusters = Collections.singletonList(pulsarCluster.getClusterName());
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants", "update", tenantName, "--admin-roles",
-                String.join(",", adminRoles), "--allowed-clusters", String.join(",", allowedClusters));
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "update",
+                tenantName,
+                "--admin-roles",
+                String.join(",", adminRoles),
+                "--allowed-clusters",
+                String.join(",", allowedClusters));
 
         result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName);
         tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
         assertNotNull(tenantInfo);
-        assertEquals(tenantInfo.getAdminRoles().stream().sorted().toArray(), adminRoles.stream().sorted().toArray());
+        assertEquals(
+                tenantInfo.getAdminRoles().stream().sorted().toArray(),
+                adminRoles.stream().sorted().toArray());
         assertEquals(tenantInfo.getAllowedClusters(), allowedClusters);
 
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "delete", tenantName);

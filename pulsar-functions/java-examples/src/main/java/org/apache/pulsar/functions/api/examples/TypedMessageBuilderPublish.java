@@ -42,8 +42,9 @@ public class TypedMessageBuilderPublish implements Function<String, Void> {
         properties.putAll(context.getCurrentRecord().getProperties());
 
         try {
-            TypedMessageBuilder messageBuilder = context.newOutputMessage(publishTopic, Schema.STRING).
-                    value(output).properties(properties);
+            TypedMessageBuilder messageBuilder = context.newOutputMessage(publishTopic, Schema.STRING)
+                    .value(output)
+                    .properties(properties);
             if (context.getCurrentRecord().getKey().isPresent()) {
                 messageBuilder.key(context.getCurrentRecord().getKey().get());
             }

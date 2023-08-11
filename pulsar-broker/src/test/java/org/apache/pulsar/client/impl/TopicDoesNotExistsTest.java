@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.HashedWheelTimer;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -27,9 +29,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for not exists topic.
@@ -54,9 +53,11 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
     @Test
     public void testCreateProducerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+        PulsarClient pulsarClient =
+                PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
         try {
-            pulsarClient.newProducer()
+            pulsarClient
+                    .newProducer()
                     .topic("persistent://public/default/" + UUID.randomUUID().toString())
                     .sendTimeout(100, TimeUnit.MILLISECONDS)
                     .create();
@@ -72,10 +73,10 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
 
     @Test
     public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
-        @Cleanup
-        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
+        @Cleanup PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         try {
-            pulsarClient.newConsumer()
+            pulsarClient
+                    .newConsumer()
                     .topic("persistent://public/default/" + UUID.randomUUID().toString())
                     .subscriptionName("test")
                     .subscribe();

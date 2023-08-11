@@ -43,20 +43,23 @@ public interface MessagePayloadProcessor {
      * @param <T>
      * @throws Exception
      */
-    <T> void process(MessagePayload payload,
-                     MessagePayloadContext context,
-                     Schema<T> schema,
-                     Consumer<Message<T>> messageConsumer) throws Exception;
+    <T> void process(
+            MessagePayload payload,
+            MessagePayloadContext context,
+            Schema<T> schema,
+            Consumer<Message<T>> messageConsumer)
+            throws Exception;
 
     // The default processor for Pulsar format payload. It should be noted getNumMessages() and isBatch() methods of
     // EntryContext only work for Pulsar format. For other formats, the message metadata might be stored in the payload.
     MessagePayloadProcessor DEFAULT = new MessagePayloadProcessor() {
 
         @Override
-        public <T> void process(MessagePayload payload,
-                                MessagePayloadContext context,
-                                Schema<T> schema,
-                                Consumer<Message<T>> messageConsumer) {
+        public <T> void process(
+                MessagePayload payload,
+                MessagePayloadContext context,
+                Schema<T> schema,
+                Consumer<Message<T>> messageConsumer) {
             if (context.isBatch()) {
                 final int numMessages = context.getNumMessages();
                 for (int i = 0; i < numMessages; i++) {

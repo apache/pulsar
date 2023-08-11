@@ -22,15 +22,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.Range;
-
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -60,8 +57,8 @@ public class ManagedCursorIndividualDeletedMessagesTest {
         ManagedCursorImpl cursor = spy(new ManagedCursorImpl(bookkeeper, config, ledger, "test-cursor"));
         LongPairRangeSet<PositionImpl> deletedMessages = cursor.getIndividuallyDeletedMessagesSet();
 
-        Method recoverMethod = ManagedCursorImpl.class.getDeclaredMethod("recoverIndividualDeletedMessages",
-                List.class);
+        Method recoverMethod =
+                ManagedCursorImpl.class.getDeclaredMethod("recoverIndividualDeletedMessages", List.class);
         recoverMethod.setAccessible(true);
 
         // (1) [(1:5..1:10]]
@@ -99,12 +96,16 @@ public class ManagedCursorIndividualDeletedMessagesTest {
     }
 
     private static LedgerInfo createLedgerInfo(long ledgerId, long entries, long size) {
-        return LedgerInfo.newBuilder().setLedgerId(ledgerId).setEntries(entries).setSize(size)
-                .setTimestamp(System.currentTimeMillis()).build();
+        return LedgerInfo.newBuilder()
+                .setLedgerId(ledgerId)
+                .setEntries(entries)
+                .setSize(size)
+                .setTimestamp(System.currentTimeMillis())
+                .build();
     }
 
-    private static MessageRange createMessageRange(long lowerLedgerId, long lowerEntryId, long upperLedgerId,
-            long upperEntryId) {
+    private static MessageRange createMessageRange(
+            long lowerLedgerId, long lowerEntryId, long upperLedgerId, long upperEntryId) {
         NestedPositionInfo.Builder nestedPositionBuilder = NestedPositionInfo.newBuilder();
         MessageRange.Builder messageRangeBuilder = MessageRange.newBuilder();
 
@@ -119,9 +120,9 @@ public class ManagedCursorIndividualDeletedMessagesTest {
         return messageRangeBuilder.build();
     }
 
-    private static Range<PositionImpl> createPositionRange(long lowerLedgerId, long lowerEntryId, long upperLedgerId,
-            long upperEntryId) {
-        return Range.openClosed(new PositionImpl(lowerLedgerId, lowerEntryId),
-                new PositionImpl(upperLedgerId, upperEntryId));
+    private static Range<PositionImpl> createPositionRange(
+            long lowerLedgerId, long lowerEntryId, long upperLedgerId, long upperEntryId) {
+        return Range.openClosed(
+                new PositionImpl(lowerLedgerId, lowerEntryId), new PositionImpl(upperLedgerId, upperEntryId));
     }
 }

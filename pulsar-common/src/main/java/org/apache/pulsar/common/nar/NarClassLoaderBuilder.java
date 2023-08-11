@@ -55,6 +55,7 @@ public class NarClassLoaderBuilder {
         this.parentClassLoader = parentClassLoader;
         return this;
     }
+
     public NarClassLoaderBuilder extractionDirectory(String extractionDirectory) {
         this.extractionDirectory = extractionDirectory;
         return this;
@@ -70,5 +71,4 @@ public class NarClassLoaderBuilder {
         Objects.requireNonNull(narFile);
         return NarClassLoader.getFromArchive(narFile, additionalJars, parentClassLoader, extractionDirectory);
     }
-
 }

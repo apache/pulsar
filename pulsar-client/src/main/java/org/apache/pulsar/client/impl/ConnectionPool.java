@@ -75,7 +75,6 @@ public class ConnectionPool implements AutoCloseable {
     protected final AddressResolver<InetSocketAddress> addressResolver;
     private final boolean shouldCloseDnsResolver;
 
-
     /** Maximum idle time, released if exceeded. **/
     @VisibleForTesting
     int connectionMaxIdleSeconds;
@@ -90,19 +89,23 @@ public class ConnectionPool implements AutoCloseable {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
     }
 
-    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                          Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
+    public ConnectionPool(
+            ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Supplier<ClientCnx> clientCnxSupplier)
+            throws PulsarClientException {
         this(conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
     }
 
-    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                          Supplier<ClientCnx> clientCnxSupplier,
-                          Optional<AddressResolver<InetSocketAddress>> addressResolver)
+    public ConnectionPool(
+            ClientConfigurationData conf,
+            EventLoopGroup eventLoopGroup,
+            Supplier<ClientCnx> clientCnxSupplier,
+            Optional<AddressResolver<InetSocketAddress>> addressResolver)
             throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
-        this.isSniProxy = clientConfig.isUseTls() && clientConfig.getProxyProtocol() != null
+        this.isSniProxy = clientConfig.isUseTls()
+                && clientConfig.getProxyProtocol() != null
                 && StringUtils.isNotBlank(clientConfig.getProxyServiceUrl());
 
         pool = new ConcurrentHashMap<>();
@@ -130,30 +133,34 @@ public class ConnectionPool implements AutoCloseable {
         if (autoReleaseIdleConnectionsEnabled) {
             // Start async task for release useless connections.
             this.idleDetectionIntervalSeconds = connectionMaxIdleSeconds;
-            if (this.idleDetectionIntervalSeconds < IDLE_DETECTION_INTERVAL_SECONDS_MIN){
+            if (this.idleDetectionIntervalSeconds < IDLE_DETECTION_INTERVAL_SECONDS_MIN) {
                 log.warn("Connection idle detect interval seconds default same as max idle seconds, but max idle"
-                                + " seconds less than " + IDLE_DETECTION_INTERVAL_SECONDS_MIN + ", to avoid checking"
-                                + " connection status too much, use default value : "
-                                + IDLE_DETECTION_INTERVAL_SECONDS_MIN);
+                        + " seconds less than " + IDLE_DETECTION_INTERVAL_SECONDS_MIN + ", to avoid checking"
+                        + " connection status too much, use default value : "
+                        + IDLE_DETECTION_INTERVAL_SECONDS_MIN);
                 this.idleDetectionIntervalSeconds = IDLE_DETECTION_INTERVAL_SECONDS_MIN;
             }
-            asyncReleaseUselessConnectionsTask = eventLoopGroup.scheduleWithFixedDelay(() -> {
-                try {
-                    doMarkAndReleaseUselessConnections();
-                } catch (Exception e) {
-                    log.error("Auto release useless connections failure.", e);
-                }
-            }, idleDetectionIntervalSeconds, idleDetectionIntervalSeconds, TimeUnit.SECONDS);
+            asyncReleaseUselessConnectionsTask = eventLoopGroup.scheduleWithFixedDelay(
+                    () -> {
+                        try {
+                            doMarkAndReleaseUselessConnections();
+                        } catch (Exception e) {
+                            log.error("Auto release useless connections failure.", e);
+                        }
+                    },
+                    idleDetectionIntervalSeconds,
+                    idleDetectionIntervalSeconds,
+                    TimeUnit.SECONDS);
         }
     }
 
-    private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
-                                                                            EventLoopGroup eventLoopGroup) {
+    private static AddressResolver<InetSocketAddress> createAddressResolver(
+            ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
+                .traceEnabled(true)
+                .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
         if (conf.getDnsLookupBindAddress() != null) {
-            InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
-                    conf.getDnsLookupBindPort());
+            InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(), conf.getDnsLookupBindPort());
             dnsNameResolverBuilder.localAddress(addr);
         }
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
@@ -203,8 +210,8 @@ public class ConnectionPool implements AutoCloseable {
      *            the real address where the TCP connection should be made
      * @return a future that will produce the ClientCnx object
      */
-    public CompletableFuture<ClientCnx> getConnection(InetSocketAddress logicalAddress,
-            InetSocketAddress physicalAddress) {
+    public CompletableFuture<ClientCnx> getConnection(
+            InetSocketAddress logicalAddress, InetSocketAddress physicalAddress) {
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
             return createConnection(logicalAddress, physicalAddress, -1);
@@ -214,8 +221,8 @@ public class ConnectionPool implements AutoCloseable {
 
         final ConcurrentMap<Integer, CompletableFuture<ClientCnx>> innerPool =
                 pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>());
-        CompletableFuture<ClientCnx> completableFuture = innerPool
-                .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+        CompletableFuture<ClientCnx> completableFuture =
+                innerPool.computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
         if (completableFuture.isCompletedExceptionally()) {
             // we cannot cache a failed connection, so we remove it from the pool
             // there is a race condition in which
@@ -229,8 +236,8 @@ public class ConnectionPool implements AutoCloseable {
             // If connection already release, create a new one.
             if (clientCnx.getIdleState().isReleased()) {
                 cleanupConnection(logicalAddress, randomKey, completableFuture);
-                return innerPool
-                        .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+                return innerPool.computeIfAbsent(
+                        randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
             }
             // Try use exists connection.
             if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
@@ -238,14 +245,14 @@ public class ConnectionPool implements AutoCloseable {
             } else {
                 // If connection already release, create a new one.
                 cleanupConnection(logicalAddress, randomKey, completableFuture);
-                return innerPool
-                        .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+                return innerPool.computeIfAbsent(
+                        randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
             }
         });
     }
 
-    private CompletableFuture<ClientCnx> createConnection(InetSocketAddress logicalAddress,
-            InetSocketAddress physicalAddress, int connectionKey) {
+    private CompletableFuture<ClientCnx> createConnection(
+            InetSocketAddress logicalAddress, InetSocketAddress physicalAddress, int connectionKey) {
         if (log.isDebugEnabled()) {
             log.debug("Connection for {} not found in cache", logicalAddress);
         }
@@ -253,52 +260,56 @@ public class ConnectionPool implements AutoCloseable {
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<>();
 
         // Trigger async connect to broker
-        createConnection(logicalAddress, physicalAddress).thenAccept(channel -> {
-            log.info("[{}] Connected to server", channel);
+        createConnection(logicalAddress, physicalAddress)
+                .thenAccept(channel -> {
+                    log.info("[{}] Connected to server", channel);
 
-            channel.closeFuture().addListener(v -> {
-                // Remove connection from pool when it gets closed
-                if (log.isDebugEnabled()) {
-                    log.debug("Removing closed connection from pool: {}", v);
-                }
-                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
-            });
+                    channel.closeFuture().addListener(v -> {
+                        // Remove connection from pool when it gets closed
+                        if (log.isDebugEnabled()) {
+                            log.debug("Removing closed connection from pool: {}", v);
+                        }
+                        cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+                    });
 
-            // We are connected to broker, but need to wait until the connect/connected handshake is
-            // complete
-            final ClientCnx cnx = (ClientCnx) channel.pipeline().get("handler");
-            if (!channel.isActive() || cnx == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Connection was already closed by the time we got notified", channel);
-                }
-                cnxFuture.completeExceptionally(new ChannelException("Connection already closed"));
-                return;
-            }
+                    // We are connected to broker, but need to wait until the connect/connected handshake is
+                    // complete
+                    final ClientCnx cnx = (ClientCnx) channel.pipeline().get("handler");
+                    if (!channel.isActive() || cnx == null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Connection was already closed by the time we got notified", channel);
+                        }
+                        cnxFuture.completeExceptionally(new ChannelException("Connection already closed"));
+                        return;
+                    }
 
-            cnx.connectionFuture().thenRun(() -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Connection handshake completed", cnx.channel());
-                }
-                cnxFuture.complete(cnx);
-            }).exceptionally(exception -> {
-                log.warn("[{}] Connection handshake failed: {}", cnx.channel(), exception.getMessage());
-                cnxFuture.completeExceptionally(exception);
-                // this cleanupConnection may happen before that the
-                // CompletableFuture is cached into the "pool" map,
-                // it is not enough to clean it here, we need to clean it
-                // in the "pool" map when the CompletableFuture is cached
-                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
-                cnx.ctx().close();
-                return null;
-            });
-        }).exceptionally(exception -> {
-            eventLoopGroup.execute(() -> {
-                log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getMessage());
-                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
-                cnxFuture.completeExceptionally(new PulsarClientException(exception));
-            });
-            return null;
-        });
+                    cnx.connectionFuture()
+                            .thenRun(() -> {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Connection handshake completed", cnx.channel());
+                                }
+                                cnxFuture.complete(cnx);
+                            })
+                            .exceptionally(exception -> {
+                                log.warn("[{}] Connection handshake failed: {}", cnx.channel(), exception.getMessage());
+                                cnxFuture.completeExceptionally(exception);
+                                // this cleanupConnection may happen before that the
+                                // CompletableFuture is cached into the "pool" map,
+                                // it is not enough to clean it here, we need to clean it
+                                // in the "pool" map when the CompletableFuture is cached
+                                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+                                cnx.ctx().close();
+                                return null;
+                            });
+                })
+                .exceptionally(exception -> {
+                    eventLoopGroup.execute(() -> {
+                        log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getMessage());
+                        cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+                        cnxFuture.completeExceptionally(new PulsarClientException(exception));
+                    });
+                    return null;
+                });
 
         return cnxFuture;
     }
@@ -306,8 +317,8 @@ public class ConnectionPool implements AutoCloseable {
     /**
      * Resolve DNS asynchronously and attempt to connect to any IP address returned by DNS server.
      */
-    private CompletableFuture<Channel> createConnection(InetSocketAddress logicalAddress,
-                                                        InetSocketAddress unresolvedPhysicalAddress) {
+    private CompletableFuture<Channel> createConnection(
+            InetSocketAddress logicalAddress, InetSocketAddress unresolvedPhysicalAddress) {
         CompletableFuture<List<InetSocketAddress>> resolvedAddress;
         try {
             if (isSniProxy) {
@@ -317,17 +328,15 @@ public class ConnectionPool implements AutoCloseable {
             } else {
                 resolvedAddress = resolveName(unresolvedPhysicalAddress);
             }
-            return resolvedAddress.thenCompose(
-                    inetAddresses -> connectToResolvedAddresses(
-                            logicalAddress,
-                            unresolvedPhysicalAddress,
-                            inetAddresses.iterator(),
-                            isSniProxy ? unresolvedPhysicalAddress : null)
-            );
+            return resolvedAddress.thenCompose(inetAddresses -> connectToResolvedAddresses(
+                    logicalAddress,
+                    unresolvedPhysicalAddress,
+                    inetAddresses.iterator(),
+                    isSniProxy ? unresolvedPhysicalAddress : null));
         } catch (URISyntaxException e) {
             log.error("Invalid Proxy url {}", clientConfig.getProxyServiceUrl(), e);
-            return FutureUtil
-                    .failedFuture(new InvalidServiceURL("Invalid url " + clientConfig.getProxyServiceUrl(), e));
+            return FutureUtil.failedFuture(
+                    new InvalidServiceURL("Invalid url " + clientConfig.getProxyServiceUrl(), e));
         }
     }
 
@@ -335,10 +344,11 @@ public class ConnectionPool implements AutoCloseable {
      * Try to connect to a sequence of IP addresses until a successful connection can be made, or fail if no
      * address is working.
      */
-    private CompletableFuture<Channel> connectToResolvedAddresses(InetSocketAddress logicalAddress,
-                                                                  InetSocketAddress unresolvedPhysicalAddress,
-                                                                  Iterator<InetSocketAddress> resolvedPhysicalAddress,
-                                                                  InetSocketAddress sniHost) {
+    private CompletableFuture<Channel> connectToResolvedAddresses(
+            InetSocketAddress logicalAddress,
+            InetSocketAddress unresolvedPhysicalAddress,
+            Iterator<InetSocketAddress> resolvedPhysicalAddress,
+            InetSocketAddress sniHost) {
         CompletableFuture<Channel> future = new CompletableFuture<>();
 
         // Successfully connected to server
@@ -347,8 +357,8 @@ public class ConnectionPool implements AutoCloseable {
                 .exceptionally(exception -> {
                     if (resolvedPhysicalAddress.hasNext()) {
                         // Try next IP address
-                        connectToResolvedAddresses(logicalAddress, unresolvedPhysicalAddress,
-                                resolvedPhysicalAddress, sniHost)
+                        connectToResolvedAddresses(
+                                        logicalAddress, unresolvedPhysicalAddress, resolvedPhysicalAddress, sniHost)
                                 .thenAccept(future::complete)
                                 .exceptionally(ex -> {
                                     // This is already unwinding the recursive call
@@ -380,32 +390,31 @@ public class ConnectionPool implements AutoCloseable {
     /**
      * Attempt to establish a TCP connection to an already resolved single IP address.
      */
-    private CompletableFuture<Channel> connectToAddress(InetSocketAddress logicalAddress,
-                                                        InetSocketAddress physicalAddress,
-                                                        InetSocketAddress unresolvedPhysicalAddress,
-                                                        InetSocketAddress sniHost) {
+    private CompletableFuture<Channel> connectToAddress(
+            InetSocketAddress logicalAddress,
+            InetSocketAddress physicalAddress,
+            InetSocketAddress unresolvedPhysicalAddress,
+            InetSocketAddress sniHost) {
         if (clientConfig.isUseTls()) {
             return toCompletableFuture(bootstrap.register())
-                    .thenCompose(channel -> channelInitializerHandler
-                            .initTls(channel, sniHost != null ? sniHost : physicalAddress))
+                    .thenCompose(channel ->
+                            channelInitializerHandler.initTls(channel, sniHost != null ? sniHost : physicalAddress))
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
-                    .thenCompose(ch ->
-                            channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
-                                    unresolvedPhysicalAddress))
+                    .thenCompose(ch -> channelInitializerHandler.initializeClientCnx(
+                            ch, logicalAddress, unresolvedPhysicalAddress))
                     .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
         } else {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
-                    .thenCompose(ch ->
-                            channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
-                                    unresolvedPhysicalAddress))
+                    .thenCompose(ch -> channelInitializerHandler.initializeClientCnx(
+                            ch, logicalAddress, unresolvedPhysicalAddress))
                     .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
         }
     }
 
     public void releaseConnection(ClientCnx cnx) {
         if (maxConnectionsPerHosts == 0) {
-            //Disable pooling
+            // Disable pooling
             if (cnx.channel().isActive()) {
                 if (log.isDebugEnabled()) {
                     log.debug("close connection due to pooling disabled.");
@@ -426,8 +435,8 @@ public class ConnectionPool implements AutoCloseable {
         }
     }
 
-    private void cleanupConnection(InetSocketAddress address, int connectionKey,
-            CompletableFuture<ClientCnx> connectionFuture) {
+    private void cleanupConnection(
+            InetSocketAddress address, int connectionKey, CompletableFuture<ClientCnx> connectionFuture) {
         ConcurrentMap<Integer, CompletableFuture<ClientCnx>> map = pool.get(address);
         if (map != null) {
             map.remove(connectionKey, connectionFuture);
@@ -441,13 +450,13 @@ public class ConnectionPool implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);
 
-    public void doMarkAndReleaseUselessConnections(){
-        if (!autoReleaseIdleConnectionsEnabled){
+    public void doMarkAndReleaseUselessConnections() {
+        if (!autoReleaseIdleConnectionsEnabled) {
             return;
         }
         List<Runnable> releaseIdleConnectionTaskList = new ArrayList<>();
         for (Map.Entry<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> entry :
-                pool.entrySet()){
+                pool.entrySet()) {
             ConcurrentMap<Integer, CompletableFuture<ClientCnx>> innerPool = entry.getValue();
             for (Map.Entry<Integer, CompletableFuture<ClientCnx>> entry0 : innerPool.entrySet()) {
                 CompletableFuture<ClientCnx> future = entry0.getValue();

@@ -111,7 +111,8 @@ public class TokenClient implements ClientCredentialsExchanger {
 
         try {
 
-            Response res = httpClient.preparePost(tokenUrl.toString())
+            Response res = httpClient
+                    .preparePost(tokenUrl.toString())
                     .setHeader("Accept", "application/json")
                     .setHeader("Content-Type", "application/x-www-form-urlencoded")
                     .setBody(body)
@@ -119,22 +120,21 @@ public class TokenClient implements ClientCredentialsExchanger {
                     .get();
 
             switch (res.getStatusCode()) {
-            case 200:
-                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                        TokenResult.class);
+                case 200:
+                    return ObjectMapperFactory.getMapper()
+                            .reader()
+                            .readValue(res.getResponseBodyAsBytes(), TokenResult.class);
 
-            case 400: // Bad request
-            case 401: // Unauthorized
-                throw new TokenExchangeException(
-                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                                TokenError.class));
+                case 400: // Bad request
+                case 401: // Unauthorized
+                    throw new TokenExchangeException(ObjectMapperFactory.getMapper()
+                            .reader()
+                            .readValue(res.getResponseBodyAsBytes(), TokenError.class));
 
-            default:
-                throw new IOException(
-                        "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
+                default:
+                    throw new IOException(
+                            "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
             }
-
-
 
         } catch (InterruptedException | ExecutionException e1) {
             throw new IOException(e1);

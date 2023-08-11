@@ -46,37 +46,36 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
     @Override
     public TableViewBuilder<T> loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(
-                config, conf, TableViewConfigurationData.class);
+        conf = ConfigurationDataUtils.loadData(config, conf, TableViewConfigurationData.class);
         return this;
     }
 
     @Override
     public TableView<T> create() throws PulsarClientException {
-       try {
-           return createAsync().get();
-       } catch (Exception e) {
-           throw PulsarClientException.unwrap(e);
-       }
+        try {
+            return createAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
     }
 
     @Override
     public CompletableFuture<TableView<T>> createAsync() {
-       return new TableViewImpl<>(client, schema, conf).start();
+        return new TableViewImpl<>(client, schema, conf).start();
     }
 
     @Override
     public TableViewBuilder<T> topic(String topic) {
-       checkArgument(StringUtils.isNotBlank(topic), "topic cannot be blank");
-       conf.setTopicName(StringUtils.trim(topic));
-       return this;
+        checkArgument(StringUtils.isNotBlank(topic), "topic cannot be blank");
+        conf.setTopicName(StringUtils.trim(topic));
+        return this;
     }
 
     @Override
     public TableViewBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
-       checkArgument(unit.toSeconds(interval) >= 1, "minimum is 1 second");
-       conf.setAutoUpdatePartitionsSeconds(unit.toSeconds(interval));
-       return this;
+        checkArgument(unit.toSeconds(interval) >= 1, "minimum is 1 second");
+        conf.setAutoUpdatePartitionsSeconds(unit.toSeconds(interval));
+        return this;
     }
 
     @Override
@@ -95,13 +94,15 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     @Override
     public TableViewBuilder<T> defaultCryptoKeyReader(String privateKey) {
         checkArgument(StringUtils.isNotBlank(privateKey), "privateKey cannot be blank");
-        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPrivateKey(privateKey).build());
+        return cryptoKeyReader(
+                DefaultCryptoKeyReader.builder().defaultPrivateKey(privateKey).build());
     }
 
     @Override
     public TableViewBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> privateKeys) {
         checkArgument(!privateKeys.isEmpty(), "privateKeys cannot be empty");
-        return cryptoKeyReader(DefaultCryptoKeyReader.builder().privateKeys(privateKeys).build());
+        return cryptoKeyReader(
+                DefaultCryptoKeyReader.builder().privateKeys(privateKeys).build());
     }
 
     @Override

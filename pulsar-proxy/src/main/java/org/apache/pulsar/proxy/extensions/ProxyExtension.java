@@ -80,4 +80,3 @@ public interface ProxyExtension extends AutoCloseable {
     @Override
     void close();
 }
-

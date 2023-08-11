@@ -20,7 +20,7 @@ package org.apache.pulsar.io.dynamodb;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import java.io.File;
 import java.io.IOException;
 import java.time.ZoneOffset;
@@ -29,15 +29,12 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import org.testng.annotations.Test;
-
 
 public class DynamoDBSourceConfigTests {
 
     private static final Date DAY;
-    
+
     static {
         Calendar then = Calendar.getInstance();
         then.set(Calendar.YEAR, 2019);
@@ -58,29 +55,32 @@ public class DynamoDBSourceConfigTests {
         assertNotNull(config);
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
-        assertEquals(config.getAwsDynamodbStreamArn(), "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(
+                config.getAwsDynamodbStreamArn(),
+                "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         assertEquals(config.getApplicationName(), "My test application");
         assertEquals(config.getCheckpointInterval(), 30000);
         assertEquals(config.getBackoffTime(), 4000);
         assertEquals(config.getNumRetries(), 3);
         assertEquals(config.getReceiveQueueSize(), 2000);
         assertEquals(config.getInitialPositionInStream(), InitialPositionInStream.TRIM_HORIZON);
-        
+
         Calendar cal = Calendar.getInstance();
         cal.setTime(config.getStartAtTime());
         ZonedDateTime actual = ZonedDateTime.ofInstant(cal.toInstant(), ZoneOffset.UTC);
         ZonedDateTime expected = ZonedDateTime.ofInstant(DAY.toInstant(), ZoneOffset.UTC);
         assertEquals(actual, expected);
     }
-    
+
     @Test
     public final void loadFromMapTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
-        map.put("awsDynamodbStreamArn", "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
+        map.put(
+                "awsDynamodbStreamArn",
+                "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
         map.put("awsCredentialPluginParam", "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         map.put("checkpointInterval", "30000");
         map.put("backoffTime", "4000");
@@ -91,54 +91,60 @@ public class DynamoDBSourceConfigTests {
         map.put("startAtTime", DAY);
 
         DynamoDBSourceConfig config = DynamoDBSourceConfig.load(map);
-        
+
         assertNotNull(config);
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
-        assertEquals(config.getAwsDynamodbStreamArn(), "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(
+                config.getAwsDynamodbStreamArn(),
+                "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         assertEquals(config.getApplicationName(), "My test application");
         assertEquals(config.getCheckpointInterval(), 30000);
         assertEquals(config.getBackoffTime(), 4000);
         assertEquals(config.getNumRetries(), 3);
         assertEquals(config.getReceiveQueueSize(), 2000);
         assertEquals(config.getInitialPositionInStream(), InitialPositionInStream.TRIM_HORIZON);
-        
+
         Calendar cal = Calendar.getInstance();
         cal.setTime(config.getStartAtTime());
         ZonedDateTime actual = ZonedDateTime.ofInstant(cal.toInstant(), ZoneOffset.UTC);
         ZonedDateTime expected = ZonedDateTime.ofInstant(DAY.toInstant(), ZoneOffset.UTC);
         assertEquals(actual, expected);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "empty aws-credential param")
     public final void missingCredentialsTest() throws Exception {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
-        map.put("awsDynamodbStreamArn", "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
-     
+        map.put(
+                "awsDynamodbStreamArn",
+                "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
+
         DynamoDBSource source = new DynamoDBSource();
         source.open(map, null);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Timestamp must be specified")
     public final void missingStartTimeTest() throws Exception {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
-        map.put("awsDynamodbStreamArn", "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
-        map.put("awsCredentialPluginParam", 
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        map.put(
+                "awsDynamodbStreamArn",
+                "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291");
+        map.put("awsCredentialPluginParam", "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         map.put("initialPositionInStream", InitialPositionInStream.AT_TIMESTAMP);
 
         DynamoDBSource source = new DynamoDBSource();
         source.open(map, null);
     }
-    
+
     private File getFile(String name) {
         ClassLoader classLoader = getClass().getClassLoader();
         return new File(classLoader.getResource(name).getFile());

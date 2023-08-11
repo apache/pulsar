@@ -47,8 +47,8 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
 
     @BeforeMethod()
     public void start() throws Exception {
-        PackagesStorageProvider provider = PackagesStorageProvider
-            .newProvider(BookKeeperPackagesStorageProvider.class.getName());
+        PackagesStorageProvider provider =
+                PackagesStorageProvider.newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
         configuration.setProperty("metadataStoreUrl", zkUtil.getZooKeeperConnectString());
         configuration.setProperty("packagesReplicas", "1");
@@ -168,9 +168,8 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         storage.deleteAsync(testPath).get();
 
         // list again and not file under the path
-        paths= storage.listAsync("").get();
+        paths = storage.listAsync("").get();
         assertEquals(paths.size(), 0);
-
 
         // delete non-existent path
         try {
@@ -186,7 +185,8 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         Boolean exist = storage.existAsync("test-path").get();
         org.testng.Assert.assertFalse(exist);
 
-        storage.writeAsync("test-path", new ByteArrayInputStream("test".getBytes())).get();
+        storage.writeAsync("test-path", new ByteArrayInputStream("test".getBytes()))
+                .get();
 
         exist = storage.existAsync("test-path").get();
         assertTrue(exist);
@@ -194,8 +194,8 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
 
     @Test(timeOut = 60000)
     public void testReadWriteOperationsWithSeparatedBkCluster() throws Exception {
-        PackagesStorageProvider provider = PackagesStorageProvider
-                .newProvider(BookKeeperPackagesStorageProvider.class.getName());
+        PackagesStorageProvider provider =
+                PackagesStorageProvider.newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
         // set the unavailable bk cluster with mock zookeeper path
         configuration.setProperty("metadataStoreUrl", zkUtil.getZooKeeperConnectString() + "/mock");
@@ -245,5 +245,4 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
             storage2.closeAsync().get();
         }
     }
-
 }

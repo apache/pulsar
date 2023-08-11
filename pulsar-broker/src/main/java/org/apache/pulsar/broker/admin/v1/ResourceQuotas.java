@@ -47,10 +47,12 @@ public class ResourceQuotas extends ResourceQuotasBase {
     @GET
     @Path("/{property}/{cluster}/{namespace}/{bundle}")
     @ApiOperation(hidden = true, value = "Get resource quota of a namespace bundle.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 404, message = "Namespace does not exist")
+            })
     public void getNamespaceBundleResourceQuota(
             @Suspended AsyncResponse response,
             @PathParam("property") String property,
@@ -61,8 +63,8 @@ public class ResourceQuotas extends ResourceQuotasBase {
         internalGetNamespaceBundleResourceQuota(bundleRange)
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get namespace bundle resource quota {}", clientAppId(),
-                            namespaceName, ex);
+                    log.error(
+                            "[{}] Failed to get namespace bundle resource quota {}", clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
@@ -71,10 +73,12 @@ public class ResourceQuotas extends ResourceQuotasBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/{bundle}")
     @ApiOperation(hidden = true, value = "Set resource quota on a namespace.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 409, message = "Concurrent modification")
+            })
     public void setNamespaceBundleResourceQuota(
             @Suspended AsyncResponse response,
             @PathParam("property") String property,
@@ -85,25 +89,30 @@ public class ResourceQuotas extends ResourceQuotasBase {
         validateNamespaceName(property, cluster, namespace);
         internalSetNamespaceBundleResourceQuota(bundleRange, quota)
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully set resource quota for namespace bundle {}",
-                            clientAppId(), bundleRange);
+                    log.info(
+                            "[{}] Successfully set resource quota for namespace bundle {}", clientAppId(), bundleRange);
                     response.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to set namespace resource quota for bundle {}",
-                            clientAppId(), bundleRange, ex);
+                    log.error(
+                            "[{}] Failed to set namespace resource quota for bundle {}",
+                            clientAppId(),
+                            bundleRange,
+                            ex);
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
-        });
+                });
     }
 
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/{bundle}")
     @ApiOperation(hidden = true, value = "Remove resource quota for a namespace.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 409, message = "Concurrent modification")
+            })
     public void removeNamespaceBundleResourceQuota(
             @Suspended AsyncResponse response,
             @PathParam("property") String property,
@@ -117,10 +126,10 @@ public class ResourceQuotas extends ResourceQuotasBase {
                     response.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to remove namespace bundle resource quota {}",
-                            clientAppId(), bundleRange, ex);
+                    log.error(
+                            "[{}] Failed to remove namespace bundle resource quota {}", clientAppId(), bundleRange, ex);
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
-        });
+                });
     }
 }

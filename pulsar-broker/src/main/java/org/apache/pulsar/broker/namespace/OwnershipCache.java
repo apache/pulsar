@@ -95,16 +95,16 @@ public class OwnershipCache {
 
         @Override
         public CompletableFuture<OwnedBundle> asyncLoad(NamespaceBundle namespaceBundle, Executor executor) {
-            return lockManager.acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
+            return lockManager
+                    .acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
                     .thenApply(rl -> {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
-                        rl.getLockExpiredFuture()
-                                .thenRun(() -> {
-                                    log.info("Resource lock for {} has expired", rl.getPath());
-                                    namespaceService.unloadNamespaceBundle(namespaceBundle);
-                                    invalidateLocalOwnerCache(namespaceBundle);
-                                    namespaceService.onNamespaceBundleUnload(namespaceBundle);
-                                });
+                        rl.getLockExpiredFuture().thenRun(() -> {
+                            log.info("Resource lock for {} has expired", rl.getPath());
+                            namespaceService.unloadNamespaceBundle(namespaceBundle);
+                            invalidateLocalOwnerCache(namespaceBundle);
+                            namespaceService.onNamespaceBundleUnload(namespaceBundle);
+                        });
                         return new OwnedBundle(namespaceBundle);
                     });
         }
@@ -115,18 +115,26 @@ public class OwnershipCache {
      *
      * the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
-    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory,
-                          NamespaceService namespaceService) {
+    public OwnershipCache(
+            PulsarService pulsar, NamespaceBundleFactory bundleFactory, NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
         this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
-        this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                false, pulsar.getAdvertisedListeners());
-        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                true, pulsar.getAdvertisedListeners());
+        this.selfOwnerInfo = new NamespaceEphemeralData(
+                ownerBrokerUrl,
+                ownerBrokerUrlTls,
+                pulsar.getSafeWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(),
+                false,
+                pulsar.getAdvertisedListeners());
+        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(
+                ownerBrokerUrl,
+                ownerBrokerUrlTls,
+                pulsar.getSafeWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(),
+                true,
+                pulsar.getAdvertisedListeners());
         this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
         this.locallyAcquiredLocks = new ConcurrentHashMap<>();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
@@ -148,8 +156,7 @@ public class OwnershipCache {
         if (!ownedBundleFuture.isPresent()) {
             return CompletableFuture.completedFuture(false);
         }
-        return ownedBundleFuture.get()
-                .thenApply(bd -> bd != null && bd.isActive());
+        return ownedBundleFuture.get().thenApply(bd -> bd != null && bd.isActive());
     }
 
     /**
@@ -194,8 +201,7 @@ public class OwnershipCache {
 
         // Doing a get() on the ownedBundlesCache will trigger an async metadata write to acquire the lock over the
         // service unit
-        return ownedBundlesCache.get(bundle)
-                .thenApply(namespaceBundle -> {
+        return ownedBundlesCache.get(bundle).thenApply(namespaceBundle -> {
             LOG.info("Successfully acquired ownership of {}", namespaceBundle);
             namespaceService.onNamespaceBundleOwned(bundle);
             return selfOwnerInfo;
@@ -234,7 +240,6 @@ public class OwnershipCache {
         return FutureUtil.waitForAll(allFutures);
     }
 
-
     /**
      * Method to access the map of all <code>ServiceUnit</code> objects owned by the local broker.
      *
@@ -270,8 +275,8 @@ public class OwnershipCache {
 
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             try {
-                return future.get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(),
-                        TimeUnit.SECONDS);
+                return future.get(
+                        pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (InterruptedException | TimeoutException e) {
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {
@@ -293,15 +298,14 @@ public class OwnershipCache {
      */
     @Deprecated
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
-        return updateBundleState(bundle, false)
-                .thenCompose(__ -> {
-                    ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
-                    if (lock == null) {
-                        return CompletableFuture.completedFuture(null);
-                    } else {
-                        return lock.updateValue(selfOwnerInfoDisabled);
-                    }
-                });
+        return updateBundleState(bundle, false).thenCompose(__ -> {
+            ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
+            if (lock == null) {
+                return CompletableFuture.completedFuture(null);
+            } else {
+                return lock.updateValue(selfOwnerInfoDisabled);
+            }
+        });
     }
 
     /**
@@ -333,11 +337,14 @@ public class OwnershipCache {
         return locallyAcquiredLocks;
     }
 
-
     public synchronized boolean refreshSelfOwnerInfo() {
-        this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
-                pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
-                pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
+        this.selfOwnerInfo = new NamespaceEphemeralData(
+                pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(),
+                pulsar.getSafeWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(),
+                false,
+                pulsar.getAdvertisedListeners());
         return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;
     }
 }

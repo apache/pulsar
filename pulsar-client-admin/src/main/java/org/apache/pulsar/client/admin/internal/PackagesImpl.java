@@ -71,7 +71,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
     @Override
     public CompletableFuture<PackageMetadata> getMetadataAsync(String packageName) {
         WebTarget path = packages.path(PackageName.get(packageName).toRestPath() + "/metadata");
-        return asyncGetRequest(path, new FutureCallback<PackageMetadata>(){});
+        return asyncGetRequest(path, new FutureCallback<PackageMetadata>() {});
     }
 
     @Override
@@ -94,31 +94,33 @@ public class PackagesImpl extends ComponentResource implements Packages {
     public CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            RequestBuilder builder = Dsl
-                .post(packages.path(PackageName.get(packageName).toRestPath()).getUri().toASCIIString())
-                .addBodyPart(new FilePart("file", new File(path), MediaType.APPLICATION_OCTET_STREAM))
-                .addBodyPart(new StringPart("metadata", new Gson().toJson(metadata), MediaType.APPLICATION_JSON));
-            httpClient.executeRequest(addAuthHeaders(packages, builder).build())
-                .toCompletableFuture()
-                .thenAccept(response -> {
-                    if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                        future.completeExceptionally(
-                            getApiException(Response
-                                .status(response.getStatusCode())
-                                .entity(response.getResponseBody())
-                                .build()));
-                    } else {
-                        future.complete(null);
-                    }
-                })
-                .exceptionally(throwable -> {
-                    future.completeExceptionally(getApiException(throwable));
-                    return null;
-                });
+            RequestBuilder builder = Dsl.post(
+                            packages.path(PackageName.get(packageName).toRestPath())
+                                    .getUri()
+                                    .toASCIIString())
+                    .addBodyPart(new FilePart("file", new File(path), MediaType.APPLICATION_OCTET_STREAM))
+                    .addBodyPart(new StringPart("metadata", new Gson().toJson(metadata), MediaType.APPLICATION_JSON));
+            httpClient
+                    .executeRequest(addAuthHeaders(packages, builder).build())
+                    .toCompletableFuture()
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                            future.completeExceptionally(getApiException(Response.status(response.getStatusCode())
+                                    .entity(response.getResponseBody())
+                                    .build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
+                    });
         } catch (PulsarAdminException e) {
             future.completeExceptionally(e);
         }
-        return future;    }
+        return future;
+    }
 
     @Override
     public void download(String packageName, String path) throws PulsarAdminException {
@@ -138,9 +140,8 @@ public class PackagesImpl extends ComponentResource implements Packages {
             FileChannel os = new FileOutputStream(destinyPath.toFile()).getChannel();
             RequestBuilder builder = get(webTarget.getUri().toASCIIString());
 
-            CompletableFuture<HttpResponseStatus> statusFuture =
-                httpClient.executeRequest(addAuthHeaders(webTarget, builder).build(),
-                    new AsyncHandler<HttpResponseStatus>() {
+            CompletableFuture<HttpResponseStatus> statusFuture = httpClient
+                    .executeRequest(addAuthHeaders(webTarget, builder).build(), new AsyncHandler<HttpResponseStatus>() {
                         private HttpResponseStatus status;
 
                         @Override
@@ -172,30 +173,29 @@ public class PackagesImpl extends ComponentResource implements Packages {
                         public HttpResponseStatus onCompleted() throws Exception {
                             return status;
                         }
-                    }).toCompletableFuture();
+                    })
+                    .toCompletableFuture();
             statusFuture
-                .whenComplete((status, throwable) -> {
-                    try {
-                        os.close();
-                    } catch (IOException e) {
+                    .whenComplete((status, throwable) -> {
+                        try {
+                            os.close();
+                        } catch (IOException e) {
+                            future.completeExceptionally(getApiException(throwable));
+                        }
+                    })
+                    .thenAccept(status -> {
+                        if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                            future.completeExceptionally(getApiException(Response.status(status.getStatusCode())
+                                    .entity(status.getStatusText())
+                                    .build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    })
+                    .exceptionally(throwable -> {
                         future.completeExceptionally(getApiException(throwable));
-                    }
-                })
-                .thenAccept(status -> {
-                    if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
-                        future.completeExceptionally(
-                            getApiException(Response
-                                .status(status.getStatusCode())
-                                .entity(status.getStatusText())
-                                .build()));
-                    } else {
-                        future.complete(null);
-                    }
-                })
-                .exceptionally(throwable -> {
-                    future.completeExceptionally(getApiException(throwable));
-                    return null;
-                });
+                        return null;
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -219,13 +219,12 @@ public class PackagesImpl extends ComponentResource implements Packages {
         return sync(() -> listPackageVersionsAsync(packageName));
     }
 
-
     @Override
     public CompletableFuture<List<String>> listPackageVersionsAsync(String packageName) {
         PackageName name = PackageName.get(packageName);
-        WebTarget path = packages.path(String.format("%s/%s/%s/%s",
-            name.getPkgType().toString(), name.getTenant(), name.getNamespace(), name.getName()));
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        WebTarget path = packages.path(String.format(
+                "%s/%s/%s/%s", name.getPkgType().toString(), name.getTenant(), name.getNamespace(), name.getName()));
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 
     @Override
@@ -236,6 +235,6 @@ public class PackagesImpl extends ComponentResource implements Packages {
     @Override
     public CompletableFuture<List<String>> listPackagesAsync(String type, String namespace) {
         WebTarget path = packages.path(type + "/" + NamespaceName.get(namespace).toString());
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 }

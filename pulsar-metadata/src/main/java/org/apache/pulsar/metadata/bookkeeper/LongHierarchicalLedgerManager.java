@@ -28,8 +28,8 @@ import org.apache.zookeeper.AsyncCallback;
 
 @Slf4j
 class LongHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager {
-    public LongHierarchicalLedgerManager(MetadataStore store, ScheduledExecutorService scheduler,
-                                         String ledgerRootPath) {
+    public LongHierarchicalLedgerManager(
+            MetadataStore store, ScheduledExecutorService scheduler, String ledgerRootPath) {
         super(store, scheduler, ledgerRootPath);
     }
 
@@ -49,14 +49,21 @@ class LongHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager {
     // Active Ledger Manager
     //
 
-    public void asyncProcessLedgers(final BookkeeperInternalCallbacks.Processor<Long> processor,
-                                    final AsyncCallback.VoidCallback finalCb,
-                                    final Object context, final int successRc, final int failureRc) {
+    public void asyncProcessLedgers(
+            final BookkeeperInternalCallbacks.Processor<Long> processor,
+            final AsyncCallback.VoidCallback finalCb,
+            final Object context,
+            final int successRc,
+            final int failureRc) {
 
         // If it succeeds, proceed with our own recursive ledger processing for the 63-bit id ledgers
-        asyncProcessLevelNodes(ledgerRootPath,
-                new RecursiveProcessor(0, ledgerRootPath, processor, context, successRc, failureRc), finalCb, context,
-                successRc, failureRc);
+        asyncProcessLevelNodes(
+                ledgerRootPath,
+                new RecursiveProcessor(0, ledgerRootPath, processor, context, successRc, failureRc),
+                finalCb,
+                context,
+                successRc,
+                failureRc);
     }
 
     private class RecursiveProcessor implements BookkeeperInternalCallbacks.Processor<String> {
@@ -67,9 +74,13 @@ class LongHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager {
         private final int successRc;
         private final int failureRc;
 
-        private RecursiveProcessor(int level, String path, BookkeeperInternalCallbacks.Processor<Long> processor,
-                                   Object context, int successRc,
-                                   int failureRc) {
+        private RecursiveProcessor(
+                int level,
+                String path,
+                BookkeeperInternalCallbacks.Processor<Long> processor,
+                Object context,
+                int successRc,
+                int failureRc) {
             this.level = level;
             this.path = path;
             this.processor = processor;
@@ -85,9 +96,13 @@ class LongHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager {
                 cb.processResult(successRc, null, context);
                 return;
             } else if (level < 3) {
-                asyncProcessLevelNodes(nodePath,
-                        new RecursiveProcessor(level + 1, nodePath, processor, context, successRc, failureRc), cb,
-                        context, successRc, failureRc);
+                asyncProcessLevelNodes(
+                        nodePath,
+                        new RecursiveProcessor(level + 1, nodePath, processor, context, successRc, failureRc),
+                        cb,
+                        context,
+                        successRc,
+                        failureRc);
             } else {
                 // process each ledger after all ledger are processed, cb will be call to continue processing next
                 // level4 node
@@ -100,5 +115,4 @@ class LongHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager {
     protected String getLedgerParentNodeRegex() {
         return StringUtils.LONGHIERARCHICAL_LEDGER_PARENT_NODE_REGEX;
     }
-
 }

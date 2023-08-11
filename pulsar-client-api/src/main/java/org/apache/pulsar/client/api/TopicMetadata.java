@@ -34,5 +34,4 @@ public interface TopicMetadata {
      * @return the number of partitions per topic.
      */
     int numPartitions();
-
 }

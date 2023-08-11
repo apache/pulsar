@@ -60,8 +60,10 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     // kafka connect related variables
     private SourceTaskContext sourceTaskContext;
     private SourceConnector connector;
+
     @Getter
     private SourceTask sourceTask;
+
     public Converter keyConverter;
     public Converter valueConverter;
 
@@ -71,6 +73,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     private OffsetBackingStore offsetStore;
     private OffsetStorageReader offsetReader;
     private String topicNamespace;
+
     @Getter
     public OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
@@ -115,18 +118,10 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         offsetStore.configure(pulsarKafkaWorkerConfig);
         offsetStore.start();
 
-        offsetReader = new OffsetStorageReaderImpl(
-                offsetStore,
-                "pulsar-kafka-connect-adaptor",
-                keyConverter,
-                valueConverter
-        );
-        offsetWriter = new OffsetStorageWriter(
-                offsetStore,
-                "pulsar-kafka-connect-adaptor",
-                keyConverter,
-                valueConverter
-        );
+        offsetReader =
+                new OffsetStorageReaderImpl(offsetStore, "pulsar-kafka-connect-adaptor", keyConverter, valueConverter);
+        offsetWriter =
+                new OffsetStorageWriter(offsetStore, "pulsar-kafka-connect-adaptor", keyConverter, valueConverter);
 
         sourceTaskContext = new PulsarIOSourceTaskContext(offsetReader, pulsarKafkaWorkerConfig);
 
@@ -226,16 +221,22 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     public abstract class AbstractKafkaSourceRecord<T> implements Record {
         @Getter
         Optional<String> key;
+
         @Getter
         T value;
+
         @Getter
         Optional<String> topicName;
+
         @Getter
         Optional<Long> eventTime;
+
         @Getter
         Optional<String> partitionId;
+
         @Getter
         Optional<String> destinationTopic;
+
         @Getter
         Optional<Integer> partitionIndex;
 
@@ -321,5 +322,4 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
             }
         }
     }
-
 }

@@ -63,7 +63,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void emptyStoreTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         assertFalse(store.exists("/non-existing-key").join());
@@ -85,15 +86,16 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             store.delete("/non-existing-key", Optional.of(1L)).join();
             fail("Should have failed");
         } catch (CompletionException e) {
-            assertTrue(NotFoundException.class.isInstance(e.getCause()) || BadVersionException.class.isInstance(
-                    e.getCause()));
+            assertTrue(NotFoundException.class.isInstance(e.getCause())
+                    || BadVersionException.class.isInstance(e.getCause()));
         }
     }
 
     @Test(dataProvider = "impl")
     public void concurrentPutTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String data = "data";
@@ -114,7 +116,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void insertionTestWithExpectedVersion(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String key1 = newKey();
@@ -177,7 +180,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void getChildrenTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String key = newKey();
@@ -211,7 +215,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void navigateChildrenTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String key = newKey();
 
@@ -220,16 +225,15 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.put(key + "/c-0/cc-2/ccc-1", new byte[0], Optional.empty()).join();
 
         assertEquals(store.getChildren(key).join(), Collections.singletonList("c-0"));
-        assertEquals(store.getChildren(key + "/c-0").join(),
-                Lists.newArrayList("cc-1", "cc-2"));
-        assertEquals(store.getChildren(key + "/c-0/cc-2").join(),
-                Lists.newArrayList("ccc-1"));
+        assertEquals(store.getChildren(key + "/c-0").join(), Lists.newArrayList("cc-1", "cc-2"));
+        assertEquals(store.getChildren(key + "/c-0/cc-2").join(), Lists.newArrayList("ccc-1"));
     }
 
     @Test(dataProvider = "impl")
     public void deletionTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String key = newKey();
@@ -264,7 +268,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void emptyKeyTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         try {
@@ -306,7 +311,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void notificationListeners(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         BlockingQueue<Notification> notifications = new LinkedBlockingDeque<>();
@@ -375,7 +381,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testDeleteRecursive(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String prefix = newKey();
@@ -385,9 +392,12 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         store.put(prefix + key1 + "/c1", "value".getBytes(), Optional.of(-1L)).join();
         store.put(prefix + key1 + "/c2", "value".getBytes(), Optional.of(-1L)).join();
-        store.put(prefix + key1 + "/c1/x1", "value".getBytes(), Optional.of(-1L)).join();
-        store.put(prefix + key1 + "/c1/x2", "value".getBytes(), Optional.of(-1L)).join();
-        store.put(prefix + key1 + "/c2/y2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c1/x1", "value".getBytes(), Optional.of(-1L))
+                .join();
+        store.put(prefix + key1 + "/c1/x2", "value".getBytes(), Optional.of(-1L))
+                .join();
+        store.put(prefix + key1 + "/c2/y2", "value".getBytes(), Optional.of(-1L))
+                .join();
         store.put(prefix + key1 + "/c3", "value".getBytes(), Optional.of(-1L)).join();
 
         String key2 = newKey();
@@ -401,7 +411,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String prefix = newKey();
@@ -429,8 +440,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @DataProvider(name = "conditionOfSwitchThread")
-    public Object[][] conditionOfSwitchThread(){
-        return new Object[][]{
+    public Object[][] conditionOfSwitchThread() {
+        return new Object[][] {
             {false, false},
             {false, true},
             {true, false},
@@ -455,58 +466,73 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         final Runnable verify = () -> {
             String currentThreadName = Thread.currentThread().getName();
-            String errorMessage = String.format("Expect to switch to thread %s, but currently it is thread %s",
+            String errorMessage = String.format(
+                    "Expect to switch to thread %s, but currently it is thread %s",
                     metadataStoreName, currentThreadName);
             assertTrue(Thread.currentThread().getName().startsWith(metadataStoreName), errorMessage);
         };
 
         // put with node which has parent(but the parent node is not exists).
-        store.put(prefix + "/a1/b1/c1", "value".getBytes(), Optional.of(-1L)).thenApply((ignore) -> {
-            verify.run();
-            return null;
-        }).join();
+        store.put(prefix + "/a1/b1/c1", "value".getBytes(), Optional.of(-1L))
+                .thenApply((ignore) -> {
+                    verify.run();
+                    return null;
+                })
+                .join();
         // put.
-        store.put(prefix + "/b1", "value".getBytes(), Optional.of(-1L)).thenApply((ignore) -> {
-            verify.run();
-            return null;
-        }).join();
+        store.put(prefix + "/b1", "value".getBytes(), Optional.of(-1L))
+                .thenApply((ignore) -> {
+                    verify.run();
+                    return null;
+                })
+                .join();
         // get.
-        store.get(prefix + "/b1").thenApply((ignore) -> {
-            verify.run();
-            return null;
-        }).join();
+        store.get(prefix + "/b1")
+                .thenApply((ignore) -> {
+                    verify.run();
+                    return null;
+                })
+                .join();
         // get the node which is not exists.
-        store.get(prefix + "/non").thenApply((ignore) -> {
-            verify.run();
-            return null;
-        }).join();
+        store.get(prefix + "/non")
+                .thenApply((ignore) -> {
+                    verify.run();
+                    return null;
+                })
+                .join();
         // delete.
-        store.delete(prefix + "/b1", Optional.empty()).thenApply((ignore) -> {
-            verify.run();
-            return null;
-        }).join();
+        store.delete(prefix + "/b1", Optional.empty())
+                .thenApply((ignore) -> {
+                    verify.run();
+                    return null;
+                })
+                .join();
         // delete the node which is not exists.
-        store.delete(prefix + "/non", Optional.empty()).thenApply((ignore) -> {
-            verify.run();
-            return null;
-        }).exceptionally(ex -> {
-            verify.run();
-            return null;
-        }).join();
+        store.delete(prefix + "/non", Optional.empty())
+                .thenApply((ignore) -> {
+                    verify.run();
+                    return null;
+                })
+                .exceptionally(ex -> {
+                    verify.run();
+                    return null;
+                })
+                .join();
     }
 
     @Test(dataProvider = "impl")
     public void testPersistent(String provider, Supplier<String> urlSupplier) throws Exception {
         String metadataUrl = urlSupplier.get();
-        MetadataStore store =
-                MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().fsyncEnable(false).build());
+        MetadataStore store = MetadataStoreFactory.create(
+                metadataUrl, MetadataStoreConfig.builder().fsyncEnable(false).build());
         byte[] data = "testPersistent".getBytes(StandardCharsets.UTF_8);
 
         String key = newKey() + "/a/b/c";
         store.put(key, data, Optional.of(-1L)).join();
         store.close();
 
-        store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create(
+                metadataUrl, MetadataStoreConfig.builder().build());
         Optional<GetResult> result = store.get(key).get();
         assertTrue(result.isPresent());
         assertEquals(result.get().getValue(), data);
@@ -515,9 +541,10 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testConcurrentPutGetOneKey(String provider, Supplier<String> urlSupplier) throws Exception {
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
-        byte[] data = new byte[]{0};
+        byte[] data = new byte[] {0};
         String path = newKey();
         int maxValue = 100;
         store.put(path, data, Optional.of(-1L)).join();
@@ -532,9 +559,11 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                     GetResult readResult = store.get(path).get().get();
                     value = (byte) (readResult.getValue()[0] + 1);
                     if (value <= maxValue) {
-                        CompletableFuture<Void> putResult =
-                                store.put(path, new byte[]{value}, Optional.of(readResult.getStat().getVersion()))
-                                        .thenRun(successWrites::incrementAndGet);
+                        CompletableFuture<Void> putResult = store.put(
+                                        path,
+                                        new byte[] {value},
+                                        Optional.of(readResult.getStat().getVersion()))
+                                .thenRun(successWrites::incrementAndGet);
                         try {
                             putResult.get();
                         } catch (Exception ignore) {
@@ -561,45 +590,51 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testConcurrentPut(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String k = newKey();
-        CompletableFuture<Void> f1 =
-                CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
-        CompletableFuture<Void> f2 =
-                CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
+        CompletableFuture<Void> f1 = CompletableFuture.runAsync(
+                () -> store.put(k, new byte[0], Optional.of(-1L)).join());
+        CompletableFuture<Void> f2 = CompletableFuture.runAsync(
+                () -> store.put(k, new byte[0], Optional.of(-1L)).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
-                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
+                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")
     public void testConcurrentDelete(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String k = newKey();
         store.put(k, new byte[0], Optional.of(-1L)).join();
-        CompletableFuture<Void> f1 =
-                CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
-        CompletableFuture<Void> f2 =
-                CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
+        CompletableFuture<Void> f1 = CompletableFuture.runAsync(
+                () -> store.delete(k, Optional.empty()).join());
+        CompletableFuture<Void> f2 = CompletableFuture.runAsync(
+                () -> store.delete(k, Optional.empty()).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
-                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
+                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")
     public void testGetChildren(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        store.put("/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
-        store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
-        store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
+        store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
+        store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty())
+                .join();
 
         List<String> subPaths = store.getChildren("/").get();
         Set<String> expectedSet = "ZooKeeper".equals(provider) ? Set.of("a", "b", "zookeeper") : Set.of("a", "b");
@@ -623,7 +658,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testClosedMetadataStore(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         store.close();
         try {
@@ -667,10 +703,12 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "distributedImpl")
     public void testGetChildrenDistributed(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store1 = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         @Cleanup
-        MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store2 = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String parent = newKey();
@@ -684,11 +722,13 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(store1.getChildren(parent).get(), Collections.emptyList());
         store2.put(parent + "/b", value, Optional.empty()).get();
         // There is a chance watcher event is not triggered before the store1.getChildren() call.
-        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+        Awaitility.await()
+                .atMost(3, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> assertEquals(store1.getChildren(parent).get(), List.of("b")));
         store2.put(parent + "/c", value, Optional.empty()).get();
-        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+        Awaitility.await()
+                .atMost(3, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> assertEquals(store1.getChildren(parent).get(), List.of("b", "c")));
     }
@@ -696,10 +736,12 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "distributedImpl")
     public void testExistsDistributed(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store1 = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         @Cleanup
-        MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(),
+        MetadataStore store2 = MetadataStoreFactory.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String parent = newKey();
@@ -711,7 +753,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store2.put(parent + "/a", value, Optional.empty()).get();
         assertTrue(store1.exists(parent + "/a").get());
         // There is a chance watcher event is not triggered before the store1.exists() call.
-        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+        Awaitility.await()
+                .atMost(3, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> assertFalse(store1.exists(parent + "/b").get()));
     }

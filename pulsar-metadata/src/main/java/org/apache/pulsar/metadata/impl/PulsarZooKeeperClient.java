@@ -110,45 +110,49 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         @Override
         public void run() {
             try {
-                ZooWorker.syncCallWithRetries(null, new ZooWorker.ZooCallable<ZooKeeper>() {
+                ZooWorker.syncCallWithRetries(
+                        null,
+                        new ZooWorker.ZooCallable<ZooKeeper>() {
 
-                    @Override
-                    public ZooKeeper call() throws KeeperException, InterruptedException {
-                        log.info("Reconnecting zookeeper {}.", connectString);
-                        // close the previous one
-                        closeZkHandle();
-                        ZooKeeper newZk;
-                        try {
-                            newZk = createZooKeeper();
-                        } catch (IOException ie) {
-                            log.error("Failed to create zookeeper instance to " + connectString, ie);
-                            throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
-                        }
-                        waitForConnection();
-                        zk.set(newZk);
-                        log.info("ZooKeeper session {} is created to {}.",
-                                Long.toHexString(newZk.getSessionId()), connectString);
-                        return newZk;
-                    }
+                            @Override
+                            public ZooKeeper call() throws KeeperException, InterruptedException {
+                                log.info("Reconnecting zookeeper {}.", connectString);
+                                // close the previous one
+                                closeZkHandle();
+                                ZooKeeper newZk;
+                                try {
+                                    newZk = createZooKeeper();
+                                } catch (IOException ie) {
+                                    log.error("Failed to create zookeeper instance to " + connectString, ie);
+                                    throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
+                                }
+                                waitForConnection();
+                                zk.set(newZk);
+                                log.info(
+                                        "ZooKeeper session {} is created to {}.",
+                                        Long.toHexString(newZk.getSessionId()),
+                                        connectString);
+                                return newZk;
+                            }
 
-                    @Override
-                    public String toString() {
-                        return String.format("ZooKeeper Client Creator (%s)", connectString);
-                    }
-
-                }, connectRetryPolicy, rateLimiter, createClientStats);
+                            @Override
+                            public String toString() {
+                                return String.format("ZooKeeper Client Creator (%s)", connectString);
+                            }
+                        },
+                        connectRetryPolicy,
+                        rateLimiter,
+                        createClientStats);
             } catch (Exception e) {
                 log.error("Gave up reconnecting to ZooKeeper : ", e);
                 Runtime.getRuntime().exit(1);
             }
         }
-
     };
 
     @VisibleForTesting
     static PulsarZooKeeperClient createConnectedZooKeeperClient(
-            String connectString, int sessionTimeoutMs, Set<Watcher> childWatchers,
-            RetryPolicy operationRetryPolicy)
+            String connectString, int sessionTimeoutMs, Set<Watcher> childWatchers, RetryPolicy operationRetryPolicy)
             throws KeeperException, InterruptedException, IOException {
         return PulsarZooKeeperClient.newBuilder()
                 .connectString(connectString)
@@ -229,19 +233,17 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                 // Session expiry event is received by client only when zk quorum is well established.
                 // All other connection loss retries happen at zk client library transparently.
                 // Hence, we don't need to wait before retrying.
-                connectRetryPolicy =
-                        new BoundExponentialBackoffRetryPolicy(0, 0, Integer.MAX_VALUE);
+                connectRetryPolicy = new BoundExponentialBackoffRetryPolicy(0, 0, Integer.MAX_VALUE);
             }
             if (null == operationRetryPolicy) {
-                operationRetryPolicy =
-                        new BoundExponentialBackoffRetryPolicy(sessionTimeoutMs, sessionTimeoutMs, 0);
+                operationRetryPolicy = new BoundExponentialBackoffRetryPolicy(sessionTimeoutMs, sessionTimeoutMs, 0);
             }
 
             // Create a watcher manager
             StatsLogger watcherStatsLogger = statsLogger.scope("watcher");
-            ZooKeeperWatcherBase watcherManager =
-                    null == watchers ? new ZooKeeperWatcherBase(sessionTimeoutMs, watcherStatsLogger) :
-                            new ZooKeeperWatcherBase(sessionTimeoutMs, watchers, watcherStatsLogger);
+            ZooKeeperWatcherBase watcherManager = null == watchers
+                    ? new ZooKeeperWatcherBase(sessionTimeoutMs, watcherStatsLogger)
+                    : new ZooKeeperWatcherBase(sessionTimeoutMs, watchers, watcherStatsLogger);
             PulsarZooKeeperClient client = new PulsarZooKeeperClient(
                     connectString,
                     sessionTimeoutMs,
@@ -251,8 +253,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     statsLogger,
                     retryExecThreadCount,
                     requestRateLimit,
-                    allowReadOnlyMode
-            );
+                    allowReadOnlyMode);
             // Wait for connection to be established.
             try {
                 watcherManager.waitForConnection();
@@ -272,29 +273,33 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         return new Builder();
     }
 
-    protected PulsarZooKeeperClient(String connectString,
-                              int sessionTimeoutMs,
-                              ZooKeeperWatcherBase watcherManager,
-                              RetryPolicy connectRetryPolicy,
-                              RetryPolicy operationRetryPolicy,
-                              StatsLogger statsLogger,
-                              int retryExecThreadCount,
-                              double rate,
-                              boolean allowReadOnlyMode) throws IOException {
+    protected PulsarZooKeeperClient(
+            String connectString,
+            int sessionTimeoutMs,
+            ZooKeeperWatcherBase watcherManager,
+            RetryPolicy connectRetryPolicy,
+            RetryPolicy operationRetryPolicy,
+            StatsLogger statsLogger,
+            int retryExecThreadCount,
+            double rate,
+            boolean allowReadOnlyMode)
+            throws IOException {
         super(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode);
         this.connectString = connectString;
         this.sessionTimeoutMs = sessionTimeoutMs;
-        this.allowReadOnlyMode =  allowReadOnlyMode;
+        this.allowReadOnlyMode = allowReadOnlyMode;
         this.watcherManager = watcherManager;
         this.connectRetryPolicy = connectRetryPolicy;
         this.operationRetryPolicy = operationRetryPolicy;
         this.rateLimiter = rate > 0 ? RateLimiter.create(rate) : null;
-        this.retryExecutor =
-                Executors.newScheduledThreadPool(retryExecThreadCount,
-                        new ThreadFactoryBuilder().setNameFormat("ZKC-retry-executor-%d").build());
-        this.connectExecutor =
-                Executors.newSingleThreadExecutor(
-                        new ThreadFactoryBuilder().setNameFormat("ZKC-connect-executor-%d").build());
+        this.retryExecutor = Executors.newScheduledThreadPool(
+                retryExecThreadCount,
+                new ThreadFactoryBuilder()
+                        .setNameFormat("ZKC-retry-executor-%d")
+                        .build());
+        this.connectExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder()
+                .setNameFormat("ZKC-connect-executor-%d")
+                .build());
         // added itself to the watcher
         watcherManager.addChildWatcher(this);
 
@@ -340,8 +345,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public void process(WatchedEvent event) {
-        if (event.getType() == EventType.None
-                && event.getState() == KeeperState.Expired) {
+        if (event.getType() == EventType.None && event.getState() == KeeperState.Expired) {
             onExpired();
         }
     }
@@ -352,8 +356,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             return;
         }
 
-        log.info("ZooKeeper session {} is expired from {}.",
-                Long.toHexString(getSessionId()), connectString);
+        log.info("ZooKeeper session {} is expired from {}.", Long.toHexString(getSessionId()), connectString);
         try {
             connectExecutor.execute(clientCreator);
         } catch (RejectedExecutionException ree) {
@@ -374,9 +377,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         final RateLimiter rateLimiter;
         final Runnable that;
 
-        ZkRetryRunnable(RetryPolicy retryPolicy,
-                        RateLimiter rateLimiter,
-                        OpStatsLogger statsLogger) {
+        ZkRetryRunnable(RetryPolicy retryPolicy, RateLimiter rateLimiter, OpStatsLogger statsLogger) {
             this.worker = new ZooWorker(retryPolicy, statsLogger);
             this.rateLimiter = rateLimiter;
             that = this;
@@ -453,29 +454,31 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public List<OpResult> multi(final Iterable<Op> ops) throws InterruptedException, KeeperException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<List<OpResult>>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<List<OpResult>>() {
 
-            @Override
-            public String toString() {
-                return "multi";
-            }
+                    @Override
+                    public String toString() {
+                        return "multi";
+                    }
 
-            @Override
-            public List<OpResult> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.multi(ops);
-                }
-                return zkHandle.multi(ops);
-            }
-
-        }, operationRetryPolicy, rateLimiter, multiStats);
+                    @Override
+                    public List<OpResult> call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.multi(ops);
+                        }
+                        return zkHandle.multi(ops);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                multiStats);
     }
 
     @Override
-    public void multi(final Iterable<Op> ops,
-                      final MultiCallback cb,
-                      final Object context) {
+    public void multi(final Iterable<Op> ops, final MultiCallback cb, final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, createStats) {
 
             final MultiCallback multiCb = new MultiCallback() {
@@ -489,7 +492,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, results);
                     }
                 }
-
             };
 
             @Override
@@ -526,23 +528,27 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public List<ACL> getACL(final String path, final Stat stat) throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<List<ACL>>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<List<ACL>>() {
 
-            @Override
-            public String toString() {
-                return String.format("getACL (%s, stat = %s)", path, stat);
-            }
+                    @Override
+                    public String toString() {
+                        return String.format("getACL (%s, stat = %s)", path, stat);
+                    }
 
-            @Override
-            public List<ACL> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.getACL(path, stat);
-                }
-                return zkHandle.getACL(path, stat);
-            }
-
-        }, operationRetryPolicy, rateLimiter, getACLStats);
+                    @Override
+                    public List<ACL> call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.getACL(path, stat);
+                        }
+                        return zkHandle.getACL(path, stat);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                getACLStats);
     }
 
     @Override
@@ -560,7 +566,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, acl, stat);
                     }
                 }
-
             };
 
             @Override
@@ -585,28 +590,32 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     @Override
     public Stat setACL(final String path, final List<ACL> acl, final int version)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<Stat>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<Stat>() {
 
-            @Override
-            public String toString() {
-                return String.format("setACL (%s, acl = %s, version = %d)", path, acl, version);
-            }
+                    @Override
+                    public String toString() {
+                        return String.format("setACL (%s, acl = %s, version = %d)", path, acl, version);
+                    }
 
-            @Override
-            public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.setACL(path, acl, version);
-                }
-                return zkHandle.setACL(path, acl, version);
-            }
-
-        }, operationRetryPolicy, rateLimiter, setACLStats);
+                    @Override
+                    public Stat call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.setACL(path, acl, version);
+                        }
+                        return zkHandle.setACL(path, acl, version);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                setACLStats);
     }
 
     @Override
-    public void setACL(final String path, final List<ACL> acl, final int version,
-                       final StatCallback cb, final Object context) {
+    public void setACL(
+            final String path, final List<ACL> acl, final int version, final StatCallback cb, final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, setACLStats) {
 
             final StatCallback stCb = new StatCallback() {
@@ -620,7 +629,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, stat);
                     }
                 }
-
             };
 
             @Override
@@ -657,7 +665,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context);
                     }
                 }
-
             };
 
             @Override
@@ -700,31 +707,39 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     @Override
-    public String create(final String path, final byte[] data,
-                         final List<ACL> acl, final CreateMode createMode)
+    public String create(final String path, final byte[] data, final List<ACL> acl, final CreateMode createMode)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<String>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<String>() {
 
-            @Override
-            public String call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.create(path, data, acl, createMode);
-                }
-                return zkHandle.create(path, data, acl, createMode);
-            }
+                    @Override
+                    public String call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.create(path, data, acl, createMode);
+                        }
+                        return zkHandle.create(path, data, acl, createMode);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("create (%s, acl = %s, mode = %s)", path, acl, createMode);
-            }
-
-        }, operationRetryPolicy, rateLimiter, createStats);
+                    @Override
+                    public String toString() {
+                        return String.format("create (%s, acl = %s, mode = %s)", path, acl, createMode);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                createStats);
     }
 
     @Override
-    public void create(final String path, final byte[] data, final List<ACL> acl,
-                       final CreateMode createMode, final StringCallback cb, final Object context) {
+    public void create(
+            final String path,
+            final byte[] data,
+            final List<ACL> acl,
+            final CreateMode createMode,
+            final StringCallback cb,
+            final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, createStats) {
 
             final StringCallback createCb = new StringCallback() {
@@ -738,7 +753,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, name);
                     }
                 }
-
             };
 
             @Override
@@ -762,25 +776,29 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public void delete(final String path, final int version) throws KeeperException, InterruptedException {
-        ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<Void>() {
+        ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<Void>() {
 
-            @Override
-            public Void call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    PulsarZooKeeperClient.super.delete(path, version);
-                } else {
-                    zkHandle.delete(path, version);
-                }
-                return null;
-            }
+                    @Override
+                    public Void call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            PulsarZooKeeperClient.super.delete(path, version);
+                        } else {
+                            zkHandle.delete(path, version);
+                        }
+                        return null;
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("delete (%s, version = %d)", path, version);
-            }
-
-        }, operationRetryPolicy, rateLimiter, deleteStats);
+                    @Override
+                    public String toString() {
+                        return String.format("delete (%s, version = %d)", path, version);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                deleteStats);
     }
 
     @Override
@@ -798,7 +816,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context);
                     }
                 }
-
             };
 
             @Override
@@ -822,44 +839,52 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public Stat exists(final String path, final Watcher watcher) throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<Stat>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<Stat>() {
 
-            @Override
-            public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.exists(path, watcher);
-                }
-                return zkHandle.exists(path, watcher);
-            }
+                    @Override
+                    public Stat call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.exists(path, watcher);
+                        }
+                        return zkHandle.exists(path, watcher);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("exists (%s, watcher = %s)", path, watcher);
-            }
-
-        }, operationRetryPolicy, rateLimiter, existsStats);
+                    @Override
+                    public String toString() {
+                        return String.format("exists (%s, watcher = %s)", path, watcher);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                existsStats);
     }
 
     @Override
     public Stat exists(final String path, final boolean watch) throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<Stat>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<Stat>() {
 
-            @Override
-            public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.exists(path, watch);
-                }
-                return zkHandle.exists(path, watch);
-            }
+                    @Override
+                    public Stat call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.exists(path, watch);
+                        }
+                        return zkHandle.exists(path, watch);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("exists (%s, watcher = %s)", path, watch);
-            }
-
-        }, operationRetryPolicy, rateLimiter, existsStats);
+                    @Override
+                    public String toString() {
+                        return String.format("exists (%s, watcher = %s)", path, watch);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                existsStats);
     }
 
     @Override
@@ -877,7 +902,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, stat);
                     }
                 }
-
             };
 
             @Override
@@ -914,7 +938,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, stat);
                     }
                 }
-
             };
 
             @Override
@@ -939,45 +962,53 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     @Override
     public byte[] getData(final String path, final Watcher watcher, final Stat stat)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<byte[]>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<byte[]>() {
 
-            @Override
-            public byte[] call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.getData(path, watcher, stat);
-                }
-                return zkHandle.getData(path, watcher, stat);
-            }
+                    @Override
+                    public byte[] call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.getData(path, watcher, stat);
+                        }
+                        return zkHandle.getData(path, watcher, stat);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("getData (%s, watcher = %s)", path, watcher);
-            }
-
-        }, operationRetryPolicy, rateLimiter, getStats);
+                    @Override
+                    public String toString() {
+                        return String.format("getData (%s, watcher = %s)", path, watcher);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                getStats);
     }
 
     @Override
     public byte[] getData(final String path, final boolean watch, final Stat stat)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<byte[]>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<byte[]>() {
 
-            @Override
-            public byte[] call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.getData(path, watch, stat);
-                }
-                return zkHandle.getData(path, watch, stat);
-            }
+                    @Override
+                    public byte[] call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.getData(path, watch, stat);
+                        }
+                        return zkHandle.getData(path, watch, stat);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("getData (%s, watcher = %s)", path, watch);
-            }
-
-        }, operationRetryPolicy, rateLimiter, getStats);
+                    @Override
+                    public String toString() {
+                        return String.format("getData (%s, watcher = %s)", path, watch);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                getStats);
     }
 
     @Override
@@ -995,7 +1026,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, data, stat);
                     }
                 }
-
             };
 
             @Override
@@ -1032,7 +1062,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, data, stat);
                     }
                 }
-
             };
 
             @Override
@@ -1057,28 +1086,32 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     @Override
     public Stat setData(final String path, final byte[] data, final int version)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<Stat>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<Stat>() {
 
-            @Override
-            public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.setData(path, data, version);
-                }
-                return zkHandle.setData(path, data, version);
-            }
+                    @Override
+                    public Stat call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.setData(path, data, version);
+                        }
+                        return zkHandle.setData(path, data, version);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("setData (%s, version = %d)", path, version);
-            }
-
-        }, operationRetryPolicy, rateLimiter, setStats);
+                    @Override
+                    public String toString() {
+                        return String.format("setData (%s, version = %d)", path, version);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                setStats);
     }
 
     @Override
-    public void setData(final String path, final byte[] data, final int version,
-                        final StatCallback cb, final Object context) {
+    public void setData(
+            final String path, final byte[] data, final int version, final StatCallback cb, final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, setStats) {
 
             final StatCallback stCb = new StatCallback() {
@@ -1092,7 +1125,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, stat);
                     }
                 }
-
             };
 
             @Override
@@ -1117,25 +1149,29 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     @Override
     public void addWatch(String basePath, Watcher watcher, AddWatchMode mode)
             throws KeeperException, InterruptedException {
-        ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<Void>() {
+        ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<Void>() {
 
-            @Override
-            public Void call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode);
-                } else {
-                    zkHandle.addWatch(basePath, watcher, mode);
-                }
-                return null;
-            }
+                    @Override
+                    public Void call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode);
+                        } else {
+                            zkHandle.addWatch(basePath, watcher, mode);
+                        }
+                        return null;
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("addWatch (%s, mode = %s)", basePath, mode);
-            }
-
-        }, operationRetryPolicy, rateLimiter, setStats);
+                    @Override
+                    public String toString() {
+                        return String.format("addWatch (%s, mode = %s)", basePath, mode);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                setStats);
     }
 
     @Override
@@ -1153,7 +1189,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         vCb.processResult(rc, basePath, ctx);
                     }
                 }
-
             };
 
             @Override
@@ -1178,57 +1213,64 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     @Override
     public List<String> getChildren(final String path, final Watcher watcher, final Stat stat)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<List<String>>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<List<String>>() {
 
-            @Override
-            public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.getChildren(path, watcher, stat);
-                }
-                return zkHandle.getChildren(path, watcher, stat);
-            }
+                    @Override
+                    public List<String> call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.getChildren(path, watcher, stat);
+                        }
+                        return zkHandle.getChildren(path, watcher, stat);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("getChildren (%s, watcher = %s)", path, watcher);
-            }
-
-        }, operationRetryPolicy, rateLimiter, getChildrenStats);
+                    @Override
+                    public String toString() {
+                        return String.format("getChildren (%s, watcher = %s)", path, watcher);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                getChildrenStats);
     }
 
     @Override
     public List<String> getChildren(final String path, final boolean watch, final Stat stat)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<List<String>>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<List<String>>() {
 
-            @Override
-            public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.getChildren(path, watch, stat);
-                }
-                return zkHandle.getChildren(path, watch, stat);
-            }
+                    @Override
+                    public List<String> call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.getChildren(path, watch, stat);
+                        }
+                        return zkHandle.getChildren(path, watch, stat);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("getChildren (%s, watcher = %s)", path, watch);
-            }
-
-        }, operationRetryPolicy, rateLimiter, getChildrenStats);
+                    @Override
+                    public String toString() {
+                        return String.format("getChildren (%s, watcher = %s)", path, watch);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                getChildrenStats);
     }
 
     @Override
-    public void getChildren(final String path, final Watcher watcher,
-                            final Children2Callback cb, final Object context) {
+    public void getChildren(
+            final String path, final Watcher watcher, final Children2Callback cb, final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, getChildrenStats) {
 
             final Children2Callback childCb = new Children2Callback() {
 
                 @Override
-                public void processResult(int rc, String path, Object ctx,
-                                          List<String> children, Stat stat) {
+                public void processResult(int rc, String path, Object ctx, List<String> children, Stat stat) {
                     ZooWorker worker = (ZooWorker) ctx;
                     if (allowRetry(worker, rc)) {
                         backOffAndRetry(that, worker.nextRetryWaitTime());
@@ -1236,7 +1278,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, children, stat);
                     }
                 }
-
             };
 
             @Override
@@ -1259,15 +1300,13 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     @Override
-    public void getChildren(final String path, final boolean watch, final Children2Callback cb,
-                            final Object context) {
+    public void getChildren(final String path, final boolean watch, final Children2Callback cb, final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, getChildrenStats) {
 
             final Children2Callback childCb = new Children2Callback() {
 
                 @Override
-                public void processResult(int rc, String path, Object ctx,
-                                          List<String> children, Stat stat) {
+                public void processResult(int rc, String path, Object ctx, List<String> children, Stat stat) {
                     ZooWorker worker = (ZooWorker) ctx;
                     if (allowRetry(worker, rc)) {
                         backOffAndRetry(that, worker.nextRetryWaitTime());
@@ -1275,7 +1314,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, children, stat);
                     }
                 }
-
             };
 
             @Override
@@ -1297,61 +1335,66 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         proc.run();
     }
 
-
     @Override
     public List<String> getChildren(final String path, final Watcher watcher)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<List<String>>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<List<String>>() {
 
-            @Override
-            public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.getChildren(path, watcher);
-                }
-                return zkHandle.getChildren(path, watcher);
-            }
+                    @Override
+                    public List<String> call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.getChildren(path, watcher);
+                        }
+                        return zkHandle.getChildren(path, watcher);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("getChildren (%s, watcher = %s)", path, watcher);
-            }
-
-        }, operationRetryPolicy, rateLimiter, getChildrenStats);
+                    @Override
+                    public String toString() {
+                        return String.format("getChildren (%s, watcher = %s)", path, watcher);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                getChildrenStats);
     }
 
     @Override
     public List<String> getChildren(final String path, final boolean watch)
             throws KeeperException, InterruptedException {
-        return ZooWorker.syncCallWithRetries(this, new ZooWorker.ZooCallable<List<String>>() {
+        return ZooWorker.syncCallWithRetries(
+                this,
+                new ZooWorker.ZooCallable<List<String>>() {
 
-            @Override
-            public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = zk.get();
-                if (null == zkHandle) {
-                    return PulsarZooKeeperClient.super.getChildren(path, watch);
-                }
-                return zkHandle.getChildren(path, watch);
-            }
+                    @Override
+                    public List<String> call() throws KeeperException, InterruptedException {
+                        ZooKeeper zkHandle = zk.get();
+                        if (null == zkHandle) {
+                            return PulsarZooKeeperClient.super.getChildren(path, watch);
+                        }
+                        return zkHandle.getChildren(path, watch);
+                    }
 
-            @Override
-            public String toString() {
-                return String.format("getChildren (%s, watcher = %s)", path, watch);
-            }
-
-        }, operationRetryPolicy, rateLimiter, getChildrenStats);
+                    @Override
+                    public String toString() {
+                        return String.format("getChildren (%s, watcher = %s)", path, watch);
+                    }
+                },
+                operationRetryPolicy,
+                rateLimiter,
+                getChildrenStats);
     }
 
     @Override
-    public void getChildren(final String path, final Watcher watcher,
-                            final ChildrenCallback cb, final Object context) {
+    public void getChildren(final String path, final Watcher watcher, final ChildrenCallback cb, final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, getChildrenStats) {
 
             final ChildrenCallback childCb = new ChildrenCallback() {
 
                 @Override
-                public void processResult(int rc, String path, Object ctx,
-                                          List<String> children) {
+                public void processResult(int rc, String path, Object ctx, List<String> children) {
                     ZooWorker worker = (ZooWorker) ctx;
                     if (allowRetry(worker, rc)) {
                         backOffAndRetry(that, worker.nextRetryWaitTime());
@@ -1359,7 +1402,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, children);
                     }
                 }
-
             };
 
             @Override
@@ -1382,15 +1424,13 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     @Override
-    public void getChildren(final String path, final boolean watch,
-                            final ChildrenCallback cb, final Object context) {
+    public void getChildren(final String path, final boolean watch, final ChildrenCallback cb, final Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, getChildrenStats) {
 
             final ChildrenCallback childCb = new ChildrenCallback() {
 
                 @Override
-                public void processResult(int rc, String path, Object ctx,
-                                          List<String> children) {
+                public void processResult(int rc, String path, Object ctx, List<String> children) {
                     ZooWorker worker = (ZooWorker) ctx;
                     if (allowRetry(worker, rc)) {
                         backOffAndRetry(that, worker.nextRetryWaitTime());
@@ -1398,7 +1438,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         cb.processResult(rc, path, context, children);
                     }
                 }
-
             };
 
             @Override
@@ -1438,11 +1477,10 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             elapsedTimeMs = MathUtils.elapsedMSec(startTimeNanos);
             if (!ZooWorker.isRecoverableException(rc)) {
                 if (KeeperException.Code.OK.intValue() == rc) {
-                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos),
-                            TimeUnit.MICROSECONDS);
+                    statsLogger.registerSuccessfulEvent(
+                            MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
                 } else {
-                    statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
-                            TimeUnit.MICROSECONDS);
+                    statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
                 }
                 return false;
             }
@@ -1505,11 +1543,12 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
          * @throws KeeperException any non-recoverable exception or recoverable exception exhausted all retires.
          * @throws InterruptedException the operation is interrupted.
          */
-        public static<T> T syncCallWithRetries(PulsarZooKeeperClient client,
-                                               ZooWorker.ZooCallable<T> proc,
-                                               RetryPolicy retryPolicy,
-                                               RateLimiter rateLimiter,
-                                               OpStatsLogger statsLogger)
+        public static <T> T syncCallWithRetries(
+                PulsarZooKeeperClient client,
+                ZooWorker.ZooCallable<T> proc,
+                RetryPolicy retryPolicy,
+                RateLimiter rateLimiter,
+                OpStatsLogger statsLogger)
                 throws KeeperException, InterruptedException {
             T result = null;
             boolean isDone = false;
@@ -1526,8 +1565,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     }
                     result = proc.call();
                     isDone = true;
-                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos),
-                            TimeUnit.MICROSECONDS);
+                    statsLogger.registerSuccessfulEvent(
+                            MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
                 } catch (KeeperException e) {
                     ++attempts;
                     boolean rethrow = true;
@@ -1537,8 +1576,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         rethrow = false;
                     }
                     if (rethrow) {
-                        statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
-                                TimeUnit.MICROSECONDS);
+                        statsLogger.registerFailedEvent(
+                                MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
                         log.debug("Stopped executing {} after {} attempts.", proc, attempts);
                         throw e;
                     }
@@ -1547,8 +1586,5 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             }
             return result;
         }
-
     }
-
-
 }

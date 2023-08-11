@@ -68,8 +68,8 @@ public class JettySslContextFactoryTest {
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
-        registryBuilder.register("https",
-                new SSLConnectionSocketFactory(getClientSslContext(), new NoopHostnameVerifier()));
+        registryBuilder.register(
+                "https", new SSLConnectionSocketFactory(getClientSslContext(), new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -106,8 +106,10 @@ public class JettySslContextFactoryTest {
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
-        registryBuilder.register("https", new SSLConnectionSocketFactory(getClientSslContext(),
-                new String[]{"TLSv1.2"}, null, new NoopHostnameVerifier()));
+        registryBuilder.register(
+                "https",
+                new SSLConnectionSocketFactory(
+                        getClientSslContext(), new String[] {"TLSv1.2"}, null, new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -149,9 +151,13 @@ public class JettySslContextFactoryTest {
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
-        registryBuilder.register("https", new SSLConnectionSocketFactory(getClientSslContext(),
-                new String[]{"TLSv1.2"}, new String[]{"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
-                new NoopHostnameVerifier()));
+        registryBuilder.register(
+                "https",
+                new SSLConnectionSocketFactory(
+                        getClientSslContext(),
+                        new String[] {"TLSv1.2"},
+                        new String[] {"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+                        new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -167,7 +173,6 @@ public class JettySslContextFactoryTest {
                 Resources.getResource("ssl/my-ca/ca.pem").getPath(),
                 Resources.getResource("ssl/my-ca/client-ca.pem").getPath(),
                 Resources.getResource("ssl/my-ca/client-key.pem").getPath(),
-                null
-        );
+                null);
     }
 }

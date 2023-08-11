@@ -35,8 +35,7 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
  */
 public class PrometheusMetricsGeneratorUtils {
 
-    public static void generate(String cluster, OutputStream out,
-                                List<PrometheusRawMetricsProvider> metricsProviders)
+    public static void generate(String cluster, OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders)
             throws IOException {
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         try {
@@ -60,8 +59,12 @@ public class PrometheusMetricsGeneratorUtils {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
             // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(getTypeNameSuffix(metricFamily.type)).write(' ')
-                    .write(getTypeStr(metricFamily.type)).write('\n');
+            stream.write("# TYPE ")
+                    .write(metricFamily.name)
+                    .write(getTypeNameSuffix(metricFamily.type))
+                    .write(' ')
+                    .write(getTypeStr(metricFamily.type))
+                    .write('\n');
 
             for (int i = 0; i < metricFamily.samples.size(); i++) {
                 Collector.MetricFamilySamples.Sample sample = metricFamily.samples.get(i);
@@ -70,7 +73,7 @@ public class PrometheusMetricsGeneratorUtils {
                 if (!sample.labelNames.contains("cluster")) {
                     stream.write("cluster=\"").write(cluster).write('"');
                     // If label is empty, should not append ','.
-                    if (!CollectionUtils.isEmpty(sample.labelNames)){
+                    if (!CollectionUtils.isEmpty(sample.labelNames)) {
                         stream.write(",");
                     }
                 }
@@ -118,6 +121,4 @@ public class PrometheusMetricsGeneratorUtils {
                 return "unknown";
         }
     }
-
 }
-

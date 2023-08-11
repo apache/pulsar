@@ -58,8 +58,7 @@ public interface ManagedLedgerFactory {
      * @return the managed ledger
      * @throws ManagedLedgerException
      */
-    ManagedLedger open(String name, ManagedLedgerConfig config)
-            throws InterruptedException, ManagedLedgerException;
+    ManagedLedger open(String name, ManagedLedgerConfig config) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Asynchronous open method.
@@ -89,8 +88,12 @@ public interface ManagedLedgerFactory {
      * @param ctx
      *            opaque context
      */
-    void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback,
-            Supplier<Boolean> mlOwnershipChecker, Object ctx);
+    void asyncOpen(
+            String name,
+            ManagedLedgerConfig config,
+            OpenLedgerCallback callback,
+            Supplier<Boolean> mlOwnershipChecker,
+            Object ctx);
 
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
@@ -114,8 +117,12 @@ public interface ManagedLedgerFactory {
      * @param callback
      * @param ctx
      */
-    void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
-            OpenReadOnlyCursorCallback callback, Object ctx);
+    void asyncOpenReadOnlyCursor(
+            String managedLedgerName,
+            Position startPosition,
+            ManagedLedgerConfig config,
+            OpenReadOnlyCursorCallback callback,
+            Object ctx);
 
     /**
      * Asynchronous open a Read-only managedLedger.
@@ -124,9 +131,11 @@ public interface ManagedLedgerFactory {
      * @param config the managed ledger configuration.
      * @param ctx opaque context
      */
-    void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
-                                AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
-                                ManagedLedgerConfig config, Object ctx);
+    void asyncOpenReadOnlyManagedLedger(
+            String managedLedgerName,
+            AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
+            ManagedLedgerConfig config,
+            Object ctx);
 
     /**
      * Get the current metadata info for a managed ledger.
@@ -183,8 +192,11 @@ public interface ManagedLedgerFactory {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
-                             DeleteLedgerCallback callback, Object ctx);
+    void asyncDelete(
+            String name,
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+            DeleteLedgerCallback callback,
+            Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory.

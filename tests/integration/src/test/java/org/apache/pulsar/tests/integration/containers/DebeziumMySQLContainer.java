@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 public class DebeziumMySQLContainer extends ChaosContainer<DebeziumMySQLContainer> {
 
     public static final String NAME = "debezium-mysql-example";
-    static final Integer[] PORTS = { 3306 };
+    static final Integer[] PORTS = {3306};
 
     private static final String IMAGE_NAME = "debezium/example-mysql:0.8";
 
@@ -33,7 +32,6 @@ public class DebeziumMySQLContainer extends ChaosContainer<DebeziumMySQLContaine
         this.withEnv("MYSQL_USER", "mysqluser");
         this.withEnv("MYSQL_PASSWORD", "mysqlpw");
         this.withEnv("MYSQL_ROOT_PASSWORD", "debezium");
-
     }
 
     @Override
@@ -45,12 +43,11 @@ public class DebeziumMySQLContainer extends ChaosContainer<DebeziumMySQLContaine
     protected void configure() {
         super.configure();
         this.withNetworkAliases(NAME)
-            .withExposedPorts(PORTS)
-            .withCreateContainerCmdModifier(createContainerCmd -> {
-                createContainerCmd.withHostName(NAME);
-                createContainerCmd.withName(getContainerName());
-            })
-            .waitingFor(new HostPortWaitStrategy());
+                .withExposedPorts(PORTS)
+                .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(NAME);
+                    createContainerCmd.withName(getContainerName());
+                })
+                .waitingFor(new HostPortWaitStrategy());
     }
-
 }

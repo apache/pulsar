@@ -50,7 +50,11 @@ public class FunctionCommonTest {
 
     @Test
     public void testValidateLocalFileUrl() throws Exception {
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String fileLocation = FutureUtil.class
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .getPath();
         try {
             // eg: fileLocation : /dir/fileName.jar (invalid)
             FunctionCommon.extractClassLoader(fileLocation);
@@ -69,7 +73,8 @@ public class FunctionCommonTest {
     @Test
     public void testValidateHttpFileUrl() throws Exception {
 
-        String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
+        String jarHttpUrl =
+                "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         FunctionCommon.extractClassLoader(jarHttpUrl);
 
         jarHttpUrl = "http://_invalidurl_.com";
@@ -84,7 +89,8 @@ public class FunctionCommonTest {
 
     @Test
     public void testDownloadFile() throws Exception {
-        final String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
+        final String jarHttpUrl =
+                "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         final File file = Files.newTemporaryFile();
         file.deleteOnExit();
         assertThat(file.length()).isZero();
@@ -140,7 +146,8 @@ public class FunctionCommonTest {
                     public Integer process(String input, Context context) throws Exception {
                         return null;
                     }
-                }, false
+                },
+                false
             },
             {
                 new Function<String, Record<Integer>>() {
@@ -148,7 +155,8 @@ public class FunctionCommonTest {
                     public Record<Integer> process(String input, Context context) throws Exception {
                         return null;
                     }
-                }, false
+                },
+                false
             },
             {
                 new java.util.function.Function<String, Integer>() {
@@ -156,7 +164,8 @@ public class FunctionCommonTest {
                     public Integer apply(String s) {
                         return null;
                     }
-                }, false
+                },
+                false
             },
             {
                 new java.util.function.Function<String, Record<Integer>>() {
@@ -164,7 +173,8 @@ public class FunctionCommonTest {
                     public Record<Integer> apply(String s) {
                         return null;
                     }
-                }, false
+                },
+                false
             },
             {
                 new WindowFunction<String, Integer>() {
@@ -172,15 +182,18 @@ public class FunctionCommonTest {
                     public Integer process(Collection<Record<String>> input, WindowContext context) throws Exception {
                         return null;
                     }
-                }, true
+                },
+                true
             },
             {
                 new WindowFunction<String, Record<Integer>>() {
                     @Override
-                    public Record<Integer> process(Collection<Record<String>> input, WindowContext context) throws Exception {
+                    public Record<Integer> process(Collection<Record<String>> input, WindowContext context)
+                            throws Exception {
                         return null;
                     }
-                }, true
+                },
+                true
             },
             {
                 new java.util.function.Function<Collection<String>, Integer>() {
@@ -188,7 +201,8 @@ public class FunctionCommonTest {
                     public Integer apply(Collection<String> strings) {
                         return null;
                     }
-                }, true
+                },
+                true
             },
             {
                 new java.util.function.Function<Collection<String>, Record<Integer>>() {
@@ -196,7 +210,8 @@ public class FunctionCommonTest {
                     public Record<Integer> apply(Collection<String> strings) {
                         return null;
                     }
-                }, true
+                },
+                true
             }
         };
     }

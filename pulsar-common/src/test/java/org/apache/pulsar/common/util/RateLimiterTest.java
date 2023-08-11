@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -33,14 +32,22 @@ public class RateLimiterTest {
     @Test
     public void testInvalidRenewTime() {
         try {
-            RateLimiter.builder().permits(0).rateTime(100).timeUnit(TimeUnit.SECONDS).build();
+            RateLimiter.builder()
+                    .permits(0)
+                    .rateTime(100)
+                    .timeUnit(TimeUnit.SECONDS)
+                    .build();
             fail("should have thrown exception: invalid rate, must be > 0");
         } catch (IllegalArgumentException ie) {
             // Ok
         }
 
         try {
-            RateLimiter.builder().permits(10).rateTime(0).timeUnit(TimeUnit.SECONDS).build();
+            RateLimiter.builder()
+                    .permits(10)
+                    .rateTime(0)
+                    .timeUnit(TimeUnit.SECONDS)
+                    .build();
             fail("should have thrown exception: invalid rateTime, must be > 0");
         } catch (IllegalArgumentException ie) {
             // Ok
@@ -49,7 +56,11 @@ public class RateLimiterTest {
 
     @Test
     public void testClose() throws Exception {
-        RateLimiter rate = RateLimiter.builder().permits(1).rateTime(1000).timeUnit(TimeUnit.MILLISECONDS).build();
+        RateLimiter rate = RateLimiter.builder()
+                .permits(1)
+                .rateTime(1000)
+                .timeUnit(TimeUnit.MILLISECONDS)
+                .build();
         assertFalse(rate.isClosed());
         rate.close();
         assertTrue(rate.isClosed());
@@ -64,7 +75,10 @@ public class RateLimiterTest {
     @Test
     public void testAcquireBlock() throws Exception {
         final long rateTimeMSec = 1000;
-        RateLimiter rate = RateLimiter.builder().permits(1).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(1)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         rate.acquire();
         assertEquals(rate.getAvailablePermits(), 0);
@@ -80,7 +94,10 @@ public class RateLimiterTest {
     public void testAcquire() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
-        RateLimiter rate = RateLimiter.builder().permits(permits).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         long start = System.currentTimeMillis();
         for (int i = 0; i < permits; i++) {
@@ -97,7 +114,10 @@ public class RateLimiterTest {
         final long rateTimeMSec = 1000;
         final int permits = 100;
         final int acquirePermits = 50;
-        RateLimiter rate = RateLimiter.builder().permits(permits).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         long start = System.currentTimeMillis();
         for (int i = 0; i < permits / acquirePermits; i++) {
@@ -112,7 +132,10 @@ public class RateLimiterTest {
     @Test
     public void testTryAcquireNoPermits() {
         final long rateTimeMSec = 1000;
-        RateLimiter rate = RateLimiter.builder().permits(1).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(1)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         assertTrue(rate.tryAcquire());
         assertFalse(rate.tryAcquire());
@@ -124,7 +147,10 @@ public class RateLimiterTest {
     public void testTryAcquire() {
         final long rateTimeMSec = 1000;
         final int permits = 100;
-        RateLimiter rate = RateLimiter.builder().permits(permits).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         for (int i = 0; i < permits; i++) {
             rate.tryAcquire();
@@ -136,12 +162,15 @@ public class RateLimiterTest {
     @Test
     public void testTryAcquireMoreThanPermits() {
         final long rateTimeMSec = 1000;
-        RateLimiter rate = RateLimiter.builder().permits(3).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(3)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         assertTrue(rate.tryAcquire(2));
         assertEquals(rate.getAvailablePermits(), 1);
 
-        //try to acquire failed, not decrease availablePermits.
+        // try to acquire failed, not decrease availablePermits.
         assertFalse(rate.tryAcquire(2));
         assertEquals(rate.getAvailablePermits(), 1);
 
@@ -156,7 +185,10 @@ public class RateLimiterTest {
         final long rateTimeMSec = 1000;
         final int permits = 100;
         final int acquirePermits = 50;
-        RateLimiter rate = RateLimiter.builder().permits(permits).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         for (int i = 0; i < permits / acquirePermits; i++) {
             rate.tryAcquire(acquirePermits);
@@ -169,7 +201,10 @@ public class RateLimiterTest {
     public void testResetRate() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
-        RateLimiter rate = RateLimiter.builder().permits(permits).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .build();
         rate.tryAcquire(permits);
         assertEquals(rate.getAvailablePermits(), 0);
@@ -193,7 +228,10 @@ public class RateLimiterTest {
     public void testDispatchRate() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
-        RateLimiter rate = RateLimiter.builder().permits(permits).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+        RateLimiter rate = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(rateTimeMSec)
+                .timeUnit(TimeUnit.MILLISECONDS)
                 .isDispatchOrPrecisePublishRateLimiter(true)
                 .build();
         rate.tryAcquire(100);
@@ -218,7 +256,10 @@ public class RateLimiterTest {
         long rateTime = 1;
         long newUpdatedRateLimit = 100L;
         Supplier<Long> permitUpdater = () -> newUpdatedRateLimit;
-        RateLimiter limiter = RateLimiter.builder().permits(permits).rateTime(1).timeUnit(TimeUnit.SECONDS)
+        RateLimiter limiter = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(1)
+                .timeUnit(TimeUnit.SECONDS)
                 .permitUpdater(permitUpdater)
                 .build();
         limiter.acquire();
@@ -233,7 +274,10 @@ public class RateLimiterTest {
         long rateTime = 1;
         int reNewTime = 3;
         RateLimitFunction rateLimitFunction = atomicInteger::incrementAndGet;
-        RateLimiter rateLimiter = RateLimiter.builder().permits(permits).rateTime(rateTime).timeUnit(TimeUnit.SECONDS)
+        RateLimiter rateLimiter = RateLimiter.builder()
+                .permits(permits)
+                .rateTime(rateTime)
+                .timeUnit(TimeUnit.SECONDS)
                 .rateLimitFunction(rateLimitFunction)
                 .build();
         for (int i = 0; i < reNewTime; i++) {
@@ -241,5 +285,4 @@ public class RateLimiterTest {
         }
         assertEquals(reNewTime, atomicInteger.get());
     }
-
 }

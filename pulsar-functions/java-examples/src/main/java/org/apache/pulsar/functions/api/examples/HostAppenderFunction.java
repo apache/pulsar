@@ -37,4 +37,3 @@ public class HostAppenderFunction implements Function<String, String> {
         }
     }
 }
-

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker;
 
 public enum BitRateUnit {
-
     Bit {
         public double toBit(double bitRate) {
             return bitRate;

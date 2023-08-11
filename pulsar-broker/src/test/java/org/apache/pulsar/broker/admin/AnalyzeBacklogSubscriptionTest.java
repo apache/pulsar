@@ -80,7 +80,8 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         verifyBacklog(topic, subName, 0, 0);
 
         @Cleanup
-        Producer<byte[]> p = pulsarClient.newProducer()
+        Producer<byte[]> p = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableBatching(batching)
                 .batchingMaxMessages(batchSize)
@@ -89,8 +90,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
 
         List<CompletableFuture<MessageId>> handles = new ArrayList<>();
         for (int i = 0; i < numMessages; i++) {
-            CompletableFuture<MessageId> handle
-                    = p.sendAsync(("test-" + i).getBytes());
+            CompletableFuture<MessageId> handle = p.sendAsync(("test-" + i).getBytes());
             handles.add(handle);
         }
         FutureUtil.waitForAll(handles).get();
@@ -103,7 +103,6 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         admin.topics().createSubscription(topic, "from-middle", middleMessageId);
 
         verifyBacklog(topic, "from-middle", numEntries / 2, numMessages / 2);
-
 
         try (Consumer consumer = pulsarClient
                 .newConsumer()
@@ -140,19 +139,18 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
             verifyBacklog(topic, subName, numEntries - (5 / batchSize), numMessages - 5);
 
             int count = numMessages - 5;
-            while (count -- > 0) {
+            while (count-- > 0) {
                 Message m = consumer.receive();
                 consumer.acknowledge(m);
             }
 
-            verifyBacklog(topic, subName, 0,0);
+            verifyBacklog(topic, subName, 0, 0);
         }
-
     }
 
     private void verifyBacklog(String topic, String subscription, int numEntries, int numMessages) throws Exception {
-        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
-                = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
+        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
         assertEquals(numEntries, analyzeSubscriptionBacklogResult.getEntries());
         assertEquals(numEntries, analyzeSubscriptionBacklogResult.getFilterAcceptedEntries());
@@ -168,7 +166,6 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         assertFalse(analyzeSubscriptionBacklogResult.isAborted());
     }
 
-
     @Test
     public void partitionedTopicNotAllowed() throws Exception {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
@@ -183,9 +180,8 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         });
 
         // you can access single partitions
-        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
-                = admin.topics().analyzeSubscriptionBacklog(topic + "-partition-0", "sub-1", Optional.empty());
+        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic + "-partition-0", "sub-1", Optional.empty());
         assertEquals(0, analyzeSubscriptionBacklogResult.getEntries());
     }
-
 }

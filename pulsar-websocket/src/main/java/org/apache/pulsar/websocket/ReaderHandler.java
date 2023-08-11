@@ -90,7 +90,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         }
 
         try {
-            ReaderBuilder<byte[]> builder = service.getPulsarClient().newReader()
+            ReaderBuilder<byte[]> builder = service.getPulsarClient()
+                    .newReader()
                     .topic(topic.toString())
                     .startMessageId(getMessageId())
                     .receiverQueueSize(receiverQueueSize);
@@ -116,56 +117,80 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             }
             this.subscription = consumer.getSubscription();
             if (!this.service.addReader(this)) {
-                log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
-                        request.getRemotePort(), topic);
+                log.warn(
+                        "[{}:{}] Failed to add reader handler for topic {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        topic);
             }
         } catch (Exception e) {
-            log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
-                    request.getRemotePort(), subscription, topic, e);
+            log.warn(
+                    "[{}:{}] Failed in creating reader {} on topic {}",
+                    request.getRemoteAddr(),
+                    request.getRemotePort(),
+                    subscription,
+                    topic,
+                    e);
             try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                        "Failed to create reader: " + e.getMessage());
+                response.sendError(
+                        HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create reader: " + e.getMessage());
             } catch (IOException e1) {
-                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                        e1.getMessage(), e1);
+                log.warn(
+                        "[{}:{}] Failed to send error: {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        e1.getMessage(),
+                        e1);
             }
         }
     }
 
     private void receiveMessage() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}:{}] [{}] [{}] Receive next message",
-                    request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
+            log.debug(
+                    "[{}:{}] [{}] [{}] Receive next message",
+                    request.getRemoteAddr(),
+                    request.getRemotePort(),
+                    topic,
+                    subscription);
         }
 
-        reader.readNextAsync().thenAccept(msg -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] [{}] Got message {}", getSession().getRemoteAddress(), topic, subscription,
-                        msg.getMessageId());
-            }
+        reader.readNextAsync()
+                .thenAccept(msg -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "[{}] [{}] [{}] Got message {}",
+                                getSession().getRemoteAddress(),
+                                topic,
+                                subscription,
+                                msg.getMessageId());
+                    }
 
-            ConsumerMessage dm = new ConsumerMessage();
-            dm.messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
-            dm.payload = Base64.getEncoder().encodeToString(msg.getData());
-            dm.properties = msg.getProperties();
-            dm.publishTime = DateFormatter.format(msg.getPublishTime());
-            dm.redeliveryCount = msg.getRedeliveryCount();
-            if (msg.getEventTime() != 0) {
-                dm.eventTime = DateFormatter.format(msg.getEventTime());
-            }
-            if (msg.hasKey()) {
-                dm.key = msg.getKey();
-            }
-            final long msgSize = msg.getData().length;
+                    ConsumerMessage dm = new ConsumerMessage();
+                    dm.messageId = Base64.getEncoder()
+                            .encodeToString(msg.getMessageId().toByteArray());
+                    dm.payload = Base64.getEncoder().encodeToString(msg.getData());
+                    dm.properties = msg.getProperties();
+                    dm.publishTime = DateFormatter.format(msg.getPublishTime());
+                    dm.redeliveryCount = msg.getRedeliveryCount();
+                    if (msg.getEventTime() != 0) {
+                        dm.eventTime = DateFormatter.format(msg.getEventTime());
+                    }
+                    if (msg.hasKey()) {
+                        dm.key = msg.getKey();
+                    }
+                    final long msgSize = msg.getData().length;
 
-            try {
-                getSession().getRemote()
-                        .sendString(objectWriter().writeValueAsString(dm),
-                                new WriteCallback() {
+                    try {
+                        getSession().getRemote().sendString(objectWriter().writeValueAsString(dm), new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
-                                log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(), subscription,
-                                        getRemote().getInetSocketAddress().toString(), th.getMessage());
+                                log.warn(
+                                        "[{}/{}] Failed to deliver msg to {} {}",
+                                        reader.getTopic(),
+                                        subscription,
+                                        getRemote().getInetSocketAddress().toString(),
+                                        th.getMessage());
                                 pendingMessages.decrementAndGet();
                                 // schedule receive as one of the delivery failed
                                 service.getExecutor().execute(() -> receiveMessage());
@@ -174,30 +199,41 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                             @Override
                             public void writeSuccess() {
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}/{}] message is delivered successfully to {} ", reader.getTopic(),
-                                            subscription, getRemote().getInetSocketAddress().toString());
+                                    log.debug(
+                                            "[{}/{}] message is delivered successfully to {} ",
+                                            reader.getTopic(),
+                                            subscription,
+                                            getRemote().getInetSocketAddress().toString());
                                 }
                                 updateDeliverMsgStat(msgSize);
                             }
                         });
-            } catch (JsonProcessingException e) {
-                close(WebSocketError.FailedToSerializeToJSON);
-            }
+                    } catch (JsonProcessingException e) {
+                        close(WebSocketError.FailedToSerializeToJSON);
+                    }
 
-            int pending = pendingMessages.incrementAndGet();
-            if (pending < maxPendingMessages) {
-                // Start next read in a separate thread to avoid recursion
-                service.getExecutor().execute(() -> receiveMessage());
-            }
-        }).exceptionally(exception -> {
-            if (exception.getCause() instanceof AlreadyClosedException) {
-                log.info("[{}/{}] Reader was closed while receiving msg from broker", reader.getTopic(), subscription);
-            } else {
-                log.warn("[{}/{}] Error occurred while reader handler was delivering msg to {}: {}", reader.getTopic(),
-                        subscription, getRemote().getInetSocketAddress().toString(), exception.getMessage());
-            }
-            return null;
-        });
+                    int pending = pendingMessages.incrementAndGet();
+                    if (pending < maxPendingMessages) {
+                        // Start next read in a separate thread to avoid recursion
+                        service.getExecutor().execute(() -> receiveMessage());
+                    }
+                })
+                .exceptionally(exception -> {
+                    if (exception.getCause() instanceof AlreadyClosedException) {
+                        log.info(
+                                "[{}/{}] Reader was closed while receiving msg from broker",
+                                reader.getTopic(),
+                                subscription);
+                    } else {
+                        log.warn(
+                                "[{}/{}] Error occurred while reader handler was delivering msg to {}: {}",
+                                reader.getTopic(),
+                                subscription,
+                                getRemote().getInetSocketAddress().toString(),
+                                exception.getMessage());
+                    }
+                    return null;
+                });
     }
 
     @Override
@@ -234,24 +270,29 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     // Check and notify reader if reached end of topic.
     private void handleEndOfTopic() {
         try {
-            String msg = objectWriter().writeValueAsString(
-                    new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
-            getSession().getRemote()
-                    .sendString(msg, new WriteCallback() {
-                        @Override
-                        public void writeFailed(Throwable th) {
-                            log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", reader.getTopic(),
-                                    subscription, getRemote().getInetSocketAddress().toString(), th.getMessage());
-                        }
+            String msg = objectWriter().writeValueAsString(new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
+            getSession().getRemote().sendString(msg, new WriteCallback() {
+                @Override
+                public void writeFailed(Throwable th) {
+                    log.warn(
+                            "[{}/{}] Failed to send end of topic msg to {} due to {}",
+                            reader.getTopic(),
+                            subscription,
+                            getRemote().getInetSocketAddress().toString(),
+                            th.getMessage());
+                }
 
-                        @Override
-                        public void writeSuccess() {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
-                                        reader.getTopic(), subscription, getRemote().getInetSocketAddress().toString());
-                            }
-                        }
-                    });
+                @Override
+                public void writeSuccess() {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "[{}/{}] End of topic message is delivered successfully to {} ",
+                                reader.getTopic(),
+                                subscription,
+                                getRemote().getInetSocketAddress().toString());
+                    }
+                }
+            });
         } catch (JsonProcessingException e) {
             log.warn("[{}] Failed to generate end of topic response: {}", reader.getTopic(), e.getMessage());
         } catch (Exception e) {
@@ -265,14 +306,16 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             if (!this.service.removeReader(this)) {
                 log.warn("[{}] Failed to remove reader handler", reader.getTopic());
             }
-            reader.closeAsync().thenAccept(x -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Closed reader asynchronously", reader.getTopic());
-                }
-            }).exceptionally(exception -> {
-                log.warn("[{}] Failed to close reader", reader.getTopic(), exception);
-                return null;
-            });
+            reader.closeAsync()
+                    .thenAccept(x -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Closed reader asynchronously", reader.getTopic());
+                        }
+                    })
+                    .exceptionally(exception -> {
+                        log.warn("[{}] Failed to close reader", reader.getTopic(), exception);
+                        return null;
+                    });
         }
     }
 
@@ -315,17 +358,22 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
         try {
-            AuthenticationDataSubscription subscription = new AuthenticationDataSubscription(authenticationData,
-                    this.subscription);
+            AuthenticationDataSubscription subscription =
+                    new AuthenticationDataSubscription(authenticationData, this.subscription);
             return service.getAuthorizationService()
                     .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            log.warn(
+                    "Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(),
+                    topic);
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+            log.warn(
+                    "Consumer-client  with Role - {} failed to get permissions for topic - {}. {}",
+                    authRole,
+                    topic,
                     e.getMessage());
             throw e;
         }
@@ -334,7 +382,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     private int getReceiverQueueSize() {
         int size = DEFAULT_RECEIVER_QUEUE_SIZE;
         if (queryParams.containsKey("receiverQueueSize")) {
-            size =  Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), DEFAULT_RECEIVER_QUEUE_SIZE);
+            size = Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), DEFAULT_RECEIVER_QUEUE_SIZE);
         }
         return size;
     }
@@ -352,5 +400,4 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReaderHandler.class);
-
 }

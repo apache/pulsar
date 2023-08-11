@@ -46,8 +46,7 @@ public class CustomCommandFactoryProvider {
     /**
      * create a Command Factory.
      */
-    public static List<CustomCommandFactory> createCustomCommandFactories(
-            Properties conf) throws IOException {
+    public static List<CustomCommandFactory> createCustomCommandFactories(Properties conf) throws IOException {
         String names = conf.getProperty("customCommandFactories", "");
         List<CustomCommandFactory> result = new ArrayList<>();
         if (names.isEmpty()) {
@@ -57,13 +56,13 @@ public class CustomCommandFactoryProvider {
 
         String directory = conf.getProperty("cliExtensionsDirectory", "cliextensions");
         String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
-        CustomCommandFactoryDefinitions definitions = searchForCustomCommandFactories(directory,
-                narExtractionDirectory);
+        CustomCommandFactoryDefinitions definitions =
+                searchForCustomCommandFactories(directory, narExtractionDirectory);
         for (String name : names.split(",")) {
             CustomCommandFactoryMetaData metaData = definitions.getFactories().get(name);
             if (null == metaData) {
-                throw new RuntimeException("No factory is found for name `" + name
-                        + "`. Available names are : " + definitions.getFactories());
+                throw new RuntimeException("No factory is found for name `" + name + "`. Available names are : "
+                        + definitions.getFactories());
             }
             CustomCommandFactory factory = load(metaData, narExtractionDirectory);
             if (factory != null) {
@@ -74,9 +73,8 @@ public class CustomCommandFactoryProvider {
         return result;
     }
 
-    private static CustomCommandFactoryDefinitions searchForCustomCommandFactories(String directory,
-                                                                       String narExtractionDirectory)
-            throws IOException {
+    private static CustomCommandFactoryDefinitions searchForCustomCommandFactories(
+            String directory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(directory).toAbsolutePath();
         log.debug("Searching for command factories  in {}", path);
 
@@ -102,10 +100,13 @@ public class CustomCommandFactoryProvider {
 
                     customCommandFactoryDefinitions.getFactories().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load command factories from {}."
-                            + " It is OK however if you want to use this command factory,"
-                            + " please make sure you put the correct NAR"
-                            + " package in the directory.", archive, t);
+                    log.warn(
+                            "Failed to load command factories from {}."
+                                    + " It is OK however if you want to use this command factory,"
+                                    + " please make sure you put the correct NAR"
+                                    + " package in the directory.",
+                            archive,
+                            t);
                 }
             }
         }
@@ -113,9 +114,8 @@ public class CustomCommandFactoryProvider {
         return customCommandFactoryDefinitions;
     }
 
-    private static CustomCommandFactoryDefinition getCustomCommandFactoryDefinition(String narPath,
-                                                                                    String narExtractionDirectory)
-            throws IOException {
+    private static CustomCommandFactoryDefinition getCustomCommandFactoryDefinition(
+            String narPath, String narExtractionDirectory) throws IOException {
         try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(new File(narPath))
                 .extractionDirectory(narExtractionDirectory)
@@ -134,13 +134,10 @@ public class CustomCommandFactoryProvider {
             configStr = ncl.getServiceDefinition(COMMAND_FACTORY_ENTRY + ".yml");
         }
 
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(
-                configStr, CustomCommandFactoryDefinition.class
-        );
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, CustomCommandFactoryDefinition.class);
     }
 
-    private static CustomCommandFactory load(CustomCommandFactoryMetaData metadata,
-                                                   String narExtractionDirectory)
+    private static CustomCommandFactory load(CustomCommandFactoryMetaData metadata, String narExtractionDirectory)
             throws IOException {
         final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
@@ -150,18 +147,18 @@ public class CustomCommandFactoryProvider {
                 .build();
         CustomCommandFactoryDefinition def = getCustomCommandFactoryDefinition(ncl);
         if (StringUtils.isBlank(def.getFactoryClass())) {
-            throw new IOException("Command Factory `" + def.getName() + "` does NOT provide a Command Factory"
-                    + " implementation");
+            throw new IOException(
+                    "Command Factory `" + def.getName() + "` does NOT provide a Command Factory" + " implementation");
         }
 
         try {
             Class commandFactoryClass = ncl.loadClass(def.getFactoryClass());
             Object factory = commandFactoryClass.getDeclaredConstructor().newInstance();
             if (!(factory instanceof CustomCommandFactory)) {
-                throw new IOException("Class " + def.getFactoryClass()
-                        + " does not implement CustomCommandFactory interface");
+                throw new IOException(
+                        "Class " + def.getFactoryClass() + " does not implement CustomCommandFactory interface");
             }
-           return (CustomCommandFactory) factory;
+            return (CustomCommandFactory) factory;
         } catch (Exception e) {
             if (e instanceof IOException) {
                 throw (IOException) e;

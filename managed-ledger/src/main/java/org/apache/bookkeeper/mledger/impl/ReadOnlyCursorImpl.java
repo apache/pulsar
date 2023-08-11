@@ -30,8 +30,12 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 @Slf4j
 public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCursor {
 
-    public ReadOnlyCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger,
-                              PositionImpl startPosition, String cursorName) {
+    public ReadOnlyCursorImpl(
+            BookKeeper bookkeeper,
+            ManagedLedgerConfig config,
+            ManagedLedgerImpl ledger,
+            PositionImpl startPosition,
+            String cursorName) {
         super(bookkeeper, config, ledger, cursorName);
 
         if (startPosition.equals(PositionImpl.EARLIEST)) {
@@ -52,8 +56,9 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
     @Override
     public void skipEntries(int numEntriesToSkip) {
         log.info("[{}] Skipping {} entries on read-only cursor {}", ledger.getName(), numEntriesToSkip, getName());
-        READ_POSITION_UPDATER.getAndUpdate(this, lastRead ->
-                ledger.getPositionAfterN(lastRead, numEntriesToSkip, PositionBound.startIncluded).getNext());
+        READ_POSITION_UPDATER.getAndUpdate(
+                this, lastRead -> ledger.getPositionAfterN(lastRead, numEntriesToSkip, PositionBound.startIncluded)
+                        .getNext());
     }
 
     @Override

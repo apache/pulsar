@@ -34,8 +34,7 @@ public abstract class SslContextAutoRefreshBuilder<T> {
     protected final long refreshTime;
     protected long lastRefreshTime;
 
-    public SslContextAutoRefreshBuilder(
-            long certRefreshInSec) {
+    public SslContextAutoRefreshBuilder(long certRefreshInSec) {
         this.refreshTime = TimeUnit.SECONDS.toMillis(certRefreshInSec);
         this.lastRefreshTime = -1;
 

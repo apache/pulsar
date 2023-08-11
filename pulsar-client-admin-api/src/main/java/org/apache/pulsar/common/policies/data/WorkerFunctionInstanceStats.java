@@ -29,5 +29,6 @@ public class WorkerFunctionInstanceStats {
      * Fully qualified function instance name.
      */
     public String name;
+
     public FunctionInstanceStatsData metrics;
 }

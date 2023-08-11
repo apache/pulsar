@@ -36,84 +36,82 @@ public class BrokerProxyValidatorTest {
 
     @Test
     public void shouldAllowValidInput() throws Exception {
-        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
-                createMockedAddressResolver("1.2.3.4"),
-                "myhost"
-                , "1.2.0.0/16"
-                , "6650");
-        InetSocketAddress inetSocketAddress = brokerProxyValidator.resolveAndCheckTargetAddress("myhost:6650").get();
+        BrokerProxyValidator brokerProxyValidator =
+                new BrokerProxyValidator(createMockedAddressResolver("1.2.3.4"), "myhost", "1.2.0.0/16", "6650");
+        InetSocketAddress inetSocketAddress =
+                brokerProxyValidator.resolveAndCheckTargetAddress("myhost:6650").get();
         assertNotNull(inetSocketAddress);
         assertEquals(inetSocketAddress.getAddress().getHostAddress(), "1.2.3.4");
         assertEquals(inetSocketAddress.getPort(), 6650);
     }
 
-    @Test(expectedExceptions = ExecutionException.class,
+    @Test(
+            expectedExceptions = ExecutionException.class,
             expectedExceptionsMessageRegExp = ".*Given host in 'myhost:6650' isn't allowed.")
     public void shouldPreventInvalidHostName() throws Exception {
-        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
-                createMockedAddressResolver("1.2.3.4"),
-                "allowedhost"
-                , "1.2.0.0/16"
-                , "6650");
+        BrokerProxyValidator brokerProxyValidator =
+                new BrokerProxyValidator(createMockedAddressResolver("1.2.3.4"), "allowedhost", "1.2.0.0/16", "6650");
         brokerProxyValidator.resolveAndCheckTargetAddress("myhost:6650").get();
     }
 
-    @Test(expectedExceptions = ExecutionException.class,
-            expectedExceptionsMessageRegExp = ".* The IP address of the given host and port 'myhost:6650' isn't allowed.")
+    @Test(
+            expectedExceptions = ExecutionException.class,
+            expectedExceptionsMessageRegExp =
+                    ".* The IP address of the given host and port 'myhost:6650' isn't allowed.")
     public void shouldPreventInvalidIPAddress() throws Exception {
-        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
-                createMockedAddressResolver("1.2.3.4"),
-                "myhost"
-                , "1.3.0.0/16"
-                , "6650");
+        BrokerProxyValidator brokerProxyValidator =
+                new BrokerProxyValidator(createMockedAddressResolver("1.2.3.4"), "myhost", "1.3.0.0/16", "6650");
         brokerProxyValidator.resolveAndCheckTargetAddress("myhost:6650").get();
     }
 
     @Test
     public void shouldSupportHostNamePattern() throws Exception {
-        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
-                createMockedAddressResolver("1.2.3.4"),
-                "*.mydomain"
-                , "1.2.0.0/16"
-                , "6650");
-        brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
+        BrokerProxyValidator brokerProxyValidator =
+                new BrokerProxyValidator(createMockedAddressResolver("1.2.3.4"), "*.mydomain", "1.2.0.0/16", "6650");
+        brokerProxyValidator
+                .resolveAndCheckTargetAddress("myhost.mydomain:6650")
+                .get();
     }
 
     @Test
     public void shouldAllowAllWithWildcard() throws Exception {
-        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
-                createMockedAddressResolver("1.2.3.4"),
-                "*"
-                , "*"
-                , "6650");
-        brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
+        BrokerProxyValidator brokerProxyValidator =
+                new BrokerProxyValidator(createMockedAddressResolver("1.2.3.4"), "*", "*", "6650");
+        brokerProxyValidator
+                .resolveAndCheckTargetAddress("myhost.mydomain:6650")
+                .get();
     }
 
     @Test
     public void shouldAllowIPv6Address() throws Exception {
         BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
                 createMockedAddressResolver("fd4d:801b:73fa:abcd:0000:0000:0000:0001"),
-                "*"
-                , "fd4d:801b:73fa:abcd::/64"
-                , "6650");
-        brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
+                "*",
+                "fd4d:801b:73fa:abcd::/64",
+                "6650");
+        brokerProxyValidator
+                .resolveAndCheckTargetAddress("myhost.mydomain:6650")
+                .get();
     }
 
     @Test
     public void shouldAllowIPv6AddressNumeric() throws Exception {
         BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
                 createMockedAddressResolver("fd4d:801b:73fa:abcd:0000:0000:0000:0001"),
-                "*"
-                , "fd4d:801b:73fa:abcd::/64"
-                , "6650");
-        brokerProxyValidator.resolveAndCheckTargetAddress("fd4d:801b:73fa:abcd:0000:0000:0000:0001:6650").get();
+                "*",
+                "fd4d:801b:73fa:abcd::/64",
+                "6650");
+        brokerProxyValidator
+                .resolveAndCheckTargetAddress("fd4d:801b:73fa:abcd:0000:0000:0000:0001:6650")
+                .get();
     }
 
     private AddressResolver<InetSocketAddress> createMockedAddressResolver(String ipAddressResult) {
         AddressResolver<InetSocketAddress> inetSocketAddressResolver = mock(AddressResolver.class);
         when(inetSocketAddressResolver.resolve(any())).then(invocationOnMock -> {
             InetSocketAddress address = (InetSocketAddress) invocationOnMock.getArgument(0);
-            return new SucceededFuture<SocketAddress>(mock(EventExecutor.class),
+            return new SucceededFuture<SocketAddress>(
+                    mock(EventExecutor.class),
                     new InetSocketAddress(InetAddresses.forString(ipAddressResult), address.getPort()));
         });
         return inetSocketAddressResolver;

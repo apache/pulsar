@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,9 +44,7 @@ public class ConcurrentLongLongPairHashMapTest {
     @Test
     public void testConstructor() {
         try {
-             ConcurrentLongLongPairHashMap.newBuilder()
-                    .expectedItems(0)
-                    .build();
+            ConcurrentLongLongPairHashMap.newBuilder().expectedItems(0).build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
@@ -76,9 +73,8 @@ public class ConcurrentLongLongPairHashMapTest {
 
     @Test
     public void simpleInsertions() {
-        ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
-                .expectedItems(16)
-                .build();
+        ConcurrentLongLongPairHashMap map =
+                ConcurrentLongLongPairHashMap.newBuilder().expectedItems(16).build();
         assertTrue(map.isEmpty());
         assertTrue(map.put(1, 1, 11, 11));
         assertFalse(map.isEmpty());
@@ -105,9 +101,8 @@ public class ConcurrentLongLongPairHashMapTest {
 
     @Test
     public void testRemove() {
-        ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap
-                .newBuilder()
-                .build();
+        ConcurrentLongLongPairHashMap map =
+                ConcurrentLongLongPairHashMap.newBuilder().build();
 
         assertTrue(map.isEmpty());
         assertTrue(map.put(1, 1, 11, 11));
@@ -167,7 +162,7 @@ public class ConcurrentLongLongPairHashMapTest {
         assertTrue(map.put(5, 5, 55, 55));
         assertEquals(map.capacity(), 8);
 
-        //verify that the map does not keep shrinking at every remove() operation
+        // verify that the map does not keep shrinking at every remove() operation
         assertTrue(map.put(6, 6, 66, 66));
         assertTrue(map.remove(6, 6, 66, 66));
         assertEquals(map.capacity(), 8);
@@ -268,8 +263,8 @@ public class ConcurrentLongLongPairHashMapTest {
 
     @Test
     public void concurrentInsertions() throws Throwable {
-        ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
-                .build();
+        ConcurrentLongLongPairHashMap map =
+                ConcurrentLongLongPairHashMap.newBuilder().build();
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -308,8 +303,8 @@ public class ConcurrentLongLongPairHashMapTest {
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
-        ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
-                .build();
+        ConcurrentLongLongPairHashMap map =
+                ConcurrentLongLongPairHashMap.newBuilder().build();
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -348,8 +343,8 @@ public class ConcurrentLongLongPairHashMapTest {
 
     @Test
     public void testIteration() {
-        ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
-                .build();
+        ConcurrentLongLongPairHashMap map =
+                ConcurrentLongLongPairHashMap.newBuilder().build();
 
         assertEquals(map.keys(), Collections.emptyList());
         assertEquals(map.values(), Collections.emptyList());
@@ -392,8 +387,8 @@ public class ConcurrentLongLongPairHashMapTest {
 
     @Test
     public void testPutIfAbsent() {
-        ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
-                .build();
+        ConcurrentLongLongPairHashMap map =
+                ConcurrentLongLongPairHashMap.newBuilder().build();
 
         assertTrue(map.putIfAbsent(1, 1, 11, 11));
         assertEquals(map.get(1, 1), new LongPair(11, 11));
@@ -408,7 +403,6 @@ public class ConcurrentLongLongPairHashMapTest {
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
-
 
         try {
             map.put(-5, 3, 4, 4);

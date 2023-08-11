@@ -56,19 +56,19 @@ public class KeyValue<K, V> {
         if (!(obj instanceof KeyValue)) {
             return false;
         }
-        @SuppressWarnings("unchecked") KeyValue<K, V> another = (KeyValue<K, V>) obj;
-        return Objects.equals(key, another.key)
-            && Objects.equals(value, another.value);
+        @SuppressWarnings("unchecked")
+        KeyValue<K, V> another = (KeyValue<K, V>) obj;
+        return Objects.equals(key, another.key) && Objects.equals(value, another.value);
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("(key = \"")
-          .append(key)
-          .append("\", value = \"")
-          .append(value)
-          .append("\")");
+                .append(key)
+                .append("\", value = \"")
+                .append(value)
+                .append("\")");
         return sb.toString();
     }
 
@@ -86,7 +86,6 @@ public class KeyValue<K, V> {
          * @return the decoded {@link KeyValue} pair
          */
         KeyValue<K, V> decode(byte[] keyData, byte[] valueData);
-
     }
 
     /**
@@ -98,16 +97,15 @@ public class KeyValue<K, V> {
      * @param valueWriter a writer to encode value object
      * @return the encoded bytes array
      */
-    public static <K, V> byte[] encode(K key, Schema<K> keyWriter,
-                                       V value, Schema<V> valueWriter) {
-        byte [] keyBytes;
+    public static <K, V> byte[] encode(K key, Schema<K> keyWriter, V value, Schema<V> valueWriter) {
+        byte[] keyBytes;
         if (key == null) {
             keyBytes = new byte[0];
         } else {
             keyBytes = keyWriter.encode(key);
         }
 
-        byte [] valueBytes;
+        byte[] valueBytes;
         if (value == null) {
             valueBytes = new byte[0];
         } else {
@@ -115,10 +113,10 @@ public class KeyValue<K, V> {
         }
         ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
         byteBuffer
-            .putInt(key == null ? -1 : keyBytes.length)
-            .put(keyBytes)
-            .putInt(value == null ? -1 : valueBytes.length)
-            .put(valueBytes);
+                .putInt(key == null ? -1 : keyBytes.length)
+                .put(keyBytes)
+                .putInt(value == null ? -1 : valueBytes.length)
+                .put(valueBytes);
         return byteBuffer.array();
     }
 

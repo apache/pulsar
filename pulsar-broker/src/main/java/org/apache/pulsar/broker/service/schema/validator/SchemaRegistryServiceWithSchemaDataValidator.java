@@ -73,21 +73,20 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
-                                                              SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> checkConsumerCompatibility(
+            String schemaId, SchemaData schemaData, SchemaCompatibilityStrategy strategy) {
         return this.service.checkConsumerCompatibility(schemaId, schemaData, strategy);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
-                                                                         SchemaData schemaData) {
+    public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(
+            List<SchemaAndMetadata> schemaAndMetadataList, SchemaData schemaData) {
         return this.service.getSchemaVersionBySchemaData(schemaAndMetadataList, schemaData);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId,
-                                                              SchemaData schema,
-                                                              SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(
+            String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
         try {
             SchemaDataValidator.validateSchemaData(schema);
         } catch (InvalidSchemaDataException e) {
@@ -112,8 +111,8 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
-                                                   SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Boolean> isCompatible(
+            String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
         try {
             SchemaDataValidator.validateSchemaData(schema);
         } catch (InvalidSchemaDataException e) {
@@ -123,9 +122,8 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Void> checkCompatible(String schemaId,
-                                                   SchemaData schema,
-                                                   SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> checkCompatible(
+            String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
         try {
             SchemaDataValidator.validateSchemaData(schema);
         } catch (InvalidSchemaDataException e) {

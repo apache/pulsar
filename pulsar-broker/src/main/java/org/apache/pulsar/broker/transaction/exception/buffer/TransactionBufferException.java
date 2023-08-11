@@ -39,7 +39,6 @@ public abstract class TransactionBufferException extends TransactionException {
         super(cause);
     }
 
-
     /**
      * Exception thrown when reaching end of a transaction.
      */
@@ -72,7 +71,6 @@ public abstract class TransactionBufferException extends TransactionException {
         public TransactionBufferProviderException(String message) {
             super(message);
         }
-
     }
 
     /**
@@ -86,6 +84,4 @@ public abstract class TransactionBufferException extends TransactionException {
             super(message);
         }
     }
-
-
 }

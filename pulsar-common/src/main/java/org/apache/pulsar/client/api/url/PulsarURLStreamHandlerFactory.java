@@ -30,6 +30,7 @@ import java.util.Map;
  */
 public class PulsarURLStreamHandlerFactory implements URLStreamHandlerFactory {
     private static final Map<String, Class<? extends URLStreamHandler>> handlers;
+
     static {
         handlers = new HashMap<>();
         handlers.put("data", DataURLStreamHandler.class);
@@ -45,11 +46,12 @@ public class PulsarURLStreamHandlerFactory implements URLStreamHandlerFactory {
             } else {
                 urlStreamHandler = null;
             }
-        } catch (InstantiationException | IllegalAccessException
-                | InvocationTargetException | NoSuchMethodException e) {
+        } catch (InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException
+                | NoSuchMethodException e) {
             urlStreamHandler = null;
         }
         return urlStreamHandler;
     }
-
 }

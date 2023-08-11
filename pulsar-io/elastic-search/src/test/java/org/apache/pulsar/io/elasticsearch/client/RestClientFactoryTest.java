@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.io.elasticsearch.client;
 
+import static org.testng.Assert.assertEquals;
 import lombok.SneakyThrows;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
 import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestClient;
 import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-
 
 public class RestClientFactoryTest {
 
@@ -47,7 +45,7 @@ public class RestClientFactoryTest {
 
     @SneakyThrows
     private static void assertInstance(ElasticSearchConfig config, Class<? extends RestClient> expectedClass) {
-        try (RestClient client = RestClientFactory.createClient(config, null)){
+        try (RestClient client = RestClientFactory.createClient(config, null)) {
             assertEquals(client.getClass(), expectedClass);
         }
     }

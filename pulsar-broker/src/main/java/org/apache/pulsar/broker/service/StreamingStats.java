@@ -51,9 +51,8 @@ public class StreamingStats {
         statsStream.endObject();
     }
 
-
-    public static void writeConsumerStats(StatsOutputStream statsStream, CommandSubscribe.SubType subType,
-        ConsumerStatsImpl stats) {
+    public static void writeConsumerStats(
+            StatsOutputStream statsStream, CommandSubscribe.SubType subType, ConsumerStatsImpl stats) {
         // Populate consumer specific stats here
         statsStream.startObject();
 

@@ -62,8 +62,7 @@ public class HttpLookupService implements LookupService {
     private static final String BasePathV1 = "lookup/v2/destination/";
     private static final String BasePathV2 = "lookup/v2/topic/";
 
-    public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
-            throws PulsarClientException {
+    public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this.httpClient = new HttpClient(conf, eventLoopGroup);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
@@ -86,8 +85,7 @@ public class HttpLookupService implements LookupService {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
         String path = basePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
-        return httpClient.get(path, LookupData.class)
-                .thenCompose(lookupData -> {
+        return httpClient.get(path, LookupData.class).thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
             URI uri = null;
             try {
@@ -114,7 +112,8 @@ public class HttpLookupService implements LookupService {
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
-        return httpClient.get(String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",
+        return httpClient.get(
+                String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",
                 PartitionedTopicMetadata.class);
     }
 
@@ -129,30 +128,31 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                                      String topicsPattern, String topicsHash) {
+    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(
+            NamespaceName namespace, Mode mode, String topicsPattern, String topicsHash) {
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
 
-        String format = namespace.isV2()
-            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
+        String format =
+                namespace.isV2() ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
         httpClient
-            .get(String.format(format, namespace, mode.toString()), String[].class)
-            .thenAccept(topics -> {
-                List<String> result = new ArrayList<>();
-                // do not keep partition part of topic name
-                Arrays.asList(topics).forEach(topic -> {
-                    String filtered = TopicName.get(topic).getPartitionedTopicName();
-                    if (!result.contains(filtered)) {
-                        result.add(filtered);
-                    }
+                .get(String.format(format, namespace, mode.toString()), String[].class)
+                .thenAccept(topics -> {
+                    List<String> result = new ArrayList<>();
+                    // do not keep partition part of topic name
+                    Arrays.asList(topics).forEach(topic -> {
+                        String filtered = TopicName.get(topic).getPartitionedTopicName();
+                        if (!result.contains(filtered)) {
+                            result.add(filtered);
+                        }
+                    });
+                    future.complete(new GetTopicsResult(result, topicsHash, false, true));
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
+                    future.completeExceptionally(cause);
+                    return null;
                 });
-                future.complete(new GetTopicsResult(result, topicsHash, false, true));
-            }).exceptionally(ex -> {
-                Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
-                future.completeExceptionally(cause);
-                return null;
-            });
         return future;
     }
 
@@ -172,40 +172,43 @@ public class HttpLookupService implements LookupService {
                 future.completeExceptionally(new SchemaSerializationException("Empty schema version"));
                 return future;
             }
-            path = String.format("admin/v2/schemas/%s/schema/%s",
-                    schemaName,
-                    ByteBuffer.wrap(version).getLong());
+            path = String.format(
+                    "admin/v2/schemas/%s/schema/%s",
+                    schemaName, ByteBuffer.wrap(version).getLong());
         }
-        httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
-            if (response.getType() == SchemaType.KEY_VALUE) {
-                try {
-                    SchemaData data = SchemaData
-                            .builder()
-                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
-                                    response.getData().getBytes(StandardCharsets.UTF_8)))
-                            .type(response.getType())
-                            .props(response.getProperties())
-                            .build();
-                    future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
-                } catch (IOException err) {
-                    future.completeExceptionally(err);
-                }
-            } else {
-                future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
-            }
-        }).exceptionally(ex -> {
-            Throwable cause = FutureUtil.unwrapCompletionException(ex);
-            if (cause instanceof NotFoundException) {
-                future.complete(Optional.empty());
-            } else {
-                log.warn("Failed to get schema for topic {} version {}",
-                        topicName,
-                        version != null ? Base64.getEncoder().encodeToString(version) : null,
-                        cause);
-                future.completeExceptionally(cause);
-            }
-            return null;
-        });
+        httpClient
+                .get(path, GetSchemaResponse.class)
+                .thenAccept(response -> {
+                    if (response.getType() == SchemaType.KEY_VALUE) {
+                        try {
+                            SchemaData data = SchemaData.builder()
+                                    .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
+                                            response.getData().getBytes(StandardCharsets.UTF_8)))
+                                    .type(response.getType())
+                                    .props(response.getProperties())
+                                    .build();
+                            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
+                        } catch (IOException err) {
+                            future.completeExceptionally(err);
+                        }
+                    } else {
+                        future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
+                    }
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof NotFoundException) {
+                        future.complete(Optional.empty());
+                    } else {
+                        log.warn(
+                                "Failed to get schema for topic {} version {}",
+                                topicName,
+                                version != null ? Base64.getEncoder().encodeToString(version) : null,
+                                cause);
+                        future.completeExceptionally(cause);
+                    }
+                    return null;
+                });
         return future;
     }
 

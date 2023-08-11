@@ -242,10 +242,12 @@ public class PulsarAdminException extends Exception {
      * @return a new PulsarAdminException, of the same class.
      */
     public static PulsarAdminException wrap(PulsarAdminException e) {
-        PulsarAdminException cloned =  e.clone();
+        PulsarAdminException cloned = e.clone();
         if (e.getClass() != cloned.getClass()) {
-            throw new IllegalStateException("Cloning a " + e.getClass() + " generated a "
-                    + cloned.getClass() + ", this is a bug, original error is " + e, e);
+            throw new IllegalStateException(
+                    "Cloning a " + e.getClass() + " generated a " + cloned.getClass()
+                            + ", this is a bug, original error is " + e,
+                    e);
         }
         // adding a reference to the original exception.
         cloned.addSuppressed(e);

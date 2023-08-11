@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
-
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.net.InetSocketAddress;
@@ -64,12 +63,8 @@ public class ProtocolHandlersTest {
         this.ncl2 = mock(NarClassLoader.class);
 
         this.handlerMap = new HashMap<>();
-        this.handlerMap.put(
-            protocol1,
-            new ProtocolHandlerWithClassLoader(handler1, ncl1));
-        this.handlerMap.put(
-            protocol2,
-            new ProtocolHandlerWithClassLoader(handler2, ncl2));
+        this.handlerMap.put(protocol1, new ProtocolHandlerWithClassLoader(handler1, ncl1));
+        this.handlerMap.put(protocol2, new ProtocolHandlerWithClassLoader(handler2, ncl2));
         this.handlers = new ProtocolHandlers(this.handlerMap);
     }
 
@@ -137,7 +132,7 @@ public class ProtocolHandlersTest {
         when(handler2.newChannelInitializers()).thenReturn(p2Initializers);
 
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> initializers =
-            handlers.newChannelInitializers();
+                handlers.newChannelInitializers();
 
         assertEquals(2, initializers.size());
         assertSame(p1Initializers, initializers.get(protocol1));
@@ -163,5 +158,4 @@ public class ProtocolHandlersTest {
 
         handlers.newChannelInitializers();
     }
-
 }

@@ -37,26 +37,26 @@ public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
      * {@link #initialize(CoreV1Api, byte[], java.util.function.Function, Map)}
      */
     @Deprecated(since = "3.0.0")
-    default void initialize(CoreV1Api coreClient, byte[] caBytes,
-                            java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc) {
+    default void initialize(
+            CoreV1Api coreClient,
+            byte[] caBytes,
+            java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc) {
         setCaBytes(caBytes);
         setNamespaceProviderFunc(namespaceCustomizerFunc);
         initialize(coreClient);
     }
 
-    default void initialize(CoreV1Api coreClient, byte[] caBytes,
-                            java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc,
-                            Map<String, Object> config) {
+    default void initialize(
+            CoreV1Api coreClient,
+            byte[] caBytes,
+            java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc,
+            Map<String, Object> config) {
         initialize(coreClient, caBytes, namespaceCustomizerFunc);
     }
 
-    default void setCaBytes(byte[] caBytes) {
+    default void setCaBytes(byte[] caBytes) {}
 
-    }
-
-    default void setNamespaceProviderFunc(java.util.function.Function<Function.FunctionDetails, String> funcDetails) {
-
-    }
+    default void setNamespaceProviderFunc(java.util.function.Function<Function.FunctionDetails, String> funcDetails) {}
 
     /**
      * Configure function statefulset spec based on function auth data.
@@ -66,7 +66,9 @@ public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
     void configureAuthDataStatefulSet(V1StatefulSet statefulSet, Optional<FunctionAuthData> functionAuthData);
 
     static KubernetesFunctionAuthProvider getAuthProvider(String className) {
-        return Reflections.createInstance(className, KubernetesFunctionAuthProvider.class,
+        return Reflections.createInstance(
+                className,
+                KubernetesFunctionAuthProvider.class,
                 Thread.currentThread().getContextClassLoader());
     }
 }

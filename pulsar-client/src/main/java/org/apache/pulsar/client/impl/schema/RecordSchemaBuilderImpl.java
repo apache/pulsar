@@ -92,11 +92,7 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
         }
 
         org.apache.avro.Schema baseSchema = org.apache.avro.Schema.createRecord(
-            schemaName != null ? schemaName : DEFAULT_SCHEMA_NAME,
-            doc,
-            schemaNs,
-            false
-        );
+                schemaName != null ? schemaName : DEFAULT_SCHEMA_NAME, doc, schemaNs, false);
 
         List<org.apache.avro.Schema.Field> avroFields = new ArrayList<>();
         for (FieldSchemaBuilderImpl field : fields) {
@@ -105,12 +101,7 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
 
         baseSchema.setFields(avroFields);
         return new SchemaInfoImpl(
-            name,
-            baseSchema.toString().getBytes(UTF_8),
-            schemaType,
-            System.currentTimeMillis(),
-            properties
-        );
+                name, baseSchema.toString().getBytes(UTF_8), schemaType, System.currentTimeMillis(), properties);
     }
 
     /**
@@ -128,5 +119,4 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
         }
         return result;
     }
-
 }

@@ -39,8 +39,8 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         final String basePath = newKey();
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         Stat stat1 = store.put(basePath, "value-1".getBytes(), Optional.of(-1L), EnumSet.of(CreateOption.Sequential))
                 .join();

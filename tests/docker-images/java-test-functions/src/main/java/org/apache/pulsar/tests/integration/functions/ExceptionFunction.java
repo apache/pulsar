@@ -23,6 +23,7 @@ import java.util.function.Function;
 public class ExceptionFunction implements Function<String, String> {
 
     int i = 0;
+
     @Override
     public String apply(String s) {
         i++;

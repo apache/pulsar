@@ -34,10 +34,9 @@ public class PulsarInitialNamespaceSetupTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass =
-                    Class.forName("org.apache.pulsar.PulsarInitialNamespaceSetup$Arguments");
+            Class argumentsClass = Class.forName("org.apache.pulsar.PulsarInitialNamespaceSetup$Arguments");
 
-            PulsarInitialNamespaceSetup.doMain(new String[]{"-cs", "cs", "-c", "c", "-g", "demo"});
+            PulsarInitialNamespaceSetup.doMain(new String[] {"-cs", "cs", "-c", "c", "-g", "demo"});
 
             String message = baoStream.toString();
 

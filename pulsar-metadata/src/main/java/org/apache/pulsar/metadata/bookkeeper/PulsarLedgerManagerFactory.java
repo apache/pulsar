@@ -44,8 +44,8 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
     private String ledgerRootPath;
 
     @Override
-    public LedgerManagerFactory initialize(AbstractConfiguration conf, LayoutManager layoutManager,
-                                           int factoryVersion) throws IOException {
+    public LedgerManagerFactory initialize(AbstractConfiguration conf, LayoutManager layoutManager, int factoryVersion)
+            throws IOException {
 
         checkArgument(layoutManager instanceof PulsarLayoutManager);
 
@@ -70,7 +70,6 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
     public int getCurrentVersion() {
         return CUR_VERSION;
     }
-
 
     @Override
     public LedgerIdGenerator newLedgerIdGenerator() {
@@ -100,22 +99,23 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
     }
 
     @Override
-    public boolean validateAndNukeExistingCluster(AbstractConfiguration<?> conf,
-                                                  LayoutManager layoutManager)
+    public boolean validateAndNukeExistingCluster(AbstractConfiguration<?> conf, LayoutManager layoutManager)
             throws InterruptedException, IOException {
-        @Cleanup
-        PulsarLedgerManager ledgerManager = new PulsarLedgerManager(store, ledgerRootPath);
+        @Cleanup PulsarLedgerManager ledgerManager = new PulsarLedgerManager(store, ledgerRootPath);
 
         /*
          * before proceeding with nuking existing cluster, make sure there
          * are no unexpected nodes under ledgersRootPath
          */
-        List<String> ledgersRootPathChildrenList = store.getChildren(ledgerRootPath).join();
+        List<String> ledgersRootPathChildrenList =
+                store.getChildren(ledgerRootPath).join();
         for (String ledgersRootPathChildren : ledgersRootPathChildrenList) {
             if ((!AbstractZkLedgerManager.isSpecialZnode(ledgersRootPathChildren))
                     && (!ledgerManager.isLedgerParentNode(ledgersRootPathChildren))) {
-                log.error("Found unexpected node : {} under ledgersRootPath : {} so exiting nuke operation",
-                        ledgersRootPathChildren, ledgerRootPath);
+                log.error(
+                        "Found unexpected node : {} under ledgersRootPath : {} so exiting nuke operation",
+                        ledgersRootPathChildren,
+                        ledgerRootPath);
                 return false;
             }
         }
@@ -126,10 +126,13 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
         // now delete all the special nodes recursively
         for (String ledgersRootPathChildren : store.getChildren(ledgerRootPath).join()) {
             if (AbstractZkLedgerManager.isSpecialZnode(ledgersRootPathChildren)) {
-                store.deleteRecursive(ledgerRootPath + "/" + ledgersRootPathChildren).join();
+                store.deleteRecursive(ledgerRootPath + "/" + ledgersRootPathChildren)
+                        .join();
             } else {
-                log.error("Found unexpected node : {} under ledgersRootPath : {} so exiting nuke operation",
-                        ledgersRootPathChildren, ledgerRootPath);
+                log.error(
+                        "Found unexpected node : {} under ledgersRootPath : {} so exiting nuke operation",
+                        ledgersRootPathChildren,
+                        ledgerRootPath);
                 return false;
             }
         }

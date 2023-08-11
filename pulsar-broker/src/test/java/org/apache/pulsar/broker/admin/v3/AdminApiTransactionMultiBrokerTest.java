@@ -69,8 +69,8 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
     @Test
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
         PulsarAdmin localAdmin = this.admin;
-        Map<String, String> map = localAdmin.lookups()
-                .lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        Map<String, String> map =
+                localAdmin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
 
         for (int i = 0; map.containsValue(getPulsarServiceList().get(i).getBrokerServiceUrl()); i++) {
             if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl()))
@@ -80,7 +80,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         if (pulsarClient != null) {
             pulsarClient.shutdown();
         }
-        //init tc stores
+        // init tc stores
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -96,9 +96,9 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         for (int i = 0; i < super.getBrokerCount(); i++) {
             getPulsarServiceList().get(i).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         }
-        String topic1 = NAMESPACE1 +  "/testGetTransactionBufferInternalStatsInMultiBroker";
+        String topic1 = NAMESPACE1 + "/testGetTransactionBufferInternalStatsInMultiBroker";
         assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
-        for (int i = 0; true ; i++) {
+        for (int i = 0; true; i++) {
             topic1 = topic1 + i;
             admin.topics().createNonPartitionedTopic(topic1);
             String segmentTopicBroker = admin.lookups()
@@ -115,16 +115,18 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
             }
         }
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic1).create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer(Schema.BYTES).topic(topic1).create();
         TransactionBufferInternalStats stats = admin.transactions()
-                .getTransactionBufferInternalStatsAsync(topic1, true).get();
+                .getTransactionBufferInternalStatsAsync(topic1, true)
+                .get();
         assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
         assertNull(stats.singleSnapshotSystemTopicInternalStats);
         assertNotNull(stats.segmentInternalStats);
-        assertTrue(stats.segmentInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
+        assertTrue(stats.segmentInternalStats.managedLedgerName.contains(
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
         assertNotNull(stats.segmentIndexInternalStats);
-        assertTrue(stats.segmentIndexInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
+        assertTrue(stats.segmentIndexInternalStats.managedLedgerName.contains(
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
     }
 }

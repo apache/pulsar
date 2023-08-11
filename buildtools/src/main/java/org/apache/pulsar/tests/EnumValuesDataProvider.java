@@ -45,7 +45,7 @@ public abstract class EnumValuesDataProvider {
     public static Object[][] toDataProviderArray(Class<? extends Enum<?>> enumClass) {
         Enum<?>[] enumValues = enumClass.getEnumConstants();
         return Stream.of(enumValues)
-                .map(enumValue -> new Object[]{enumValue})
+                .map(enumValue -> new Object[] {enumValue})
                 .collect(Collectors.toList())
                 .toArray(new Object[0][]);
     }

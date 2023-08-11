@@ -28,6 +28,7 @@ public interface BrokerInfo {
 
     interface Builder {
         Builder serviceUrl(String serviceUrl);
+
         BrokerInfo build();
     }
 

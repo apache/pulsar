@@ -21,6 +21,4 @@ package io.airlift.compress.zstd;
 /**
  * Exposes ZstdFrameDecompressor which is package protected.
  */
-public class ZStdRawDecompressor extends ZstdFrameDecompressor {
-
-}
+public class ZStdRawDecompressor extends ZstdFrameDecompressor {}

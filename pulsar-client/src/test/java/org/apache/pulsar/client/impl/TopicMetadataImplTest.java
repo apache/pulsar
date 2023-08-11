@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import org.testng.annotations.Test;
 
 /**
@@ -32,5 +31,4 @@ public class TopicMetadataImplTest {
         TopicMetadataImpl metadata = new TopicMetadataImpl(1234);
         assertEquals(1234, metadata.numPartitions());
     }
-
 }

@@ -23,7 +23,6 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 
-
 @Slf4j
 public class AvroSchemaTestFunction implements Function<AvroTestObject, AvroTestObject> {
 

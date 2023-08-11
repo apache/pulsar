@@ -54,7 +54,6 @@ public class PackagesManagementException extends Exception {
         super(message, throwable);
     }
 
-
     public static class NotFoundException extends PackagesManagementException {
         /**
          * Constructs an {@code NotFoundException} with the specified cause.
@@ -113,4 +112,3 @@ public class PackagesManagementException extends Exception {
         }
     }
 }
-

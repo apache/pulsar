@@ -60,9 +60,9 @@ public class NullValueTest extends BrokerTestBase {
 
     @DataProvider(name = "topics")
     public static Object[][] topics() {
-        return new Object[][]{
-                {"persistent://prop/ns-abc/null-value-test-0", 1},
-                {"persistent://prop/ns-abc/null-value-test-1", 3},
+        return new Object[][] {
+            {"persistent://prop/ns-abc/null-value-test-0", 1},
+            {"persistent://prop/ns-abc/null-value-test-1", 3},
         };
     }
 
@@ -72,16 +72,15 @@ public class NullValueTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
-        Producer producer = pulsarClient.newProducer()
+        Producer producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         @Cleanup
-        Consumer consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("test")
-                .subscribe();
+        Consumer consumer =
+                pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe();
 
         int numMessage = 10;
         for (int i = 0; i < numMessage; i++) {
@@ -133,7 +132,6 @@ public class NullValueTest extends BrokerTestBase {
                 }
             });
         }
-
     }
 
     @Test(dataProvider = "topics")
@@ -142,13 +140,15 @@ public class NullValueTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
-        Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL)
+        Producer<Boolean> producer = pulsarClient
+                .newProducer(Schema.BOOL)
                 .topic(topic)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         @Cleanup
-        Consumer<Boolean> consumer = pulsarClient.newConsumer(Schema.BOOL)
+        Consumer<Boolean> consumer = pulsarClient
+                .newConsumer(Schema.BOOL)
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
@@ -163,7 +163,6 @@ public class NullValueTest extends BrokerTestBase {
             Assert.assertNull(message.getValue());
             Assert.assertNull(message.getData());
         }
-
     }
 
     @Test(dataProvider = "topics")
@@ -210,7 +209,6 @@ public class NullValueTest extends BrokerTestBase {
             Assert.assertNull(keyValue.getKey());
             Assert.assertNull(keyValue.getValue());
         }
-
     }
 
     @Test(dataProvider = "topics")
@@ -264,7 +262,5 @@ public class NullValueTest extends BrokerTestBase {
             Assert.assertNull(keyValue.getKey());
             Assert.assertNull(keyValue.getValue());
         }
-
     }
-
 }

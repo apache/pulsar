@@ -43,8 +43,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
     private static final long serialVersionUID = 1L;
     private Supplier<String> tokenSupplier = null;
 
-    public AuthenticationToken() {
-    }
+    public AuthenticationToken() {}
 
     public AuthenticationToken(String token) {
         this(new SerializableTokenSupplier(token));
@@ -83,7 +82,8 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
             try {
                 // Read token from json string
                 JsonObject authParams = new Gson().fromJson(encodedAuthParamString, JsonObject.class);
-                this.tokenSupplier = new SerializableTokenSupplier(authParams.get("token").getAsString());
+                this.tokenSupplier =
+                        new SerializableTokenSupplier(authParams.get("token").getAsString());
             } catch (JsonSyntaxException e) {
                 this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString);
             }
@@ -134,6 +134,5 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         public String get() {
             return token;
         }
-
     }
 }

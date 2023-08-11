@@ -37,8 +37,10 @@ public interface TransactionBufferProvider {
      */
     static TransactionBufferProvider newProvider(String providerClassName) throws IOException {
         try {
-            TransactionBufferProvider transactionBufferProvider = Reflections.createInstance(providerClassName,
-                    TransactionBufferProvider.class, Thread.currentThread().getContextClassLoader());
+            TransactionBufferProvider transactionBufferProvider = Reflections.createInstance(
+                    providerClassName,
+                    TransactionBufferProvider.class,
+                    Thread.currentThread().getContextClassLoader());
             return transactionBufferProvider;
         } catch (Exception e) {
             throw new IOException(e);

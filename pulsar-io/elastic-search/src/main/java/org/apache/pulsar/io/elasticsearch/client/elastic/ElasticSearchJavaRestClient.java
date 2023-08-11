@@ -71,19 +71,19 @@ public class ElasticSearchJavaRestClient extends RestClient {
         this.transport = transport;
     }
 
-    public ElasticSearchJavaRestClient(ElasticSearchConfig elasticSearchConfig,
-                                       BulkProcessor.Listener bulkProcessorListener) {
+    public ElasticSearchJavaRestClient(
+            ElasticSearchConfig elasticSearchConfig, BulkProcessor.Listener bulkProcessorListener) {
         super(elasticSearchConfig, bulkProcessorListener);
 
         log.info("ElasticSearch URL {}", config.getElasticSearchUrl());
         final HttpHost[] httpHosts = getHttpHosts();
 
         RestClientBuilder builder = org.elasticsearch.client.RestClient.builder(httpHosts)
-                .setRequestConfigCallback(builder1 -> builder1
-                        .setContentCompressionEnabled(config.isCompressionEnabled())
-                        .setConnectionRequestTimeout(config.getConnectionRequestTimeoutInMs())
-                        .setConnectTimeout(config.getConnectTimeoutInMs())
-                        .setSocketTimeout(config.getSocketTimeoutInMs()))
+                .setRequestConfigCallback(
+                        builder1 -> builder1.setContentCompressionEnabled(config.isCompressionEnabled())
+                                .setConnectionRequestTimeout(config.getConnectionRequestTimeoutInMs())
+                                .setConnectTimeout(config.getConnectTimeoutInMs())
+                                .setSocketTimeout(config.getSocketTimeoutInMs()))
                 .setHttpClientConfigCallback(this.configCallback)
                 .setFailureListener(new org.elasticsearch.client.RestClient.FailureListener() {
                     public void onFailure(Node node) {
@@ -101,9 +101,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
 
     @Override
     public boolean indexExists(String index) throws IOException {
-        final ExistsRequest request = new ExistsRequest.Builder()
-                .index(index)
-                .build();
+        final ExistsRequest request = new ExistsRequest.Builder().index(index).build();
         return client.indices().exists(request).value();
     }
 
@@ -114,19 +112,18 @@ public class ElasticSearchJavaRestClient extends RestClient {
                 .settings(new IndexSettings.Builder()
                         .numberOfShards(config.getIndexNumberOfShards() + "")
                         .numberOfReplicas(config.getIndexNumberOfReplicas() + "")
-                        .build()
-                )
+                        .build())
                 .build();
         try {
             final CreateIndexResponse createIndexResponse = client.indices().create(createIndexRequest);
-            if ((createIndexResponse.acknowledged())
-                    && createIndexResponse.shardsAcknowledged()) {
+            if ((createIndexResponse.acknowledged()) && createIndexResponse.shardsAcknowledged()) {
                 return true;
             }
             throw new IOException("Unable to create index, acknowledged: " + createIndexResponse.acknowledged()
                     + " shardsAcknowledged: " + createIndexResponse.shardsAcknowledged());
         } catch (ElasticsearchException ex) {
-            final String errorType = Objects.requireNonNull(ex.response().error().type());
+            final String errorType =
+                    Objects.requireNonNull(ex.response().error().type());
             if (errorType.contains("resource_already_exists_exception")) {
                 return false;
             }
@@ -136,19 +133,21 @@ public class ElasticSearchJavaRestClient extends RestClient {
 
     @Override
     public boolean deleteIndex(String index) throws IOException {
-        return client.indices().delete(new DeleteIndexRequest.Builder().index(index).build()).acknowledged();
+        return client.indices()
+                .delete(new DeleteIndexRequest.Builder().index(index).build())
+                .acknowledged();
     }
 
     @Override
     public boolean deleteDocument(String index, String documentId) throws IOException {
-        final DeleteRequest req = new
-                DeleteRequest.Builder()
+        final DeleteRequest req = new DeleteRequest.Builder()
                 .index(config.getIndexName())
                 .id(documentId)
                 .build();
 
         DeleteResponse deleteResponse = client.delete(req);
-        return deleteResponse.result().equals(Result.Deleted) || deleteResponse.result().equals(Result.NotFound);
+        return deleteResponse.result().equals(Result.Deleted)
+                || deleteResponse.result().equals(Result.NotFound);
     }
 
     @Override
@@ -161,7 +160,8 @@ public class ElasticSearchJavaRestClient extends RestClient {
                 .build();
         final IndexResponse indexResponse = client.index(indexRequest);
 
-        return indexResponse.result().equals(Result.Created) || indexResponse.result().equals(Result.Updated);
+        return indexResponse.result().equals(Result.Created)
+                || indexResponse.result().equals(Result.Updated);
     }
 
     public SearchResponse<Map> search(String indexName) throws IOException {
@@ -170,13 +170,13 @@ public class ElasticSearchJavaRestClient extends RestClient {
 
     @VisibleForTesting
     public SearchResponse<Map> search(String indexName, String query) throws IOException {
-        final RefreshRequest refreshRequest = new RefreshRequest.Builder().index(indexName).build();
+        final RefreshRequest refreshRequest =
+                new RefreshRequest.Builder().index(indexName).build();
         client.indices().refresh(refreshRequest);
 
         query = query.replace("/", "\\/");
-        return client.search(new SearchRequest.Builder().index(indexName)
-                .q(query)
-                .build(), Map.class);
+        return client.search(
+                new SearchRequest.Builder().index(indexName).q(query).build(), Map.class);
     }
 
     @Override

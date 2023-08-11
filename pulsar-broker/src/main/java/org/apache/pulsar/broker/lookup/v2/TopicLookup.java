@@ -49,16 +49,15 @@ public class TopicLookup extends TopicLookupBase {
     @GET
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(
-            value = "Get the owner broker of the given topic.",
-            response = LookupData.class
-    )
-    @ApiResponses(value = { @ApiResponse(code = 307,
-            message = "Current broker doesn't serve the namespace of this topic") })
+    @ApiOperation(value = "Get the owner broker of the given topic.", response = LookupData.class)
+    @ApiResponses(
+            value = {@ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic")})
     public void lookupTopicAsync(
             @Suspended AsyncResponse asyncResponse,
-            @PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("topic-domain") String topicDomain,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("listenerName") String listenerName,
             @HeaderParam(LISTENERNAME_HEADER) String listenerNameHeader) {
@@ -80,14 +79,16 @@ public class TopicLookup extends TopicLookupBase {
     @GET
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}/bundle")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(
-            value = "Get the namespace bundle which the given topic belongs to.",
-            response = String.class
-    )
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 405, message = "Invalid topic domain type") })
-    public String getNamespaceBundle(@PathParam("topic-domain") String topicDomain,
-            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    @ApiOperation(value = "Get the namespace bundle which the given topic belongs to.", response = String.class)
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 405, message = "Invalid topic domain type")
+            })
+    public String getNamespaceBundle(
+            @PathParam("topic-domain") String topicDomain,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic) {
         TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
         return internalGetNamespaceBundle(topicName);

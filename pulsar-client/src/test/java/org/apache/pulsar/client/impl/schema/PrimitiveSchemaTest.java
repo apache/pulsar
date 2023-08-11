@@ -22,7 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
@@ -49,7 +48,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PrimitiveSchemaTest {
 
-
     @DataProvider(name = "schemas")
     public Object[][] schemas() {
 
@@ -69,13 +67,36 @@ public class PrimitiveSchemaTest {
                 put(BytesSchema.of(), Arrays.asList("my string".getBytes(UTF_8)));
                 put(ByteBufferSchema.of(), Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
                 put(ByteBufSchema.of(), Arrays.asList(Unpooled.wrappedBuffer("my string".getBytes(UTF_8))));
-                put(DateSchema.of(), Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
-                put(TimeSchema.of(), Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
-                put(TimestampSchema.of(), Arrays.asList(new Timestamp(new java.util.Date().getTime()), new Timestamp(new java.util.Date().getTime())));
-                put(InstantSchema.of(), Arrays.asList(Instant.now(), Instant.now().minusSeconds(60*23L)));
-                put(LocalDateSchema.of(), Arrays.asList(LocalDate.now(), LocalDate.now().minusDays(2)));
-                put(LocalTimeSchema.of(), Arrays.asList(LocalTime.now(), LocalTime.now().minusHours(2)));
-                put(LocalDateTimeSchema.of(), Arrays.asList(LocalDateTime.now(), LocalDateTime.now().minusDays(2), LocalDateTime.now().minusWeeks(10)));
+                put(
+                        DateSchema.of(),
+                        Arrays.asList(
+                                new Date(new java.util.Date().getTime() - 10000),
+                                new Date(new java.util.Date().getTime())));
+                put(
+                        TimeSchema.of(),
+                        Arrays.asList(
+                                new Time(new java.util.Date().getTime() - 10000),
+                                new Time(new java.util.Date().getTime())));
+                put(
+                        TimestampSchema.of(),
+                        Arrays.asList(
+                                new Timestamp(new java.util.Date().getTime()),
+                                new Timestamp(new java.util.Date().getTime())));
+                put(
+                        InstantSchema.of(),
+                        Arrays.asList(Instant.now(), Instant.now().minusSeconds(60 * 23L)));
+                put(
+                        LocalDateSchema.of(),
+                        Arrays.asList(LocalDate.now(), LocalDate.now().minusDays(2)));
+                put(
+                        LocalTimeSchema.of(),
+                        Arrays.asList(LocalTime.now(), LocalTime.now().minusHours(2)));
+                put(
+                        LocalDateTimeSchema.of(),
+                        Arrays.asList(
+                                LocalDateTime.now(),
+                                LocalDateTime.now().minusDays(2),
+                                LocalDateTime.now().minusWeeks(10)));
             }
         };
 
@@ -91,13 +112,34 @@ public class PrimitiveSchemaTest {
                 put(Schema.DOUBLE, Arrays.asList(5678567.12312d, -5678567.12341d));
                 put(Schema.BYTES, Arrays.asList("my string".getBytes(UTF_8)));
                 put(Schema.BYTEBUFFER, Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
-                put(Schema.DATE, Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
-                put(Schema.TIME, Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
-                put(Schema.TIMESTAMP, Arrays.asList(new Timestamp(new java.util.Date().getTime() - 10000), new Timestamp(new java.util.Date().getTime())));
-                put(Schema.INSTANT, Arrays.asList(Instant.now(), Instant.now().minusSeconds(60*23L)));
-                put(Schema.LOCAL_DATE, Arrays.asList(LocalDate.now(), LocalDate.now().minusDays(2)));
-                put(Schema.LOCAL_TIME, Arrays.asList(LocalTime.now(), LocalTime.now().minusHours(2)));
-                put(Schema.LOCAL_DATE_TIME, Arrays.asList(LocalDateTime.now(), LocalDateTime.now().minusDays(2), LocalDateTime.now().minusWeeks(10)));
+                put(
+                        Schema.DATE,
+                        Arrays.asList(
+                                new Date(new java.util.Date().getTime() - 10000),
+                                new Date(new java.util.Date().getTime())));
+                put(
+                        Schema.TIME,
+                        Arrays.asList(
+                                new Time(new java.util.Date().getTime() - 10000),
+                                new Time(new java.util.Date().getTime())));
+                put(
+                        Schema.TIMESTAMP,
+                        Arrays.asList(
+                                new Timestamp(new java.util.Date().getTime() - 10000),
+                                new Timestamp(new java.util.Date().getTime())));
+                put(Schema.INSTANT, Arrays.asList(Instant.now(), Instant.now().minusSeconds(60 * 23L)));
+                put(
+                        Schema.LOCAL_DATE,
+                        Arrays.asList(LocalDate.now(), LocalDate.now().minusDays(2)));
+                put(
+                        Schema.LOCAL_TIME,
+                        Arrays.asList(LocalTime.now(), LocalTime.now().minusHours(2)));
+                put(
+                        Schema.LOCAL_DATE_TIME,
+                        Arrays.asList(
+                                LocalDateTime.now(),
+                                LocalDateTime.now().minusDays(2),
+                                LocalDateTime.now().minusWeeks(10)));
             }
         };
 
@@ -108,21 +150,24 @@ public class PrimitiveSchemaTest {
             assertNotNull(schema);
         }
 
-        return new Object[][] { { testData }, { testData2 } };
+        return new Object[][] {{testData}, {testData2}};
     }
 
     @Test(dataProvider = "schemas")
     public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
         for (Schema<?> schema : testData.keySet()) {
             byte[] bytes = null;
-            ByteBuf byteBuf =  null;
+            ByteBuf byteBuf = null;
             try {
-                assertNull(schema.encode(null),
-                    "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
-                assertNull(schema.decode(bytes),
-                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
-                assertNull(((AbstractSchema) schema).decode(byteBuf),
-                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+                assertNull(
+                        schema.encode(null),
+                        "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
+                assertNull(
+                        schema.decode(bytes),
+                        "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+                assertNull(
+                        ((AbstractSchema) schema).decode(byteBuf),
+                        "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
             } catch (NullPointerException npe) {
                 throw new IllegalArgumentException("NPE when using schema " + schema + " : " + npe.getMessage(), npe);
             }
@@ -136,13 +181,15 @@ public class PrimitiveSchemaTest {
             for (Object value : test.getValue()) {
                 log.info("Encode : {}", value);
                 try {
-                    assertEquals(value,
-                        test.getKey().decode(test.getKey().encode(value)),
-                        "Should get the original " + test.getKey().getSchemaInfo().getName() +
-                            " after serialization and deserialization");
+                    assertEquals(
+                            value,
+                            test.getKey().decode(test.getKey().encode(value)),
+                            "Should get the original "
+                                    + test.getKey().getSchemaInfo().getName()
+                                    + " after serialization and deserialization");
                 } catch (NullPointerException npe) {
-                    throw new IllegalArgumentException("NPE when using schema " + test.getKey()
-                        + " : " + npe.getMessage(), npe);
+                    throw new IllegalArgumentException(
+                            "NPE when using schema " + test.getKey() + " : " + npe.getMessage(), npe);
                 }
             }
         }
@@ -167,8 +214,8 @@ public class PrimitiveSchemaTest {
         assertEquals(SchemaType.INSTANT, InstantSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.LOCAL_DATE, LocalDateSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.LOCAL_TIME, LocalTimeSchema.of().getSchemaInfo().getType());
-        assertEquals(SchemaType.LOCAL_DATE_TIME, LocalDateTimeSchema.of().getSchemaInfo().getType());
+        assertEquals(
+                SchemaType.LOCAL_DATE_TIME,
+                LocalDateTimeSchema.of().getSchemaInfo().getType());
     }
-
-
 }

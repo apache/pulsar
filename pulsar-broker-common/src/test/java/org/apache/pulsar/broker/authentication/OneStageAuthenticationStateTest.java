@@ -28,14 +28,14 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.AuthData;
-import org.testng.annotations.Test;
-import javax.naming.AuthenticationException;
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.LongAdder;
+import javax.naming.AuthenticationException;
+import javax.servlet.http.HttpServletRequest;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.api.AuthData;
+import org.testng.annotations.Test;
 
 public class OneStageAuthenticationStateTest {
 
@@ -43,8 +43,7 @@ public class OneStageAuthenticationStateTest {
         public LongAdder authCallCount = new LongAdder();
 
         @Override
-        public void initialize(ServiceConfiguration config) throws IOException {
-        }
+        public void initialize(ServiceConfiguration config) throws IOException {}
 
         @Override
         public String getAuthMethodName() {
@@ -52,8 +51,7 @@ public class OneStageAuthenticationStateTest {
         }
 
         @Override
-        public void close() throws IOException {
-        }
+        public void close() throws IOException {}
 
         @Override
         public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
@@ -62,7 +60,7 @@ public class OneStageAuthenticationStateTest {
         }
 
         public int getAuthCallCount() {
-                return authCallCount.intValue();
+            return authCallCount.intValue();
         }
     }
 
@@ -80,7 +78,8 @@ public class OneStageAuthenticationStateTest {
         assertTrue(firstAuthenticationDataSource instanceof AuthenticationDataCommand);
 
         // Verify subsequent call to authenticate does not change data
-        AuthData secondChallenge = authState.authenticateAsync(AuthData.of("admin".getBytes())).get();
+        AuthData secondChallenge =
+                authState.authenticateAsync(AuthData.of("admin".getBytes())).get();
         assertNull(secondChallenge);
         assertEquals(authState.getAuthRole(), "role");
         AuthenticationDataSource secondAuthenticationDataSource = authState.getAuthDataSource();

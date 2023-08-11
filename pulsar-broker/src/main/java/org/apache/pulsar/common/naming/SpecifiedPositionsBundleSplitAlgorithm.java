@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +27,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 /**
  * This algorithm divides the bundle into several parts by the specified positions.
  */
-public class SpecifiedPositionsBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm{
+public class SpecifiedPositionsBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm {
 
     private boolean force;
 
@@ -39,6 +38,7 @@ public class SpecifiedPositionsBundleSplitAlgorithm implements NamespaceBundleSp
     public SpecifiedPositionsBundleSplitAlgorithm(boolean force) {
         this.force = force;
     }
+
     @Override
     public CompletableFuture<List<Long>> getSplitBoundary(BundleSplitOption bundleSplitOption) {
         NamespaceService service = bundleSplitOption.getService();
@@ -52,19 +52,17 @@ public class SpecifiedPositionsBundleSplitAlgorithm implements NamespaceBundleSp
         if (force) {
             return getBoundaries(bundle, positions);
         } else {
-            return service.getOwnedTopicListForNamespaceBundle(bundle)
-                    .thenCompose(topics -> {
-                        if (topics == null || topics.size() <= 1) {
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        return getBoundaries(bundle, positions);
-                    });
+            return service.getOwnedTopicListForNamespaceBundle(bundle).thenCompose(topics -> {
+                if (topics == null || topics.size() <= 1) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                return getBoundaries(bundle, positions);
+            });
         }
     }
 
     private CompletableFuture<List<Long>> getBoundaries(NamespaceBundle bundle, List<Long> positions) {
-        List<Long> splitBoundaries = positions
-                .stream()
+        List<Long> splitBoundaries = positions.stream()
                 .filter(position -> position > bundle.getLowerEndpoint() && position < bundle.getUpperEndpoint())
                 .collect(Collectors.toList());
 

@@ -69,8 +69,10 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     private boolean unwrapKeyValueIfAvailable;
 
     private PulsarKafkaSinkContext sinkContext;
+
     @VisibleForTesting
     PulsarKafkaSinkTaskContext taskContext;
+
     private SinkConnector connector;
     private SinkTask task;
 
@@ -82,8 +84,10 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                     .setNameFormat("pulsar-io-kafka-adaptor-sink-flush-%d")
                     .build());
+
     @VisibleForTesting
     protected final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
+
     private final AtomicBoolean isFlushRunning = new AtomicBoolean(false);
     private volatile boolean isRunning = false;
 
@@ -97,9 +101,10 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     // Thi is a workaround for https://github.com/apache/pulsar/issues/19922
     private boolean collapsePartitionedTopics = false;
 
-    private final Cache<String, String> sanitizedTopicCache =
-            CacheBuilder.newBuilder().maximumSize(1000)
-                    .expireAfterAccess(30, TimeUnit.MINUTES).build();
+    private final Cache<String, String> sanitizedTopicCache = CacheBuilder.newBuilder()
+            .maximumSize(1000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build();
 
     // Can't really safely expire these entries.  If we do, we could end up with
     // a sanitized topic name that used in e.g. resume() after a long pause but can't be
@@ -159,8 +164,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     public void open(Map<String, Object> config, SinkContext ctx) throws Exception {
         kafkaSinkConfig = PulsarKafkaConnectSinkConfig.load(config);
         Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
-        Preconditions.checkArgument(ctx.getSubscriptionType() == SubscriptionType.Failover
-                || ctx.getSubscriptionType() == SubscriptionType.Exclusive,
+        Preconditions.checkArgument(
+                ctx.getSubscriptionType() == SubscriptionType.Failover
+                        || ctx.getSubscriptionType() == SubscriptionType.Exclusive,
                 "Source must run with Exclusive or Failover subscription type");
         topicName = kafkaSinkConfig.getTopic();
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
@@ -170,8 +176,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
         useIndexAsOffset = kafkaSinkConfig.isUseIndexAsOffset();
         maxBatchBitsForOffset = kafkaSinkConfig.getMaxBatchBitsForOffset();
-        Preconditions.checkArgument(maxBatchBitsForOffset <= 20,
-                "Cannot use more than 20 bits for maxBatchBitsForOffset");
+        Preconditions.checkArgument(
+                maxBatchBitsForOffset <= 20, "Cannot use more than 20 bits for maxBatchBitsForOffset");
 
         String kafkaConnectorFQClassName = kafkaSinkConfig.getKafkaConnectorSinkClass();
         kafkaSinkConfig.getKafkaConnectorConfigProperties().forEach(props::put);
@@ -189,27 +195,26 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         Preconditions.checkArgument(configs.size() == 1);
 
         // configs may contain immutable/unmodifiable maps
-        configs = configs.stream()
-                .map(HashMap::new)
-                .collect(Collectors.toList());
+        configs = configs.stream().map(HashMap::new).collect(Collectors.toList());
 
         configs.forEach(x -> {
             x.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, kafkaSinkConfig.getOffsetStorageTopic());
         });
         task = (SinkTask) taskClass.getConstructor().newInstance();
-        taskContext =
-                new PulsarKafkaSinkTaskContext(configs.get(0), ctx, task::open, kafkaName -> {
-                    if (sanitizeTopicName) {
-                        String pulsarTopicName = desanitizedTopicCache.getIfPresent(kafkaName);
-                        if (log.isDebugEnabled()) {
-                            log.debug("desanitizedTopicCache got: kafkaName: {}, pulsarTopicName: {}",
-                                    kafkaName, pulsarTopicName);
-                        }
-                        return pulsarTopicName != null ? pulsarTopicName : kafkaName;
-                    } else {
-                        return kafkaName;
-                    }
-                });
+        taskContext = new PulsarKafkaSinkTaskContext(configs.get(0), ctx, task::open, kafkaName -> {
+            if (sanitizeTopicName) {
+                String pulsarTopicName = desanitizedTopicCache.getIfPresent(kafkaName);
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "desanitizedTopicCache got: kafkaName: {}, pulsarTopicName: {}",
+                            kafkaName,
+                            pulsarTopicName);
+                }
+                return pulsarTopicName != null ? pulsarTopicName : kafkaName;
+            } else {
+                return kafkaName;
+            }
+        });
         task.initialize(taskContext);
         task.start(configs.get(0));
 
@@ -217,8 +222,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         lingerMs = kafkaSinkConfig.getLingerTimeMs();
 
         isRunning = true;
-        scheduledExecutor.scheduleWithFixedDelay(() ->
-                this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
+        scheduledExecutor.scheduleWithFixedDelay(
+                () -> this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
 
         log.info("Kafka sink started : {}.", props);
     }
@@ -235,8 +240,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     // flush always happens on the same thread
     public void flush() {
         if (log.isDebugEnabled()) {
-            log.debug("flush requested, pending: {}, batchSize: {}",
-                    currentBatchSize.get(), maxBatchSize);
+            log.debug("flush requested, pending: {}, batchSize: {}", currentBatchSize.get(), maxBatchSize);
         }
 
         if (pendingFlushQueue.isEmpty()) {
@@ -270,27 +274,27 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
     }
 
-    private static boolean areMapsEqual(Map<TopicPartition, OffsetAndMetadata> first,
-                                        Map<TopicPartition, OffsetAndMetadata> second) {
+    private static boolean areMapsEqual(
+            Map<TopicPartition, OffsetAndMetadata> first, Map<TopicPartition, OffsetAndMetadata> second) {
         if (first.size() != second.size()) {
             return false;
         }
 
-        return first.entrySet().stream()
-                .allMatch(e -> e.getValue().equals(second.get(e.getKey())));
+        return first.entrySet().stream().allMatch(e -> e.getValue().equals(second.get(e.getKey())));
     }
 
     @VisibleForTesting
-    protected void ackUntil(Record<GenericObject> lastNotFlushed,
-                          Map<TopicPartition, OffsetAndMetadata> committedOffsets,
-                          java.util.function.Consumer<Record<GenericObject>> cb) {
+    protected void ackUntil(
+            Record<GenericObject> lastNotFlushed,
+            Map<TopicPartition, OffsetAndMetadata> committedOffsets,
+            java.util.function.Consumer<Record<GenericObject>> cb) {
         // lastNotFlushed is needed in case of default preCommit() implementation
         // which calls flush() and returns currentOffsets passed to it.
         // We don't want to ack messages added to pendingFlushQueue after the preCommit/flush call
 
         // to avoid creation of new TopicPartition for each record in pendingFlushQueue
         Map<String, Map<Integer, Long>> topicOffsets = new HashMap<>();
-        for (Map.Entry<TopicPartition, OffsetAndMetadata> e: committedOffsets.entrySet()) {
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> e : committedOffsets.entrySet()) {
             TopicPartition tp = e.getKey();
             if (!topicOffsets.containsKey(tp.topic())) {
                 topicOffsets.put(tp.topic(), new HashMap<>());
@@ -339,8 +343,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             // Use index added by org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor if present.
             // Requires exposingBrokerEntryMetadataToClientEnabled=true on brokers.
             if (useIndexAsOffset && sourceRecord.getMessage().get().hasIndex()) {
-                return sourceRecord.getMessage().get()
-                        .getIndex().orElse(-1L);
+                return sourceRecord.getMessage().get().getIndex().orElse(-1L);
             }
 
             MessageId messageId = sourceRecord.getMessage().get().getMessageId();
@@ -378,8 +381,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 }
             }
         }
-        return sourceRecord.getRecordSequence()
-                .orElse(-1L);
+        return sourceRecord.getRecordSequence().orElse(-1L);
     }
 
     @Getter
@@ -414,7 +416,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         int batchIdx;
         try {
             try {
-                batchIdx = (int) getMethodOfMessageId(messageId, "getBatchIndex").invoke(messageId);
+                batchIdx =
+                        (int) getMethodOfMessageId(messageId, "getBatchIndex").invoke(messageId);
                 if (batchIdx < 0) {
                     return null;
                 }
@@ -426,8 +429,11 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             ledgerId = (long) getMethodOfMessageId(messageId, "getLedgerId").invoke(messageId);
             entryId = (long) getMethodOfMessageId(messageId, "getEntryId").invoke(messageId);
         } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException ex) {
-            log.error("Unexpected error while retrieving sequenceId, messageId class: {}, error: {}",
-                    messageId.getClass().getName(), ex.getMessage(), ex);
+            log.error(
+                    "Unexpected error while retrieving sequenceId, messageId class: {}, error: {}",
+                    messageId.getClass().getName(),
+                    ex.getMessage(),
+                    ex);
             throw new RuntimeException(ex);
         }
 
@@ -456,15 +462,16 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
         // sourceRecord is never instanceof KVRecord
         // https://github.com/apache/pulsar/pull/10113
-        if (unwrapKeyValueIfAvailable && sourceRecord.getSchema() != null
+        if (unwrapKeyValueIfAvailable
+                && sourceRecord.getSchema() != null
                 && sourceRecord.getSchema().getSchemaInfo() != null
                 && sourceRecord.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) sourceRecord.getSchema();
             // Assume Key_Value schema's key and value are always optional
-            keySchema = PulsarSchemaToKafkaSchema
-                    .getOptionalKafkaConnectSchema(kvSchema.getKeySchema(), useOptionalPrimitives);
-            valueSchema = PulsarSchemaToKafkaSchema
-                    .getOptionalKafkaConnectSchema(kvSchema.getValueSchema(), useOptionalPrimitives);
+            keySchema = PulsarSchemaToKafkaSchema.getOptionalKafkaConnectSchema(
+                    kvSchema.getKeySchema(), useOptionalPrimitives);
+            valueSchema = PulsarSchemaToKafkaSchema.getOptionalKafkaConnectSchema(
+                    kvSchema.getValueSchema(), useOptionalPrimitives);
 
             Object nativeObject = sourceRecord.getValue().getNativeObject();
 
@@ -486,8 +493,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 key = sourceRecord.getKey().orElse(null);
                 keySchema = useOptionalPrimitives ? Schema.OPTIONAL_STRING_SCHEMA : Schema.STRING_SCHEMA;
             }
-            valueSchema = PulsarSchemaToKafkaSchema
-                    .getKafkaConnectSchema(sourceRecord.getSchema(), useOptionalPrimitives);
+            valueSchema =
+                    PulsarSchemaToKafkaSchema.getKafkaConnectSchema(sourceRecord.getSchema(), useOptionalPrimitives);
             value = KafkaConnectData.getKafkaConnectData(sourceRecord.getValue().getNativeObject(), valueSchema);
         }
 
@@ -508,15 +515,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             // keep timestampType = TimestampType.NO_TIMESTAMP_TYPE
             timestamp = sourceRecord.getMessage().get().getPublishTime();
         }
-        return new SinkRecord(topic,
-                partition,
-                keySchema,
-                key,
-                valueSchema,
-                value,
-                offset,
-                timestamp,
-                timestampType);
+        return new SinkRecord(topic, partition, keySchema, key, valueSchema, value, offset, timestamp, timestampType);
     }
 
     @VisibleForTesting
@@ -547,5 +546,4 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             throw new IllegalStateException("Failed to get sanitized topic name for " + name, e);
         }
     }
-
 }

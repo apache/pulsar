@@ -41,8 +41,10 @@ public class NonClosingProxyHandler implements InvocationHandler {
         if (isNonClosingProxy(delegate)) {
             return delegate;
         }
-        return interfaceClass.cast(Proxy.newProxyInstance(delegate.getClass().getClassLoader(),
-                new Class<?>[] {interfaceClass}, new NonClosingProxyHandler(delegate)));
+        return interfaceClass.cast(Proxy.newProxyInstance(
+                delegate.getClass().getClassLoader(),
+                new Class<?>[] {interfaceClass},
+                new NonClosingProxyHandler(delegate)));
     }
 
     /**

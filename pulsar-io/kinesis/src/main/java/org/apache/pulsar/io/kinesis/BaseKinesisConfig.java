@@ -29,41 +29,31 @@ public abstract class BaseKinesisConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
-    )
+            required = false,
+            defaultValue = "",
+            help = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html")
     private String awsEndpoint = "";
 
-
-    @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "Appropriate aws region. E.g. us-west-1, us-west-2"
-    )
+    @FieldDoc(required = false, defaultValue = "", help = "Appropriate aws region. E.g. us-west-1, us-west-2")
     private String awsRegion = "";
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "Kinesis stream name"
-    )
+    @FieldDoc(required = true, defaultValue = "", help = "Kinesis stream name")
     private String awsKinesisStreamName = "";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
-            + " It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink."
-            + " If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map"
-            + " of credentials in `awsCredentialPluginParam`")
+            required = false,
+            defaultValue = "",
+            help = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
+                    + " It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink."
+                    + " If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map"
+                    + " of credentials in `awsCredentialPluginParam`")
     private String awsCredentialPluginName = "";
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        sensitive = true,
-        help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
+            required = true,
+            defaultValue = "",
+            sensitive = true,
+            help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
     private String awsCredentialPluginParam = "";
 
     protected Region regionAsV2Region() {

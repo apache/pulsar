@@ -49,44 +49,42 @@ import org.apache.pulsar.admin.cli.extensions.ParameterType;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 
 public final class CustomCommandsUtils {
-    private CustomCommandsUtils() {
-    }
+    private CustomCommandsUtils() {}
 
-    public static Object generateCliCommand(CustomCommandGroup group, CommandExecutionContext context,
-                                            Supplier<PulsarAdmin> pulsarAdmin){
+    public static Object generateCliCommand(
+            CustomCommandGroup group, CommandExecutionContext context, Supplier<PulsarAdmin> pulsarAdmin) {
         List<CustomCommand> commands = group.commands(context);
         String description = group.description();
 
         try {
             ClassPool pool = ClassPool.getDefault();
-            CtClass ctClass = pool.makeClass("CustomCommandGroup" + group
-                    + "_" + System.nanoTime());
+            CtClass ctClass = pool.makeClass("CustomCommandGroup" + group + "_" + System.nanoTime());
             ctClass.setSuperclass(pool.get(CmdBaseAdapter.class.getName()));
 
             // add class annotation
             ClassFile classFile = ctClass.getClassFile();
             ConstPool constpool = classFile.getConstPool();
-            AnnotationsAttribute annotationsAttribute = new AnnotationsAttribute(constpool,
-                    AnnotationsAttribute.visibleTag);
+            AnnotationsAttribute annotationsAttribute =
+                    new AnnotationsAttribute(constpool, AnnotationsAttribute.visibleTag);
             Annotation annotation = new Annotation(Parameters.class.getName(), constpool);
-            annotation.addMemberValue("commandDescription", new StringMemberValue(description,
-                    classFile.getConstPool()));
+            annotation.addMemberValue(
+                    "commandDescription", new StringMemberValue(description, classFile.getConstPool()));
             annotationsAttribute.setAnnotation(annotation);
             ctClass.getClassFile().addAttribute(annotationsAttribute);
 
             // Add a constructor which calls super( ... );
-            CtClass[] params = new CtClass[]{
-                    pool.get(String.class.getName()),
-                    pool.get(Supplier.class.getName()),
-                    pool.get(List.class.getName()),
-                    pool.get(CommandExecutionContext.class.getName())
+            CtClass[] params = new CtClass[] {
+                pool.get(String.class.getName()),
+                pool.get(Supplier.class.getName()),
+                pool.get(List.class.getName()),
+                pool.get(CommandExecutionContext.class.getName())
             };
-            final CtConstructor ctor = CtNewConstructor.make(params, null, CtNewConstructor.PASS_PARAMS,
-                    null, null, ctClass);
+            final CtConstructor ctor =
+                    CtNewConstructor.make(params, null, CtNewConstructor.PASS_PARAMS, null, null, ctClass);
             ctClass.addConstructor(ctor);
 
-            return ctClass.toClass().getConstructor(String.class, Supplier.class, List.class,
-                            CommandExecutionContext.class)
+            return ctClass.toClass()
+                    .getConstructor(String.class, Supplier.class, List.class, CommandExecutionContext.class)
                     .newInstance(group.name(), pulsarAdmin, commands, context);
         } catch (Throwable t) {
             throw new RuntimeException(t);
@@ -94,8 +92,11 @@ public final class CustomCommandsUtils {
     }
 
     public static class CmdBaseAdapter extends CmdBase {
-        public CmdBaseAdapter(String cmdName, Supplier<PulsarAdmin> adminSupplier,
-                              List<CustomCommand> customCommands, CommandExecutionContext context) {
+        public CmdBaseAdapter(
+                String cmdName,
+                Supplier<PulsarAdmin> adminSupplier,
+                List<CustomCommand> customCommands,
+                CommandExecutionContext context) {
             super(cmdName, adminSupplier);
             for (CustomCommand command : customCommands) {
                 String name = command.name();
@@ -107,15 +108,13 @@ public final class CustomCommandsUtils {
         }
     }
 
-
     @Setter
     public static class DecoratedCommand extends CliCommand {
 
         private CustomCommand command;
         private CommandExecutionContext context;
 
-        public DecoratedCommand() {
-        }
+        public DecoratedCommand() {}
 
         @Override
         public void run() throws Exception {
@@ -131,8 +130,7 @@ public final class CustomCommandsUtils {
         try {
             String description = command.description();
             ClassPool pool = ClassPool.getDefault();
-            CtClass ctClass = pool.makeClass("CustomCommand" + group
-                    + "_" + name + "_" + System.nanoTime());
+            CtClass ctClass = pool.makeClass("CustomCommand" + group + "_" + name + "_" + System.nanoTime());
             ctClass.setSuperclass(pool.get(DecoratedCommand.class.getName()));
 
             // add class annotation
@@ -140,14 +138,13 @@ public final class CustomCommandsUtils {
             ClassFile classFile = ctClass.getClassFile();
             ConstPool constpool = classFile.getConstPool();
 
-            AnnotationsAttribute annotationsAttribute = new AnnotationsAttribute(constpool,
-                    AnnotationsAttribute.visibleTag);
+            AnnotationsAttribute annotationsAttribute =
+                    new AnnotationsAttribute(constpool, AnnotationsAttribute.visibleTag);
             Annotation annotation = new Annotation(Parameters.class.getName(), constpool);
-            annotation.addMemberValue("commandDescription",
-                    new StringMemberValue(description, classFile.getConstPool()));
+            annotation.addMemberValue(
+                    "commandDescription", new StringMemberValue(description, classFile.getConstPool()));
             annotationsAttribute.setAnnotation(annotation);
             ctClass.getClassFile().addAttribute(annotationsAttribute);
-
 
             // add fields
             List<ParameterDescriptor> parameters = command.parameters();
@@ -181,8 +178,8 @@ public final class CustomCommandsUtils {
                 String fieldName = parameterNames.get(0);
                 CtField field = new CtField(fieldType, fieldName, ctClass);
 
-                AnnotationsAttribute fieldAnnotationsAttribute = new AnnotationsAttribute(constpool,
-                        AnnotationsAttribute.visibleTag);
+                AnnotationsAttribute fieldAnnotationsAttribute =
+                        new AnnotationsAttribute(constpool, AnnotationsAttribute.visibleTag);
                 Annotation fieldAnnotation = new Annotation(Parameter.class.getName(), constpool);
 
                 // in JCommander if you don't set the "names" property then you want to get all the other
@@ -198,13 +195,13 @@ public final class CustomCommandsUtils {
                     fieldAnnotation.addMemberValue("names", arrayMemberValue);
                 }
 
-                fieldAnnotation.addMemberValue("description",
+                fieldAnnotation.addMemberValue(
+                        "description",
                         new StringMemberValue(parameterDescriptor.getDescription(), classFile.getConstPool()));
-                fieldAnnotation.addMemberValue("required",
-                        new BooleanMemberValue(parameterDescriptor.isRequired(), classFile.getConstPool()));
+                fieldAnnotation.addMemberValue(
+                        "required", new BooleanMemberValue(parameterDescriptor.isRequired(), classFile.getConstPool()));
                 if (parameterDescriptor.getType() == ParameterType.BOOLEAN) {
-                    fieldAnnotation.addMemberValue("arity",
-                            new IntegerMemberValue(classFile.getConstPool(), 1));
+                    fieldAnnotation.addMemberValue("arity", new IntegerMemberValue(classFile.getConstPool(), 1));
                 }
                 fieldAnnotationsAttribute.setAnnotation(fieldAnnotation);
                 field.getFieldInfo().addAttribute(fieldAnnotationsAttribute);
@@ -212,7 +209,6 @@ public final class CustomCommandsUtils {
 
                 ctClass.addField(field);
             }
-
 
             return (DecoratedCommand) ctClass.toClass().getConstructor().newInstance();
         } catch (Throwable t) {

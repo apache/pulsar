@@ -31,5 +31,4 @@ import lombok.experimental.Accessors;
 class ExtensionsDefinitions {
 
     private final Map<String, ProxyExtensionMetadata> extensions = new TreeMap<>();
-
 }

@@ -71,7 +71,8 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
         KeyValue<K, V> keyValue = extractKeyValue(record);
         BoundStatement bound = statement.bind(keyValue.getKey(), keyValue.getValue());
         ResultSetFuture future = session.executeAsync(bound);
-        Futures.addCallback(future,
+        Futures.addCallback(
+                future,
                 new FutureCallback<ResultSet>() {
                     @Override
                     public void onSuccess(ResultSet result) {
@@ -82,7 +83,8 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
                     public void onFailure(Throwable t) {
                         record.fail();
                     }
-                }, MoreExecutors.directExecutor());
+                },
+                MoreExecutors.directExecutor());
     }
 
     private void createClient(String roots) {

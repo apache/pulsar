@@ -27,10 +27,11 @@ import org.testng.annotations.Test;
 public class TopicConsumerConfigurationDataTest {
     @Test
     public void testOfFactoryMethod() {
-        TopicConsumerConfigurationData topicConsumerConfigurationData = TopicConsumerConfigurationData
-                .ofTopicName("foo", 1);
+        TopicConsumerConfigurationData topicConsumerConfigurationData =
+                TopicConsumerConfigurationData.ofTopicName("foo", 1);
 
-        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo")).isTrue();
+        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo"))
+                .isTrue();
         assertThat(topicConsumerConfigurationData.getPriorityLevel()).isEqualTo(1);
     }
 
@@ -38,37 +39,40 @@ public class TopicConsumerConfigurationDataTest {
     public void testOfDefaultFactoryMethod() {
         ConsumerConfigurationData<Object> consumerConfigurationData = new ConsumerConfigurationData<>();
         consumerConfigurationData.setPriorityLevel(1);
-        TopicConsumerConfigurationData topicConsumerConfigurationData = TopicConsumerConfigurationData
-                .ofTopicName("foo", consumerConfigurationData);
+        TopicConsumerConfigurationData topicConsumerConfigurationData =
+                TopicConsumerConfigurationData.ofTopicName("foo", consumerConfigurationData);
 
-        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo")).isTrue();
+        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo"))
+                .isTrue();
         assertThat(topicConsumerConfigurationData.getPriorityLevel()).isEqualTo(1);
     }
 
     @DataProvider(name = "topicNameMatch")
     public Object[][] topicNameMatch() {
         return new Object[][] {
-                new Object[] {"foo", true},
-                new Object[] {"bar", false}
+            new Object[] {"foo", true},
+            new Object[] {"bar", false}
         };
     }
 
     @Test(dataProvider = "topicNameMatch")
     public void testTopicNameMatch(String topicName, boolean expectedMatch) {
-        TopicConsumerConfigurationData topicConsumerConfigurationData = TopicConsumerConfigurationData
-                .ofTopicsPattern(Pattern.compile("^foo$"), 1);
-        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches(topicName)).isEqualTo(expectedMatch);
+        TopicConsumerConfigurationData topicConsumerConfigurationData =
+                TopicConsumerConfigurationData.ofTopicsPattern(Pattern.compile("^foo$"), 1);
+        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches(topicName))
+                .isEqualTo(expectedMatch);
     }
 
     @Test
     public void testNullTopicsPattern() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> TopicConsumerConfigurationData.ofTopicsPattern(null, 1));
+        assertThatNullPointerException().isThrownBy(() -> TopicConsumerConfigurationData.ofTopicsPattern(null, 1));
     }
 
     @Test
     public void testTopicNameMatchNullTopicName() {
-        assertThat(TopicConsumerConfigurationData
-                .ofTopicName("foo", 1).getTopicNameMatcher().matches(null)).isFalse();
+        assertThat(TopicConsumerConfigurationData.ofTopicName("foo", 1)
+                        .getTopicNameMatcher()
+                        .matches(null))
+                .isFalse();
     }
 }

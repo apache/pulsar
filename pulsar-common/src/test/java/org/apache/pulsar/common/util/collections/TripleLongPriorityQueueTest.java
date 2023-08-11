@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import org.testng.annotations.Test;
 
 public class TripleLongPriorityQueueTest {
@@ -81,7 +80,6 @@ public class TripleLongPriorityQueueTest {
         pq.clear();
         pq.close();
     }
-
 
     @Test
     public void testCheckForEmpty() {
@@ -180,16 +178,16 @@ public class TripleLongPriorityQueueTest {
         assertEquals(pq.bytesCapacity(), scaleCapacity * tupleSize);
         // Trigger shrinking
         for (int i = 0; i < initialCapacity / 2 + 2; i++) {
-             pq.pop();
+            pq.pop();
         }
-        int capacity = scaleCapacity - (int)((scaleCapacity ) * 0.5f * 0.9f);
+        int capacity = scaleCapacity - (int) ((scaleCapacity) * 0.5f * 0.9f);
         assertTrue(pq.bytesCapacity() < scaleCapacity * tupleSize);
         // Scale out to capacity * 2
         triggerScaleOut(initialCapacity, pq);
         scaleCapacity = capacity * 2;
         // Trigger shrinking
         pq.clear();
-        capacity = scaleCapacity - (int)(scaleCapacity * 0.5f * 0.9f);
+        capacity = scaleCapacity - (int) (scaleCapacity * 0.5f * 0.9f);
     }
 
     private void triggerScaleOut(int initialCapacity, TripleLongPriorityQueue pq) {

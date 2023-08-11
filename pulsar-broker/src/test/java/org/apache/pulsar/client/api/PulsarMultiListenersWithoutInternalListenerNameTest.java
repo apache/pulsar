@@ -21,8 +21,8 @@ package org.apache.pulsar.client.api;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class PulsarMultiListenersWithoutInternalListenerNameTest extends
-        PulsarMultiListenersWithInternalListenerNameTest {
+public class PulsarMultiListenersWithoutInternalListenerNameTest
+        extends PulsarMultiListenersWithInternalListenerNameTest {
 
     public PulsarMultiListenersWithoutInternalListenerNameTest() {
         super(false);

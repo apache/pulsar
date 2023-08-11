@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.tests.integration.docker.ContainerExecException;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.testng.annotations.Test;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class TestOffloadDeletionFS extends TestBaseOffload {
@@ -44,49 +43,50 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
         return 200;
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testDeleteOffloadedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         super.testDeleteOffloadedTopic(serviceUrl.get(), adminUrl.get(), false, 0);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testDeleteUnloadedOffloadedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
         super.testDeleteOffloadedTopic(serviceUrl.get(), adminUrl.get(), true, 0);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testDeleteOffloadedTopicExistsInBk(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
         super.testDeleteOffloadedTopicExistsInBk(serviceUrl.get(), adminUrl.get(), false, 0);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testDeleteUnloadedOffloadedTopicExistsInBk(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
         super.testDeleteOffloadedTopicExistsInBk(serviceUrl.get(), adminUrl.get(), true, 0);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testDeleteOffloadedPartitionedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testDeleteOffloadedPartitionedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testDeleteOffloadedTopic(serviceUrl.get(), adminUrl.get(), false, 3);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testDeleteUnloadedOffloadedPartitionedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
         super.testDeleteOffloadedTopic(serviceUrl.get(), adminUrl.get(), true, 3);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testDeleteOffloadedPartitionedTopicExistsInBk(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
         super.testDeleteOffloadedTopicExistsInBk(serviceUrl.get(), adminUrl.get(), false, 3);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testDeleteUnloadedOffloadedPartitionedTopicExistsInBk(Supplier<String> serviceUrl,
-                                                                      Supplier<String> adminUrl) throws Exception {
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testDeleteUnloadedOffloadedPartitionedTopicExistsInBk(
+            Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         super.testDeleteOffloadedTopicExistsInBk(serviceUrl.get(), adminUrl.get(), true, 3);
     }
 
@@ -103,8 +103,7 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
 
     @Override
     protected boolean offloadedLedgerExists(String topic, int partitionNum, long ledger) {
-        log.info("offloadedLedgerExists(topic = {}, partitionNum={},ledger={})",
-                topic, partitionNum, ledger);
+        log.info("offloadedLedgerExists(topic = {}, partitionNum={},ledger={})", topic, partitionNum, ledger);
         if (partitionNum > -1) {
             topic = topic + "-partition-" + partitionNum;
         }
@@ -113,22 +112,24 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
         String dirPath = rootPath + managedLedgerName + "/";
 
         List<String> result = new LinkedList<>();
-        String[] cmds = {
-                "ls",
-                "-1",
-                dirPath
-                };
+        String[] cmds = {"ls", "-1", dirPath};
         pulsarCluster.getBrokers().forEach(broker -> {
             try {
                 ContainerExecResult res = broker.execCmd(cmds);
-                log.info("offloadedLedgerExists broker {} 'ls -1 {}' got {}",
-                        broker.getContainerName(), dirPath, res.getStdout());
+                log.info(
+                        "offloadedLedgerExists broker {} 'ls -1 {}' got {}",
+                        broker.getContainerName(),
+                        dirPath,
+                        res.getStdout());
                 Arrays.stream(res.getStdout().split("\n"))
                         .filter(x -> x.startsWith(ledger + "-"))
                         .forEach(x -> result.add(x));
             } catch (ContainerExecException ce) {
-                log.info("offloadedLedgerExists broker {} 'ls -1 {}' got error code {}",
-                        broker.getContainerName(), dirPath, ce.getResult().getExitCode());
+                log.info(
+                        "offloadedLedgerExists broker {} 'ls -1 {}' got error code {}",
+                        broker.getContainerName(),
+                        dirPath,
+                        ce.getResult().getExitCode());
                 // ignore 2 (No such file or directory)
                 if (ce.getResult().getExitCode() != 2) {
                     throw new RuntimeException(ce);
@@ -140,5 +141,4 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
 
         return !result.isEmpty();
     }
-
 }

@@ -38,6 +38,7 @@ public class KinesisRecord implements Record<byte[]> {
     private final Optional<String> key;
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<>();
+
     public KinesisRecord(KinesisClientRecord record) {
         this.key = Optional.of(record.partitionKey());
         // encryption type can (annoyingly) be null, so we default to NONE
@@ -66,6 +67,7 @@ public class KinesisRecord implements Record<byte[]> {
             this.value = null;
         }
     }
+
     @Override
     public Optional<String> getKey() {
         return key;

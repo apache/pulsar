@@ -43,10 +43,10 @@ public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase
                 .collect(joining("-"));
 
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .numBookies(2)
-            .numBrokers(1)
-            .clusterName(clusterName)
-            .build();
+                .numBookies(2)
+                .numBrokers(1)
+                .clusterName(clusterName)
+                .build();
 
         setupCluster(spec);
     }

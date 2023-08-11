@@ -30,8 +30,7 @@ public class LookupData {
     private String httpUrlTls; // Web service HTTPS address
     private String nativeUrl;
 
-    public LookupData() {
-    }
+    public LookupData() {}
 
     public LookupData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls) {
         this.brokerUrl = brokerUrl;
@@ -82,7 +81,11 @@ public class LookupData {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("brokerUrl", brokerUrl).add("brokerUrlTls", brokerUrlTls)
-                .add("httpUrl", httpUrl).add("httpUrlTls", httpUrlTls).toString();
+        return MoreObjects.toStringHelper(this)
+                .add("brokerUrl", brokerUrl)
+                .add("brokerUrlTls", brokerUrlTls)
+                .add("httpUrl", httpUrl)
+                .add("httpUrlTls", httpUrlTls)
+                .toString();
     }
 }

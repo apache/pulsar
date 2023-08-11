@@ -44,22 +44,19 @@ public class KerberosName {
     /**
      * A pattern that matches a Kerberos name with at most 2 components.
      */
-    private static final Pattern nameParser =
-        Pattern.compile("([^/@]*)(/([^/@]*))?@([^/@]*)");
+    private static final Pattern nameParser = Pattern.compile("([^/@]*)(/([^/@]*))?@([^/@]*)");
 
     /**
      * A pattern that matches a string with out '$' and then a single
      * parameter with $n.
      */
-    private static Pattern parameterPattern =
-        Pattern.compile("([^$]*)(\\$(\\d*))?");
+    private static Pattern parameterPattern = Pattern.compile("([^$]*)(\\$(\\d*))?");
 
     /**
      * A pattern for parsing a auth_to_local rule.
      */
-    private static final Pattern ruleParser =
-        Pattern.compile("\\s*((DEFAULT)|(RULE:\\[(\\d*):([^\\]]*)](\\(([^)]*)\\))?"
-            + "(s/([^/]*)/([^/]*)/(g)?)?))");
+    private static final Pattern ruleParser = Pattern.compile(
+            "\\s*((DEFAULT)|(RULE:\\[(\\d*):([^\\]]*)](\\(([^)]*)\\))?" + "(s/([^/]*)/([^/]*)/(g)?)?))");
 
     /**
      * A pattern that recognizes simple/non-simple names.
@@ -74,9 +71,8 @@ public class KerberosName {
     private static String defaultRealm;
 
     public static String getDefaultRealm2()
-        throws ClassNotFoundException, NoSuchMethodException,
-        IllegalArgumentException, IllegalAccessException,
-        InvocationTargetException {
+            throws ClassNotFoundException, NoSuchMethodException, IllegalArgumentException, IllegalAccessException,
+                    InvocationTargetException {
         Object kerbConf;
         Class<?> classRef;
         Method getInstanceMethod;
@@ -88,8 +84,7 @@ public class KerberosName {
         }
         getInstanceMethod = classRef.getMethod("getInstance");
         kerbConf = getInstanceMethod.invoke(classRef);
-        getDefaultRealmMethod = classRef.getDeclaredMethod("getDefaultRealm"
-        );
+        getDefaultRealmMethod = classRef.getDeclaredMethod("getDefaultRealm");
         return (String) getDefaultRealmMethod.invoke(kerbConf, new Object[0]);
     }
 
@@ -98,7 +93,7 @@ public class KerberosName {
             defaultRealm = getDefaultRealm2();
         } catch (Exception ke) {
             if ((System.getProperty("zookeeper.requireKerberosConfig") != null)
-                && (System.getProperty("zookeeper.requireKerberosConfig").equals("true"))) {
+                    && (System.getProperty("zookeeper.requireKerberosConfig").equals("true"))) {
                 throw new IllegalArgumentException("Can't get Kerberos configuration", ke);
             } else {
                 defaultRealm = "";
@@ -208,14 +203,12 @@ public class KerberosName {
             repeat = false;
         }
 
-        Rule(int numOfComponents, String format, String match, String fromPattern,
-             String toPattern, boolean repeat) {
+        Rule(int numOfComponents, String format, String match, String fromPattern, String toPattern, boolean repeat) {
             isDefault = false;
             this.numOfComponents = numOfComponents;
             this.format = format;
             this.match = match == null ? null : Pattern.compile(match);
-            this.fromPattern =
-                fromPattern == null ? null : Pattern.compile(fromPattern);
+            this.fromPattern = fromPattern == null ? null : Pattern.compile(fromPattern);
             this.toPattern = toPattern;
             this.repeat = repeat;
         }
@@ -259,8 +252,7 @@ public class KerberosName {
          * @return the generated string with the parameter references replaced.
          * @throws BadFormatString
          */
-        static String replaceParameters(String format,
-                                        String[] params) throws BadFormatString {
+        static String replaceParameters(String format, String[] params) throws BadFormatString {
             Matcher match = parameterPattern.matcher(format);
             int start = 0;
             StringBuilder result = new StringBuilder();
@@ -272,14 +264,12 @@ public class KerberosName {
                         int num = Integer.parseInt(paramNum);
                         if (num < 0 || num >= params.length) {
                             throw new BadFormatString("index " + num + " from " + format
-                                + " is outside of the valid range 0 to " + (params.length - 1));
+                                    + " is outside of the valid range 0 to " + (params.length - 1));
                         }
                         result.append(params[num]);
                     } catch (NumberFormatException nfe) {
-                        throw new BadFormatString("bad format in username mapping in "
-                            + paramNum, nfe);
+                        throw new BadFormatString("bad format in username mapping in " + paramNum, nfe);
                     }
-
                 }
                 start = match.end();
             }
@@ -295,8 +285,7 @@ public class KerberosName {
          * @param repeat whether the substitution should be repeated
          * @return
          */
-        static String replaceSubstitution(String base, Pattern from, String to,
-                                          boolean repeat) {
+        static String replaceSubstitution(String base, Pattern from, String to, boolean repeat) {
             Matcher match = from.matcher(base);
             if (repeat) {
                 return match.replaceAll(to);
@@ -325,13 +314,12 @@ public class KerberosName {
                     if (fromPattern == null) {
                         result = base;
                     } else {
-                        result = replaceSubstitution(base, fromPattern, toPattern,  repeat);
+                        result = replaceSubstitution(base, fromPattern, toPattern, repeat);
                     }
                 }
             }
             if (result != null && nonSimplePattern.matcher(result).find()) {
-                throw new NoMatchingRule("Non-simple name " + result
-                    + " after auth_to_local rule " + this);
+                throw new NoMatchingRule("Non-simple name " + result + " after auth_to_local rule " + this);
             }
             return result;
         }
@@ -348,12 +336,13 @@ public class KerberosName {
             if (matcher.group(2) != null) {
                 result.add(new Rule());
             } else {
-                result.add(new Rule(Integer.parseInt(matcher.group(4)),
-                    matcher.group(5),
-                    matcher.group(7),
-                    matcher.group(9),
-                    matcher.group(10),
-                    "g".equals(matcher.group(11))));
+                result.add(new Rule(
+                        Integer.parseInt(matcher.group(4)),
+                        matcher.group(5),
+                        matcher.group(7),
+                        matcher.group(9),
+                        matcher.group(10),
+                        "g".equals(matcher.group(11))));
             }
             remaining = remaining.substring(matcher.end());
         }
@@ -375,6 +364,7 @@ public class KerberosName {
         BadFormatString(String msg) {
             super(msg);
         }
+
         BadFormatString(String msg, Throwable err) {
             super(msg, err);
         }
@@ -400,11 +390,11 @@ public class KerberosName {
             if (realm == null) {
                 return serviceName;
             }
-            params = new String[]{realm, serviceName};
+            params = new String[] {realm, serviceName};
         } else {
-            params = new String[]{realm, serviceName, hostName};
+            params = new String[] {realm, serviceName, hostName};
         }
-        for (Rule r: rules) {
+        for (Rule r : rules) {
             String result = r.apply(params);
             if (result != null) {
                 return result;
@@ -415,13 +405,13 @@ public class KerberosName {
 
     static void printRules() throws IOException {
         int i = 0;
-        for (Rule r: rules) {
+        for (Rule r : rules) {
             System.out.println(++i + " " + r);
         }
     }
 
     public static void main(String[] args) throws Exception {
-        for (String arg: args) {
+        for (String arg : args) {
             KerberosName name = new KerberosName(arg);
             System.out.println("Name: " + name + " to " + name.getShortName());
         }

@@ -40,9 +40,10 @@ public class LoadSheddingTask implements Runnable {
 
     private volatile ScheduledFuture<?> future;
 
-    public LoadSheddingTask(AtomicReference<LoadManager> loadManager,
-                            ScheduledExecutorService loadManagerExecutor,
-                            ServiceConfiguration config) {
+    public LoadSheddingTask(
+            AtomicReference<LoadManager> loadManager,
+            ScheduledExecutorService loadManagerExecutor,
+            ServiceConfiguration config) {
         this.loadManager = loadManager;
         this.loadManagerExecutor = loadManagerExecutor;
         this.config = config;
@@ -65,9 +66,7 @@ public class LoadSheddingTask implements Runnable {
     public void start() {
         if (!isCancel && loadManagerExecutor != null && config != null) {
             future = loadManagerExecutor.schedule(
-                    this,
-                    config.getLoadBalancerSheddingIntervalMinutes(),
-                    TimeUnit.MINUTES);
+                    this, config.getLoadBalancerSheddingIntervalMinutes(), TimeUnit.MINUTES);
         }
     }
 
@@ -77,5 +76,4 @@ public class LoadSheddingTask implements Runnable {
             future.cancel(false);
         }
     }
-
 }

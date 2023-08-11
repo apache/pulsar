@@ -62,5 +62,4 @@ public @interface FieldDoc {
      * @return the help message of this field
      */
     String help();
-
 }

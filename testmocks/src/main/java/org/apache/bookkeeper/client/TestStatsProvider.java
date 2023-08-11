@@ -215,12 +215,10 @@ public class TestStatsProvider implements StatsProvider {
     }
 
     @Override
-    public void start(Configuration conf) {
-    }
+    public void start(Configuration conf) {}
 
     @Override
-    public void stop() {
-    }
+    public void stop() {}
 
     private Map<String, TestOpStatsLogger> opStatLoggerMap = new ConcurrentHashMap<>();
     private Map<String, TestCounter> counterMap = new ConcurrentHashMap<>();
@@ -259,15 +257,11 @@ public class TestStatsProvider implements StatsProvider {
     }
 
     private TestOpStatsLogger getOrCreateOpStatsLogger(String path) {
-        return opStatLoggerMap.computeIfAbsent(
-                path,
-                (String s) -> new TestOpStatsLogger());
+        return opStatLoggerMap.computeIfAbsent(path, (String s) -> new TestOpStatsLogger());
     }
 
     private TestCounter getOrCreateCounter(String path) {
-        return counterMap.computeIfAbsent(
-                path,
-                (String s) -> new TestCounter());
+        return counterMap.computeIfAbsent(path, (String s) -> new TestCounter());
     }
 
     private <T extends Number> void registerGauge(String name, Gauge<T> gauge) {
@@ -288,5 +282,4 @@ public class TestStatsProvider implements StatsProvider {
             return StringUtils.join(statsComponents, '.');
         }
     }
-
 }

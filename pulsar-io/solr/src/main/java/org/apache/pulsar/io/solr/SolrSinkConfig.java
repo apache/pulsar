@@ -39,44 +39,41 @@ public class SolrSinkConfig implements Serializable {
     private static final long serialVersionUID = -4849066206354610110L;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "Comma separated zookeeper hosts with chroot used in SolrCloud mode"
-                + " (eg: localhost:2181,localhost:2182/chroot)"
-                + " or Url to connect to solr used in Standalone mode (e.g. localhost:8983/solr)"
-    )
+            required = true,
+            defaultValue = "",
+            help = "Comma separated zookeeper hosts with chroot used in SolrCloud mode"
+                    + " (eg: localhost:2181,localhost:2182/chroot)"
+                    + " or Url to connect to solr used in Standalone mode (e.g. localhost:8983/solr)")
     private String solrUrl;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "SolrCloud",
-        help = "The client mode to use when interacting with the Solr cluster. Possible values [Standalone, SolrCloud]")
+            required = true,
+            defaultValue = "SolrCloud",
+            help =
+                    "The client mode to use when interacting with the Solr cluster. Possible values [Standalone, SolrCloud]")
     private String solrMode = "SolrCloud";
 
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "Solr collection name to which records need to be written")
+    @FieldDoc(required = true, defaultValue = "", help = "Solr collection name to which records need to be written")
     private String solrCollection;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "10",
-        help = "Commit within milli seconds for solr update, if none passes defaults to 10 ms")
+            required = false,
+            defaultValue = "10",
+            help = "Commit within milli seconds for solr update, if none passes defaults to 10 ms")
     private int solrCommitWithinMs = 10;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        sensitive = true,
-        help = "The username to use for basic authentication")
+            required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The username to use for basic authentication")
     private String username;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        sensitive = true,
-        help = "The password to use for basic authentication")
+            required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The password to use for basic authentication")
     private String password;
 
     public static SolrSinkConfig load(String yamlFile) throws IOException {

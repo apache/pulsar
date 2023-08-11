@@ -57,10 +57,15 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
                 .create();
         for (int i = 0; i < 10; i++) {
             byte[] message = new byte[MESSAGE_SIZE];
@@ -92,8 +97,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
         internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
@@ -102,8 +111,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 2 - Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
@@ -120,8 +133,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 1 - Using TLS on https without sending certs - expect failure
         internalSetUpForClient(false, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
@@ -130,8 +147,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 2 - Using TLS on https - sending certs
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
@@ -141,8 +162,10 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     public void testTlsCertsFromDynamicStream() throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
-                .enableTls(true).allowTlsInsecureConnection(false)
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .enableTls(true)
+                .allowTlsInsecureConnection(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         AtomicInteger index = new AtomicInteger(0);
 
@@ -155,17 +178,23 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         Supplier<ByteArrayInputStream> trustStoreProvider = () -> getStream(index, trustStoreStream);
         AuthenticationTls auth = new AuthenticationTls(certProvider, keyProvider, trustStoreProvider);
         clientBuilder.authentication(auth);
-        @Cleanup
-        PulsarClient pulsarClient = clientBuilder.build();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+        @Cleanup PulsarClient pulsarClient = clientBuilder.build();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
                 .subscribe();
 
         // unload the topic so, new connection will be made and read the cert streams again
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
         topicRef.close(false);
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
-                .createAsync().get(30, TimeUnit.SECONDS);
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .createAsync()
+                .get(30, TimeUnit.SECONDS);
         for (int i = 0; i < 10; i++) {
             producer.send(("test" + i).getBytes());
         }
@@ -197,8 +226,10 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     @Test
     public void testTlsCertsFromDynamicStreamExpiredAndRenewCert() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
-                .enableTls(true).allowTlsInsecureConnection(false)
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .enableTls(true)
+                .allowTlsInsecureConnection(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         AtomicInteger certIndex = new AtomicInteger(1);
         AtomicInteger keyIndex = new AtomicInteger(0);
@@ -206,19 +237,21 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         ByteArrayInputStream certStream = createByteInputStream(getTlsFileForClient("admin.cert"));
         ByteArrayInputStream keyStream = createByteInputStream(getTlsFileForClient("admin.key-pk8"));
         ByteArrayInputStream trustStoreStream = createByteInputStream(CA_CERT_FILE_PATH);
-        Supplier<ByteArrayInputStream> certProvider = () -> getStream(certIndex, certStream,
-                keyStream/* invalid cert file */);
+        Supplier<ByteArrayInputStream> certProvider =
+                () -> getStream(certIndex, certStream, keyStream /* invalid cert file */);
         Supplier<ByteArrayInputStream> keyProvider = () -> getStream(keyIndex, keyStream);
-        Supplier<ByteArrayInputStream> trustStoreProvider = () -> getStream(trustStoreIndex, trustStoreStream,
-                keyStream/* invalid cert file */);
+        Supplier<ByteArrayInputStream> trustStoreProvider =
+                () -> getStream(trustStoreIndex, trustStoreStream, keyStream /* invalid cert file */);
         AuthenticationTls auth = new AuthenticationTls(certProvider, keyProvider, trustStoreProvider);
         clientBuilder.authentication(auth);
-        @Cleanup
-        PulsarClient pulsarClient = clientBuilder.build();
+        @Cleanup PulsarClient pulsarClient = clientBuilder.build();
         Consumer<byte[]> consumer = null;
         try {
-            consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscribe();
+            consumer = pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscribe();
             Assert.fail("should have failed due to invalid tls cert");
         } catch (PulsarClientException e) {
             // Ok..
@@ -226,16 +259,22 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
         certIndex.set(0);
         try {
-            consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscribe();
+            consumer = pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name")
+                    .subscribe();
             Assert.fail("should have failed due to invalid tls cert");
         } catch (PulsarClientException e) {
             // Ok..
         }
 
         trustStoreIndex.set(0);
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
+        consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -253,20 +292,20 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     }
 
     private final Authentication tlsAuth =
-        new AuthenticationTls(getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"));
+            new AuthenticationTls(getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"));
 
     @DataProvider
     public Object[] tlsTransport() {
         Supplier<String> webServiceAddressTls = () -> pulsar.getWebServiceAddressTls();
         Supplier<String> brokerServiceUrlTls = () -> pulsar.getBrokerServiceUrlTls();
 
-        return new Object[][]{
-                // Set TLS transport directly.
-                {webServiceAddressTls, null},
-                {brokerServiceUrlTls, null},
-                // Using TLS authentication data to set up TLS transport.
-                {webServiceAddressTls, tlsAuth},
-                {brokerServiceUrlTls, tlsAuth},
+        return new Object[][] {
+            // Set TLS transport directly.
+            {webServiceAddressTls, null},
+            {brokerServiceUrlTls, null},
+            // Using TLS authentication data to set up TLS transport.
+            {webServiceAddressTls, tlsAuth},
+            {brokerServiceUrlTls, tlsAuth},
         };
     }
 
@@ -276,19 +315,20 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
         internalSetUpForNamespace();
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(url.get())
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(url.get())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(false)
                 .authentication(auth);
 
         if (auth == null) {
-            clientBuilder.tlsKeyFilePath(getTlsFileForClient("admin.key-pk8"))
+            clientBuilder
+                    .tlsKeyFilePath(getTlsFileForClient("admin.key-pk8"))
                     .tlsCertificateFilePath(getTlsFileForClient("admin.cert"));
         }
 
-        @Cleanup
-        PulsarClient client = clientBuilder.build();
+        @Cleanup PulsarClient client = clientBuilder.build();
 
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();

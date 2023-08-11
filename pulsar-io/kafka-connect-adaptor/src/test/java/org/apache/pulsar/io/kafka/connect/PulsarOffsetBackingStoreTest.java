@@ -75,8 +75,8 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
 
     private void testOffsetBackingStore(boolean testWithReaderConfig) throws Exception {
         if (testWithReaderConfig) {
-            this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_READER_CONFIG,
-                    "{\"subscriptionName\":\"my-subscription\"}");
+            this.defaultProps.put(
+                    PulsarKafkaWorkerConfig.OFFSET_STORAGE_READER_CONFIG, "{\"subscriptionName\":\"my-subscription\"}");
         }
         this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
         this.offsetBackingStore.configure(distributedConfig);
@@ -86,9 +86,10 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
     @Test
     public void testGetFromEmpty() throws Exception {
         testOffsetBackingStore(false);
-        assertTrue(offsetBackingStore.get(
-            Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8)))
-        ).get().isEmpty());
+        assertTrue(offsetBackingStore
+                .get(Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8))))
+                .get()
+                .isEmpty());
     }
 
     @Test(timeOut = 60000)
@@ -102,8 +103,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         final List<ByteBuffer> keys = new ArrayList<>();
         keys.add(keyToSet);
 
-        Map<ByteBuffer, ByteBuffer> result =
-                offsetBackingStore.get(keys).get();
+        Map<ByteBuffer, ByteBuffer> result = offsetBackingStore.get(keys).get();
         assertEquals(1, result.size());
 
         result.forEach((key, value) -> {
@@ -133,27 +133,27 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
             Map<ByteBuffer, ByteBuffer> kvs = new HashMap<>();
             ByteBuffer key = ByteBuffer.wrap(("test-key-" + i).getBytes(UTF_8));
             keys.add(key);
-            kvs.put(
-                key,
-                ByteBuffer.wrap(("test-val-" + i).getBytes(UTF_8)));
+            kvs.put(key, ByteBuffer.wrap(("test-val-" + i).getBytes(UTF_8)));
             CompletableFuture<Void> setCallback = new CompletableFuture<>();
-            offsetBackingStore.set(
-                kvs,
-                testCallback ? (Callback<Void>) (error, result) -> {
-                    if (null != error) {
-                        setCallback.completeExceptionally(error);
-                    } else {
-                        setCallback.complete(result);
-                    }
-                } : null
-            ).get();
+            offsetBackingStore
+                    .set(
+                            kvs,
+                            testCallback
+                                    ? (Callback<Void>) (error, result) -> {
+                                        if (null != error) {
+                                            setCallback.completeExceptionally(error);
+                                        } else {
+                                            setCallback.complete(result);
+                                        }
+                                    }
+                                    : null)
+                    .get();
             if (testCallback) {
                 setCallback.join();
             }
         }
 
-        Map<ByteBuffer, ByteBuffer> result =
-            offsetBackingStore.get(keys).get();
+        Map<ByteBuffer, ByteBuffer> result = offsetBackingStore.get(keys).get();
         assertEquals(numKeys, result.size());
         AtomicInteger count = new AtomicInteger();
         new TreeMap<>(result).forEach((key, value) -> {

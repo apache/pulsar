@@ -21,14 +21,12 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -73,8 +71,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     }
 
     @Test(timeOut = 30 * 1000)
-    public void testGetLeaderBroker()
-            throws ExecutionException, InterruptedException, PulsarAdminException {
+    public void testGetLeaderBroker() throws ExecutionException, InterruptedException, PulsarAdminException {
         List<PulsarService> allBrokers = getAllBrokers();
         Optional<LeaderBroker> leaderBroker =
                 allBrokers.get(0).getLeaderElectionService().readCurrentLeader().get();
@@ -91,12 +88,12 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
      * The data provider provide these data [TopicDomain, IsPartition].
      */
     @DataProvider
-    public Object[][] topicTypes(){
+    public Object[][] topicTypes() {
         return new Object[][] {
-                {TopicDomain.persistent, false},
-                {TopicDomain.persistent, true},
-                {TopicDomain.non_persistent, false},
-                {TopicDomain.non_persistent, true},
+            {TopicDomain.persistent, false},
+            {TopicDomain.persistent, true},
+            {TopicDomain.non_persistent, false},
+            {TopicDomain.non_persistent, true},
         };
     }
 
@@ -105,9 +102,13 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         PulsarAdmin admin0 = getAllAdmins().get(0);
 
         String namespace = RandomStringUtils.randomAlphabetic(5);
-        admin0.namespaces().createNamespace( "public/" + namespace, 3);
-        admin0.namespaces().setAutoTopicCreation("public/" + namespace,
-                AutoTopicCreationOverride.builder().allowAutoTopicCreation(false).build());
+        admin0.namespaces().createNamespace("public/" + namespace, 3);
+        admin0.namespaces()
+                .setAutoTopicCreation(
+                        "public/" + namespace,
+                        AutoTopicCreationOverride.builder()
+                                .allowAutoTopicCreation(false)
+                                .build());
 
         TopicName topic = TopicName.get(topicDomain.value(), "public", namespace, "t1");
         if (isPartition) {
@@ -121,7 +122,9 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         for (PulsarAdmin pulsarAdmin : getAllAdmins()) {
             try {
                 if (isPartition) {
-                    lookupResultSet.add(pulsarAdmin.lookups().lookupTopic(topic.getPartition(0).toString()));
+                    lookupResultSet.add(pulsarAdmin
+                            .lookups()
+                            .lookupTopic(topic.getPartition(0).toString()));
                 } else {
                     lookupResultSet.add(pulsarAdmin.lookups().lookupTopic(topic.getPartitionedTopicName()));
                 }
@@ -140,12 +143,14 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
         admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
 
-        admin.namespaces().setAutoTopicCreation("tenant-xyz/ns-abc",
-                AutoTopicCreationOverride.builder()
-                        .allowAutoTopicCreation(true)
-                        .topicType("partitioned")
-                        .defaultNumPartitions(5)
-                        .build());
+        admin.namespaces()
+                .setAutoTopicCreation(
+                        "tenant-xyz/ns-abc",
+                        AutoTopicCreationOverride.builder()
+                                .allowAutoTopicCreation(true)
+                                .topicType("partitioned")
+                                .defaultNumPartitions(5)
+                                .build());
 
         RetentionPolicies retention = new RetentionPolicies(10, 10);
         admin.namespaces().setRetention("tenant-xyz/ns-abc", retention);
@@ -153,22 +158,26 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
                 + RandomStringUtils.randomAlphabetic(5)
                 + "-testDeletePartitionedTopicWithSub";
         final String subscriptionName = "sub";
-        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+        ((TopicsImpl) admin.topics())
+                .createPartitionedTopicAsync(topic, numPartitions, true, null)
+                .get();
 
         log.info("Creating producer and consumer");
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName(subscriptionName)
                 .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topic).create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
 
         log.info("producing messages");
         for (int i = 0; i < numPartitions * 100; ++i) {
-            producer.newMessage()
-                    .key("" + i)
-                    .value("value-" + i)
-                    .send();
+            producer.newMessage().key("" + i).value("value-" + i).send();
         }
         producer.flush();
 
@@ -186,27 +195,35 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
 
         // topic autocreate might sneak in after the delete / before close
         // but the topic metadata should be consistent to go through deletion again
-        if (admin.topics().getList("tenant-xyz/ns-abc")
-                .stream().anyMatch(t -> t.contains(topic))) {
+        if (admin.topics().getList("tenant-xyz/ns-abc").stream().anyMatch(t -> t.contains(topic))) {
             try {
                 admin.topics().deletePartitionedTopic(topic, true);
             } catch (PulsarAdminException.NotFoundException nfe) {
                 // pass
             }
 
-            assertEquals(0, admin.topics().getList("tenant-xyz/ns-abc")
-                    .stream().filter(t -> t.contains(topic)).count());
-            assertEquals(0,
-                    pulsar.getPulsarResources().getTopicResources()
+            assertEquals(
+                    0,
+                    admin.topics().getList("tenant-xyz/ns-abc").stream()
+                            .filter(t -> t.contains(topic))
+                            .count());
+            assertEquals(
+                    0,
+                    pulsar
+                            .getPulsarResources()
+                            .getTopicResources()
                             .getExistingPartitions(TopicName.getPartitionedTopicName(topic))
                             .get()
-                            .stream().filter(t -> t.contains(topic)).count());
-            assertFalse(admin.topics()
-                    .getPartitionedTopicList("tenant-xyz/ns-abc")
-                    .contains(topic));
+                            .stream()
+                            .filter(t -> t.contains(topic))
+                            .count());
+            assertFalse(
+                    admin.topics().getPartitionedTopicList("tenant-xyz/ns-abc").contains(topic));
         } else {
             log.info("trying to create the topic again");
-            ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+            ((TopicsImpl) admin.topics())
+                    .createPartitionedTopicAsync(topic, numPartitions, true, null)
+                    .get();
         }
     }
 }

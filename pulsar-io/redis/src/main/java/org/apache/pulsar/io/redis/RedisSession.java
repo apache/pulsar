@@ -46,8 +46,10 @@ public class RedisSession {
     private final StatefulConnection connection;
     private final RedisClusterAsyncCommands<byte[], byte[]> asyncCommands;
 
-    public RedisSession(AbstractRedisClient client, StatefulConnection connection,
-                        RedisClusterAsyncCommands<byte[], byte[]> asyncCommands) {
+    public RedisSession(
+            AbstractRedisClient client,
+            StatefulConnection connection,
+            RedisClusterAsyncCommands<byte[], byte[]> asyncCommands) {
         this.client = client;
         this.connection = connection;
         this.asyncCommands = asyncCommands;
@@ -79,26 +81,26 @@ public class RedisSession {
         final RedisCodec<byte[], byte[]> codec = new ByteArrayCodec();
 
         final SocketOptions socketOptions = SocketOptions.builder()
-            .tcpNoDelay(config.isTcpNoDelay())
-            .connectTimeout(Duration.ofMillis(config.getConnectTimeout()))
-            .keepAlive(config.isKeepAlive())
-            .build();
+                .tcpNoDelay(config.isTcpNoDelay())
+                .connectTimeout(Duration.ofMillis(config.getConnectTimeout()))
+                .keepAlive(config.isKeepAlive())
+                .build();
 
         final ClientMode clientMode;
         try {
             clientMode = ClientMode.valueOf(config.getClientMode().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Illegal Redis client mode, valid values are: "
-                + Arrays.asList(ClientMode.values()));
+            throw new IllegalArgumentException(
+                    "Illegal Redis client mode, valid values are: " + Arrays.asList(ClientMode.values()));
         }
 
         List<RedisURI> redisURIs = redisURIs(config.getHostAndPorts(), config);
 
         if (clientMode == ClientMode.STANDALONE) {
             ClientOptions.Builder clientOptions = ClientOptions.builder()
-                .socketOptions(socketOptions)
-                .requestQueueSize(config.getRequestQueue())
-                .autoReconnect(config.isAutoReconnect());
+                    .socketOptions(socketOptions)
+                    .requestQueueSize(config.getRequestQueue())
+                    .autoReconnect(config.isAutoReconnect());
 
             final RedisClient client = RedisClient.create(redisURIs.get(0));
             client.setOptions(clientOptions.build());
@@ -106,8 +108,8 @@ public class RedisSession {
             redisSession = new RedisSession(client, connection, connection.async());
         } else if (clientMode == ClientMode.CLUSTER) {
             ClusterClientOptions.Builder clientOptions = ClusterClientOptions.builder()
-                .requestQueueSize(config.getRequestQueue())
-                .autoReconnect(config.isAutoReconnect());
+                    .requestQueueSize(config.getRequestQueue())
+                    .autoReconnect(config.isAutoReconnect());
 
             final RedisClusterClient client = RedisClusterClient.create(redisURIs);
             client.setOptions(clientOptions.build());
@@ -115,9 +117,7 @@ public class RedisSession {
             final StatefulRedisClusterConnection<byte[], byte[]> connection = client.connect(codec);
             redisSession = new RedisSession(client, connection, connection.async());
         } else {
-            throw new UnsupportedOperationException(
-                String.format("%s is not supported", config.getClientMode())
-            );
+            throw new UnsupportedOperationException(String.format("%s is not supported", config.getClientMode()));
         }
 
         return redisSession;

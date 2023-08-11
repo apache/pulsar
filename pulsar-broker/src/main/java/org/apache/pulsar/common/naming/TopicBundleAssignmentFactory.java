@@ -38,9 +38,10 @@ public class TopicBundleAssignmentFactory {
             }
             String topicBundleAssignmentStrategy = getTopicBundleAssignmentStrategy(pulsar);
             try {
-                TopicBundleAssignmentStrategy tempStrategy =
-                        Reflections.createInstance(topicBundleAssignmentStrategy,
-                                TopicBundleAssignmentStrategy.class, Thread.currentThread().getContextClassLoader());
+                TopicBundleAssignmentStrategy tempStrategy = Reflections.createInstance(
+                        topicBundleAssignmentStrategy,
+                        TopicBundleAssignmentStrategy.class,
+                        Thread.currentThread().getContextClassLoader());
                 tempStrategy.init(pulsar);
                 strategy = tempStrategy;
                 return strategy;

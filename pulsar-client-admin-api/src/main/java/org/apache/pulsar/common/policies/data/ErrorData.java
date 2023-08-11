@@ -24,8 +24,7 @@ package org.apache.pulsar.common.policies.data;
 public class ErrorData {
     public String reason;
 
-    public ErrorData() {
-    }
+    public ErrorData() {}
 
     public ErrorData(String reason) {
         this.reason = reason;

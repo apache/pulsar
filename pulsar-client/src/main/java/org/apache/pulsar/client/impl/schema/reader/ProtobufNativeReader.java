@@ -23,5 +23,4 @@ public class ProtobufNativeReader<T extends com.google.protobuf.GeneratedMessage
     public ProtobufNativeReader(T protoMessageInstance) {
         super(protoMessageInstance);
     }
-
 }

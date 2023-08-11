@@ -55,9 +55,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void asyncAddEntry(byte[] data, AsyncCallbacks.AddEntryCallback callback, Object ctx) {
-
-    }
+    public void asyncAddEntry(byte[] data, AsyncCallbacks.AddEntryCallback callback, Object ctx) {}
 
     @Override
     public Position addEntry(byte[] data, int offset, int length) {
@@ -65,33 +63,30 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public Position addEntry(byte[] data, int numberOfMessages, int offset, int length) throws InterruptedException,
-            ManagedLedgerException {
+    public Position addEntry(byte[] data, int numberOfMessages, int offset, int length)
+            throws InterruptedException, ManagedLedgerException {
         return null;
     }
 
     @Override
-    public void asyncAddEntry(byte[] data, int offset, int length, AsyncCallbacks.AddEntryCallback callback,
-                              Object ctx) {
-
-    }
+    public void asyncAddEntry(
+            byte[] data, int offset, int length, AsyncCallbacks.AddEntryCallback callback, Object ctx) {}
 
     @Override
-    public void asyncAddEntry(byte[] data, int numberOfMessages, int offset, int length,
-                              AsyncCallbacks.AddEntryCallback callback, Object ctx) {
-
-    }
-
-    @Override
-    public void asyncAddEntry(ByteBuf buffer, AsyncCallbacks.AddEntryCallback callback, Object ctx) {
-
-    }
+    public void asyncAddEntry(
+            byte[] data,
+            int numberOfMessages,
+            int offset,
+            int length,
+            AsyncCallbacks.AddEntryCallback callback,
+            Object ctx) {}
 
     @Override
-    public void asyncAddEntry(ByteBuf buffer, int numberOfMessages, AsyncCallbacks.AddEntryCallback callback,
-                              Object ctx) {
+    public void asyncAddEntry(ByteBuf buffer, AsyncCallbacks.AddEntryCallback callback, Object ctx) {}
 
-    }
+    @Override
+    public void asyncAddEntry(
+            ByteBuf buffer, int numberOfMessages, AsyncCallbacks.AddEntryCallback callback, Object ctx) {}
 
     @Override
     public ManagedCursor openCursor(String name) throws InterruptedException, ManagedLedgerException {
@@ -99,14 +94,17 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public ManagedCursor openCursor(String name, CommandSubscribe.InitialPosition initialPosition) throws
-            InterruptedException, ManagedLedgerException {
+    public ManagedCursor openCursor(String name, CommandSubscribe.InitialPosition initialPosition)
+            throws InterruptedException, ManagedLedgerException {
         return null;
     }
 
     @Override
-    public ManagedCursor openCursor(String name, CommandSubscribe.InitialPosition initialPosition,
-                                    Map<String, Long> properties, Map<String, String> cursorProperties)
+    public ManagedCursor openCursor(
+            String name,
+            CommandSubscribe.InitialPosition initialPosition,
+            Map<String, Long> properties,
+            Map<String, String> cursorProperties)
             throws InterruptedException, ManagedLedgerException {
         return null;
     }
@@ -117,50 +115,48 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws
-            ManagedLedgerException {
+    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName)
+            throws ManagedLedgerException {
         return null;
     }
 
     @Override
-    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName,
-                                             CommandSubscribe.InitialPosition initialPosition,
-                                             boolean isReadCompacted) throws ManagedLedgerException {
+    public ManagedCursor newNonDurableCursor(
+            Position startPosition,
+            String subscriptionName,
+            CommandSubscribe.InitialPosition initialPosition,
+            boolean isReadCompacted)
+            throws ManagedLedgerException {
         return null;
     }
 
     @Override
-    public void asyncDeleteCursor(String name, AsyncCallbacks.DeleteCursorCallback callback, Object ctx) {
-
-    }
+    public void asyncDeleteCursor(String name, AsyncCallbacks.DeleteCursorCallback callback, Object ctx) {}
 
     @Override
-    public void deleteCursor(String name) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void deleteCursor(String name) throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void removeWaitingCursor(ManagedCursor cursor) {
-
-    }
+    public void removeWaitingCursor(ManagedCursor cursor) {}
 
     @Override
-    public void asyncOpenCursor(String name, AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
-
-    }
+    public void asyncOpenCursor(String name, AsyncCallbacks.OpenCursorCallback callback, Object ctx) {}
 
     @Override
-    public void asyncOpenCursor(String name, CommandSubscribe.InitialPosition initialPosition,
-                                AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
-
-    }
+    public void asyncOpenCursor(
+            String name,
+            CommandSubscribe.InitialPosition initialPosition,
+            AsyncCallbacks.OpenCursorCallback callback,
+            Object ctx) {}
 
     @Override
-    public void asyncOpenCursor(String name, CommandSubscribe.InitialPosition initialPosition,
-                                Map<String, Long> properties, Map<String, String> cursorProperties,
-                                AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
-
-    }
+    public void asyncOpenCursor(
+            String name,
+            CommandSubscribe.InitialPosition initialPosition,
+            Map<String, Long> properties,
+            Map<String, String> cursorProperties,
+            AsyncCallbacks.OpenCursorCallback callback,
+            Object ctx) {}
 
     @Override
     public Iterable<ManagedCursor> getCursors() {
@@ -218,9 +214,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void asyncTerminate(AsyncCallbacks.TerminateCallback callback, Object ctx) {
-
-    }
+    public void asyncTerminate(AsyncCallbacks.TerminateCallback callback, Object ctx) {}
 
     @Override
     public Position terminate() throws InterruptedException, ManagedLedgerException {
@@ -228,14 +222,10 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void close() throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void close() throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-
-    }
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {}
 
     @Override
     public ManagedLedgerMXBean getStats() {
@@ -243,14 +233,10 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void delete() throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void delete() throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncDelete(AsyncCallbacks.DeleteLedgerCallback callback, Object ctx) {
-
-    }
+    public void asyncDelete(AsyncCallbacks.DeleteLedgerCallback callback, Object ctx) {}
 
     @Override
     public Position offloadPrefix(Position pos) throws InterruptedException, ManagedLedgerException {
@@ -258,9 +244,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void asyncOffloadPrefix(Position pos, AsyncCallbacks.OffloadCallback callback, Object ctx) {
-
-    }
+    public void asyncOffloadPrefix(Position pos, AsyncCallbacks.OffloadCallback callback, Object ctx) {}
 
     @Override
     public ManagedCursor getSlowestConsumer() {
@@ -278,9 +262,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void setConfig(ManagedLedgerConfig config) {
-
-    }
+    public void setConfig(ManagedLedgerConfig config) {}
 
     @Override
     public Position getLastConfirmedEntry() {
@@ -288,9 +270,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void readyToCreateNewLedger() {
-
-    }
+    public void readyToCreateNewLedger() {}
 
     @Override
     public Map<String, String> getProperties() {
@@ -298,46 +278,30 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void setProperty(String key, String value) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void setProperty(String key, String value) throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncSetProperty(String key, String value, AsyncCallbacks.UpdatePropertiesCallback callback,
-                                 Object ctx) {
-
-    }
+    public void asyncSetProperty(
+            String key, String value, AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx) {}
 
     @Override
-    public void deleteProperty(String key) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void deleteProperty(String key) throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncDeleteProperty(String key, AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx) {
-
-    }
+    public void asyncDeleteProperty(String key, AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx) {}
 
     @Override
-    public void setProperties(Map<String, String> properties) throws InterruptedException, ManagedLedgerException {
-
-    }
+    public void setProperties(Map<String, String> properties) throws InterruptedException, ManagedLedgerException {}
 
     @Override
-    public void asyncSetProperties(Map<String, String> properties,
-                                   AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx) {
-
-    }
+    public void asyncSetProperties(
+            Map<String, String> properties, AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx) {}
 
     @Override
-    public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
-
-    }
+    public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {}
 
     @Override
-    public void rollCurrentLedgerIfFull() {
-
-    }
+    public void rollCurrentLedgerIfFull() {}
 
     @Override
     public CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate) {
@@ -351,13 +315,21 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
-        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        final LedgerInfo build = LedgerInfo.newBuilder()
+                .setLedgerId(ledgerId)
+                .setSize(100)
+                .setEntries(20)
+                .build();
         return CompletableFuture.completedFuture(build);
     }
 
     @Override
     public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
-        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        final LedgerInfo build = LedgerInfo.newBuilder()
+                .setLedgerId(ledgerId)
+                .setSize(100)
+                .setEntries(20)
+                .build();
         return Optional.of(build);
     }
 
@@ -372,9 +344,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void checkInactiveLedgerAndRollOver() {
-
-    }
+    public void checkInactiveLedgerAndRollOver() {}
 
     @Override
     public void checkCursorsToCacheEntries() {

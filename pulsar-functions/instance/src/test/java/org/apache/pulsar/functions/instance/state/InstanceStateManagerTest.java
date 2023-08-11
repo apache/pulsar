@@ -117,5 +117,4 @@ public class InstanceStateManagerTest {
 
         assertTrue(this.stateManager.isEmpty());
     }
-
 }

@@ -27,7 +27,6 @@ import java.util.Set;
  * @see <a href="https://github.com/apache/pulsar/issues/16691"> Service Unit State Channel </a> for additional details.
  */
 public enum ServiceUnitState {
-
     Init, // initializing the state. no previous state(terminal state)
 
     Free, // not owned by any broker (semi-terminal state)
@@ -51,12 +50,9 @@ public enum ServiceUnitState {
             Assigning, Set.of(Owned),
             Releasing, Set.of(Assigning, Free),
             Splitting, Set.of(Deleted),
-            Deleted, Set.of(Init)
-    );
+            Deleted, Set.of(Init));
 
-    private static final Set<ServiceUnitState> inFlightStates = Set.of(
-            Assigning, Releasing, Splitting
-    );
+    private static final Set<ServiceUnitState> inFlightStates = Set.of(Assigning, Releasing, Splitting);
 
     public static boolean isValidTransition(ServiceUnitState from, ServiceUnitState to) {
         Set<ServiceUnitState> transitions = validTransitions.get(from);

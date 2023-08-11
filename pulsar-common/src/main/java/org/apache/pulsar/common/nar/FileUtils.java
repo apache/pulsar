@@ -21,7 +21,6 @@
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
  */
-
 package org.apache.pulsar.common.nar;
 
 import java.io.File;
@@ -131,8 +130,8 @@ public class FileUtils {
      * @throws IOException if abstract pathname does not denote a directory, or
      * if an I/O error occurs
      */
-    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter,
-                                              final Logger logger) throws IOException {
+    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter, final Logger logger)
+            throws IOException {
         FileUtils.deleteFilesInDirectory(directory, filter, logger, false);
     }
 
@@ -148,8 +147,9 @@ public class FileUtils {
      * @throws IOException if abstract pathname does not denote a directory, or
      * if an I/O error occurs
      */
-    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter, final Logger logger,
-                                              final boolean recurse) throws IOException {
+    public static void deleteFilesInDirectory(
+            final File directory, final FilenameFilter filter, final Logger logger, final boolean recurse)
+            throws IOException {
         FileUtils.deleteFilesInDirectory(directory, filter, logger, recurse, false);
     }
 
@@ -168,8 +168,12 @@ public class FileUtils {
      * if an I/O error occurs
      */
     public static void deleteFilesInDirectory(
-        final File directory, final FilenameFilter filter, final Logger logger,
-        final boolean recurse, final boolean deleteEmptyDirectories) throws IOException {
+            final File directory,
+            final FilenameFilter filter,
+            final Logger logger,
+            final boolean recurse,
+            final boolean deleteEmptyDirectories)
+            throws IOException {
         // ensure the specified directory is actually a directory and that it exists
         if (null != directory && directory.isDirectory()) {
             final File ingestFiles[] = directory.listFiles();
@@ -211,7 +215,7 @@ public class FileUtils {
         if (file.isDirectory() && recurse && list != null) {
             FileUtils.deleteFiles(Arrays.asList(list), recurse);
         }
-        //now delete the file itself regardless of whether it is plain file or a directory
+        // now delete the file itself regardless of whether it is plain file or a directory
         if (!FileUtils.deleteFile(file, null, 5)) {
             throw new IOException("Unable to delete " + file.getAbsolutePath());
         }
@@ -226,7 +230,7 @@ public class FileUtils {
     }
 
     public static boolean mayBeANarArchive(File jarFile) {
-        try (ZipFile zipFile = new ZipFile(jarFile);) {
+        try (ZipFile zipFile = new ZipFile(jarFile); ) {
             ZipEntry entry = zipFile.getEntry("META-INF/bundled-dependencies");
             if (entry == null || !entry.isDirectory()) {
                 log.info("Jar file {} does not contain META-INF/bundled-dependencies, it is not a NAR file", jarFile);
@@ -241,4 +245,3 @@ public class FileUtils {
         }
     }
 }
-

@@ -25,14 +25,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.Unpooled;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -78,17 +75,23 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
 
-        entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                assertEquals(entries.size(), 10);
-                entries.forEach(Entry::release);
-                counter.countDown();
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                9,
+                false,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        assertEquals(entries.size(), 10);
+                        entries.forEach(Entry::release);
+                        counter.countDown();
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                Assert.fail("should not have failed");
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        Assert.fail("should not have failed");
+                    }
+                },
+                null);
         counter.await();
 
         // Verify no entries were read from bookkeeper
@@ -111,16 +114,22 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
 
-        entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                assertEquals(entries.size(), 10);
-                counter.countDown();
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                9,
+                false,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        assertEquals(entries.size(), 10);
+                        counter.countDown();
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                Assert.fail("should not have failed");
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        Assert.fail("should not have failed");
+                    }
+                },
+                null);
         counter.await();
     }
 
@@ -140,16 +149,22 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
 
-        entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                assertEquals(entries.size(), 10);
-                counter.countDown();
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                9,
+                false,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        assertEquals(entries.size(), 10);
+                        counter.countDown();
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                Assert.fail("should not have failed");
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        Assert.fail("should not have failed");
+                    }
+                },
+                null);
         counter.await();
     }
 
@@ -170,16 +185,22 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
 
-        entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                assertEquals(entries.size(), 10);
-                counter.countDown();
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                9,
+                false,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        assertEquals(entries.size(), 10);
+                        counter.countDown();
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                Assert.fail("should not have failed");
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        Assert.fail("should not have failed");
+                    }
+                },
+                null);
         counter.await();
     }
 
@@ -200,16 +221,22 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
 
-        entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                assertEquals(entries.size(), 10);
-                counter.countDown();
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                9,
+                false,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        assertEquals(entries.size(), 10);
+                        counter.countDown();
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                Assert.fail("should not have failed");
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        Assert.fail("should not have failed");
+                    }
+                },
+                null);
         counter.await();
     }
 
@@ -224,15 +251,21 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         CompletableFuture<List<Entry>> cacheMissFutureEntries = new CompletableFuture<>();
 
-        entryCache.asyncReadEntry(lh, 0, 1, true, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                cacheMissFutureEntries.complete(entries);
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                1,
+                true,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        cacheMissFutureEntries.complete(entries);
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                cacheMissFutureEntries.completeExceptionally(exception);
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        cacheMissFutureEntries.completeExceptionally(exception);
+                    }
+                },
+                null);
 
         List<Entry> cacheMissEntries = cacheMissFutureEntries.get();
         // Ensure first entry is 0 and
@@ -245,15 +278,21 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         CompletableFuture<List<Entry>> cacheHitFutureEntries = new CompletableFuture<>();
 
-        entryCache.asyncReadEntry(lh, 0, 1, true, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                cacheHitFutureEntries.complete(entries);
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                1,
+                true,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        cacheHitFutureEntries.complete(entries);
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                cacheHitFutureEntries.completeExceptionally(exception);
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        cacheHitFutureEntries.completeExceptionally(exception);
+                    }
+                },
+                null);
 
         List<Entry> cacheHitEntries = cacheHitFutureEntries.get();
         assertEquals(cacheHitEntries.get(0).getEntryId(), 0);
@@ -266,10 +305,12 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         when(lh.getId()).thenReturn((long) 0);
 
         doAnswer((invocation) -> {
-                CompletableFuture<LedgerEntries> future = new CompletableFuture<>();
-                future.completeExceptionally(new BKNoSuchLedgerExistsException());
-                return future;
-            }).when(lh).readAsync(anyLong(), anyLong());
+                    CompletableFuture<LedgerEntries> future = new CompletableFuture<>();
+                    future.completeExceptionally(new BKNoSuchLedgerExistsException());
+                    return future;
+                })
+                .when(lh)
+                .readAsync(anyLong(), anyLong());
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
         @Cleanup(value = "clear")
@@ -280,35 +321,44 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
 
-        entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                Assert.fail("should not complete");
-            }
+        entryCache.asyncReadEntry(
+                lh,
+                0,
+                9,
+                false,
+                new ReadEntriesCallback() {
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        Assert.fail("should not complete");
+                    }
 
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                counter.countDown();
-            }
-        }, null);
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        counter.countDown();
+                    }
+                },
+                null);
         counter.await();
     }
 
     static ReadHandle getLedgerHandle() {
         final ReadHandle lh = mock(ReadHandle.class);
         doAnswer((invocation) -> {
-                Object[] args = invocation.getArguments();
-                long firstEntry = (Long) args[0];
-                long lastEntry = (Long) args[1];
+                    Object[] args = invocation.getArguments();
+                    long firstEntry = (Long) args[0];
+                    long lastEntry = (Long) args[1];
 
-                List<LedgerEntry> entries = new ArrayList<>();
-                for (int i = 0; i <= (lastEntry - firstEntry); i++) {
-                    entries.add(LedgerEntryImpl.create(0, i, 10, Unpooled.wrappedBuffer(new byte[10])));
-                }
-                LedgerEntries ledgerEntries = mock(LedgerEntries.class);
-                doAnswer((invocation2) -> entries.iterator()).when(ledgerEntries).iterator();
-                return CompletableFuture.completedFuture(ledgerEntries);
-            }).when(lh).readAsync(anyLong(), anyLong());
+                    List<LedgerEntry> entries = new ArrayList<>();
+                    for (int i = 0; i <= (lastEntry - firstEntry); i++) {
+                        entries.add(LedgerEntryImpl.create(0, i, 10, Unpooled.wrappedBuffer(new byte[10])));
+                    }
+                    LedgerEntries ledgerEntries = mock(LedgerEntries.class);
+                    doAnswer((invocation2) -> entries.iterator())
+                            .when(ledgerEntries)
+                            .iterator();
+                    return CompletableFuture.completedFuture(ledgerEntries);
+                })
+                .when(lh)
+                .readAsync(anyLong(), anyLong());
 
         return lh;
     }
-
 }

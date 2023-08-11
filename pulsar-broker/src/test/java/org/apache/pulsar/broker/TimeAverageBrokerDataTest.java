@@ -19,16 +19,15 @@
 package org.apache.pulsar.broker;
 
 import static org.testng.Assert.*;
-import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.testng.annotations.Test;
-
 
 public class TimeAverageBrokerDataTest {
 
@@ -136,5 +135,4 @@ public class TimeAverageBrokerDataTest {
         assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 6);
         assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 8);
     }
-
 }

@@ -71,29 +71,28 @@ public class HdfsSinkConfig extends AbstractHdfsConfig implements Serializable {
     private int maxPendingRecords = Integer.MAX_VALUE;
 
     public static HdfsSinkConfig load(String yamlFile) throws IOException {
-       ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-       return mapper.readValue(new File(yamlFile), HdfsSinkConfig.class);
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return mapper.readValue(new File(yamlFile), HdfsSinkConfig.class);
     }
 
     public static HdfsSinkConfig load(Map<String, Object> map) throws IOException {
-       ObjectMapper mapper = new ObjectMapper();
-       return mapper.readValue(mapper.writeValueAsString(map), HdfsSinkConfig.class);
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(mapper.writeValueAsString(map), HdfsSinkConfig.class);
     }
 
     @Override
     public void validate() {
         super.validate();
-        if ((StringUtils.isEmpty(fileExtension) && getCompression() == null)
-            || StringUtils.isEmpty(filenamePrefix)) {
-           throw new IllegalArgumentException("Required property not set.");
+        if ((StringUtils.isEmpty(fileExtension) && getCompression() == null) || StringUtils.isEmpty(filenamePrefix)) {
+            throw new IllegalArgumentException("Required property not set.");
         }
 
         if (syncInterval < 0) {
-          throw new IllegalArgumentException("Sync Interval cannot be negative");
+            throw new IllegalArgumentException("Sync Interval cannot be negative");
         }
 
         if (maxPendingRecords < 1) {
-          throw new IllegalArgumentException("Max Pending Records must be a positive integer");
+            throw new IllegalArgumentException("Max Pending Records must be a positive integer");
         }
     }
 }

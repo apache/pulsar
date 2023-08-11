@@ -27,22 +27,22 @@ import org.apache.pulsar.functions.proto.Function;
 
 public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider {
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig,
-                                              Optional<FunctionAuthData> functionAuthData) {
+    public void configureAuthenticationConfig(
+            AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
         if (!functionAuthData.isPresent()) {
             // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
             authConfig.setClientAuthenticationPlugin(null);
             authConfig.setClientAuthenticationParameters(null);
         } else {
             authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-            authConfig.setClientAuthenticationParameters("token:" + new String(functionAuthData.get().getData()));
+            authConfig.setClientAuthenticationParameters(
+                    "token:" + new String(functionAuthData.get().getData()));
         }
     }
 
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
-                                                    AuthenticationDataSource authenticationDataSource)
-            throws Exception {
+    public Optional<FunctionAuthData> cacheAuthData(
+            Function.FunctionDetails funcDetails, AuthenticationDataSource authenticationDataSource) throws Exception {
         String token = null;
         try {
             token = getToken(authenticationDataSource);
@@ -57,16 +57,17 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
-                                                     Optional<FunctionAuthData> existingFunctionAuthData,
-                                                     AuthenticationDataSource authenticationDataSource)
+    public Optional<FunctionAuthData> updateAuthData(
+            Function.FunctionDetails funcDetails,
+            Optional<FunctionAuthData> existingFunctionAuthData,
+            AuthenticationDataSource authenticationDataSource)
             throws Exception {
         return cacheAuthData(funcDetails, authenticationDataSource);
     }
 
     @Override
-    public void cleanUpAuthData(Function.FunctionDetails funcDetails,
-                                Optional<FunctionAuthData> functionAuthData) throws Exception {
-        //no-op
+    public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
+            throws Exception {
+        // no-op
     }
 }

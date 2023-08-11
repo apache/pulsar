@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -36,8 +37,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
 
 /**
  * Null value message produce and consume test.
@@ -59,13 +58,12 @@ public class KeyValueTest extends BrokerTestBase {
     }
 
     @Test
-    public void keyValueAutoConsumeTest()  throws Exception {
+    public void keyValueAutoConsumeTest() throws Exception {
         String topic = "persistent://prop/ns-abc/kv-record";
         admin.topics().createNonPartitionedTopic(topic);
 
-        RecordSchemaBuilder builder = SchemaBuilder
-                .record("test");
-                builder.field("test").type(SchemaType.STRING);
+        RecordSchemaBuilder builder = SchemaBuilder.record("test");
+        builder.field("test").type(SchemaType.STRING);
         GenericSchema<GenericRecord> schema = GenericAvroSchema.of(builder.build(SchemaType.AVRO));
 
         GenericRecord key = schema.newRecordBuilder().set("test", "foo").build();
@@ -87,11 +85,8 @@ public class KeyValueTest extends BrokerTestBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-
         Message<KeyValue<GenericRecord, GenericRecord>> message = consumer.receive();
         assertEquals(key.getField("test"), message.getValue().getKey().getField("test"));
         assertEquals(value.getField("test"), message.getValue().getValue().getField("test"));
-
     }
-
 }

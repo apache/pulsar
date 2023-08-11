@@ -25,7 +25,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,20 +38,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-
 import lombok.Cleanup;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class ConcurrentOpenHashMapTest {
 
     @Test
     public void testConstructor() {
         try {
-            ConcurrentOpenHashMap.<String, String>newBuilder()
-                    .expectedItems(0)
-                    .build();
+            ConcurrentOpenHashMap.<String, String>newBuilder().expectedItems(0).build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
@@ -80,8 +75,7 @@ public class ConcurrentOpenHashMapTest {
 
     @Test
     public void simpleInsertions() {
-        ConcurrentOpenHashMap<String, String> map =
-                ConcurrentOpenHashMap.<String, String>newBuilder()
+        ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
                 .expectedItems(16)
                 .build();
 
@@ -176,7 +170,7 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.put("k5", "v5"));
         assertTrue(map.capacity() == 8);
 
-        //verify that the map does not keep shrinking at every remove() operation
+        // verify that the map does not keep shrinking at every remove() operation
         assertNull(map.put("k6", "v6"));
         assertTrue(map.remove("k6", "v6"));
         assertTrue(map.capacity() == 8);
@@ -236,9 +230,9 @@ public class ConcurrentOpenHashMapTest {
     public void testRehashing() {
         int n = 16;
         ConcurrentOpenHashMap<String, Integer> map = ConcurrentOpenHashMap.<String, Integer>newBuilder()
-                        .expectedItems(n / 2)
-                        .concurrencyLevel(1)
-                        .build();
+                .expectedItems(n / 2)
+                .concurrencyLevel(1)
+                .build();
         assertEquals(map.capacity(), n);
         assertEquals(map.size(), 0);
 
@@ -253,11 +247,10 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void testRehashingWithDeletes() {
         int n = 16;
-        ConcurrentOpenHashMap<Integer, Integer> map =
-                ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
-                        .expectedItems(n / 2)
-                        .concurrencyLevel(1)
-                        .build();
+        ConcurrentOpenHashMap<Integer, Integer> map = ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
+                .expectedItems(n / 2)
+                .concurrencyLevel(1)
+                .build();
         assertEquals(map.capacity(), n);
         assertEquals(map.size(), 0);
 
@@ -280,9 +273,9 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -510,15 +503,14 @@ public class ConcurrentOpenHashMapTest {
 
     @Test
     public void testNullValue() {
-        ConcurrentOpenHashMap<String, String> map =
-                ConcurrentOpenHashMap.<String, String>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
+        ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
         String key = "a";
         assertThrows(NullPointerException.class, () -> map.put(key, null));
 
-        //put a null value.
+        // put a null value.
         assertNull(map.computeIfAbsent(key, k -> null));
         assertEquals(1, map.size());
         assertEquals(1, map.keys().size());
@@ -526,7 +518,7 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.get(key));
         assertFalse(map.containsKey(key));
 
-        //test remove null value
+        // test remove null value
         map.removeNullValue(key);
         assertTrue(map.isEmpty());
         assertEquals(0, map.keys().size());
@@ -534,13 +526,11 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.get(key));
         assertFalse(map.containsKey(key));
 
-
-        //test not remove non-null value
+        // test not remove non-null value
         map.put(key, "V");
         assertEquals(1, map.size());
         map.removeNullValue(key);
         assertEquals(1, map.size());
-
     }
 
     static final int Iterations = 1;
@@ -630,6 +620,5 @@ public class ConcurrentOpenHashMapTest {
         end = System.nanoTime();
 
         System.out.println("CLHM: " + TimeUnit.NANOSECONDS.toMillis(end - start) + " ms");
-
     }
 }

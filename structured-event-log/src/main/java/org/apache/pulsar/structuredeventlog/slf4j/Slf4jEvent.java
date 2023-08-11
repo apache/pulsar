@@ -152,15 +152,19 @@ class Slf4jEvent implements Event {
             // do get, then compute to avoid alloc for compute supplier
             logger = loggers.get(event);
             if (logger == null) {
-                logger = loggers.compute(event,
-                        (k, v) -> LoggerFactory.getLogger(
-                                new StringBuilder("stevlog.").append(component)
-                                .append(".").append(event).toString()));
+                logger = loggers.compute(
+                        event,
+                        (k, v) -> LoggerFactory.getLogger(new StringBuilder("stevlog.")
+                                .append(component)
+                                .append(".")
+                                .append(event)
+                                .toString()));
             }
         } else {
             logger = loggers.get(event);
             if (logger == null) {
-                logger = loggers.compute(event,
+                logger = loggers.compute(
+                        event,
                         (k, v) -> LoggerFactory.getLogger(
                                 new StringBuilder("stevlog.").append(event).toString()));
             }
@@ -188,31 +192,34 @@ class Slf4jEvent implements Event {
             }
             if (startTime != null) {
                 MDC.put("startTimestamp", startTime.toString());
-                MDC.put("durationMs", String.valueOf(Duration.between(startTime, clock.instant()).toMillis()));
+                MDC.put(
+                        "durationMs",
+                        String.valueOf(
+                                Duration.between(startTime, clock.instant()).toMillis()));
             }
             switch (level) {
-            case ERROR:
-                if (throwable != null) {
-                    logger.error(event, throwable);
-                } else {
-                    logger.error(event);
-                }
-                break;
-            case WARN:
-                if (throwable != null) {
-                    logger.warn(event, throwable);
-                } else {
-                    logger.warn(event);
-                }
-                break;
-            case INFO:
-            default:
-                if (throwable != null) {
-                    logger.info(event, throwable);
-                } else {
-                    logger.info(event);
-                }
-                break;
+                case ERROR:
+                    if (throwable != null) {
+                        logger.error(event, throwable);
+                    } else {
+                        logger.error(event);
+                    }
+                    break;
+                case WARN:
+                    if (throwable != null) {
+                        logger.warn(event, throwable);
+                    } else {
+                        logger.warn(event);
+                    }
+                    break;
+                case INFO:
+                default:
+                    if (throwable != null) {
+                        logger.info(event, throwable);
+                    } else {
+                        logger.info(event);
+                    }
+                    break;
             }
         } finally {
             MDC.clear();
@@ -232,10 +239,7 @@ class Slf4jEvent implements Event {
     }
 
     static String randomId() {
-        return Long.toString(
-                ThreadLocalRandom.current().nextLong(0x100000000000000L,
-                                                     0xFFFFFFFFFFFFFFFL),
-                16);
+        return Long.toString(ThreadLocalRandom.current().nextLong(0x100000000000000L, 0xFFFFFFFFFFFFFFFL), 16);
     }
 
     enum Level {

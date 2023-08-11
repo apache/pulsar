@@ -27,8 +27,8 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedeliveryTracker {
 
-    public UnAckedTopicMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
-                                                ConsumerConfigurationData<?> conf) {
+    public UnAckedTopicMessageRedeliveryTracker(
+            PulsarClientImpl client, ConsumerBase<?> consumerBase, ConsumerConfigurationData<?> conf) {
         super(client, consumerBase, conf);
     }
 
@@ -66,5 +66,4 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
             writeLock.unlock();
         }
     }
-
 }

@@ -44,6 +44,7 @@ public class Socks5Server {
 
     @Getter
     private EventLoopGroup boss = new NioEventLoopGroup();
+
     private EventLoopGroup worker = new NioEventLoopGroup();
 
     private final Socks5Config socks5Config;
@@ -54,7 +55,8 @@ public class Socks5Server {
 
     public void start() throws Exception {
         ServerBootstrap bootstrap = new ServerBootstrap();
-        bootstrap.group(boss, worker)
+        bootstrap
+                .group(boss, worker)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
@@ -84,5 +86,4 @@ public class Socks5Server {
         boss.shutdownGracefully();
         worker.shutdownGracefully();
     }
-
 }

@@ -52,17 +52,21 @@ public class ProxyStats {
 
     @GET
     @Path("/connections")
-    @ApiOperation(value = "Proxy stats api to get info for live connections",
-            response = List.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 503, message = "Proxy service is not initialized") })
+    @ApiOperation(
+            value = "Proxy stats api to get info for live connections",
+            response = List.class,
+            responseContainer = "List")
+    @ApiResponses(value = {@ApiResponse(code = 503, message = "Proxy service is not initialized")})
     public List<ConnectionStats> metrics() {
         List<ConnectionStats> stats = new ArrayList<>();
         proxyService().getClientCnxs().forEach(cnx -> {
             if (cnx.getDirectProxyHandler() == null) {
                 return;
             }
-            double requestRate = cnx.getDirectProxyHandler().getInboundChannelRequestsRate().getRate();
-            double byteRate = cnx.getDirectProxyHandler().getInboundChannelRequestsRate().getValueRate();
+            double requestRate =
+                    cnx.getDirectProxyHandler().getInboundChannelRequestsRate().getRate();
+            double byteRate =
+                    cnx.getDirectProxyHandler().getInboundChannelRequestsRate().getValueRate();
             Channel inboundChannel = cnx.getDirectProxyHandler().getInboundChannel();
             Channel outboundChannel = cnx.getDirectProxyHandler().getOutboundChannel();
             stats.add(new ConnectionStats(requestRate, byteRate, inboundChannel, outboundChannel));
@@ -73,8 +77,11 @@ public class ProxyStats {
     @GET
     @Path("/topics")
     @ApiOperation(value = "Proxy topic stats api", response = Map.class, responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy logging should be > 2 to capture topic stats"),
-            @ApiResponse(code = 503, message = "Proxy service is not initialized") })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 412, message = "Proxy logging should be > 2 to capture topic stats"),
+                @ApiResponse(code = 503, message = "Proxy service is not initialized")
+            })
     public Map<String, TopicStats> topics() {
 
         Optional<Integer> logLevel = proxyService().getConfiguration().getProxyLogLevel();
@@ -86,9 +93,14 @@ public class ProxyStats {
 
     @POST
     @Path("/logging/{logLevel}")
-    @ApiOperation(hidden = true, value = "Change proxy logging level dynamically",
+    @ApiOperation(
+            hidden = true,
+            value = "Change proxy logging level dynamically",
             notes = "It only changes log-level in memory, change it config file to persist the change")
-    @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy log level can be [0-2]"), })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 412, message = "Proxy log level can be [0-2]"),
+            })
     public void updateProxyLogLevel(@PathParam("logLevel") int logLevel) {
         if (logLevel < 0 || logLevel > 2) {
             throw new RestException(Status.PRECONDITION_FAILED, "Proxy log level can be only [0-2]");

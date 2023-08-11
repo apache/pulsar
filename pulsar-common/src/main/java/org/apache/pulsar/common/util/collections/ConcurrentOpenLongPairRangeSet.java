@@ -111,8 +111,10 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     private boolean isValid(long key, long value) {
-        return key != LongPair.earliest.getKey() && value != LongPair.earliest.getValue()
-                && key != LongPair.latest.getKey() && value != LongPair.latest.getValue();
+        return key != LongPair.earliest.getKey()
+                && value != LongPair.earliest.getValue()
+                && key != LongPair.latest.getKey()
+                && value != LongPair.latest.getValue();
     }
 
     @Override
@@ -135,8 +137,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
             int lowerValue = rangeBitSet.previousClearBit(getSafeEntry(value)) + 1;
             final T lower = consumer.apply(key, lowerValue);
-            final T upper = consumer.apply(key,
-                    Math.max(rangeBitSet.nextClearBit(getSafeEntry(value)) - 1, lowerValue));
+            final T upper =
+                    consumer.apply(key, Math.max(rangeBitSet.nextClearBit(getSafeEntry(value)) - 1, lowerValue));
             return Range.closed(lower, upper);
         }
         return null;
@@ -198,9 +200,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumerParam) {
         forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
             Range<T> range = Range.openClosed(
-                    consumerParam.apply(lowerKey, lowerValue),
-                    consumerParam.apply(upperKey, upperValue)
-            );
+                    consumerParam.apply(lowerKey, lowerValue), consumerParam.apply(upperKey, upperValue));
             return action.process(range);
         });
     }
@@ -220,8 +220,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             int currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
                 int nextOpenMark = set.nextClearBit(currentClosedMark);
-                if (!processor.processRawRange(key, currentClosedMark - 1,
-                        key, nextOpenMark - 1)) {
+                if (!processor.processRawRange(key, currentClosedMark - 1, key, nextOpenMark - 1)) {
                     completed.set(true);
                     break;
                 }
@@ -229,7 +228,6 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
         });
     }
-
 
     @Override
     public Range<T> firstRange() {
@@ -338,7 +336,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
         // #addOpenClosed doesn't create bitSet for lower-key because it avoids setting up values for non-exist items
         // into the key-ledger. so, create bitSet and initialize so, it can't be ignored at #addOpenClosed
-        rangeBitSetMap.computeIfAbsent(lowerEndpoint.getKey(), (key) -> createNewBitSet())
+        rangeBitSetMap
+                .computeIfAbsent(lowerEndpoint.getKey(), (key) -> createNewBitSet())
                 .set((int) lowerValueOpen + 1);
         this.addOpenClosed(lowerEndpoint.getKey(), lowerValueOpen, upperEndpoint.getKey(), upperValueClosed);
     }
@@ -416,5 +415,4 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     private BitSet createNewBitSet() {
         return this.threadSafe ? new ConcurrentBitSet(bitSetSize) : new BitSet(bitSetSize);
     }
-
 }

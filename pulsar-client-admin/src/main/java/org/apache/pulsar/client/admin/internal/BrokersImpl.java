@@ -60,7 +60,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<List<String>> getActiveBrokersAsync(String cluster) {
         WebTarget path = cluster == null ? adminBrokers : adminBrokers.path(cluster);
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 
     @Override
@@ -71,7 +71,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<BrokerInfo> getLeaderBrokerAsync() {
         WebTarget path = adminBrokers.path("leaderBroker");
-        return asyncGetRequest(path, new FutureCallback<BrokerInfo>(){});
+        return asyncGetRequest(path, new FutureCallback<BrokerInfo>() {});
     }
 
     @Override
@@ -84,7 +84,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(
             String cluster, String brokerUrl) {
         WebTarget path = adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces");
-        return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceOwnershipStatus>>(){});
+        return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceOwnershipStatus>>() {});
     }
 
     @Override
@@ -118,7 +118,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync() {
         WebTarget path = adminBrokers.path("configuration").path("values");
-        return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
+        return asyncGetRequest(path, new FutureCallback<Map<String, String>>() {});
     }
 
     @Override
@@ -129,7 +129,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<List<String>> getDynamicConfigurationNamesAsync() {
         WebTarget path = adminBrokers.path("configuration");
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 
     @Override
@@ -140,7 +140,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<Map<String, String>> getRuntimeConfigurationsAsync() {
         WebTarget path = adminBrokers.path("configuration").path("runtime");
-        return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
+        return asyncGetRequest(path, new FutureCallback<Map<String, String>>() {});
     }
 
     @Override
@@ -151,7 +151,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<InternalConfigurationData> getInternalConfigurationDataAsync() {
         WebTarget path = adminBrokers.path("internal-configuration");
-        return asyncGetRequest(path, new FutureCallback<InternalConfigurationData>(){});
+        return asyncGetRequest(path, new FutureCallback<InternalConfigurationData>() {});
     }
 
     @Override
@@ -189,30 +189,30 @@ public class BrokersImpl extends BaseResource implements Brokers {
             path = path.queryParam("topicVersion", topicVersion);
         }
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String result) {
-                        if (!"ok".equalsIgnoreCase(result.trim())) {
-                            future.completeExceptionally(
-                                    new PulsarAdminException("Healthcheck returned unexpected result: " + result));
-                        } else {
-                            future.complete(null);
-                        }
-                    }
+        asyncGetRequest(path, new InvocationCallback<String>() {
+            @Override
+            public void completed(String result) {
+                if (!"ok".equalsIgnoreCase(result.trim())) {
+                    future.completeExceptionally(
+                            new PulsarAdminException("Healthcheck returned unexpected result: " + result));
+                } else {
+                    future.complete(null);
+                }
+            }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
         return future;
     }
 
     @Override
-    public CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                                            boolean forcedTerminateTopic) {
-        WebTarget path = adminBrokers.path("shutdown")
+    public CompletableFuture<Void> shutDownBrokerGracefully(
+            int maxConcurrentUnloadPerSec, boolean forcedTerminateTopic) {
+        WebTarget path = adminBrokers
+                .path("shutdown")
                 .queryParam("maxConcurrentUnloadPerSec", maxConcurrentUnloadPerSec)
                 .queryParam("forcedTerminateTopic", forcedTerminateTopic);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
@@ -226,6 +226,6 @@ public class BrokersImpl extends BaseResource implements Brokers {
     public CompletableFuture<String> getVersionAsync() {
         WebTarget path = adminBrokers.path("version");
 
-        return asyncGetRequest(path, new FutureCallback<String>(){});
+        return asyncGetRequest(path, new FutureCallback<String>() {});
     }
 }

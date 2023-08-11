@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -31,10 +31,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class GrowableArrayBlockingQueueTest {
 
@@ -110,20 +107,21 @@ public class GrowableArrayBlockingQueueTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         new Thread(() -> {
-            try {
-                int expected = 0;
+                    try {
+                        int expected = 0;
 
-                for (int i = 0; i < 100; i++) {
-                    int n = queue.take();
+                        for (int i = 0; i < 100; i++) {
+                            int n = queue.take();
 
-                    assertEquals(n, expected++);
-                }
+                            assertEquals(n, expected++);
+                        }
 
-                latch.countDown();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
+                        latch.countDown();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                })
+                .start();
 
         int n = 0;
         for (int i = 0; i < 10; i++) {
@@ -195,14 +193,15 @@ public class GrowableArrayBlockingQueueTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         new Thread(() -> {
-            try {
-                queue.poll(1, TimeUnit.HOURS);
+                    try {
+                        queue.poll(1, TimeUnit.HOURS);
 
-                latch.countDown();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
+                        latch.countDown();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                })
+                .start();
 
         // Make sure background thread is waiting on poll
         Thread.sleep(100);

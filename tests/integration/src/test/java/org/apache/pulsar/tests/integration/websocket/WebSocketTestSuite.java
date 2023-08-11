@@ -19,6 +19,13 @@
 package org.apache.pulsar.tests.integration.websocket;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -31,13 +38,6 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 public abstract class WebSocketTestSuite extends PulsarTestSuite {
     private static final Logger log = LoggerFactory.getLogger(WebSocketTestSuite.class);
@@ -53,19 +53,20 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
                 .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
                 .build();
 
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        new TenantInfoImpl(
+                                Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 
         log.debug("Using url {}", url);
 
-        @Cleanup
-        WebSocketConsumer consumer = new WebSocketConsumer(url, topic);
+        @Cleanup WebSocketConsumer consumer = new WebSocketConsumer(url, topic);
         log.debug("Created ws consumer");
 
-        @Cleanup
-        WebSocketPublisher publisher = new WebSocketPublisher(url, topic);
+        @Cleanup WebSocketPublisher publisher = new WebSocketPublisher(url, topic);
         log.debug("Created ws publisher");
 
         publisher.send("SGVsbG8gV29ybGQ=");
@@ -102,12 +103,11 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
         }
 
         Map<String, Object> getResponse() throws Exception {
-            String response =  incomingMessages.poll(5, TimeUnit.SECONDS);
+            String response = incomingMessages.poll(5, TimeUnit.SECONDS);
             if (response == null) {
                 Assert.fail("Did not get websocket response within timeout");
             }
             return ObjectMapperFactory.getMapper().getObjectMapper().readValue(response, new TypeReference<>() {});
-
         }
 
         @Override
@@ -124,11 +124,10 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
         }
 
         void send(String payload) throws IOException {
-            sendText("{\n" +
-                    "  \"payload\": \"" + payload + "\",\n" +
-                    "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n" +
-                    "  \"context\": \"1\"\n" +
-                    "}");
+            sendText("{\n" + "  \"payload\": \""
+                    + payload + "\",\n" + "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n"
+                    + "  \"context\": \"1\"\n"
+                    + "}");
         }
     }
 
@@ -140,9 +139,8 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
         }
 
         String getPayloadFromResponse() throws Exception {
-            Map<String, Object> response =  getResponse();
+            Map<String, Object> response = getResponse();
             return String.valueOf(response.get("payload"));
         }
     }
-
 }

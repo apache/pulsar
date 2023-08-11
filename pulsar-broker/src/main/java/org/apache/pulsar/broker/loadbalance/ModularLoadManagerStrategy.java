@@ -43,15 +43,13 @@ public interface ModularLoadManagerStrategy {
      *            The service configuration.
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
-    Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
-            ServiceConfiguration conf);
+    Optional<String> selectBroker(
+            Set<String> candidates, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf);
 
     /**
      * Triggered when active brokers change.
      */
-    default void onActiveBrokersChange(Set<String> activeBrokers) {
-
-    }
+    default void onActiveBrokersChange(Set<String> activeBrokers) {}
 
     /**
      * Create a placement strategy using the configuration.
@@ -61,8 +59,10 @@ public interface ModularLoadManagerStrategy {
      */
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            return Reflections.createInstance(conf.getLoadBalancerLoadPlacementStrategy(),
-                    ModularLoadManagerStrategy.class, Thread.currentThread().getContextClassLoader());
+            return Reflections.createInstance(
+                    conf.getLoadBalancerLoadPlacementStrategy(),
+                    ModularLoadManagerStrategy.class,
+                    Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
             throw new RuntimeException(
                     "Could not load LoadBalancerLoadPlacementStrategy:" + conf.getLoadBalancerLoadPlacementStrategy(),

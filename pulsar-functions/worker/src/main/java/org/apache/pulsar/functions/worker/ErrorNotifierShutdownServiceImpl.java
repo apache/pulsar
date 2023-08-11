@@ -43,6 +43,6 @@ public class ErrorNotifierShutdownServiceImpl implements ErrorNotifier {
 
     @Override
     public void close() {
-        //no-op
+        // no-op
     }
 }

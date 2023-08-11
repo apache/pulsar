@@ -55,7 +55,6 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
     //    private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
     private Map<Long, TreeMap<Long, OffloadIndexEntryImpl>> indexEntries;
 
-
     private final Handle<OffloadIndexBlockV2Impl> recyclerHandle;
 
     private static final Recycler<OffloadIndexBlockV2Impl> RECYCLER = new Recycler<OffloadIndexBlockV2Impl>() {
@@ -69,14 +68,16 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
         this.recyclerHandle = recyclerHandle;
     }
 
-    public static OffloadIndexBlockV2Impl get(Map<Long, LedgerInfo> metadata, long dataObjectLength,
-                                              long dataHeaderLength,
-                                              Map<Long, List<OffloadIndexEntryImpl>> entries) {
+    public static OffloadIndexBlockV2Impl get(
+            Map<Long, LedgerInfo> metadata,
+            long dataObjectLength,
+            long dataHeaderLength,
+            Map<Long, List<OffloadIndexEntryImpl>> entries) {
         OffloadIndexBlockV2Impl block = RECYCLER.get();
         block.indexEntries = new HashMap<>();
         entries.forEach((ledgerId, list) -> {
-            final TreeMap<Long, OffloadIndexEntryImpl> inLedger = block.indexEntries
-                    .getOrDefault(ledgerId, new TreeMap<>());
+            final TreeMap<Long, OffloadIndexEntryImpl> inLedger =
+                    block.indexEntries.getOrDefault(ledgerId, new TreeMap<>());
             list.forEach(indexEntry -> {
                 inLedger.put(indexEntry.getEntryId(), indexEntry);
             });
@@ -94,8 +95,8 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
         block.indexEntries = Maps.newTreeMap();
         block.segmentMetadata = Maps.newTreeMap();
         if (magic != INDEX_MAGIC_WORD) {
-            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
-                    magic, INDEX_MAGIC_WORD));
+            throw new IOException(
+                    String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x", magic, INDEX_MAGIC_WORD));
         }
         block.fromStream(stream);
         return block;
@@ -115,10 +116,12 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
     @Override
     public OffloadIndexEntry getIndexEntryForEntry(long ledgerId, long messageEntryId) throws IOException {
         if (messageEntryId > getLedgerMetadata(ledgerId).getLastEntryId()) {
-            log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
-                    messageEntryId, getLedgerMetadata(ledgerId).getLastEntryId());
-            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId
-                    + " beyond lastEntryId: " + getLedgerMetadata(ledgerId).getLastEntryId());
+            log.warn(
+                    "Try to get entry: {}, which beyond lastEntryId {}, return null",
+                    messageEntryId,
+                    getLedgerMetadata(ledgerId).getLastEntryId());
+            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId + " beyond lastEntryId: "
+                    + getLedgerMetadata(ledgerId).getLastEntryId());
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
         return this.indexEntries.get(ledgerId).floorEntry(messageEntryId).getValue();
@@ -242,8 +245,8 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
 
             for (int i = 0; i < indexEntryCount; i++) {
                 long entryId = dis.readLong();
-                indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(),
-                        dis.readLong(), dataHeaderLength));
+                indexEntries.putIfAbsent(
+                        entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(), dis.readLong(), dataHeaderLength));
             }
             this.indexEntries.put(ledgerId, indexEntries);
         }
@@ -376,4 +379,3 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
         }
     }
 }
-

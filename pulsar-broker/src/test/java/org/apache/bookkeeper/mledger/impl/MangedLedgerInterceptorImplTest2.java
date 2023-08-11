@@ -18,8 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.assertEquals;
 import static org.apache.pulsar.broker.intercept.MangedLedgerInterceptorImplTest.TestPayloadProcessor;
+import static org.testng.Assert.assertEquals;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class MangedLedgerInterceptorImplTest2 extends MockedBookKeeperTestCase {
 
-    public static void switchLedgerManually(ManagedLedgerImpl ledger){
+    public static void switchLedgerManually(ManagedLedgerImpl ledger) {
         LedgerHandle originalLedgerHandle = ledger.currentLedger;
         ledger.ledgerClosed(ledger.currentLedger);
         ledger.createLedgerAfterClosed();

@@ -37,7 +37,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -82,17 +81,17 @@ public abstract class AbstractFileTests {
         }
 
         Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
-           @Override
-           public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-               Files.delete(file);
-               return FileVisitResult.CONTINUE;
-           }
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
 
-           @Override
-           public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-               Files.delete(dir);
-               return FileVisitResult.CONTINUE;
-           }
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                Files.delete(dir);
+                return FileVisitResult.CONTINUE;
+            }
         });
     }
 
@@ -111,18 +110,23 @@ public abstract class AbstractFileTests {
         generateFiles(numFiles, 1, directory.toString());
     }
 
-    protected final void generateFiles(int numFiles, int numLines) throws IOException, InterruptedException, ExecutionException {
+    protected final void generateFiles(int numFiles, int numLines)
+            throws IOException, InterruptedException, ExecutionException {
         generateFiles(numFiles, numLines, directory.toString());
     }
 
-    protected final void generateFiles(int numFiles, int numLines, String directory) throws IOException, InterruptedException, ExecutionException {
-        generatorThread = new TestFileGenerator(producedFiles, numFiles, 1, numLines, directory, "prefix", ".txt", getPermissions());
+    protected final void generateFiles(int numFiles, int numLines, String directory)
+            throws IOException, InterruptedException, ExecutionException {
+        generatorThread = new TestFileGenerator(
+                producedFiles, numFiles, 1, numLines, directory, "prefix", ".txt", getPermissions());
         Future<?> f = executor.submit(generatorThread);
         f.get();
     }
 
-    protected final void generateFiles(int numFiles, int numLines, String directory, String suffix) throws IOException, InterruptedException, ExecutionException {
-        generatorThread = new TestFileGenerator(producedFiles, numFiles, 1, numLines, directory, "prefix", suffix, getPermissions());
+    protected final void generateFiles(int numFiles, int numLines, String directory, String suffix)
+            throws IOException, InterruptedException, ExecutionException {
+        generatorThread = new TestFileGenerator(
+                producedFiles, numFiles, 1, numLines, directory, "prefix", suffix, getPermissions());
         Future<?> f = executor.submit(generatorThread);
         f.get();
     }
@@ -131,5 +135,4 @@ public abstract class AbstractFileTests {
         Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxrwxrwx");
         return PosixFilePermissions.asFileAttribute(perms);
     }
-
 }

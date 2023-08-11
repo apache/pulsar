@@ -48,10 +48,12 @@ public abstract class TestRetrySupport {
     public final void stateCheck(Method method) throws Exception {
         // run cleanup and setup if the current setup number is the one where a failure happened
         // this is to cleanup state before retrying
-        if (currentSetupNumber == failedSetupNumber
-                && cleanedUpSetupNumber != failedSetupNumber) {
-            LOG.info("Previous test run has failed before {}.{}, failedSetupNumber={}. Running cleanup and setup.",
-                    method.getDeclaringClass().getSimpleName(), method.getName(), failedSetupNumber);
+        if (currentSetupNumber == failedSetupNumber && cleanedUpSetupNumber != failedSetupNumber) {
+            LOG.info(
+                    "Previous test run has failed before {}.{}, failedSetupNumber={}. Running cleanup and setup.",
+                    method.getDeclaringClass().getSimpleName(),
+                    method.getName(),
+                    failedSetupNumber);
             try {
                 cleanup();
             } catch (Exception e) {
@@ -67,8 +69,10 @@ public abstract class TestRetrySupport {
     public final void failureCheck(ITestResult testResult, Method method) {
         // track the setup number where the failure happened
         if (!testResult.isSuccess()) {
-            LOG.info("Detected test failure in test {}.{}, currentSetupNumber={}",
-                    method.getDeclaringClass().getSimpleName(), method.getName(),
+            LOG.info(
+                    "Detected test failure in test {}.{}, currentSetupNumber={}",
+                    method.getDeclaringClass().getSimpleName(),
+                    method.getName(),
                     currentSetupNumber);
             failedSetupNumber = currentSetupNumber;
         }

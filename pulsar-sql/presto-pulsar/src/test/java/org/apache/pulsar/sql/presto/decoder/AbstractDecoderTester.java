@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.sql.presto.decoder;
 
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertNotNull;
 import io.airlift.slice.Slice;
 import io.trino.decoder.DecoderColumnHandle;
 import io.trino.decoder.FieldValueProvider;
@@ -27,6 +29,9 @@ import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.type.Type;
 import io.trino.testing.TestingConnectorContext;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -38,13 +43,6 @@ import org.apache.pulsar.sql.presto.PulsarConnectorId;
 import org.apache.pulsar.sql.presto.PulsarDispatchingRowDecoderFactory;
 import org.apache.pulsar.sql.presto.PulsarMetadata;
 import org.apache.pulsar.sql.presto.PulsarRowDecoder;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertNotNull;
 
 /**
  * Abstract superclass for TestXXDecoder (e.g. TestAvroDecoder 、TestJsonDecoder).
@@ -68,7 +66,10 @@ public abstract class AbstractDecoderTester {
         this.pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
         this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
         this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
-        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, decoderFactory,
+        this.pulsarMetadata = new PulsarMetadata(
+                pulsarConnectorId,
+                this.pulsarConnectorConfig,
+                decoderFactory,
                 new PulsarAuth(this.pulsarConnectorConfig));
         this.topicName = TopicName.get("persistent", NamespaceName.get("tenant-1", "ns-1"), "topic-1");
     }
@@ -85,27 +86,33 @@ public abstract class AbstractDecoderTester {
         decoderTestUtil.checkRowValues(block, type, value);
     }
 
-    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, Slice value) {
+    protected void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, Slice value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 
-    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, String value) {
+    protected void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, String value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 
-    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, long value) {
+    protected void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, long value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 
-    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, double value) {
+    protected void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, double value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 
-    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, boolean value) {
+    protected void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, boolean value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 
-    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
+    protected void checkValue(
+            Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 
@@ -115,11 +122,15 @@ public abstract class AbstractDecoderTester {
         return provider.getBlock();
     }
 
-    protected List<PulsarColumnHandle> getColumnColumnHandles(TopicName topicName, SchemaInfo schemaInfo,
-                                                              PulsarColumnHandle.HandleKeyValueType handleKeyValueType, boolean includeInternalColumn, PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory) {
+    protected List<PulsarColumnHandle> getColumnColumnHandles(
+            TopicName topicName,
+            SchemaInfo schemaInfo,
+            PulsarColumnHandle.HandleKeyValueType handleKeyValueType,
+            boolean includeInternalColumn,
+            PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory) {
         List<PulsarColumnHandle> columnHandles = new ArrayList<>();
-        List<ColumnMetadata> columnMetadata = pulsarMetadata.getPulsarColumns(topicName, schemaInfo,
-                includeInternalColumn, handleKeyValueType);
+        List<ColumnMetadata> columnMetadata =
+                pulsarMetadata.getPulsarColumns(topicName, schemaInfo, includeInternalColumn, handleKeyValueType);
 
         columnMetadata.forEach(column -> {
             PulsarColumnMetadata pulsarColumnMetadata = (PulsarColumnMetadata) column;
@@ -130,11 +141,10 @@ public abstract class AbstractDecoderTester {
                     pulsarColumnMetadata.isHidden(),
                     pulsarColumnMetadata.isInternal(),
                     pulsarColumnMetadata.getDecoderExtraInfo().getMapping(),
-                    pulsarColumnMetadata.getDecoderExtraInfo().getDataFormat(), pulsarColumnMetadata.getDecoderExtraInfo().getFormatHint(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getDataFormat(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getFormatHint(),
                     pulsarColumnMetadata.getHandleKeyValueType()));
-
         });
         return columnHandles;
     }
-
 }

@@ -20,17 +20,14 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker-api")
 public class ProxyProtocolTest extends TlsProducerConsumerBase {
@@ -44,16 +41,19 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String brokerServiceUrl = "pulsar+ssl://unresolvable-address:6651";
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
-                .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(brokerServiceUrl)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .enableTls(true)
+                .allowTlsInsecureConnection(false)
+                .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
-        @Cleanup
-        PulsarClient pulsarClient = clientBuilder.build();
+        @Cleanup PulsarClient pulsarClient = clientBuilder.build();
         // should be able to create producer successfully
         pulsarClient.newProducer().topic(topicName).create();
     }
@@ -67,16 +67,19 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String proxyUrl = "pulsar+ssl://" + proxyHost + ":5555";
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
-                .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(brokerServiceUrl)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .enableTls(true)
+                .allowTlsInsecureConnection(false)
+                .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
-        @Cleanup
-        PulsarClient pulsarClient = clientBuilder.build();
+        @Cleanup PulsarClient pulsarClient = clientBuilder.build();
 
         try {
             pulsarClient.newProducer().topic(topicName).create();
@@ -93,11 +96,12 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String brokerServiceUrl = "pulsar+ssl://1.1.1.1:6651";
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
-                .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(brokerServiceUrl)
+                .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS);
 
-        @Cleanup
-        PulsarClient pulsarClient = clientBuilder.build();
+        @Cleanup PulsarClient pulsarClient = clientBuilder.build();
 
         try {
             pulsarClient.newProducer().topic(topicName).create();

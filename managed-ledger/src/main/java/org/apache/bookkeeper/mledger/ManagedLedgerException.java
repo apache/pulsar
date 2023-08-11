@@ -23,7 +23,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
-@SuppressWarnings({ "serial", "checkstyle:javadoctype" })
+@SuppressWarnings({"serial", "checkstyle:javadoctype"})
 public class ManagedLedgerException extends Exception {
     public ManagedLedgerException(String msg) {
         super(msg);
@@ -73,7 +73,6 @@ public class ManagedLedgerException extends Exception {
             super(msg);
         }
     }
-
 
     public static class ManagedLedgerFencedException extends ManagedLedgerException {
         public ManagedLedgerFencedException() {

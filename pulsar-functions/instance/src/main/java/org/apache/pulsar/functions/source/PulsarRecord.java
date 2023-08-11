@@ -137,5 +137,4 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     public Optional<Message<T>> getMessage() {
         return Optional.of(message);
     }
-
 }

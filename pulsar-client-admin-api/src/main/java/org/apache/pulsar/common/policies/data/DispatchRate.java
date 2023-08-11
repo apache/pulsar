@@ -26,14 +26,20 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 public interface DispatchRate {
 
     int getDispatchThrottlingRateInMsg();
+
     long getDispatchThrottlingRateInByte();
+
     boolean isRelativeToPublishRate(); /* throttles dispatch relatively publish-rate */
+
     int getRatePeriodInSecond(); /* by default dispatch-rate will be calculate per 1 second */
 
     interface Builder {
         Builder dispatchThrottlingRateInMsg(int dispatchThrottlingRateMsg);
+
         Builder dispatchThrottlingRateInByte(long dispatchThrottlingRateBytes);
+
         Builder relativeToPublishRate(boolean relativeToPublishRate);
+
         Builder ratePeriodInSecond(int ratePeriodInSeconds);
 
         DispatchRate build();

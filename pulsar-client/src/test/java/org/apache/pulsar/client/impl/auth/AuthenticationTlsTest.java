@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.auth;
 
 import static org.testng.Assert.assertEquals;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInput;
@@ -27,7 +26,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.function.Supplier;
-
 import org.testng.annotations.Test;
 
 public class AuthenticationTlsTest {
@@ -35,7 +33,7 @@ public class AuthenticationTlsTest {
     /**
      * This test validates if {@link AuthenticationTls} is serializable to prevent future non-serializable changes and also
      * validates that streamProvider can be serializable and user can use AuthenticationTls in serialiazable task.
-     * 
+     *
      * @throws Exception
      */
     @Test

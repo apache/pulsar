@@ -66,8 +66,6 @@ public class Worker {
         }
     }
 
-
-
     private AuthorizationService getAuthorizationService() throws PulsarServerException {
 
         if (this.workerConfig.isAuthorizationEnabled()) {
@@ -83,7 +81,7 @@ public class Worker {
             }
             pulsarResources = new PulsarResources(null, configMetadataStore);
             return new AuthorizationService(getServiceConfiguration(), this.pulsarResources);
-            }
+        }
         return null;
     }
 
@@ -113,7 +111,6 @@ public class Worker {
             orderedExecutor.shutdownNow();
         }
     }
-
 
     public Optional<Integer> getListenPortHTTP() {
         return this.server.getListenPortHTTP();

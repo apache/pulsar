@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
 
-    private final static int MAX_MESSAGE_SIZE = 1024 * 1024;
+    private static final int MAX_MESSAGE_SIZE = 1024 * 1024;
 
     @EqualsAndHashCode
     @Data
@@ -80,11 +80,15 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         // so that clients can test short names
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants()
+                .createTenant(
+                        "public", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
         admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
     }
@@ -127,13 +131,16 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(messageSet.isEmpty());
     }
 
-    private Set<MovieMessage> prepareChunkedData(String topic, int messageCnt) throws PulsarClientException, InterruptedException {
-        pulsarClient.newConsumer(Schema.AVRO(Movie.class))
+    private Set<MovieMessage> prepareChunkedData(String topic, int messageCnt)
+            throws PulsarClientException, InterruptedException {
+        pulsarClient
+                .newConsumer(Schema.AVRO(Movie.class))
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscribe()
                 .close();
-        Producer<Movie> producer = pulsarClient.newProducer(Schema.AVRO(Movie.class))
+        Producer<Movie> producer = pulsarClient
+                .newProducer(Schema.AVRO(Movie.class))
                 .topic(topic)
                 .enableBatching(false)
                 .enableChunking(true)
@@ -150,20 +157,19 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
             movie.setName("movie-" + i);
             movie.setPublishTime(System.currentTimeMillis());
             movie.setBinaryData(movieBinaryData);
-            producer.newMessage().value(movie).sendAsync()
-                    .whenComplete((msgId, throwable) -> {
-                        if (throwable != null) {
-                            log.error("Failed to produce message.", throwable);
-                            countDownLatch.countDown();
-                            return;
-                        }
-                        MovieMessage movieMessage = new MovieMessage();
-                        movieMessage.setMovie(movie);
-                        MessageIdImpl messageId = (MessageIdImpl) msgId;
-                        movieMessage.setMessageId("(" + messageId.getLedgerId() + "," + messageId.getEntryId() + ",0)");
-                        messageSet.add(movieMessage);
-                        countDownLatch.countDown();
-                    });
+            producer.newMessage().value(movie).sendAsync().whenComplete((msgId, throwable) -> {
+                if (throwable != null) {
+                    log.error("Failed to produce message.", throwable);
+                    countDownLatch.countDown();
+                    return;
+                }
+                MovieMessage movieMessage = new MovieMessage();
+                movieMessage.setMovie(movie);
+                MessageIdImpl messageId = (MessageIdImpl) msgId;
+                movieMessage.setMessageId("(" + messageId.getLedgerId() + "," + messageId.getEntryId() + ",0)");
+                messageSet.add(movieMessage);
+                countDownLatch.countDown();
+            });
         }
         countDownLatch.await();
         Assert.assertEquals(messageCnt, messageSet.size());
@@ -171,14 +177,19 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
         return messageSet;
     }
 
-    private void queryAndCheck(List<PulsarColumnHandle> columnHandleList,
-                               PulsarSplit split,
-                               PulsarConnectorConfig connectorConfig,
-                               ConnectorContext prestoConnectorContext,
-                               Set<MovieMessage> messageSet) {
+    private void queryAndCheck(
+            List<PulsarColumnHandle> columnHandleList,
+            PulsarSplit split,
+            PulsarConnectorConfig connectorConfig,
+            ConnectorContext prestoConnectorContext,
+            Set<MovieMessage> messageSet) {
         PulsarRecordCursor pulsarRecordCursor = new PulsarRecordCursor(
-                columnHandleList, split, connectorConfig, pulsar.getManagedLedgerFactory(),
-                new ManagedLedgerConfig(), new PulsarConnectorMetricsTracker(new NullStatsProvider()),
+                columnHandleList,
+                split,
+                connectorConfig,
+                pulsar.getManagedLedgerFactory(),
+                new ManagedLedgerConfig(),
+                new PulsarConnectorMetricsTracker(new NullStatsProvider()),
                 new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager()));
 
         AtomicInteger receiveMsgCnt = new AtomicInteger(messageSet.size());
@@ -198,7 +209,8 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
                         movie.setPublishTime(pulsarRecordCursor.getLong(i));
                         break;
                     case "__message_id__":
-                        movieMessage.setMessageId(new String(pulsarRecordCursor.getSlice(i).getBytes()));
+                        movieMessage.setMessageId(
+                                new String(pulsarRecordCursor.getSlice(i).getBytes()));
                     default:
                         // do nothing
                         break;
@@ -210,5 +222,4 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
             receiveMsgCnt.decrementAndGet();
         }
     }
-
 }

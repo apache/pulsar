@@ -20,9 +20,7 @@ package org.apache.pulsar.io;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collections;
@@ -31,7 +29,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -113,7 +110,6 @@ public class PulsarFunctionAdminTest {
         config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
 
-
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
@@ -134,18 +130,18 @@ public class PulsarFunctionAdminTest {
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
 
-        admin = spy(
-                PulsarAdmin.builder()
-                        .serviceHttpUrl(pulsar.getWebServiceAddressTls())
-                        .tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH)
-                        .authentication(authTls)
-                        .build());
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(pulsar.getWebServiceAddressTls())
+                .tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH)
+                .authentication(authTls)
+                .build());
 
         brokerStatsClient = admin.brokerStats();
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
+        ClusterData clusterData =
+                ClusterData.builder().serviceUrl(urlTls.toString()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -153,7 +149,8 @@ public class PulsarFunctionAdminTest {
                 && isNotBlank(workerConfig.getBrokerClientAuthenticationParameters())) {
             clientBuilder.enableTls(workerConfig.isUseTls());
             clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
-            clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
+            clientBuilder.authentication(
+                    workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
         }
         if (pulsarClient != null) {
@@ -185,12 +182,14 @@ public class PulsarFunctionAdminTest {
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper()
-                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
-        workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls().get());
+        workerConfig.setPulsarServiceUrl(
+                "pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
+        workerConfig.setPulsarWebServiceUrl(
+                "https://127.0.0.1:" + config.getWebServicePortTls().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -201,8 +200,8 @@ public class PulsarFunctionAdminTest {
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
         workerConfig.setWorkerHostname(hostname);
-        workerConfig
-                .setWorkerId("c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort());
+        workerConfig.setWorkerId(
+                "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort());
 
         workerConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         workerConfig.setBrokerClientAuthenticationParameters(

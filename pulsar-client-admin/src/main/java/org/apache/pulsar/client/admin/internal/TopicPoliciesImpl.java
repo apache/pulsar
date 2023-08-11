@@ -74,16 +74,15 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuotaMap");
             path = path.queryParam("applied", applied);
-            return request(path).get(new GenericType<Map<BacklogQuotaType, BacklogQuota>>() {
-            });
+            return request(path).get(new GenericType<Map<BacklogQuotaType, BacklogQuota>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public void setBacklogQuota(String topic, BacklogQuota backlogQuota,
-                                BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
+    public void setBacklogQuota(String topic, BacklogQuota backlogQuota, BacklogQuotaType backlogQuotaType)
+            throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuota");
@@ -126,7 +125,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxUnackedMessagesOnConsumer");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -164,7 +163,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<InactiveTopicPolicies>(){});
+        return asyncGetRequest(path, new FutureCallback<InactiveTopicPolicies>() {});
     }
 
     @Override
@@ -178,16 +177,16 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic
-            , InactiveTopicPolicies inactiveTopicPolicies) {
+    public CompletableFuture<Void> setInactiveTopicPoliciesAsync(
+            String topic, InactiveTopicPolicies inactiveTopicPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
         return asyncPostRequest(path, Entity.entity(inactiveTopicPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void setInactiveTopicPolicies(String topic
-            , InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException {
+    public void setInactiveTopicPolicies(String topic, InactiveTopicPolicies inactiveTopicPolicies)
+            throws PulsarAdminException {
         sync(() -> setInactiveTopicPoliciesAsync(topic, inactiveTopicPolicies));
     }
 
@@ -204,19 +203,17 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic
-            , boolean applied) throws PulsarAdminException {
+    public DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic, boolean applied) throws PulsarAdminException {
         return sync(() -> getDelayedDeliveryPolicyAsync(topic, applied));
     }
 
     @Override
-    public CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic
-            , boolean applied) {
+    public CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "delayedDelivery");
         path = path.queryParam("applied", applied);
 
-        return asyncGetRequest(path, new FutureCallback<DelayedDeliveryPolicies>(){});
+        return asyncGetRequest(path, new FutureCallback<DelayedDeliveryPolicies>() {});
     }
 
     @Override
@@ -242,16 +239,16 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public CompletableFuture<Void> setDelayedDeliveryPolicyAsync(String topic
-            , DelayedDeliveryPolicies delayedDeliveryPolicies) {
+    public CompletableFuture<Void> setDelayedDeliveryPolicyAsync(
+            String topic, DelayedDeliveryPolicies delayedDeliveryPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "delayedDelivery");
         return asyncPostRequest(path, Entity.entity(delayedDeliveryPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void setDelayedDeliveryPolicy(String topic
-            , DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException {
+    public void setDelayedDeliveryPolicy(String topic, DelayedDeliveryPolicies delayedDeliveryPolicies)
+            throws PulsarAdminException {
         sync(() -> setDelayedDeliveryPolicyAsync(topic, delayedDeliveryPolicies));
     }
 
@@ -275,7 +272,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationEnabled");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
+        return asyncGetRequest(path, new FutureCallback<Boolean>() {});
     }
 
     private CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled) {
@@ -328,7 +325,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<OffloadPoliciesImpl>(){})
+        return asyncGetRequest(path, new FutureCallback<OffloadPoliciesImpl>() {})
                 .thenApply(offloadPolicies -> offloadPolicies);
     }
 
@@ -376,7 +373,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxUnackedMessagesOnSubscription");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -408,8 +405,8 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         try {
             TopicName topicName = validateTopic(topic);
             WebTarget path = topicPath(topicName, "messageTTL");
-            request(path.queryParam("messageTTL", messageTTLInSecond)).
-                    post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path.queryParam("messageTTL", messageTTLInSecond))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -475,7 +472,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "retention");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<RetentionPolicies>(){});
+        return asyncGetRequest(path, new FutureCallback<RetentionPolicies>() {});
     }
 
     @Override
@@ -522,7 +519,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "persistence");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<PersistencePolicies>(){});
+        return asyncGetRequest(path, new FutureCallback<PersistencePolicies>() {});
     }
 
     @Override
@@ -547,7 +544,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "dispatchRate");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
+        return asyncGetRequest(path, new FutureCallback<DispatchRate>() {});
     }
 
     @Override
@@ -594,7 +591,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscriptionDispatchRate");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
+        return asyncGetRequest(path, new FutureCallback<DispatchRate>() {});
     }
 
     @Override
@@ -638,8 +635,8 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, String subscriptionName,
-                                                                    DispatchRate dispatchRate) {
+    public CompletableFuture<Void> setSubscriptionDispatchRateAsync(
+            String topic, String subscriptionName, DispatchRate dispatchRate) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, subscriptionName, "dispatchRate");
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
@@ -652,12 +649,12 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName,
-                                                                            boolean applied) {
+    public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(
+            String topic, String subscriptionName, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, subscriptionName, "dispatchRate");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
+        return asyncGetRequest(path, new FutureCallback<DispatchRate>() {});
     }
 
     @Override
@@ -702,7 +699,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "compactionThreshold");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<Long>(){});
+        return asyncGetRequest(path, new FutureCallback<Long>() {});
     }
 
     @Override
@@ -738,7 +735,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<PublishRate> getPublishRateAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "publishRate");
-        return asyncGetRequest(path, new FutureCallback<PublishRate>(){});
+        return asyncGetRequest(path, new FutureCallback<PublishRate>() {});
     }
 
     @Override
@@ -774,7 +771,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Integer> getMaxConsumersPerSubscriptionAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxConsumersPerSubscription");
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -822,7 +819,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxProducers");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -858,7 +855,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -894,7 +891,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Integer> getMaxMessageSizeAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxMessageSize");
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -941,7 +938,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxConsumers");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -968,7 +965,6 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return asyncDeleteRequest(path);
     }
 
-
     @Override
     public Integer getDeduplicationSnapshotInterval(String topic) throws PulsarAdminException {
         return sync(() -> getDeduplicationSnapshotIntervalAsync(topic));
@@ -978,7 +974,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationSnapshotInterval");
-        return asyncGetRequest(path, new FutureCallback<Integer>(){});
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
     }
 
     @Override
@@ -1006,15 +1002,14 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public void setSubscriptionTypesEnabled(
-            String topic, Set<SubscriptionType>
-            subscriptionTypesEnabled) throws PulsarAdminException {
+    public void setSubscriptionTypesEnabled(String topic, Set<SubscriptionType> subscriptionTypesEnabled)
+            throws PulsarAdminException {
         sync(() -> setSubscriptionTypesEnabledAsync(topic, subscriptionTypesEnabled));
     }
 
     @Override
-    public CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String topic,
-                                                                    Set<SubscriptionType> subscriptionTypesEnabled) {
+    public CompletableFuture<Void> setSubscriptionTypesEnabledAsync(
+            String topic, Set<SubscriptionType> subscriptionTypesEnabled) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "subscriptionTypesEnabled");
         return asyncPostRequest(path, Entity.entity(subscriptionTypesEnabled, MediaType.APPLICATION_JSON));
@@ -1029,7 +1024,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscriptionTypesEnabled");
-        return asyncGetRequest(path, new FutureCallback<Set<SubscriptionType>>(){});
+        return asyncGetRequest(path, new FutureCallback<Set<SubscriptionType>>() {});
     }
 
     @Override
@@ -1064,7 +1059,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscribeRate");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<SubscribeRate>(){});
+        return asyncGetRequest(path, new FutureCallback<SubscribeRate>() {});
     }
 
     @Override
@@ -1111,7 +1106,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "replicatorDispatchRate");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
+        return asyncGetRequest(path, new FutureCallback<DispatchRate>() {});
     }
 
     @Override
@@ -1145,12 +1140,12 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String topic,
-                                                                                              boolean applied) {
+    public CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(
+            String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<SchemaCompatibilityStrategy>(){});
+        return asyncGetRequest(path, new FutureCallback<SchemaCompatibilityStrategy>() {});
     }
 
     @Override
@@ -1160,17 +1155,16 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String topic,
-                                                                       SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(
+            String topic, SchemaCompatibilityStrategy strategy) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
         return asyncPutRequest(path, Entity.entity(strategy, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void removeSchemaCompatibilityStrategy(String topic)
-            throws PulsarAdminException {
-        sync(()->removeSchemaCompatibilityStrategyAsync(topic));
+    public void removeSchemaCompatibilityStrategy(String topic) throws PulsarAdminException {
+        sync(() -> removeSchemaCompatibilityStrategyAsync(topic));
     }
 
     @Override
@@ -1190,12 +1184,11 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "entryFilters");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<EntryFilters>(){});
+        return asyncGetRequest(path, new FutureCallback<EntryFilters>() {});
     }
 
     @Override
-    public void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters)
-            throws PulsarAdminException {
+    public void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters) throws PulsarAdminException {
         sync(() -> setEntryFiltersPerTopicAsync(topic, entryFilters));
     }
 
@@ -1234,14 +1227,14 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
-    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic,
-                                                                        boolean applied) throws PulsarAdminException {
+    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic, boolean applied)
+            throws PulsarAdminException {
         return sync(() -> getAutoSubscriptionCreationAsync(topic, applied));
     }
 
     @Override
-    public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String topic,
-                                                                                                boolean applied) {
+    public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(
+            String topic, boolean applied) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "autoSubscriptionCreation");
         path = path.queryParam("applied", applied);

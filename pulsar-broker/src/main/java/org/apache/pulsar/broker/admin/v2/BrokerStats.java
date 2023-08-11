@@ -49,22 +49,28 @@ public class BrokerStats extends BrokerStatsBase {
     // map
     // support
     // missing
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public StreamingOutput getTopics2() throws Exception {
         return super.getTopics2();
     }
 
     @GET
     @Path("/broker-resource-availability/{tenant}/{namespace}")
-    @ApiOperation(value = "Broker availability report", notes = "This API gives the current broker availability in "
-            + "percent, each resource percentage usage is calculated and then"
-            + "sum of all of the resource usage percent is called broker-resource-availability"
-            + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM",
-            response = ResourceUnit.class, responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Load-manager doesn't support operation") })
-    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("tenant") String tenant,
-        @PathParam("namespace") String namespace) {
+    @ApiOperation(
+            value = "Broker availability report",
+            notes = "This API gives the current broker availability in "
+                    + "percent, each resource percentage usage is calculated and then"
+                    + "sum of all of the resource usage percent is called broker-resource-availability"
+                    + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM",
+            response = ResourceUnit.class,
+            responseContainer = "Map")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 409, message = "Load-manager doesn't support operation")
+            })
+    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalBrokerResourceAvailability(namespaceName);
     }

@@ -59,6 +59,7 @@ public class ThreadRuntime implements Runtime {
 
     @Getter
     private final InstanceConfig instanceConfig;
+
     private JavaInstanceRunnable javaInstanceRunnable;
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
@@ -75,21 +76,22 @@ public class ThreadRuntime implements Runtime {
     private final Optional<ConnectorsManager> connectorsManager;
     private final Optional<FunctionsManager> functionsManager;
 
-    ThreadRuntime(InstanceConfig instanceConfig,
-                  FunctionCacheManager fnCache,
-                  ThreadGroup threadGroup,
-                  String jarFile,
-                  String transformFunctionFile,
-                  PulsarClient client,
-                  ClientBuilder clientBuilder,
-                  PulsarAdmin pulsarAdmin,
-                  String stateStorageImplClass,
-                  String stateStorageServiceUrl,
-                  SecretsProvider secretsProvider,
-                  FunctionCollectorRegistry collectorRegistry,
-                  String narExtractionDirectory,
-                  Optional<ConnectorsManager> connectorsManager,
-                  Optional<FunctionsManager> functionsManager) {
+    ThreadRuntime(
+            InstanceConfig instanceConfig,
+            FunctionCacheManager fnCache,
+            ThreadGroup threadGroup,
+            String jarFile,
+            String transformFunctionFile,
+            PulsarClient client,
+            ClientBuilder clientBuilder,
+            PulsarAdmin pulsarAdmin,
+            String stateStorageImplClass,
+            String stateStorageServiceUrl,
+            SecretsProvider secretsProvider,
+            FunctionCollectorRegistry collectorRegistry,
+            String narExtractionDirectory,
+            Optional<ConnectorsManager> connectorsManager,
+            Optional<FunctionsManager> functionsManager) {
         this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
@@ -111,42 +113,55 @@ public class ThreadRuntime implements Runtime {
         this.functionsManager = functionsManager;
     }
 
-    private static ClassLoader getFunctionClassLoader(InstanceConfig instanceConfig,
-                                                      String functionId,
-                                                      String jarFile,
-                                                      String narExtractionDirectory,
-                                                      FunctionCacheManager fnCache,
-                                                      Optional<ConnectorsManager> connectorsManager,
-                                                      Optional<FunctionsManager> functionsManager,
-                                                      Function.FunctionDetails.ComponentType componentType)
+    private static ClassLoader getFunctionClassLoader(
+            InstanceConfig instanceConfig,
+            String functionId,
+            String jarFile,
+            String narExtractionDirectory,
+            FunctionCacheManager fnCache,
+            Optional<ConnectorsManager> connectorsManager,
+            Optional<FunctionsManager> functionsManager,
+            Function.FunctionDetails.ComponentType componentType)
             throws Exception {
         if (FunctionCommon.isFunctionCodeBuiltin(instanceConfig.getFunctionDetails(), componentType)) {
             if (componentType == Function.FunctionDetails.ComponentType.FUNCTION && functionsManager.isPresent()) {
-                return functionsManager.get()
+                return functionsManager
+                        .get()
                         .getFunction(instanceConfig.getFunctionDetails().getBuiltin())
                         .getClassLoader();
             }
             if (componentType == Function.FunctionDetails.ComponentType.SOURCE && connectorsManager.isPresent()) {
-                return connectorsManager.get()
-                        .getConnector(instanceConfig.getFunctionDetails().getSource().getBuiltin())
+                return connectorsManager
+                        .get()
+                        .getConnector(
+                                instanceConfig.getFunctionDetails().getSource().getBuiltin())
                         .getClassLoader();
             }
             if (componentType == Function.FunctionDetails.ComponentType.SINK && connectorsManager.isPresent()) {
-                return connectorsManager.get()
-                        .getConnector(instanceConfig.getFunctionDetails().getSink().getBuiltin())
+                return connectorsManager
+                        .get()
+                        .getConnector(
+                                instanceConfig.getFunctionDetails().getSink().getBuiltin())
                         .getClassLoader();
             }
         }
-        return loadJars(jarFile, instanceConfig, functionId, instanceConfig.getFunctionDetails().getName(),
-                narExtractionDirectory, fnCache);
+        return loadJars(
+                jarFile,
+                instanceConfig,
+                functionId,
+                instanceConfig.getFunctionDetails().getName(),
+                narExtractionDirectory,
+                fnCache);
     }
 
-    public static ClassLoader loadJars(String jarFile,
-                                       InstanceConfig instanceConfig,
-                                       String functionId,
-                                       String functionName,
-                                       String narExtractionDirectory,
-                                       FunctionCacheManager fnCache) throws Exception {
+    public static ClassLoader loadJars(
+            String jarFile,
+            InstanceConfig instanceConfig,
+            String functionId,
+            String functionName,
+            String narExtractionDirectory,
+            FunctionCacheManager fnCache)
+            throws Exception {
         if (jarFile == null) {
             return Thread.currentThread().getContextClassLoader();
         }
@@ -157,9 +172,7 @@ public class ThreadRuntime implements Runtime {
                 log.info("Trying Loading file as NAR file: {}", jarFile);
                 // Let's first try to treat it as a nar archive
                 fnCache.registerFunctionInstanceWithArchive(
-                        functionId,
-                        instanceConfig.getInstanceName(),
-                        jarFile, narExtractionDirectory);
+                        functionId, instanceConfig.getInstanceName(), jarFile, narExtractionDirectory);
                 loadedAsNar = true;
             } catch (FileNotFoundException e) {
                 // this is usually like
@@ -171,15 +184,13 @@ public class ThreadRuntime implements Runtime {
             log.info("Load file as simple JAR file: {}", jarFile);
             // create the function class loader
             fnCache.registerFunctionInstance(
-                    functionId,
-                    instanceConfig.getInstanceName(),
-                    Arrays.asList(jarFile),
-                    Collections.emptyList());
+                    functionId, instanceConfig.getInstanceName(), Arrays.asList(jarFile), Collections.emptyList());
         }
 
         log.info(
                 "Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
-                functionName, fnCache.getClassLoader(functionId));
+                functionName,
+                fnCache.getClassLoader(functionId));
 
         fnClassLoader = fnCache.getClassLoader(functionId);
         if (null == fnClassLoader) {
@@ -196,14 +207,27 @@ public class ThreadRuntime implements Runtime {
     public void start() throws Exception {
 
         // extract class loader for function
-        ClassLoader functionClassLoader =
-                getFunctionClassLoader(instanceConfig, instanceConfig.getFunctionId(), jarFile, narExtractionDirectory,
-                        fnCache, connectorsManager, functionsManager,
-                        InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails()));
+        ClassLoader functionClassLoader = getFunctionClassLoader(
+                instanceConfig,
+                instanceConfig.getFunctionId(),
+                jarFile,
+                narExtractionDirectory,
+                fnCache,
+                connectorsManager,
+                functionsManager,
+                InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails()));
 
-        ClassLoader transformFunctionClassLoader = transformFunctionFile == null ? null : getFunctionClassLoader(
-                instanceConfig, instanceConfig.getTransformFunctionId(), transformFunctionFile, narExtractionDirectory,
-                fnCache, connectorsManager, functionsManager, Function.FunctionDetails.ComponentType.FUNCTION);
+        ClassLoader transformFunctionClassLoader = transformFunctionFile == null
+                ? null
+                : getFunctionClassLoader(
+                        instanceConfig,
+                        instanceConfig.getTransformFunctionId(),
+                        transformFunctionFile,
+                        narExtractionDirectory,
+                        fnCache,
+                        connectorsManager,
+                        functionsManager,
+                        Function.FunctionDetails.ComponentType.FUNCTION);
 
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
@@ -218,12 +242,16 @@ public class ThreadRuntime implements Runtime {
                 functionClassLoader,
                 transformFunctionClassLoader);
 
-        log.info("ThreadContainer starting function with instanceId {} functionId {} namespace {}",
+        log.info(
+                "ThreadContainer starting function with instanceId {} functionId {} namespace {}",
                 instanceConfig.getInstanceId(),
                 instanceConfig.getFunctionId(),
                 instanceConfig.getFunctionDetails().getNamespace());
-        this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
-                String.format("%s-%s",
+        this.fnThread = new Thread(
+                threadGroup,
+                javaInstanceRunnable,
+                String.format(
+                        "%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                         instanceConfig.getInstanceId()));
         this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -252,8 +280,9 @@ public class ThreadRuntime implements Runtime {
                 // kill the thread
                 fnThread.join(THREAD_SHUTDOWN_TIMEOUT_MILLIS, 0);
                 if (fnThread.isAlive()) {
-                    log.warn("The function instance thread is still alive after {} milliseconds. "
-                            + "Giving up waiting and moving forward to close function.",
+                    log.warn(
+                            "The function instance thread is still alive after {} milliseconds. "
+                                    + "Giving up waiting and moving forward to close function.",
                             THREAD_SHUTDOWN_TIMEOUT_MILLIS);
                 }
             } catch (InterruptedException e) {
@@ -262,14 +291,13 @@ public class ThreadRuntime implements Runtime {
             // make sure JavaInstanceRunnable is closed
             this.javaInstanceRunnable.close();
 
-            log.info("Unloading JAR files for instanceId {} functionId {} namespace {}",
+            log.info(
+                    "Unloading JAR files for instanceId {} functionId {} namespace {}",
                     instanceConfig.getInstanceId(),
                     instanceConfig.getFunctionId(),
                     instanceConfig.getFunctionDetails().getNamespace());
             // once the thread quits, clean up the instance
-            fnCache.unregisterFunctionInstance(
-                    instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceName());
+            fnCache.unregisterFunctionInstance(instanceConfig.getFunctionId(), instanceConfig.getInstanceName());
         }
     }
 
@@ -296,7 +324,6 @@ public class ThreadRuntime implements Runtime {
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getAndResetMetrics());
     }
-
 
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {

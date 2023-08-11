@@ -23,5 +23,4 @@ public class ProtobufNativeWriter<T extends com.google.protobuf.GeneratedMessage
     public ProtobufNativeWriter() {
         super();
     }
-
 }

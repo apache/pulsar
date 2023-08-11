@@ -24,57 +24,35 @@ public class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
 
     public static final LedgerOffloaderStats INSTANCE = new LedgerOffloaderStatsDisable();
 
-    private LedgerOffloaderStatsDisable() {
-
-    }
+    private LedgerOffloaderStatsDisable() {}
 
     @Override
-    public void recordOffloadError(String topic) {
-
-    }
+    public void recordOffloadError(String topic) {}
 
     @Override
-    public void recordOffloadBytes(String topic, long size) {
-
-    }
+    public void recordOffloadBytes(String topic, long size) {}
 
     @Override
-    public void recordReadLedgerLatency(String topic, long latency, TimeUnit unit) {
-
-    }
+    public void recordReadLedgerLatency(String topic, long latency, TimeUnit unit) {}
 
     @Override
-    public void recordWriteToStorageError(String topic) {
-
-    }
+    public void recordWriteToStorageError(String topic) {}
 
     @Override
-    public void recordReadOffloadError(String topic) {
-
-    }
+    public void recordReadOffloadError(String topic) {}
 
     @Override
-    public void recordReadOffloadBytes(String topic, long size) {
-
-    }
+    public void recordReadOffloadBytes(String topic, long size) {}
 
     @Override
-    public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {
-
-    }
+    public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {}
 
     @Override
-    public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {
-
-    }
+    public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {}
 
     @Override
-    public void recordDeleteOffloadOps(String topic, boolean succeed) {
-
-    }
+    public void recordDeleteOffloadOps(String topic, boolean succeed) {}
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

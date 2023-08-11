@@ -43,6 +43,7 @@ public class SaslConstants {
      * By default only clients whose id contains 'pulsar' are allowed to connect.
      */
     public static final String JAAS_CLIENT_ALLOWED_IDS = "saslJaasClientAllowedIds";
+
     public static final String JAAS_CLIENT_ALLOWED_IDS_DEFAULT = ".*pulsar.*";
 
     public static final String KINIT_COMMAND_DEFAULT = "/usr/bin/kinit";
@@ -60,7 +61,6 @@ public class SaslConstants {
     // Stand for the start of mutual auth between Client and Broker
     public static final String INIT_PROVIDER_DATA = "isInit";
 
-
     // Sasl token name that contained auth role
     public static final String SASL_AUTH_ROLE_TOKEN = "SaslAuthRoleToken";
     public static final String SASL_AUTH_ROLE_TOKEN_EXPIRED = "SaslAuthRoleTokenExpired";
@@ -70,6 +70,7 @@ public class SaslConstants {
      */
     // auth type
     public static final String SASL_HEADER_TYPE = "SASL-Type";
+
     public static final String SASL_TYPE_VALUE = "Kerberos";
 
     // header name for token auth between client and server
@@ -87,8 +88,7 @@ public class SaslConstants {
     public static final String SASL_STATE_SERVER = "SASL-Server-ID";
 
     public static boolean isUsingTicketCache(String configurationEntry) {
-        AppConfigurationEntry[] entries = Configuration.getConfiguration()
-            .getAppConfigurationEntry(configurationEntry);
+        AppConfigurationEntry[] entries = Configuration.getConfiguration().getAppConfigurationEntry(configurationEntry);
         if (entries == null) {
             return false;
         }
@@ -106,8 +106,7 @@ public class SaslConstants {
 
     public static String getPrincipal(String configurationEntry) {
 
-        AppConfigurationEntry[] entries = Configuration.getConfiguration()
-            .getAppConfigurationEntry(configurationEntry);
+        AppConfigurationEntry[] entries = Configuration.getConfiguration().getAppConfigurationEntry(configurationEntry);
         if (entries == null) {
             return null;
         }

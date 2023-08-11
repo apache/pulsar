@@ -29,8 +29,7 @@ public class JsonPojo {
         this.content = content;
     }
 
-    public JsonPojo() {
-    }
+    public JsonPojo() {}
 
     public JsonPojo(String content) {
         this.content = content;

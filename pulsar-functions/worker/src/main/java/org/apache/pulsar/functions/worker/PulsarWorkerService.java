@@ -85,7 +85,6 @@ public class PulsarWorkerService implements WorkerService {
         PulsarAdmin newPulsarAdmin(String pulsarServiceUrl, WorkerConfig workerConfig);
 
         PulsarClient newPulsarClient(String pulsarServiceUrl, WorkerConfig workerConfig);
-
     }
 
     private WorkerConfig workerConfig;
@@ -109,8 +108,10 @@ public class PulsarWorkerService implements WorkerService {
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
     private MetricsGenerator metricsGenerator;
+
     @VisibleForTesting
     private URI dlogUri;
+
     private LeaderService leaderService;
     private FunctionAssignmentTailer functionAssignmentTailer;
     private WorkerStatsManager workerStatsManager;
@@ -177,16 +178,12 @@ public class PulsarWorkerService implements WorkerService {
 
     @Override
     public void generateFunctionsStats(SimpleTextOutputStream out) {
-        FunctionsStatsGenerator.generate(
-            this, out
-        );
+        FunctionsStatsGenerator.generate(this, out);
     }
 
-    public void init(WorkerConfig workerConfig,
-                     URI dlogUri,
-                     boolean runAsStandalone) {
-        this.statsUpdater = Executors
-            .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+    public void init(WorkerConfig workerConfig, URI dlogUri, boolean runAsStandalone) {
+        this.statsUpdater =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;
@@ -204,8 +201,8 @@ public class PulsarWorkerService implements WorkerService {
         init(workerConfig, dlogUri, true);
     }
 
-    private static URI initializeStandaloneWorkerService(PulsarClientCreator clientCreator,
-                                                         WorkerConfig workerConfig) throws Exception {
+    private static URI initializeStandaloneWorkerService(PulsarClientCreator clientCreator, WorkerConfig workerConfig)
+            throws Exception {
         // initializing pulsar functions namespace
         PulsarAdmin admin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
         InternalConfigurationData internalConf;
@@ -221,8 +218,10 @@ public class PulsarWorkerService implements WorkerService {
                 log.warn("Failed to retrieve clusters from pulsar service", e);
                 log.warn("Retry to connect to Pulsar service at {}", workerConfig.getPulsarWebServiceUrl());
                 if (retries >= maxRetries) {
-                    log.error("Failed to connect to Pulsar service at {} after {} attempts",
-                            workerConfig.getPulsarFunctionsNamespace(), maxRetries);
+                    log.error(
+                            "Failed to connect to Pulsar service at {} after {} attempts",
+                            workerConfig.getPulsarFunctionsNamespace(),
+                            maxRetries);
                     throw e;
                 }
                 retries++;
@@ -240,19 +239,22 @@ public class PulsarWorkerService implements WorkerService {
                     // if not found than create
                     try {
                         Policies policies = createFunctionsNamespacePolicies(workerConfig.getPulsarFunctionsCluster());
-                        admin.namespaces().createNamespace(workerConfig.getPulsarFunctionsNamespace(),
-                                policies);
+                        admin.namespaces().createNamespace(workerConfig.getPulsarFunctionsNamespace(), policies);
                     } catch (PulsarAdminException e1) {
                         // prevent race condition with other workers starting up
                         if (e1.getStatusCode() != Response.Status.CONFLICT.getStatusCode()) {
-                            log.error("Failed to create namespace {} for pulsar functions", workerConfig
-                                    .getPulsarFunctionsNamespace(), e1);
+                            log.error(
+                                    "Failed to create namespace {} for pulsar functions",
+                                    workerConfig.getPulsarFunctionsNamespace(),
+                                    e1);
                             throw e1;
                         }
                     }
                 } else {
-                    log.error("Failed to get retention policy for pulsar function namespace {}",
-                            workerConfig.getPulsarFunctionsNamespace(), e);
+                    log.error(
+                            "Failed to get retention policy for pulsar function namespace {}",
+                            workerConfig.getPulsarFunctionsNamespace(),
+                            e);
                     throw e;
                 }
             }
@@ -276,9 +278,12 @@ public class PulsarWorkerService implements WorkerService {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
         } catch (IOException ioe) {
-            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing "
-                            + "function packages", internalConf.getMetadataStoreUrl(),
-                    internalConf.getBookkeeperMetadataServiceUri(), ioe);
+            log.error(
+                    "Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing "
+                            + "function packages",
+                    internalConf.getMetadataStoreUrl(),
+                    internalConf.getBookkeeperMetadataServiceUri(),
+                    ioe);
             throw ioe;
         }
 
@@ -286,10 +291,12 @@ public class PulsarWorkerService implements WorkerService {
     }
 
     @Override
-    public void initInBroker(ServiceConfiguration brokerConfig,
-                             WorkerConfig workerConfig,
-                             PulsarResources pulsarResources,
-                             InternalConfigurationData internalConf) throws Exception {
+    public void initInBroker(
+            ServiceConfiguration brokerConfig,
+            WorkerConfig workerConfig,
+            PulsarResources pulsarResources,
+            InternalConfigurationData internalConf)
+            throws Exception {
 
         String namespace = workerConfig.getPulsarFunctionsNamespace();
         String[] a = workerConfig.getPulsarFunctionsNamespace().split("/");
@@ -305,8 +312,12 @@ public class PulsarWorkerService implements WorkerService {
         // create tenant for function worker service
         try {
             NamedEntity.checkName(tenant);
-            pulsarResources.getTenantResources().createTenant(tenant,
-                    new TenantInfoImpl(Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            pulsarResources
+                    .getTenantResources()
+                    .createTenant(
+                            tenant,
+                            new TenantInfoImpl(
+                                    Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
             LOG.info("Created tenant {} for function worker", tenant);
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
@@ -361,9 +372,12 @@ public class PulsarWorkerService implements WorkerService {
                     dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
                 }
             } catch (IOException ioe) {
-                LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for "
+                LOG.error(
+                        "Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for "
                                 + "storing function packages",
-                        internalConf.getMetadataStoreUrl(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+                        internalConf.getMetadataStoreUrl(),
+                        internalConf.getBookkeeperMetadataServiceUri(),
+                        ioe);
                 throw ioe;
             }
         }
@@ -395,9 +409,11 @@ public class PulsarWorkerService implements WorkerService {
     }
 
     @Override
-    public void start(AuthenticationService authenticationService,
-                      AuthorizationService authorizationService,
-                      ErrorNotifier errorNotifier) throws Exception {
+    public void start(
+            AuthenticationService authenticationService,
+            AuthorizationService authorizationService,
+            ErrorNotifier errorNotifier)
+            throws Exception {
 
         workerStatsManager.startupTimeStart();
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
@@ -431,7 +447,8 @@ public class PulsarWorkerService implements WorkerService {
             final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
                     ? workerConfig.getFunctionWebServiceUrl()
                     : (workerConfig.getTlsEnabled()
-                        ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress());
+                            ? workerConfig.getWorkerWebAddressTls()
+                            : workerConfig.getWorkerWebAddress());
 
             this.brokerAdmin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
             this.functionAdmin = clientCreator.newPulsarAdmin(functionWebServiceUrl, workerConfig);
@@ -440,23 +457,28 @@ public class PulsarWorkerService implements WorkerService {
             tryCreateNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
             tryCreateNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
             tryCreateNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
-            //create scheduler manager
-            this.schedulerManager = new SchedulerManager(workerConfig, client, getBrokerAdmin(), workerStatsManager,
-                    errorNotifier);
+            // create scheduler manager
+            this.schedulerManager =
+                    new SchedulerManager(workerConfig, client, getBrokerAdmin(), workerStatsManager, errorNotifier);
 
-            //create function meta data manager
-            this.functionMetaDataManager = new FunctionMetaDataManager(
-                    this.workerConfig, this.schedulerManager, this.client, errorNotifier);
+            // create function meta data manager
+            this.functionMetaDataManager =
+                    new FunctionMetaDataManager(this.workerConfig, this.schedulerManager, this.client, errorNotifier);
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
             this.functionsManager = new FunctionsManager(workerConfig);
 
-            //create membership manager
+            // create membership manager
             String coordinationTopic = workerConfig.getClusterCoordinationTopic();
-            if (!getBrokerAdmin().topics().getSubscriptions(coordinationTopic)
+            if (!getBrokerAdmin()
+                    .topics()
+                    .getSubscriptions(coordinationTopic)
                     .contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
-                getBrokerAdmin().topics()
-                        .createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION,
+                getBrokerAdmin()
+                        .topics()
+                        .createSubscription(
+                                coordinationTopic,
+                                MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION,
                                 MessageId.earliest);
             }
             this.membershipManager = new MembershipManager(this, client, getBrokerAdmin());
@@ -473,24 +495,21 @@ public class PulsarWorkerService implements WorkerService {
                     workerStatsManager,
                     errorNotifier);
 
-
             // initialize function assignment tailer that reads from the assignment topic
             this.functionAssignmentTailer = new FunctionAssignmentTailer(
-                    functionRuntimeManager,
-                    client.newReader(),
-                    workerConfig,
-                    errorNotifier);
+                    functionRuntimeManager, client.newReader(), workerConfig, errorNotifier);
 
             // Start worker early in the worker service init process so that functions don't get re-assigned because
             // initialize operations of FunctionRuntimeManager and FunctionMetadataManger might take a while
-            this.leaderService = new LeaderService(this,
-              client,
-              functionAssignmentTailer,
-              schedulerManager,
-              functionRuntimeManager,
-              functionMetaDataManager,
-              membershipManager,
-              errorNotifier);
+            this.leaderService = new LeaderService(
+                    this,
+                    client,
+                    functionAssignmentTailer,
+                    schedulerManager,
+                    functionRuntimeManager,
+                    functionMetaDataManager,
+                    membershipManager,
+                    errorNotifier);
 
             log.info("/** Start Leader Service **/");
             leaderService.start();
@@ -503,8 +522,8 @@ public class PulsarWorkerService implements WorkerService {
             log.info("/** Initializing Runtime Manager **/");
 
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
-            Supplier<Boolean> checkIsStillLeader = WorkerUtils.getIsStillLeaderSupplier(membershipManager,
-                    workerConfig.getWorkerId());
+            Supplier<Boolean> checkIsStillLeader =
+                    WorkerUtils.getIsStillLeaderSupplier(membershipManager, workerConfig.getWorkerId());
 
             // Setting references to managers in scheduler
             schedulerManager.setFunctionMetaDataManager(functionMetaDataManager);
@@ -525,29 +544,23 @@ public class PulsarWorkerService implements WorkerService {
             functionMetaDataManager.start();
 
             // Starting cluster services
-            this.clusterServiceCoordinator = new ClusterServiceCoordinator(
-                    workerConfig.getWorkerId(),
-                    leaderService,
-                    checkIsStillLeader);
+            this.clusterServiceCoordinator =
+                    new ClusterServiceCoordinator(workerConfig.getWorkerId(), leaderService, checkIsStillLeader);
 
-            clusterServiceCoordinator.addTask("membership-monitor",
-                    workerConfig.getFailureCheckFreqMs(),
-                    () -> {
-                        // computing a new schedule and checking for failures cannot happen concurrently
-                        // both paths of code modify internally cached assignments map in function runtime manager
-                        schedulerManager.getSchedulerLock().lock();
-                        try {
-                            membershipManager.checkFailures(
-                                    functionMetaDataManager, functionRuntimeManager, schedulerManager);
-                        } finally {
-                            schedulerManager.getSchedulerLock().unlock();
-                        }
-                    });
+            clusterServiceCoordinator.addTask("membership-monitor", workerConfig.getFailureCheckFreqMs(), () -> {
+                // computing a new schedule and checking for failures cannot happen concurrently
+                // both paths of code modify internally cached assignments map in function runtime manager
+                schedulerManager.getSchedulerLock().lock();
+                try {
+                    membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
+                } finally {
+                    schedulerManager.getSchedulerLock().unlock();
+                }
+            });
 
             if (workerConfig.getRebalanceCheckFreqSec() > 0) {
-                clusterServiceCoordinator.addTask("rebalance-periodic-check",
-                        workerConfig.getRebalanceCheckFreqSec() * 1000,
-                        () -> {
+                clusterServiceCoordinator.addTask(
+                        "rebalance-periodic-check", workerConfig.getRebalanceCheckFreqSec() * 1000, () -> {
                             try {
                                 schedulerManager.rebalanceIfNotInprogress().get();
                             } catch (SchedulerManager.RebalanceInProgressException e) {
@@ -559,10 +572,11 @@ public class PulsarWorkerService implements WorkerService {
             }
 
             if (workerConfig.getWorkerListProbeIntervalSec() > 0) {
-                clusterServiceCoordinator.addTask("drain-worker-list-probe-periodic-check",
+                clusterServiceCoordinator.addTask(
+                        "drain-worker-list-probe-periodic-check",
                         workerConfig.getWorkerListProbeIntervalSec() * 1000L,
                         () -> {
-                                schedulerManager.updateWorkerDrainMap();
+                            schedulerManager.updateWorkerDrainMap();
                         });
             }
 
@@ -659,5 +673,4 @@ public class PulsarWorkerService implements WorkerService {
             statsUpdater.shutdownNow();
         }
     }
-
 }

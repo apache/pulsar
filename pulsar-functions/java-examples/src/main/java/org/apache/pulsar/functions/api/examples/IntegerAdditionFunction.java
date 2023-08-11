@@ -31,4 +31,3 @@ public class IntegerAdditionFunction implements Function<Integer, Integer> {
         return input + 100;
     }
 }
-

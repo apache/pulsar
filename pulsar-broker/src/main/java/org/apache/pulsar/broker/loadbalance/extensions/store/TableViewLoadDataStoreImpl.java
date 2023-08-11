@@ -103,7 +103,9 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public void startTableView() throws LoadDataStoreException {
         if (tableView == null) {
             try {
-                tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).create();
+                tableView = client.newTableViewBuilder(Schema.JSON(clazz))
+                        .topic(topic)
+                        .create();
             } catch (PulsarClientException e) {
                 tableView = null;
                 throw new LoadDataStoreException(e);
@@ -124,5 +126,4 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
             throw new IllegalStateException("table view has not been started");
         }
     }
-
 }

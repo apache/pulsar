@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.apache.pulsar.functions.api.Record;
-import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.functions.api.Record;
+import org.testng.annotations.Test;
 
 public class SinkTest {
 
@@ -39,14 +37,10 @@ public class SinkTest {
         }
 
         @Override
-        public void write(Record<String> record) throws Exception {
-
-        }
+        public void write(Record<String> record) throws Exception {}
 
         @Override
-        public void close() throws Exception {
-
-        }
+        public void close() throws Exception {}
     }
 
     @Test

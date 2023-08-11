@@ -20,12 +20,10 @@ package org.apache.pulsar.broker.service.schema;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BkEnsemblesTestBase;
 import org.apache.pulsar.client.api.Consumer;
@@ -53,16 +51,16 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
         int N = 10;
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
 
-        CompletableFuture<Producer<String>> producerFuture = client.newProducer(Schema.STRING)
-            .topic(topicName)
-            .createAsync();
+        CompletableFuture<Producer<String>> producerFuture =
+                client.newProducer(Schema.STRING).topic(topicName).createAsync();
         CompletableFuture<Consumer<String>> consumerFuture = client.newConsumer(Schema.STRING)
-            .topic(topicName)
-            .subscriptionName("sub")
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .subscribeAsync();
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribeAsync();
 
         CompletableFuture.allOf(producerFuture, consumerFuture).get();
 
@@ -79,14 +77,12 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
         // Force topic reloading to re-open the schema multiple times in parallel
         admin.namespaces().unload("prop/my-test");
 
-        producerFuture = client.newProducer(Schema.STRING)
-            .topic(topicName)
-            .createAsync();
+        producerFuture = client.newProducer(Schema.STRING).topic(topicName).createAsync();
         consumerFuture = client.newConsumer(Schema.STRING)
-            .topic(topicName)
-            .subscriptionName("sub")
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .subscribeAsync();
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribeAsync();
 
         // Re-opening the topic should succeed
         CompletableFuture.allOf(producerFuture, consumerFuture).get();
@@ -106,5 +102,4 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
             assertTrue(messages.contains("Hello-" + i));
         }
     }
-
 }

@@ -121,15 +121,15 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     @Override
     public int hashCode() {
-        return Objects.hash(namespaces, primary, secondary,
-            autoFailoverPolicy);
+        return Objects.hash(namespaces, primary, secondary, autoFailoverPolicy);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof NamespaceIsolationPolicyImpl) {
             NamespaceIsolationPolicyImpl other = (NamespaceIsolationPolicyImpl) obj;
-            return Objects.equals(this.namespaces, other.namespaces) && Objects.equals(this.primary, other.primary)
+            return Objects.equals(this.namespaces, other.namespaces)
+                    && Objects.equals(this.primary, other.primary)
                     && Objects.equals(this.secondary, other.secondary)
                     && Objects.equals(this.autoFailoverPolicy, other.autoFailoverPolicy);
         }
@@ -165,7 +165,8 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     @Override
     public String toString() {
-        return String.format("namespaces=%s primary=%s secondary=%s auto_failover_policy=%s", namespaces, primary,
-                secondary, autoFailoverPolicy);
+        return String.format(
+                "namespaces=%s primary=%s secondary=%s auto_failover_policy=%s",
+                namespaces, primary, secondary, autoFailoverPolicy);
     }
 }

@@ -132,8 +132,8 @@ public interface PulsarClientImplementationBinding {
 
     Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema();
 
-    <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
-                                                           KeyValueEncodingType keyValueEncodingType);
+    <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(
+            Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType);
 
     <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type);
 
@@ -159,9 +159,8 @@ public interface PulsarClientImplementationBinding {
      * @param keyValueEncodingType the encoding type to encode and decode key value pair
      * @return the final schema info
      */
-    <K, V> SchemaInfo encodeKeyValueSchemaInfo(Schema<K> keySchema,
-                                                      Schema<V> valueSchema,
-                                                      KeyValueEncodingType keyValueEncodingType);
+    <K, V> SchemaInfo encodeKeyValueSchemaInfo(
+            Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType);
 
     /**
      * Encode key & value into schema into a KeyValue schema.
@@ -172,10 +171,8 @@ public interface PulsarClientImplementationBinding {
      * @param keyValueEncodingType the encoding type to encode and decode key value pair
      * @return the final schema info
      */
-    <K, V> SchemaInfo encodeKeyValueSchemaInfo(String schemaName,
-                                                      Schema<K> keySchema,
-                                                      Schema<V> valueSchema,
-                                                      KeyValueEncodingType keyValueEncodingType);
+    <K, V> SchemaInfo encodeKeyValueSchemaInfo(
+            String schemaName, Schema<K> keySchema, Schema<V> valueSchema, KeyValueEncodingType keyValueEncodingType);
 
     /**
      * Decode the key/value schema info to get key schema info and value schema info.
@@ -241,7 +238,8 @@ public interface PulsarClientImplementationBinding {
         if (byteBuffer == null) {
             return null;
         }
-        if (byteBuffer.hasArray() && byteBuffer.arrayOffset() == 0
+        if (byteBuffer.hasArray()
+                && byteBuffer.arrayOffset() == 0
                 && byteBuffer.array().length == byteBuffer.remaining()) {
             return byteBuffer.array();
         }
@@ -251,8 +249,8 @@ public interface PulsarClientImplementationBinding {
         return array;
     }
 
-    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
-                                 Map<String, String> propertiesValue);
+    SchemaInfo newSchemaInfoImpl(
+            String name, byte[] schema, SchemaType type, long timestamp, Map<String, String> propertiesValue);
 
     TopicMessageId newTopicMessageId(String topic, MessageId messageId);
 }

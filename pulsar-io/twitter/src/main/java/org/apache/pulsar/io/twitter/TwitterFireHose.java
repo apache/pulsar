@@ -50,11 +50,10 @@ import org.slf4j.LoggerFactory;
  * Simple Push based Twitter FireHose Source.
  */
 @Connector(
-    name = "twitter",
-    type = IOType.SOURCE,
-    help = "A simple connector moving tweets from Twitter FireHose to Pulsar",
-    configClass = TwitterFireHoseConfig.class
-)
+        name = "twitter",
+        type = IOType.SOURCE,
+        help = "A simple connector moving tweets from Twitter FireHose to Pulsar",
+        configClass = TwitterFireHoseConfig.class)
 @Slf4j
 public class TwitterFireHose extends PushSource<TweetData> {
 
@@ -63,13 +62,13 @@ public class TwitterFireHose extends PushSource<TweetData> {
     // ----- Runtime fields
     private Object waitObject;
 
-    private final ObjectMapper mapper = new ObjectMapper().configure(
-            DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    private final ObjectMapper mapper =
+            new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
-        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config,
-                TwitterFireHoseConfig.class, sourceContext);
+        TwitterFireHoseConfig hoseConfig =
+                IOConfigUtils.loadWithSecrets(config, TwitterFireHoseConfig.class, sourceContext);
         hoseConfig.validate();
         waitObject = new Object();
         startThread(hoseConfig);
@@ -92,8 +91,8 @@ public class TwitterFireHose extends PushSource<TweetData> {
 
                     @Override
                     public void setup(InputStream input) {
-                        reader = new DelimitedStreamReader(input, Constants.DEFAULT_CHARSET,
-                            config.getClientBufferSize());
+                        reader = new DelimitedStreamReader(
+                                input, Constants.DEFAULT_CHARSET, config.getClientBufferSize());
                     }
 
                     @Override
@@ -143,10 +142,8 @@ public class TwitterFireHose extends PushSource<TweetData> {
     }
 
     private Authentication getAuthentication(TwitterFireHoseConfig config) {
-        return new OAuth1(config.getConsumerKey(),
-                config.getConsumerSecret(),
-                config.getToken(),
-                config.getTokenSecret());
+        return new OAuth1(
+                config.getConsumerKey(), config.getConsumerSecret(), config.getToken(), config.getTokenSecret());
     }
 
     private StreamingEndpoint getEndpoint(TwitterFireHoseConfig config) {
@@ -159,11 +156,11 @@ public class TwitterFireHose extends PushSource<TweetData> {
             StatusesFilterEndpoint hosebirdEndpoint = new StatusesFilterEndpoint();
 
             if (CollectionUtils.isNotEmpty(followings)) {
-               hosebirdEndpoint.followings(followings);
+                hosebirdEndpoint.followings(followings);
             }
 
             if (CollectionUtils.isNotEmpty(terms)) {
-               hosebirdEndpoint.trackTerms(terms);
+                hosebirdEndpoint.trackTerms(terms);
             }
 
             return hosebirdEndpoint;

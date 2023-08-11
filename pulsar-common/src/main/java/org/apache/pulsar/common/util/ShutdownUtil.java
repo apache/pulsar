@@ -30,15 +30,14 @@ public class ShutdownUtil {
         // use reflection to find org.apache.logging.log4j.LogManager.shutdown method
         Method shutdownMethod = null;
         try {
-            shutdownMethod = Class.forName("org.apache.logging.log4j.LogManager")
-                    .getMethod("shutdown");
+            shutdownMethod =
+                    Class.forName("org.apache.logging.log4j.LogManager").getMethod("shutdown");
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             // ignore when Log4j2 isn't found, log at debug level
             log.debug("Cannot find org.apache.logging.log4j.LogManager.shutdown method", e);
         }
         log4j2ShutdownMethod = shutdownMethod;
     }
-
 
     /**
      * Triggers an immediate forceful shutdown of the current process.
@@ -49,10 +48,13 @@ public class ShutdownUtil {
     public static void triggerImmediateForcefulShutdown(int status) {
         triggerImmediateForcefulShutdown(status, true);
     }
+
     public static void triggerImmediateForcefulShutdown(int status, boolean logging) {
         try {
             if (status != 0 && logging) {
-                log.warn("Triggering immediate shutdown of current process with status {}", status,
+                log.warn(
+                        "Triggering immediate shutdown of current process with status {}",
+                        status,
                         new Exception("Stacktrace for immediate shutdown"));
             }
             shutdownLogging();

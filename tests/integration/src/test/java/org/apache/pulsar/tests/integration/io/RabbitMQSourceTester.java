@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import static org.apache.pulsar.tests.integration.io.RabbitMQSinkTester.createConnectionFactory;
 import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
-import org.apache.pulsar.tests.integration.io.sources.SourceTester;
-
-import static org.apache.pulsar.tests.integration.io.RabbitMQSinkTester.createConnectionFactory;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
+import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 
 public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
     private RabbitMQContainer serviceContainer;
@@ -50,8 +48,7 @@ public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
     }
 
     @Override
-    public void prepareSource() throws Exception {
-    }
+    public void prepareSource() throws Exception {}
 
     @Override
     public void prepareInsertEvent() throws Exception {
@@ -72,7 +69,7 @@ public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception {
         ConnectionFactory connectionFactory = createConnectionFactory(serviceContainer);
         try (Connection connection = connectionFactory.newConnection("rabbitmq-source-tester");
-             Channel channel = connection.createChannel()) {
+                Channel channel = connection.createChannel()) {
             // the queue declaration has to be aligned with that in RabbitMQSource
             channel.queueDeclare(queueName, false, false, false, null);
             // use topic mode exchange in order to publish messages with any keys
@@ -91,7 +88,5 @@ public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

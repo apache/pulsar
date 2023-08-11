@@ -35,4 +35,3 @@ public class ByteBufferSerDe implements SerDe<Integer> {
         return ByteBuffer.allocate(4).putInt(integer).array();
     }
 }
-

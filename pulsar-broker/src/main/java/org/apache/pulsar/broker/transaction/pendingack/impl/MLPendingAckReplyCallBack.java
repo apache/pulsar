@@ -46,16 +46,23 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
     @Override
     public void replayComplete() {
         pendingAckHandle.getInternalPinnedExecutor().execute(() -> {
-            log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
-                    pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+            log.info(
+                    "Topic name : [{}], SubName : [{}] pending ack state reply success!",
+                    pendingAckHandle.getTopicName(),
+                    pendingAckHandle.getSubName());
 
             if (pendingAckHandle.changeToReadyState()) {
                 pendingAckHandle.completeHandleFuture();
-                log.info("Topic name : [{}], SubName : [{}] pending ack handle cache request success!",
-                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+                log.info(
+                        "Topic name : [{}], SubName : [{}] pending ack handle cache request success!",
+                        pendingAckHandle.getTopicName(),
+                        pendingAckHandle.getSubName());
             } else {
-                log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail! current state: {}",
-                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName(), pendingAckHandle.state);
+                log.error(
+                        "Topic name : [{}], SubName : [{}] pending ack state reply fail! current state: {}",
+                        pendingAckHandle.getTopicName(),
+                        pendingAckHandle.getSubName(),
+                        pendingAckHandle.state);
                 replayFailed(new BrokerServiceException.ServiceUnitNotReadyException("Failed"
                         + " to change PendingAckHandle state to Ready, current state is : " + pendingAckHandle.state));
             }
@@ -72,8 +79,8 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
     @Override
     public void handleMetadataEntry(PendingAckMetadataEntry pendingAckMetadataEntry) {
-        TxnID txnID = new TxnID(pendingAckMetadataEntry.getTxnidMostBits(),
-                pendingAckMetadataEntry.getTxnidLeastBits());
+        TxnID txnID =
+                new TxnID(pendingAckMetadataEntry.getTxnidMostBits(), pendingAckMetadataEntry.getTxnidLeastBits());
         AckType ackType = pendingAckMetadataEntry.getAckType();
         switch (pendingAckMetadataEntry.getPendingAckOp()) {
             case ABORT:
@@ -86,14 +93,15 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                 if (ackType == AckType.Cumulative) {
                     PendingAckMetadata pendingAckMetadata =
                             pendingAckMetadataEntry.getPendingAckMetadatasList().get(0);
-                    pendingAckHandle.handleCumulativeAckRecover(txnID,
-                            PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
+                    pendingAckHandle.handleCumulativeAckRecover(
+                            txnID, PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
                 } else {
                     List<MutablePair<PositionImpl, Integer>> positions = new ArrayList<>();
                     pendingAckMetadataEntry.getPendingAckMetadatasList().forEach(pendingAckMetadata -> {
                         if (pendingAckMetadata.getAckSetsCount() == 0) {
-                            positions.add(new MutablePair<>(PositionImpl.get(pendingAckMetadata.getLedgerId(),
-                                    pendingAckMetadata.getEntryId()), pendingAckMetadata.getBatchSize()));
+                            positions.add(new MutablePair<>(
+                                    PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()),
+                                    pendingAckMetadata.getBatchSize()));
                         } else {
                             PositionImpl position =
                                     PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId());
@@ -111,9 +119,8 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                 }
                 break;
             default:
-                throw new IllegalStateException("Transaction pending ack replay "
-                        + "error with illegal state : " + pendingAckMetadataEntry.getPendingAckOp());
-
+                throw new IllegalStateException("Transaction pending ack replay " + "error with illegal state : "
+                        + pendingAckMetadataEntry.getPendingAckOp());
         }
     }
 

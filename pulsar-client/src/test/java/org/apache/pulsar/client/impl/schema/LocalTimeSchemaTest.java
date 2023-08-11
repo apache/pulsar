@@ -20,9 +20,9 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import java.time.LocalTime;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.time.LocalTime;
 
 public class LocalTimeSchemaTest {
 
@@ -31,14 +31,14 @@ public class LocalTimeSchemaTest {
         LocalTimeSchema schema = LocalTimeSchema.of();
         LocalTime localTime = LocalTime.now();
         byte[] expected = new byte[] {
-                (byte) (localTime.toNanoOfDay() >>> 56),
-                (byte) (localTime.toNanoOfDay() >>> 48),
-                (byte) (localTime.toNanoOfDay() >>> 40),
-                (byte) (localTime.toNanoOfDay() >>> 32),
-                (byte) (localTime.toNanoOfDay() >>> 24),
-                (byte) (localTime.toNanoOfDay() >>> 16),
-                (byte) (localTime.toNanoOfDay() >>> 8),
-                ((Long)localTime.toNanoOfDay()).byteValue()
+            (byte) (localTime.toNanoOfDay() >>> 56),
+            (byte) (localTime.toNanoOfDay() >>> 48),
+            (byte) (localTime.toNanoOfDay() >>> 40),
+            (byte) (localTime.toNanoOfDay() >>> 32),
+            (byte) (localTime.toNanoOfDay() >>> 24),
+            (byte) (localTime.toNanoOfDay() >>> 16),
+            (byte) (localTime.toNanoOfDay() >>> 8),
+            ((Long) localTime.toNanoOfDay()).byteValue()
         };
         Assert.assertEquals(expected, schema.encode(localTime));
     }
@@ -56,18 +56,9 @@ public class LocalTimeSchemaTest {
 
     @Test
     public void testSchemaDecode() {
-        byte[] byteData = new byte[] {
-               0,
-               0,
-               0,
-               0,
-               0,
-               10,
-               24,
-               42
-        };
-        long expected = 10*65536 + 24*256 + 42;
-       
+        byte[] byteData = new byte[] {0, 0, 0, 0, 0, 10, 24, 42};
+        long expected = 10 * 65536 + 24 * 256 + 42;
+
         LocalTimeSchema schema = LocalTimeSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
         byteBuf.writeBytes(byteData);
@@ -84,5 +75,4 @@ public class LocalTimeSchemaTest {
         Assert.assertNull(LocalTimeSchema.of().decode(byteBuf));
         Assert.assertNull(LocalTimeSchema.of().decode(bytes));
     }
-
 }

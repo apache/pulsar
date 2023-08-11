@@ -69,11 +69,13 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
             if (isTcpLookup) {
                 url = pulsar.getBrokerServiceUrl();
             }
-            @Cleanup
-            PulsarClient client = newPulsarClient(url, 0);
+            @Cleanup PulsarClient client = newPulsarClient(url, 0);
 
-            Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+            Consumer<byte[]> consumer = client.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .subscribe();
             Producer<byte[]> producer = client.newProducer().topic(topicName).create();
 
             consumer.close();
@@ -86,7 +88,7 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test (timeOut = 15000)
+    @Test(timeOut = 15000)
     public void testGetPartitionedTopicDataTimeout() {
         log.info("-- Starting {} test --", methodName);
 
@@ -97,10 +99,10 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         try {
             @Cleanup
             PulsarClient client = PulsarClient.builder()
-                .serviceUrl(url)
-                .statsInterval(0, TimeUnit.SECONDS)
-                .operationTimeout(3, TimeUnit.SECONDS)
-                .build();
+                    .serviceUrl(url)
+                    .statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(3, TimeUnit.SECONDS)
+                    .build();
 
             Producer<byte[]> producer = client.newProducer().topic(topicName).create();
 
@@ -128,15 +130,18 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         final String subscriptionName = "my-subscriber-name";
 
         // Multi hosts included an unreached port and the actual port for verify retry logic
-        String urlsWithUnreached = "http://localhost:51000,localhost:" + new URI(pulsar.getWebServiceAddress()).getPort();
+        String urlsWithUnreached =
+                "http://localhost:51000,localhost:" + new URI(pulsar.getWebServiceAddress()).getPort();
         if (isTcpLookup) {
             urlsWithUnreached = "pulsar://localhost:51000,localhost" + new URI(pulsar.getBrokerServiceUrl()).getPort();
         }
-        @Cleanup
-        PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
+        @Cleanup PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
 
-        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-            .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
         Producer<byte[]> producer = client.newProducer().topic(topicName).create();
 
         for (int i = 0; i < 5; i++) {

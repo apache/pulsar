@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.util.RetryUtil;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.testng.annotations.Test;
 
 @Test(groups = "utils")
 public class RetryUtilTest {
-
 
     @Test
     public void testFailAndRetry() throws Exception {
@@ -45,16 +42,20 @@ public class RetryUtilTest {
                 .setMax(2000, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
                 .create();
-        RetryUtil.retryAsynchronously(() -> {
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            atomicInteger.incrementAndGet();
-            if (atomicInteger.get() < 5) {
-                future.completeExceptionally(new RuntimeException("fail"));
-            } else {
-                future.complete(true);
-            }
-            return future;
-        }, backoff, executor, callback);
+        RetryUtil.retryAsynchronously(
+                () -> {
+                    CompletableFuture<Boolean> future = new CompletableFuture<>();
+                    atomicInteger.incrementAndGet();
+                    if (atomicInteger.get() < 5) {
+                        future.completeExceptionally(new RuntimeException("fail"));
+                    } else {
+                        future.complete(true);
+                    }
+                    return future;
+                },
+                backoff,
+                executor,
+                callback);
         assertTrue(callback.get());
         assertEquals(atomicInteger.get(), 5);
         executor.shutdownNow();
@@ -70,8 +71,8 @@ public class RetryUtilTest {
                 .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
                 .create();
         long start = System.currentTimeMillis();
-        RetryUtil.retryAsynchronously(() ->
-                FutureUtil.failedFuture(new RuntimeException("fail")), backoff, executor, callback);
+        RetryUtil.retryAsynchronously(
+                () -> FutureUtil.failedFuture(new RuntimeException("fail")), backoff, executor, callback);
         try {
             callback.get();
         } catch (Exception e) {

@@ -47,14 +47,15 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param sinkConfig Configuration of Pulsar Sink
      * @param authParams the authentication parameters associated with the request
      */
-    void registerSink(String tenant,
-                      String namespace,
-                      String sinkName,
-                      InputStream uploadedInputStream,
-                      FormDataContentDisposition fileDetail,
-                      String sinkPkgUrl,
-                      SinkConfig sinkConfig,
-                      AuthenticationParameters authParams);
+    void registerSink(
+            String tenant,
+            String namespace,
+            String sinkName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String sinkPkgUrl,
+            SinkConfig sinkConfig,
+            AuthenticationParameters authParams);
 
     /**
      * Update a function.
@@ -68,37 +69,31 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param authParams the authentication parameters associated with the request
      * @param updateOptions Options while updating the sink
      */
-    void updateSink(String tenant,
-                    String namespace,
-                    String sinkName,
-                    InputStream uploadedInputStream,
-                    FormDataContentDisposition fileDetail,
-                    String sinkPkgUrl,
-                    SinkConfig sinkConfig,
-                    AuthenticationParameters authParams,
-                    UpdateOptionsImpl updateOptions);
+    void updateSink(
+            String tenant,
+            String namespace,
+            String sinkName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String sinkPkgUrl,
+            SinkConfig sinkConfig,
+            AuthenticationParameters authParams,
+            UpdateOptionsImpl updateOptions);
 
-    SinkInstanceStatusData getSinkInstanceStatus(String tenant,
-                                                 String namespace,
-                                                 String sinkName,
-                                                 String instanceId,
-                                                 URI uri,
-                                                 AuthenticationParameters authParams);
+    SinkInstanceStatusData getSinkInstanceStatus(
+            String tenant,
+            String namespace,
+            String sinkName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    SinkStatus getSinkStatus(String tenant,
-                             String namespace,
-                             String componentName,
-                             URI uri,
-                             AuthenticationParameters authParams);
+    SinkStatus getSinkStatus(
+            String tenant, String namespace, String componentName, URI uri, AuthenticationParameters authParams);
 
-    SinkConfig getSinkInfo(String tenant,
-                           String namespace,
-                           String componentName,
-                           AuthenticationParameters authParams);
+    SinkConfig getSinkInfo(String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getSinkList();
 
-
     List<ConfigFieldDefinition> getSinkConfigDefinition(String name);
-
 }

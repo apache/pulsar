@@ -44,16 +44,21 @@ public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
 
     @Test
     public void testClosedConsumer() throws PulsarClientException {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")
-                .subscriptionName("my-subscription").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/topicName")
+                .subscriptionName("my-subscription")
+                .subscribe();
         consumer.close();
         Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());
 
         try {
-            consumer.receiveAsync().exceptionally(e -> {
-                Assert.assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
-                return null;
-            }).get();
+            consumer.receiveAsync()
+                    .exceptionally(e -> {
+                        Assert.assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
+                        return null;
+                    })
+                    .get();
         } catch (Exception e) {
             Assert.fail();
         }
@@ -62,17 +67,21 @@ public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
     @Test
     public void testListener() throws PulsarClientException {
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")
-                .subscriptionName("my-subscription").messageListener((consumer1, msg) -> {
-
-                }).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/topicName")
+                .subscriptionName("my-subscription")
+                .messageListener((consumer1, msg) -> {})
+                .subscribe();
         Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());
 
         try {
-            consumer.receiveAsync().exceptionally(e -> {
-                Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
-                return null;
-            }).get();
+            consumer.receiveAsync()
+                    .exceptionally(e -> {
+                        Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
+                        return null;
+                    })
+                    .get();
         } catch (Exception e) {
             Assert.fail();
         }

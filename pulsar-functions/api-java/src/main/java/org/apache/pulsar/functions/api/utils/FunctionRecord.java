@@ -64,9 +64,9 @@ public class FunctionRecord<T> implements Record<T> {
         }
         Record<?> currentRecord = context.getCurrentRecord();
         FunctionRecordBuilder<T> builder = new FunctionRecordBuilder<T>()
-            .schema(schema)
-            .destinationTopic(context.getOutputTopic())
-            .properties(currentRecord.getProperties());
+                .schema(schema)
+                .destinationTopic(context.getOutputTopic())
+                .properties(currentRecord.getProperties());
         currentRecord.getTopicName().ifPresent(builder::topicName);
         currentRecord.getKey().ifPresent(builder::key);
         currentRecord.getEventTime().ifPresent(builder::eventTime);
@@ -126,5 +126,4 @@ public class FunctionRecord<T> implements Record<T> {
     public Optional<Long> getRecordSequence() {
         return Optional.ofNullable(recordSequence);
     }
-
 }

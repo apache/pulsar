@@ -29,10 +29,9 @@ import lombok.Setter;
 @NoArgsConstructor
 public class CustomDerivedObject extends CustomBaseObject {
     private int derivedValue;
+
     public CustomDerivedObject(long baseValue, int derivedValue) {
         super(baseValue);
         this.derivedValue = derivedValue;
     }
 }
-
-

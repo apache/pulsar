@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.alluxio.sink;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import alluxio.client.WriteType;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.testng.annotations.Test;
 
 /**
  * AlluxioSinkConfig test
@@ -90,8 +88,9 @@ public class AlluxioSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "alluxioDir property not set.")
+    @Test(
+            expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "alluxioDir property not set.")
     public final void missingValidateAlluxioDirTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("alluxioMasterHost", "localhost");
@@ -106,8 +105,9 @@ public class AlluxioSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "rotationRecords must be a positive long.")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "rotationRecords must be a positive long.")
     public final void invalidRotationRecordsTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("alluxioMasterHost", "localhost");
@@ -123,8 +123,9 @@ public class AlluxioSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "rotationInterval must be either -1 or a positive long.")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "rotationInterval must be either -1 or a positive long.")
     public final void invalidRotationIntervalTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("alluxioMasterHost", "localhost");
@@ -140,8 +141,9 @@ public class AlluxioSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant alluxio.client.WriteType.NOTSUPPORT")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "No enum constant alluxio.client.WriteType.NOTSUPPORT")
     public final void invalidClientModeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("alluxioMasterHost", "localhost");
@@ -159,7 +161,6 @@ public class AlluxioSinkConfigTest {
 
         WriteType.valueOf(config.getWriteType().toUpperCase());
     }
-
 
     private File getFile(String name) {
         ClassLoader classLoader = getClass().getClassLoader();

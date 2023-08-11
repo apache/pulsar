@@ -51,14 +51,15 @@ public class PulsarAuth {
     private final PulsarConnectorConfig pulsarConnectorConfig;
     private static final String CREDENTIALS_AUTH_PLUGIN = "auth-plugin";
     private static final String CREDENTIALS_AUTH_PARAMS = "auth-params";
+
     @VisibleForTesting
     final Map<String, Set<String>> authorizedQueryTopicsMap = new ConcurrentHashMap<>();
 
     @Inject
     public PulsarAuth(PulsarConnectorConfig pulsarConnectorConfig) {
         this.pulsarConnectorConfig = pulsarConnectorConfig;
-        if (pulsarConnectorConfig.getAuthorizationEnabled() && StringUtils.isEmpty(
-                pulsarConnectorConfig.getBrokerBinaryServiceUrl())) {
+        if (pulsarConnectorConfig.getAuthorizationEnabled()
+                && StringUtils.isEmpty(pulsarConnectorConfig.getBrokerBinaryServiceUrl())) {
             throw new IllegalArgumentException(
                     "pulsar.broker-binary-service-url must be present when the pulsar.authorization-enable is true.");
         }
@@ -83,7 +84,8 @@ public class PulsarAuth {
         }
         Map<String, String> extraCredentials = session.getIdentity().getExtraCredentials();
         if (extraCredentials.isEmpty()) { // the extraCredentials won't be null
-            throw new TrinoException(QUERY_REJECTED,
+            throw new TrinoException(
+                    QUERY_REJECTED,
                     String.format(
                             "Failed to check the authorization for topic %s: The credential information is empty.",
                             topic));
@@ -91,7 +93,8 @@ public class PulsarAuth {
         String authMethod = extraCredentials.get(CREDENTIALS_AUTH_PLUGIN);
         String authParams = extraCredentials.get(CREDENTIALS_AUTH_PARAMS);
         if (StringUtils.isEmpty(authMethod) || StringUtils.isEmpty(authParams)) {
-            throw new TrinoException(QUERY_REJECTED,
+            throw new TrinoException(
+                    QUERY_REJECTED,
                     String.format(
                             "Failed to check the authorization for topic %s: Required credential parameters are "
                                     + "missing. Please specify the auth-method and auth-params in the extra "
@@ -104,7 +107,8 @@ public class PulsarAuth {
                     .serviceUrl(pulsarConnectorConfig.getBrokerBinaryServiceUrl())
                     .authentication(authMethod, authParams)
                     .build();
-            client.newConsumer().topic(topic)
+            client.newConsumer()
+                    .topic(topic)
                     .subscriptionName("pulsar-sql-auth" + session.getQueryId())
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscriptionMode(SubscriptionMode.NonDurable)
@@ -119,10 +123,11 @@ public class PulsarAuth {
                 log.debug("Check the authorization for the topic %s successfully.", topic);
             }
         } catch (PulsarClientException.AuthenticationException | PulsarClientException.AuthorizationException e) {
-            throw new TrinoException(PERMISSION_DENIED,
-                    String.format("Failed to access topic %s: %s", topic, e.getLocalizedMessage()));
+            throw new TrinoException(
+                    PERMISSION_DENIED, String.format("Failed to access topic %s: %s", topic, e.getLocalizedMessage()));
         } catch (IOException e) {
-            throw new TrinoException(QUERY_REJECTED,
+            throw new TrinoException(
+                    QUERY_REJECTED,
                     String.format("Failed to check authorization for topic %s: %s", topic, e.getLocalizedMessage()));
         }
     }

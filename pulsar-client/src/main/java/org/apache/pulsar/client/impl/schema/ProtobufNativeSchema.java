@@ -82,9 +82,12 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
         protoMessageInstance.getDescriptorForType().getFields().forEach(new Consumer<Descriptors.FieldDescriptor>() {
             @Override
             public void accept(Descriptors.FieldDescriptor fieldDescriptor) {
-                protoBufParsingInfos.add(new ProtoBufParsingInfo(fieldDescriptor.getNumber(),
-                        fieldDescriptor.getName(), fieldDescriptor.getType().name(),
-                        fieldDescriptor.toProto().getLabel().name(), null));
+                protoBufParsingInfos.add(new ProtoBufParsingInfo(
+                        fieldDescriptor.getNumber(),
+                        fieldDescriptor.getName(),
+                        fieldDescriptor.getType().name(),
+                        fieldDescriptor.toProto().getLabel().name(),
+                        null));
             }
         });
 
@@ -109,8 +112,10 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
     }
 
     public static <T> ProtobufNativeSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
-        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo)
-                .withProperties(properties).build();
+        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder()
+                .withPojo(pojo)
+                .withProperties(properties)
+                .build();
         return ProtobufNativeSchema.of(schemaDefinition);
     }
 
@@ -118,8 +123,8 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
         Class<T> pojo = schemaDefinition.getPojo();
 
         if (!GeneratedMessageV3.class.isAssignableFrom(pojo)) {
-            throw new IllegalArgumentException(GeneratedMessageV3.class.getName()
-                    + " is not assignable from " + pojo.getName());
+            throw new IllegalArgumentException(
+                    GeneratedMessageV3.class.getName() + " is not assignable from " + pojo.getName());
         }
         Descriptors.Descriptor descriptor = createProtobufNativeSchema(schemaDefinition.getPojo());
 
@@ -130,8 +135,8 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
                 .properties(schemaDefinition.getProperties())
                 .build();
         try {
-            return new ProtobufNativeSchema(schemaInfo,
-                    (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+            return new ProtobufNativeSchema(schemaInfo, (GeneratedMessageV3)
+                    pojo.getMethod("getDefaultInstance").invoke(null));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }

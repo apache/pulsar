@@ -105,12 +105,10 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
-                .thenCompose(__ -> {
-                    String schemaId = getSchemaId();
-                    return pulsar().getSchemaRegistryService()
-                            .deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
-                });
+        return validateDestinationAndAdminOperationAsync(authoritative).thenCompose(__ -> {
+            String schemaId = getSchemaId();
+            return pulsar().getSchemaRegistryService().deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
+        });
     }
 
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
@@ -121,8 +119,8 @@ public class SchemasResourceBase extends AdminResource {
                     if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
                         try {
                             data = DefaultImplementation.getDefaultImplementation()
-                                    .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema()
-                                            .getBytes(StandardCharsets.UTF_8));
+                                    .convertKeyValueDataStringToSchemaInfoSchema(
+                                            payload.getSchema().getBytes(StandardCharsets.UTF_8));
                         } catch (IOException conversionError) {
                             throw new RestException(conversionError);
                         }
@@ -130,8 +128,12 @@ public class SchemasResourceBase extends AdminResource {
                         data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
                     }
                     return pulsar().getSchemaRegistryService()
-                            .putSchemaIfAbsent(getSchemaId(),
-                                    SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
+                            .putSchemaIfAbsent(
+                                    getSchemaId(),
+                                    SchemaData.builder()
+                                            .data(data)
+                                            .isDeleted(false)
+                                            .timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
                                             .props(payload.getProperties())
@@ -146,13 +148,18 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
-                    return pulsar().getSchemaRegistryService().isCompatible(schemaId,
-                            SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
-                                    .isDeleted(false)
-                                    .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
-                                    .user(defaultIfEmpty(clientAppId(), ""))
-                                    .props(payload.getProperties())
-                                    .build(), strategy)
+                    return pulsar().getSchemaRegistryService()
+                            .isCompatible(
+                                    schemaId,
+                                    SchemaData.builder()
+                                            .data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
+                                            .isDeleted(false)
+                                            .timestamp(clock.millis())
+                                            .type(SchemaType.valueOf(payload.getType()))
+                                            .user(defaultIfEmpty(clientAppId(), ""))
+                                            .props(payload.getProperties())
+                                            .build(),
+                                    strategy)
                             .thenApply(v -> Pair.of(v, strategy));
                 });
     }
@@ -162,12 +169,16 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
-                            .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
-                                            .isDeleted(false).timestamp(clock.millis())
+                            .findSchemaVersion(
+                                    schemaId,
+                                    SchemaData.builder()
+                                            .data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
+                                            .isDeleted(false)
+                                            .timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
-                                            .props(payload.getProperties()).build());
+                                            .props(payload.getProperties())
+                                            .build());
                 });
     }
 
@@ -180,15 +191,19 @@ public class SchemasResourceBase extends AdminResource {
         try {
             String schemaData;
             if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
-                schemaData = DefaultImplementation.getDefaultImplementation().convertKeyValueSchemaInfoDataToString(
-                        DefaultImplementation.getDefaultImplementation()
+                schemaData = DefaultImplementation.getDefaultImplementation()
+                        .convertKeyValueSchemaInfoDataToString(DefaultImplementation.getDefaultImplementation()
                                 .decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
             } else {
                 schemaData = new String(schemaAndMetadata.schema.getData(), StandardCharsets.UTF_8);
             }
-            return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
-                    .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
-                    .data(schemaData).properties(schemaAndMetadata.schema.getProps()).build();
+            return GetSchemaResponse.builder()
+                    .version(getLongSchemaVersion(schemaAndMetadata.version))
+                    .type(schemaAndMetadata.schema.getType())
+                    .timestamp(schemaAndMetadata.schema.getTimestamp())
+                    .data(schemaData)
+                    .properties(schemaAndMetadata.schema.getProps())
+                    .build();
         } catch (IOException conversionError) {
             throw new RuntimeException(conversionError);
         }
@@ -220,12 +235,11 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> validateAdminAccessForTenantAsync(topicName.getTenant()));
     }
 
-    private CompletableFuture<Void> validateOwnershipAndOperationAsync(boolean authoritative,
-                                                                       TopicOperation operation) {
+    private CompletableFuture<Void> validateOwnershipAndOperationAsync(
+            boolean authoritative, TopicOperation operation) {
         return validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
-
 
     protected boolean shouldPrintErrorLog(Throwable ex) {
         return !isRedirectException(ex) && !isNotFoundException(ex);

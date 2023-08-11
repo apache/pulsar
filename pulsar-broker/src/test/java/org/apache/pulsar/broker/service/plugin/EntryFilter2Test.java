@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.MapUtils;
@@ -36,7 +35,7 @@ public class EntryFilter2Test implements EntryFilter {
         PersistentSubscription subscription = (PersistentSubscription) context.getSubscription();
         if (!MapUtils.isEmpty(subscription.getSubscriptionProperties())) {
             for (KeyValue keyValue : list) {
-                if(subscription.getSubscriptionProperties().containsKey(keyValue.getKey())){
+                if (subscription.getSubscriptionProperties().containsKey(keyValue.getKey())) {
                     return FilterResult.ACCEPT;
                 }
             }
@@ -45,7 +44,5 @@ public class EntryFilter2Test implements EntryFilter {
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 }

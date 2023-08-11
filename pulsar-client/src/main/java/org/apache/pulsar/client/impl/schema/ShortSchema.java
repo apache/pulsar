@@ -33,9 +33,10 @@ public class ShortSchema extends AbstractSchema<Short> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("INT16")
-            .type(SchemaType.INT16)
-            .schema(new byte[0]).build();
+                .name("INT16")
+                .type(SchemaType.INT16)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new ShortSchema();
     }
 
@@ -62,10 +63,7 @@ public class ShortSchema extends AbstractSchema<Short> {
         if (null == message) {
             return null;
         } else {
-            return new byte[] {
-                (byte) (message >>> 8),
-                message.byteValue()
-            };
+            return new byte[] {(byte) (message >>> 8), message.byteValue()};
         }
     }
 

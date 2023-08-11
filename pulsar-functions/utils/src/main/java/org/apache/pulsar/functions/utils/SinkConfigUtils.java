@@ -74,9 +74,8 @@ public class SinkConfigUtils {
     public static FunctionDetails convert(SinkConfig sinkConfig, ExtractedSinkDetails sinkDetails) throws IOException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin =
-                !org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive()
-                        .startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive())
+                && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         if (sinkConfig.getTenant() != null) {
             functionDetailsBuilder.setTenant(sinkConfig.getTenant());
@@ -113,21 +112,23 @@ public class SinkConfigUtils {
         Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
         sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
         if (sinkConfig.getInputs() != null) {
-            sinkConfig.getInputs().forEach(topicName ->
-                    sourceSpecBuilder.putInputSpecs(topicName,
+            sinkConfig
+                    .getInputs()
+                    .forEach(topicName -> sourceSpecBuilder.putInputSpecs(
+                            topicName,
                             Function.ConsumerSpec.newBuilder()
                                     .setIsRegexPattern(false)
                                     .build()));
         }
         if (!StringUtils.isEmpty(sinkConfig.getTopicsPattern())) {
-            sourceSpecBuilder.putInputSpecs(sinkConfig.getTopicsPattern(),
-                    Function.ConsumerSpec.newBuilder()
-                            .setIsRegexPattern(true)
-                            .build());
+            sourceSpecBuilder.putInputSpecs(
+                    sinkConfig.getTopicsPattern(),
+                    Function.ConsumerSpec.newBuilder().setIsRegexPattern(true).build());
         }
         if (sinkConfig.getTopicToSerdeClassName() != null) {
             sinkConfig.getTopicToSerdeClassName().forEach((topicName, serde) -> {
-                sourceSpecBuilder.putInputSpecs(topicName,
+                sourceSpecBuilder.putInputSpecs(
+                        topicName,
                         Function.ConsumerSpec.newBuilder()
                                 .setSerdeClassName(serde == null ? "" : serde)
                                 .setIsRegexPattern(false)
@@ -136,7 +137,8 @@ public class SinkConfigUtils {
         }
         if (sinkConfig.getTopicToSchemaType() != null) {
             sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
-                sourceSpecBuilder.putInputSpecs(topicName,
+                sourceSpecBuilder.putInputSpecs(
+                        topicName,
                         Function.ConsumerSpec.newBuilder()
                                 .setSchemaType(schemaType == null ? "" : schemaType)
                                 .setIsRegexPattern(false)
@@ -145,8 +147,8 @@ public class SinkConfigUtils {
         }
         if (sinkConfig.getInputSpecs() != null) {
             sinkConfig.getInputSpecs().forEach((topic, spec) -> {
-                Function.ConsumerSpec.Builder bldr = Function.ConsumerSpec.newBuilder()
-                        .setIsRegexPattern(spec.isRegexPattern());
+                Function.ConsumerSpec.Builder bldr =
+                        Function.ConsumerSpec.newBuilder().setIsRegexPattern(spec.isRegexPattern());
                 if (StringUtils.isNotBlank(spec.getSchemaType())) {
                     bldr.setSchemaType(spec.getSchemaType());
                 } else if (StringUtils.isNotBlank(spec.getSerdeClassName())) {
@@ -154,7 +156,8 @@ public class SinkConfigUtils {
                 }
                 if (spec.getReceiverQueueSize() != null) {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
-                            .setValue(spec.getReceiverQueueSize()).build());
+                            .setValue(spec.getReceiverQueueSize())
+                            .build());
                 }
                 if (spec.getCryptoConfig() != null) {
                     bldr.setCryptoSpec(CryptoUtils.convert(spec.getCryptoConfig()));
@@ -278,8 +281,8 @@ public class SinkConfigUtils {
                 FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
         List<String> inputs = new ArrayList<>();
-        for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap()
-                .entrySet()) {
+        for (Map.Entry<String, Function.ConsumerSpec> input :
+                functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
             if (!isEmpty(input.getValue().getSerdeClassName())) {
                 consumerConfig.setSerdeClassName(input.getValue().getSerdeClassName());
@@ -288,10 +291,12 @@ public class SinkConfigUtils {
                 consumerConfig.setSchemaType(input.getValue().getSchemaType());
             }
             if (input.getValue().hasReceiverQueueSize()) {
-                consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
+                consumerConfig.setReceiverQueueSize(
+                        input.getValue().getReceiverQueueSize().getValue());
             }
             if (input.getValue().hasCryptoSpec()) {
-                consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
+                consumerConfig.setCryptoConfig(
+                        CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
@@ -321,14 +326,15 @@ public class SinkConfigUtils {
         sinkConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
 
         // Set subscription position
-        sinkConfig.setSourceSubscriptionPosition(
-                convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
+        sinkConfig.setSourceSubscriptionPosition(convertFromFunctionDetailsSubscriptionPosition(
+                functionDetails.getSource().getSubscriptionPosition()));
 
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
         }
         if (functionDetails.getSource().getNegativeAckRedeliveryDelayMs() > 0) {
-            sinkConfig.setNegativeAckRedeliveryDelayMs(functionDetails.getSource().getNegativeAckRedeliveryDelayMs());
+            sinkConfig.setNegativeAckRedeliveryDelayMs(
+                    functionDetails.getSource().getNegativeAckRedeliveryDelayMs());
         }
         if (!isEmpty(functionDetails.getSink().getClassName())) {
             sinkConfig.setClassName(functionDetails.getSink().getClassName());
@@ -336,25 +342,23 @@ public class SinkConfigUtils {
         if (!isEmpty(functionDetails.getSink().getBuiltin())) {
             sinkConfig.setArchive("builtin://" + functionDetails.getSink().getBuiltin());
         }
-        if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
-            TypeReference<HashMap<String, Object>> typeRef =
-                    new TypeReference<HashMap<String, Object>>() {
-            };
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(
+                functionDetails.getSink().getConfigs())) {
+            TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
             Map<String, Object> configMap;
             try {
-                configMap =
-                        ObjectMapperFactory.getMapper().getObjectMapper()
-                                .readValue(functionDetails.getSink().getConfigs(), typeRef);
+                configMap = ObjectMapperFactory.getMapper()
+                        .getObjectMapper()
+                        .readValue(functionDetails.getSink().getConfigs(), typeRef);
             } catch (IOException e) {
-                log.error("Failed to read configs for sink {}", FunctionCommon.getFullyQualifiedName(functionDetails),
-                        e);
+                log.error(
+                        "Failed to read configs for sink {}", FunctionCommon.getFullyQualifiedName(functionDetails), e);
                 throw new RuntimeException(e);
             }
             sinkConfig.setConfigs(configMap);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {
-            }.getType();
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             sinkConfig.setSecrets(secretsMap);
         }
@@ -390,14 +394,14 @@ public class SinkConfigUtils {
             sinkConfig.setTransformFunctionConfig(functionDetails.getUserConfig());
         }
 
-
         return sinkConfig;
     }
 
-    public static ExtractedSinkDetails validateAndExtractDetails(SinkConfig sinkConfig,
-                                                                 ClassLoader sinkClassLoader,
-                                                                 ClassLoader functionClassLoader,
-                                                                 boolean validateConnectorConfig) {
+    public static ExtractedSinkDetails validateAndExtractDetails(
+            SinkConfig sinkConfig,
+            ClassLoader sinkClassLoader,
+            ClassLoader functionClassLoader,
+            boolean validateConnectorConfig) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
         }
@@ -485,9 +489,9 @@ public class SinkConfigUtils {
         }
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {
-           for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
-               ValidatorUtils.validateSerde(serdeClassName, typeArg, inputClassLoader, true);
-           }
+            for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
+                ValidatorUtils.validateSerde(serdeClassName, typeArg, inputClassLoader, true);
+            }
         }
 
         if (sinkConfig.getTopicToSchemaType() != null) {
@@ -546,8 +550,9 @@ public class SinkConfigUtils {
 
     @SneakyThrows
     public static SinkConfig clone(SinkConfig sinkConfig) {
-        return ObjectMapperFactory.getMapper().reader().readValue(
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(sinkConfig), SinkConfig.class);
+        return ObjectMapperFactory.getMapper()
+                .reader()
+                .readValue(ObjectMapperFactory.getMapper().writer().writeValueAsBytes(sinkConfig), SinkConfig.class);
     }
 
     public static SinkConfig validateUpdate(SinkConfig existingConfig, SinkConfig newConfig) {
@@ -565,8 +570,8 @@ public class SinkConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
         }
-        if (!StringUtils.isEmpty(newConfig.getSourceSubscriptionName()) && !newConfig.getSourceSubscriptionName()
-                .equals(existingConfig.getSourceSubscriptionName())) {
+        if (!StringUtils.isEmpty(newConfig.getSourceSubscriptionName())
+                && !newConfig.getSourceSubscriptionName().equals(existingConfig.getSourceSubscriptionName())) {
             throw new IllegalArgumentException("Subscription Name cannot be altered");
         }
 
@@ -580,32 +585,43 @@ public class SinkConfigUtils {
 
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
-                newConfig.getInputSpecs().putIfAbsent(topicName,
-                        ConsumerConfig.builder().isRegexPattern(false).build());
+                newConfig
+                        .getInputSpecs()
+                        .putIfAbsent(
+                                topicName,
+                                ConsumerConfig.builder().isRegexPattern(false).build());
             }));
         }
-        if (newConfig.getTopicsPattern() != null && !newConfig.getTopicsPattern().isEmpty()) {
-            newConfig.getInputSpecs().put(newConfig.getTopicsPattern(),
-                    ConsumerConfig.builder()
-                            .isRegexPattern(true)
-                            .build());
+        if (newConfig.getTopicsPattern() != null
+                && !newConfig.getTopicsPattern().isEmpty()) {
+            newConfig
+                    .getInputSpecs()
+                    .put(
+                            newConfig.getTopicsPattern(),
+                            ConsumerConfig.builder().isRegexPattern(true).build());
         }
         if (newConfig.getTopicToSerdeClassName() != null) {
             newConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
-                newConfig.getInputSpecs().put(topicName,
-                        ConsumerConfig.builder()
-                                .serdeClassName(serdeClassName)
-                                .isRegexPattern(false)
-                                .build());
+                newConfig
+                        .getInputSpecs()
+                        .put(
+                                topicName,
+                                ConsumerConfig.builder()
+                                        .serdeClassName(serdeClassName)
+                                        .isRegexPattern(false)
+                                        .build());
             });
         }
         if (newConfig.getTopicToSchemaType() != null) {
             newConfig.getTopicToSchemaType().forEach((topicName, schemaClassname) -> {
-                newConfig.getInputSpecs().put(topicName,
-                        ConsumerConfig.builder()
-                                .schemaType(schemaClassname)
-                                .isRegexPattern(false)
-                                .build());
+                newConfig
+                        .getInputSpecs()
+                        .put(
+                                topicName,
+                                ConsumerConfig.builder()
+                                        .schemaType(schemaClassname)
+                                        .isRegexPattern(false)
+                                        .build());
             });
         }
         if (!newConfig.getInputSpecs().isEmpty()) {
@@ -614,15 +630,16 @@ public class SinkConfigUtils {
                 if (!existingConfig.getInputSpecs().containsKey(topicName)) {
                     throw new IllegalArgumentException("Input Topics cannot be altered");
                 }
-                if (consumerConfig.isRegexPattern() != existingConfig.getInputSpecs().get(topicName).isRegexPattern()) {
+                if (consumerConfig.isRegexPattern()
+                        != existingConfig.getInputSpecs().get(topicName).isRegexPattern()) {
                     throw new IllegalArgumentException(
                             "isRegexPattern for input topic " + topicName + " cannot be altered");
                 }
                 finalMergedConfig.getInputSpecs().put(topicName, consumerConfig);
             });
         }
-        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
-                .equals(existingConfig.getProcessingGuarantees())) {
+        if (newConfig.getProcessingGuarantees() != null
+                && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
             throw new IllegalArgumentException("Processing Guarantees cannot be altered");
         }
         if (newConfig.getConfigs() != null) {
@@ -634,20 +651,20 @@ public class SinkConfigUtils {
         if (newConfig.getParallelism() != null) {
             mergedConfig.setParallelism(newConfig.getParallelism());
         }
-        if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering()
-                .equals(existingConfig.getRetainOrdering())) {
+        if (newConfig.getRetainOrdering() != null
+                && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
             throw new IllegalArgumentException("Retain Ordering cannot be altered");
         }
-        if (newConfig.getRetainKeyOrdering() != null && !newConfig.getRetainKeyOrdering()
-                .equals(existingConfig.getRetainKeyOrdering())) {
+        if (newConfig.getRetainKeyOrdering() != null
+                && !newConfig.getRetainKeyOrdering().equals(existingConfig.getRetainKeyOrdering())) {
             throw new IllegalArgumentException("Retain Key Ordering cannot be altered");
         }
         if (newConfig.getAutoAck() != null && !newConfig.getAutoAck().equals(existingConfig.getAutoAck())) {
             throw new IllegalArgumentException("AutoAck cannot be altered");
         }
         if (newConfig.getResources() != null) {
-            mergedConfig
-                    .setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
+            mergedConfig.setResources(
+                    ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
         }
         if (newConfig.getTimeoutMs() != null) {
             mergedConfig.setTimeoutMs(newConfig.getTimeoutMs());
@@ -687,8 +704,10 @@ public class SinkConfigUtils {
                     "When effectively once processing guarantee is specified, retain Key ordering cannot be set");
         }
 
-        if (sinkConfig.getRetainKeyOrdering() != null && sinkConfig.getRetainKeyOrdering()
-                && sinkConfig.getRetainOrdering() != null && sinkConfig.getRetainOrdering()) {
+        if (sinkConfig.getRetainKeyOrdering() != null
+                && sinkConfig.getRetainKeyOrdering()
+                && sinkConfig.getRetainOrdering() != null
+                && sinkConfig.getRetainOrdering()) {
             throw new IllegalArgumentException("Only one of retain ordering or retain key ordering can be set");
         }
 
@@ -707,9 +726,9 @@ public class SinkConfigUtils {
 
     public static void validateSinkConfig(SinkConfig sinkConfig, Class configClass) {
         try {
-            Object configObject =
-                    ObjectMapperFactory.getMapper().getObjectMapper()
-                            .convertValue(sinkConfig.getConfigs(), configClass);
+            Object configObject = ObjectMapperFactory.getMapper()
+                    .getObjectMapper()
+                    .convertValue(sinkConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }

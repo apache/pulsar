@@ -38,8 +38,8 @@ public class DataBlockHeaderV2Test {
         long firstEntryId = 3333L;
         long ledgerId = 3L;
 
-        StreamingDataBlockHeaderImpl dataBlockHeader = StreamingDataBlockHeaderImpl.of(blockLength,
-                ledgerId, firstEntryId);
+        StreamingDataBlockHeaderImpl dataBlockHeader =
+                StreamingDataBlockHeaderImpl.of(blockLength, ledgerId, firstEntryId);
 
         // verify get methods
         assertEquals(StreamingDataBlockHeaderImpl.getBlockMagicWord(), StreamingDataBlockHeaderImpl.MAGIC_WORD);
@@ -61,8 +61,8 @@ public class DataBlockHeaderV2Test {
         byte[] streamContent = new byte[StreamingDataBlockHeaderImpl.getDataStartOffset()];
 
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
-        try (InputStream stream2 = new ByteArrayInputStream(streamContent, 0,
-                StreamingDataBlockHeaderImpl.getDataStartOffset())) {
+        try (InputStream stream2 =
+                new ByteArrayInputStream(streamContent, 0, StreamingDataBlockHeaderImpl.getDataStartOffset())) {
             DataBlockHeader rebuild2 = StreamingDataBlockHeaderImpl.fromStream(stream2);
             fail("Should throw IOException");
         } catch (Exception e) {
@@ -73,8 +73,7 @@ public class DataBlockHeaderV2Test {
         // simulate read header too small, throw EOFException.
         stream.read(streamContent);
         try (InputStream stream3 =
-                     new ByteArrayInputStream(streamContent, 0,
-                             StreamingDataBlockHeaderImpl.getDataStartOffset() - 1)) {
+                new ByteArrayInputStream(streamContent, 0, StreamingDataBlockHeaderImpl.getDataStartOffset() - 1)) {
             DataBlockHeader rebuild3 = StreamingDataBlockHeaderImpl.fromStream(stream3);
             fail("Should throw EOFException");
         } catch (EOFException e) {
@@ -83,5 +82,4 @@ public class DataBlockHeaderV2Test {
 
         stream.close();
     }
-
 }

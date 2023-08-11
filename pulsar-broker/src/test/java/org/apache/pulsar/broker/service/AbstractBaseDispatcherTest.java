@@ -81,7 +81,6 @@ public class AbstractBaseDispatcherTest {
         assertEquals(size, 0);
     }
 
-
     @Test
     public void testFilterEntriesForConsumerOfEntryFilter() throws Exception {
         Topic mockTopic = mock(Topic.class);
@@ -97,13 +96,13 @@ public class AbstractBaseDispatcherTest {
         when(mockBrokerService.getEntryFilterProvider()).thenReturn(entryFilterProvider);
         when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
         EntryFilter mockFilter = mock(EntryFilter.class);
-        when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
-                EntryFilter.FilterResult.REJECT);
+        when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class)))
+                .thenReturn(EntryFilter.FilterResult.REJECT);
         when(mockTopic.getEntryFilters()).thenReturn(List.of(mockFilter));
         DispatchRateLimiter subscriptionDispatchRateLimiter = mock(DispatchRateLimiter.class);
 
-        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig,
-                subscriptionDispatchRateLimiter);
+        this.helper = new AbstractBaseDispatcherTestHelper(
+                this.subscriptionMock, this.svcConfig, subscriptionDispatchRateLimiter);
 
         List<Entry> entries = new ArrayList<>();
 
@@ -115,7 +114,8 @@ public class AbstractBaseDispatcherTest {
 
         ManagedCursor cursor = mock(ManagedCursor.class);
 
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
+        int size =
+                this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
         assertEquals(size, 0);
         verify(subscriptionDispatchRateLimiter).tryDispatchPermit(1, expectedBytePermits);
     }
@@ -177,8 +177,8 @@ public class AbstractBaseDispatcherTest {
                 .setProducerName("testProducer")
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
     private ByteBuf createTnxMessage(String message, int sequenceId) {
@@ -189,8 +189,8 @@ public class AbstractBaseDispatcherTest {
                 .setPublishTime(System.currentTimeMillis())
                 .setTxnidMostBits(8)
                 .setTxnidLeastBits(0);
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
     private ByteBuf createTnxAbortMessage(String message, int sequenceId) {
@@ -202,8 +202,8 @@ public class AbstractBaseDispatcherTest {
                 .setTxnidMostBits(8)
                 .setTxnidLeastBits(0)
                 .setMarkerType(MarkerType.TXN_ABORT_VALUE);
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
     private ByteBuf createDelayedMessage(String message, int sequenceId) {
@@ -213,17 +213,16 @@ public class AbstractBaseDispatcherTest {
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis())
                 .setDeliverAtTime(System.currentTimeMillis() + 5000);
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
     private static class AbstractBaseDispatcherTestHelper extends AbstractBaseDispatcher {
 
         private final Optional<DispatchRateLimiter> dispatchRateLimiter;
 
-        protected AbstractBaseDispatcherTestHelper(Subscription subscription,
-                                                   ServiceConfiguration serviceConfig,
-                                                   DispatchRateLimiter rateLimiter) {
+        protected AbstractBaseDispatcherTestHelper(
+                Subscription subscription, ServiceConfiguration serviceConfig, DispatchRateLimiter rateLimiter) {
             super(subscription, serviceConfig);
             dispatchRateLimiter = Optional.ofNullable(rateLimiter);
         }
@@ -244,9 +243,7 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        protected void reScheduleRead() {
-
-        }
+        protected void reScheduleRead() {}
 
         @Override
         public CompletableFuture<Void> addConsumer(Consumer consumer) {
@@ -254,14 +251,10 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public void removeConsumer(Consumer consumer) throws BrokerServiceException {
-
-        }
+        public void removeConsumer(Consumer consumer) throws BrokerServiceException {}
 
         @Override
-        public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-
-        }
+        public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {}
 
         @Override
         public boolean isConsumerConnected() {
@@ -299,9 +292,7 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public void reset() {
-
-        }
+        public void reset() {}
 
         @Override
         public CommandSubscribe.SubType getType() {
@@ -309,24 +300,17 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-
-        }
+        public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {}
 
         @Override
-        public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-
-        }
+        public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {}
 
         @Override
-        public void addUnAckedMessages(int unAckMessages) {
-
-        }
+        public void addUnAckedMessages(int unAckMessages) {}
 
         @Override
         public RedeliveryTracker getRedeliveryTracker() {
             return null;
         }
     }
-
 }

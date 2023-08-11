@@ -45,7 +45,6 @@ public class AerospikeSinkConfig implements Serializable {
     private int timeoutMs = 100;
     private int retries = 1;
 
-
     public static AerospikeSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), AerospikeSinkConfig.class);

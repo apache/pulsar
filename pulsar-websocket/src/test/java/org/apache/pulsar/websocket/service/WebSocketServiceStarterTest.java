@@ -37,7 +37,7 @@ public class WebSocketServiceStarterTest {
             Class argumentsClass =
                     Class.forName("org.apache.pulsar.websocket.service.WebSocketServiceStarter$Arguments");
 
-            WebSocketServiceStarter.main(new String[]{"-g"});
+            WebSocketServiceStarter.main(new String[] {"-g"});
 
             String message = baoStream.toString();
 

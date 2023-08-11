@@ -91,5 +91,4 @@ public interface LockManager<T> extends AutoCloseable {
      *             if there's a failure in closing the LockManager
      */
     CompletableFuture<Void> asyncClose();
-
 }

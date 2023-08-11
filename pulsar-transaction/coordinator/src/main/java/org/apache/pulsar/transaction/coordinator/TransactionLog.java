@@ -32,7 +32,6 @@ public interface TransactionLog {
      */
     CompletableFuture<Void> initialize();
 
-
     /**
      * Replay transaction log to load the transaction map.
      *

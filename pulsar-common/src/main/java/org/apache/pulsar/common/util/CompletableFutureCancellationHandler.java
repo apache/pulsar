@@ -47,6 +47,7 @@ public class CompletableFutureCancellationHandler {
         CANCELLED,
         DONE
     }
+
     private volatile CompletionStatus completionStatus = CompletionStatus.PENDING;
     private volatile Runnable cancelAction;
     private final AtomicBoolean cancelHandled = new AtomicBoolean();
@@ -110,7 +111,8 @@ public class CompletableFutureCancellationHandler {
     }
 
     private void runCancelActionOnceIfCancelled() {
-        if (completionStatus != CompletionStatus.PENDING && cancelAction != null
+        if (completionStatus != CompletionStatus.PENDING
+                && cancelAction != null
                 && cancelHandled.compareAndSet(false, true)) {
             if (completionStatus == CompletionStatus.CANCELLED) {
                 cancelAction.run();

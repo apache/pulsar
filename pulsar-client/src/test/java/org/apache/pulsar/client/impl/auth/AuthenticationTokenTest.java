@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
-import java.util.Map;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -65,8 +63,7 @@ public class AuthenticationTokenTest {
     public void testAuthTokenClientConfig() throws Exception {
         ClientConfigurationData clientConfig = new ClientConfigurationData();
         clientConfig.setServiceUrl("pulsar://service-url");
-        clientConfig.setAuthentication(AuthenticationFactory.create(
-                AuthenticationToken.class.getName(), "token-xyz"));
+        clientConfig.setAuthentication(AuthenticationFactory.create(AuthenticationToken.class.getName(), "token-xyz"));
 
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
 
@@ -167,7 +164,7 @@ public class AuthenticationTokenTest {
     }
 
     @Test
-    public void testAuthTokenConfigFromJson() throws Exception{
+    public void testAuthTokenConfigFromJson() throws Exception {
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure("{\"token\":\"my-test-token-string\"}");
         assertEquals(authToken.getAuthMethodName(), "token");

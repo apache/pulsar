@@ -42,8 +42,7 @@ public class TestProxy extends PulsarTestSuite {
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
-            String clusterName,
-            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+            String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 
@@ -53,30 +52,24 @@ public class TestProxy extends PulsarTestSuite {
         final String topic = "persistent://" + namespace + "/topic1";
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
-            .serviceHttpUrl(httpServiceUrl)
-            .build();
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(httpServiceUrl).build();
 
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        new TenantInfoImpl(
+                                Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
-            .build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
 
-        client.newConsumer()
-                .topic(topic)
-                .subscriptionName("sub1")
-                .subscribe()
-                .close();
+        client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+        Producer<String> producer =
+                client.newProducer(Schema.STRING).topic(topic).create();
         producer.send("content-0");
         producer.send("content-1");
 
@@ -94,7 +87,9 @@ public class TestProxy extends PulsarTestSuite {
 
     @Test
     public void testProxyWithNoServiceDiscoveryProxyConnectsViaURL() throws Exception {
-        testProxy(pulsarCluster.getProxy().getPlainTextServiceUrl(), pulsarCluster.getProxy().getHttpServiceUrl());
+        testProxy(
+                pulsarCluster.getProxy().getPlainTextServiceUrl(),
+                pulsarCluster.getProxy().getHttpServiceUrl());
     }
 
     @Test
@@ -109,8 +104,11 @@ public class TestProxy extends PulsarTestSuite {
                 .serviceHttpUrl(pulsarCluster.getProxy().getHttpServiceUrl())
                 .build();
 
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        new TenantInfoImpl(
+                                Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 

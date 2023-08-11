@@ -34,9 +34,10 @@ import org.testng.annotations.Test;
 
 public class TestPollingPropertiesFileConfigurationProvider {
 
-    private static final File TESTFILE = new File(
-            TestPollingPropertiesFileConfigurationProvider.class.getClassLoader()
-                    .getResource("flume-conf.properties").getFile());
+    private static final File TESTFILE = new File(TestPollingPropertiesFileConfigurationProvider.class
+            .getClassLoader()
+            .getResource("flume-conf.properties")
+            .getFile());
 
     private PollingPropertiesFileConfigurationProvider provider;
     private File baseDir;
@@ -52,9 +53,7 @@ public class TestPollingPropertiesFileConfigurationProvider {
         Files.copy(TESTFILE, configFile);
 
         eventBus = new EventBus("test");
-        provider =
-                new PollingPropertiesFileConfigurationProvider("host1",
-                        configFile, eventBus, 1);
+        provider = new PollingPropertiesFileConfigurationProvider("host1", configFile, eventBus, 1);
         provider.start();
         LifecycleController.waitForOneOf(provider, LifecycleState.START_OR_ERROR);
     }
@@ -89,10 +88,8 @@ public class TestPollingPropertiesFileConfigurationProvider {
 
         MaterializedConfiguration materializedConfiguration = events.remove(0);
 
-        Assert.assertEquals(materializedConfiguration.getSourceRunners().size(),1);
+        Assert.assertEquals(materializedConfiguration.getSourceRunners().size(), 1);
         Assert.assertEquals(materializedConfiguration.getSinkRunners().size(), 1);
         Assert.assertEquals(materializedConfiguration.getChannels().size(), 1);
-
-
     }
 }

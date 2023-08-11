@@ -46,6 +46,7 @@ public class BacklogQuotaImpl implements BacklogQuota {
      * backlog quota by time in second.
      */
     private int limitTime;
+
     private RetentionPolicy policy;
 
     public BacklogQuotaImpl(long limitSize, int limitTime, RetentionPolicy policy) {

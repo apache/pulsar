@@ -21,13 +21,10 @@ package org.apache.pulsar.broker.namespace;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
-import lombok.Cleanup;
-
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -73,8 +70,8 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
 
         admin.namespaces().createNamespace(namespaceName);
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(1,
-                TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic(topicName).sendTimeout(1, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
 
@@ -94,8 +91,11 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         String topicName = "persistent://" + namespaceName + "/my-topic5";
         admin.namespaces().createNamespace(namespaceName);
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).sendTimeout(1,
-            TimeUnit.SECONDS).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
         producer.send(new byte[1]);
         String bundleRange = admin.lookups().getBundleRange(topicName);
         AtomicBoolean isTriggered = new AtomicBoolean(false);

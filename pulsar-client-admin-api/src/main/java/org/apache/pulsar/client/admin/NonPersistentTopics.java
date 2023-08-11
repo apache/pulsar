@@ -32,8 +32,6 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 @Deprecated
 public interface NonPersistentTopics {
 
-
-
     /**
      * Get metadata of a partitioned topic.
      * <p/>
@@ -237,8 +235,7 @@ public interface NonPersistentTopics {
      * @return
      * @throws PulsarAdminException
      */
-    List<String> getListInBundle(String namespace, String bundleRange)
-            throws PulsarAdminException;
+    List<String> getListInBundle(String namespace, String bundleRange) throws PulsarAdminException;
 
     /**
      * Get list of topics exist into given bundle asynchronously.
@@ -265,5 +262,4 @@ public interface NonPersistentTopics {
      * @return
      */
     CompletableFuture<List<String>> getListAsync(String namespace);
-
 }

@@ -167,11 +167,9 @@ import org.slf4j.LoggerFactory;
  *
  * @see java.util.Properties#load(java.io.Reader)
  */
-public class PropertiesFileConfigurationProvider extends
-        AbstractConfigurationProvider {
+public class PropertiesFileConfigurationProvider extends AbstractConfigurationProvider {
 
-    private static final Logger LOGGER = LoggerFactory
-            .getLogger(PropertiesFileConfigurationProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PropertiesFileConfigurationProvider.class);
     private static final String DEFAULT_PROPERTIES_IMPLEMENTATION = "java.util.Properties";
 
     private final File file;
@@ -186,16 +184,15 @@ public class PropertiesFileConfigurationProvider extends
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(new FileReader(file));
-            String resolverClassName = System.getProperty("propertiesImplementation",
-                    DEFAULT_PROPERTIES_IMPLEMENTATION);
-            Class<? extends Properties> propsclass = Class.forName(resolverClassName)
-                    .asSubclass(Properties.class);
+            String resolverClassName =
+                    System.getProperty("propertiesImplementation", DEFAULT_PROPERTIES_IMPLEMENTATION);
+            Class<? extends Properties> propsclass =
+                    Class.forName(resolverClassName).asSubclass(Properties.class);
             Properties properties = propsclass.getDeclaredConstructor().newInstance();
             properties.load(reader);
             return new FlumeConfiguration(toMap(properties));
         } catch (IOException ex) {
-            LOGGER.error("Unable to load file:" + file
-                    + " (I/O failure) - Exception follows.", ex);
+            LOGGER.error("Unable to load file:" + file + " (I/O failure) - Exception follows.", ex);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             LOGGER.error("Configuration resolver class not found", e);
         } catch (InstantiationException e) {
@@ -211,8 +208,7 @@ public class PropertiesFileConfigurationProvider extends
                 try {
                     reader.close();
                 } catch (IOException ex) {
-                    LOGGER.warn(
-                            "Unable to close file reader for file: " + file, ex);
+                    LOGGER.warn("Unable to close file reader for file: " + file, ex);
                 }
             }
         }

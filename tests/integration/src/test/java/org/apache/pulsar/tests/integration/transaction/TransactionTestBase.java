@@ -39,7 +39,8 @@ public abstract class TransactionTestBase extends PulsarTestSuite {
         super.beforeStartCluster();
         for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
             brokerContainer.withEnv("transactionCoordinatorEnabled", "true");
-            brokerContainer.withEnv("transactionBufferProviderClassName",
+            brokerContainer.withEnv(
+                    "transactionBufferProviderClassName",
                     "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider");
             brokerContainer.withEnv("acknowledgmentAtBatchIndexLevelEnabled", "true");
         }
@@ -48,9 +49,12 @@ public abstract class TransactionTestBase extends PulsarTestSuite {
     private void transactionCoordinatorMetadataInitialize() throws Exception {
         BrokerContainer brokerContainer = pulsarCluster.getBrokers().iterator().next();
         ContainerExecResult result = brokerContainer.execCmd(
-                "/pulsar/bin/pulsar", "initialize-transaction-coordinator-metadata",
-                "-cs", ZKContainer.NAME,
-                "-c", pulsarCluster.getClusterName());
+                "/pulsar/bin/pulsar",
+                "initialize-transaction-coordinator-metadata",
+                "-cs",
+                ZKContainer.NAME,
+                "-c",
+                pulsarCluster.getClusterName());
     }
 
     @Override
@@ -94,5 +98,4 @@ public abstract class TransactionTestBase extends PulsarTestSuite {
         private String account;
         private int amount;
     }
-
 }

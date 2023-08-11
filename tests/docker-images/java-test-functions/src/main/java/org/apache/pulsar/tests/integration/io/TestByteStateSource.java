@@ -30,9 +30,9 @@ public class TestByteStateSource implements Source<byte[]> {
     private SourceContext sourceContext;
 
     public static final String VALUE_BASE64 = "0a8001127e0a172e6576656e74732e437573746f6d65724372656174656412630a243"
-                                              + "2336366666263652d623038342d346631352d616565342d326330643135356131666"
-                                              + "36312026e311a3700000000000000000000000000000000000000000000000000000"
-                                              + "000000000000000000000000000000000000000000000000000000000";
+            + "2336366666263652d623038342d346631352d616565342d326330643135356131666"
+            + "36312026e311a3700000000000000000000000000000000000000000000000000000"
+            + "000000000000000000000000000000000000000000000000000000000";
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -49,7 +49,5 @@ public class TestByteStateSource implements Source<byte[]> {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

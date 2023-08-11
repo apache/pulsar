@@ -42,9 +42,12 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     private static final Logger log = LoggerFactory.getLogger(AuthenticationTlsHostnameVerificationTest.class);
 
     // Man in middle certificate which tries to act as a broker by sending its own valid certificate
-    private final String TLS_MIM_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/hn-verification/cacert.pem";
-    private final String TLS_MIM_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/hn-verification/broker-cert.pem";
-    private final String TLS_MIM_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/hn-verification/broker-key.pem";
+    private final String TLS_MIM_TRUST_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/hn-verification/cacert.pem";
+    private final String TLS_MIM_SERVER_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/hn-verification/broker-cert.pem";
+    private final String TLS_MIM_SERVER_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/hn-verification/broker-key.pem";
 
     private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
@@ -73,9 +76,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setSuperUserRoles(superUserRoles);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + getTlsFileForClient("admin.cert")
-                        + ",tlsKeyFile:" +  getTlsFileForClient("admin.key-pk8"));
+        conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + getTlsFileForClient("admin.cert") + ",tlsKeyFile:"
+                + getTlsFileForClient("admin.key-pk8"));
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
@@ -103,7 +105,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
                 .serviceUrl(pulsar.getBrokerServiceUrlTls())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(clientTrustCertFilePath)
-                .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled));
+                .authentication(authTls)
+                .enableTls(true)
+                .enableTlsHostnameVerification(hostnameVerificationEnabled));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -116,7 +120,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
     @DataProvider(name = "hostnameVerification")
     public Object[][] codecProvider() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     /**
@@ -144,14 +148,17 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_MIM_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_MIM_SERVER_KEY_FILE_PATH);
-        conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + getTlsFileForClient("admin.cert") + "," + "tlsKeyFile:" + TLS_MIM_SERVER_KEY_FILE_PATH);
+        conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + getTlsFileForClient("admin.cert") + ","
+                + "tlsKeyFile:" + TLS_MIM_SERVER_KEY_FILE_PATH);
 
         setup();
 
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                    .subscriptionName("my-subscriber-name").subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic("persistent://my-property/my-ns/my-topic")
+                    .subscriptionName("my-subscriber-name")
+                    .subscribe();
             if (hostnameVerificationEnabled) {
                 Assert.fail("Connection should be failed due to hostnameVerification enabled");
             }
@@ -188,10 +195,15 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         setup();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic")
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/my-ns/my-topic")
                 .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -222,8 +234,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     @Test
     public void testDefaultHostVerifier() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        Method matchIdentityStrict = TlsHostnameVerifier.class.getDeclaredMethod("matchIdentityStrict",
-                String.class, String.class, PublicSuffixMatcher.class);
+        Method matchIdentityStrict = TlsHostnameVerifier.class.getDeclaredMethod(
+                "matchIdentityStrict", String.class, String.class, PublicSuffixMatcher.class);
         matchIdentityStrict.setAccessible(true);
         Assert.assertTrue((boolean) matchIdentityStrict.invoke(null, "pulsar", "pulsar", null));
         Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar.com", "pulsar", null));
@@ -233,5 +245,4 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar.com", "*", null));
         log.info("-- Exiting {} test --", methodName);
     }
-
 }

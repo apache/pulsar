@@ -42,103 +42,103 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-                                                      AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> canProduceAsync(
+            TopicName topicName, String role, AuthenticationDataSource authenticationData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                      AuthenticationDataSource authenticationData, String subscription) {
+    public CompletableFuture<Boolean> canConsumeAsync(
+            TopicName topicName, String role, AuthenticationDataSource authenticationData, String subscription) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-                                                     AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> canLookupAsync(
+            TopicName topicName, String role, AuthenticationDataSource authenticationData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
-                                                            AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(
+            NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
-                                                          AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowSourceOpsAsync(
+            NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String role,
-                                                                TenantOperation operation,
-                                                                AuthenticationDataSource authData) {
+    public CompletableFuture<Boolean> allowTenantOperationAsync(
+            String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String role,
-                                                                   NamespaceOperation operation,
-                                                                   AuthenticationDataSource authData) {
+    public CompletableFuture<Boolean> allowNamespaceOperationAsync(
+            NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
-                                                                         PolicyOperation operation, String role,
-                                                                         AuthenticationDataSource authData) {
+    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(
+            NamespaceName namespaceName,
+            PolicyName policy,
+            PolicyOperation operation,
+            String role,
+            AuthenticationDataSource authData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String role, TopicOperation operation,
-                                                               AuthenticationDataSource authData) {
+    public CompletableFuture<Boolean> allowTopicOperationAsync(
+            TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
         return shouldPass(role);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic, String role, PolicyName policy,
-                                                                     PolicyOperation operation,
-                                                                     AuthenticationDataSource authData) {
+    public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(
+            TopicName topic,
+            String role,
+            PolicyName policy,
+            PolicyOperation operation,
+            AuthenticationDataSource authData) {
         return shouldPass(role);
     }
 
-
     @Override
-    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
-                                                        AuthenticationDataSource authenticationData) {
-        return null;
-    }
-
-
-    @Override
-    public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
-                                                        String authDataJson) {
+    public CompletableFuture<Boolean> allowSinkOpsAsync(
+            NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
         return null;
     }
 
     @Override
-    public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
-                                                                    Set<String> roles, String authDataJson) {
+    public CompletableFuture<Void> grantPermissionAsync(
+            NamespaceName namespace, Set<AuthAction> actions, String role, String authDataJson) {
         return null;
     }
 
     @Override
-    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
-                                                                     String role, String authDataJson) {
+    public CompletableFuture<Void> grantSubscriptionPermissionAsync(
+            NamespaceName namespace, String subscriptionName, Set<String> roles, String authDataJson) {
         return null;
     }
 
     @Override
-    public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
-                                                        String authDataJson) {
+    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(
+            NamespaceName namespace, String subscriptionName, String role, String authDataJson) {
         return null;
     }
 
     @Override
-    public void close() throws IOException {
-
+    public CompletableFuture<Void> grantPermissionAsync(
+            TopicName topicName, Set<AuthAction> actions, String role, String authDataJson) {
+        return null;
     }
+
+    @Override
+    public void close() throws IOException {}
 }

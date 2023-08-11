@@ -64,7 +64,8 @@ public class InfluxDBSinkConfigTest {
         verifyValues(config);
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
+    @Test(
+            expectedExceptions = NullPointerException.class,
             expectedExceptionsMessageRegExp = "influxdbUrl property not set.")
     public void testRequiredConfigMissing() throws Exception {
         Map<String, Object> map = buildValidConfigMap();
@@ -73,7 +74,8 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public void testBatchConfig() throws Exception {
         Map<String, Object> map = buildValidConfigMap();

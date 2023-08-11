@@ -63,23 +63,26 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         CONFIGURATION_FIELDS = Collections.unmodifiableList(temp);
     }
 
-    public static final ImmutableList<String> INTERNAL_SUPPORTED_DRIVER = ImmutableList.of("S3",
-        "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
+    public static final ImmutableList<String> INTERNAL_SUPPORTED_DRIVER =
+            ImmutableList.of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
     public static final ImmutableList<String> DRIVER_NAMES;
+
     static {
         String extraDrivers = System.getProperty("pulsar.extra.offload.drivers", "");
         if (extraDrivers.trim().isEmpty()) {
             DRIVER_NAMES = INTERNAL_SUPPORTED_DRIVER;
         } else {
             DRIVER_NAMES = ImmutableList.<String>builder()
-                .addAll(INTERNAL_SUPPORTED_DRIVER)
-                .addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
-                    .map(String::trim).collect(Collectors.toSet())).build();
+                    .addAll(INTERNAL_SUPPORTED_DRIVER)
+                    .addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
+                            .map(String::trim)
+                            .collect(Collectors.toSet()))
+                    .build();
         }
     }
 
-    public static final int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
-    public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
+    public static final int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024; // 64MB
+    public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024; // 1MB
     public static final int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public static final int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
     public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
@@ -98,27 +101,35 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadDriver = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadThresholdInSeconds = DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Map<String, String> managedLedgerExtraConfigurations = null;
@@ -127,15 +138,19 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadRegion = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadBucket = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer s3ManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
@@ -143,12 +158,15 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadCredentialId = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadCredentialSecret = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadRole = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadRoleSessionName = "pulsar-s3-offload";
@@ -157,12 +175,15 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String gcsManagedLedgerOffloadRegion = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String gcsManagedLedgerOffloadBucket = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer gcsManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
@@ -175,6 +196,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String fileSystemProfilePath = null;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String fileSystemURI = null;
@@ -184,27 +206,38 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadBucket;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadRegion;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadServiceEndpoint;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadMaxBlockSizeInBytes;
+
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadReadBufferSizeInBytes;
 
-    public static OffloadPoliciesImpl create(String driver, String region, String bucket, String endpoint,
-                                             String role, String roleSessionName,
-                                             String credentialId, String credentialSecret,
-                                             Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
-                                             Long offloadThresholdInBytes,
-                                             Long offloadThresholdInSeconds,
-                                             Long offloadDeletionLagInMillis,
-                                             OffloadedReadPriority readPriority) {
+    public static OffloadPoliciesImpl create(
+            String driver,
+            String region,
+            String bucket,
+            String endpoint,
+            String role,
+            String roleSessionName,
+            String credentialId,
+            String credentialSecret,
+            Integer maxBlockSizeInBytes,
+            Integer readBufferSizeInBytes,
+            Long offloadThresholdInBytes,
+            Long offloadThresholdInSeconds,
+            Long offloadDeletionLagInMillis,
+            OffloadedReadPriority readPriority) {
         OffloadPoliciesImplBuilder builder = builder()
                 .managedLedgerOffloadDriver(driver)
                 .managedLedgerOffloadThresholdInBytes(offloadThresholdInBytes)
@@ -238,9 +271,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                     .s3ManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
         } else if (driver.equalsIgnoreCase(DRIVER_NAMES.get(2))) {
             builder.gcsManagedLedgerOffloadRegion(region)
-                .gcsManagedLedgerOffloadBucket(bucket)
-                .gcsManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes)
-                .gcsManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
+                    .gcsManagedLedgerOffloadBucket(bucket)
+                    .gcsManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes)
+                    .gcsManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
         }
 
         return builder.build();
@@ -256,16 +289,18 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                     f.set(data, value((String) properties.get(f.getName()), f));
                 } catch (Exception e) {
                     throw new IllegalArgumentException(
-                            String.format("failed to initialize %s field while setting value %s",
-                                    f.getName(), properties.get(f.getName())), e);
+                            String.format(
+                                    "failed to initialize %s field while setting value %s",
+                                    f.getName(), properties.get(f.getName())),
+                            e);
                 }
             }
         });
         Map<String, String> extraConfigurations = properties.entrySet().stream()
-            .filter(entry -> entry.getKey().toString().startsWith("managedLedgerOffloadExtraConfig"))
-            .collect(Collectors.toMap(
-                entry -> entry.getKey().toString().replaceFirst("managedLedgerOffloadExtraConfig", ""),
-                entry -> entry.getValue().toString()));
+                .filter(entry -> entry.getKey().toString().startsWith("managedLedgerOffloadExtraConfig"))
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey().toString().replaceFirst("managedLedgerOffloadExtraConfig", ""),
+                        entry -> entry.getValue().toString()));
 
         data.setManagedLedgerExtraConfigurations(extraConfigurations);
 
@@ -349,48 +384,56 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         setProperty(properties, "managedLedgerOffloadedReadPriority", this.getManagedLedgerOffloadedReadPriority());
         setProperty(properties, "offloadersDirectory", this.getOffloadersDirectory());
         setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
-        setProperty(properties, "managedLedgerOffloadMaxThreads",
-                this.getManagedLedgerOffloadMaxThreads());
-        setProperty(properties, "managedLedgerOffloadPrefetchRounds",
-                this.getManagedLedgerOffloadPrefetchRounds());
-        setProperty(properties, "managedLedgerOffloadThresholdInBytes",
-                this.getManagedLedgerOffloadThresholdInBytes());
-        setProperty(properties, "managedLedgerOffloadThresholdInSeconds",
-                this.getManagedLedgerOffloadThresholdInSeconds());
-        setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
+        setProperty(properties, "managedLedgerOffloadMaxThreads", this.getManagedLedgerOffloadMaxThreads());
+        setProperty(properties, "managedLedgerOffloadPrefetchRounds", this.getManagedLedgerOffloadPrefetchRounds());
+        setProperty(properties, "managedLedgerOffloadThresholdInBytes", this.getManagedLedgerOffloadThresholdInBytes());
+        setProperty(
+                properties, "managedLedgerOffloadThresholdInSeconds", this.getManagedLedgerOffloadThresholdInSeconds());
+        setProperty(
+                properties,
+                "managedLedgerOffloadDeletionLagInMillis",
                 this.getManagedLedgerOffloadDeletionLagInMillis());
-        setProperty(properties, "managedLedgerOffloadExtraConfigurations",
-                this.getManagedLedgerExtraConfigurations());
+        setProperty(properties, "managedLedgerOffloadExtraConfigurations", this.getManagedLedgerExtraConfigurations());
 
         if (this.isS3Driver()) {
-            setProperty(properties, "s3ManagedLedgerOffloadRegion",
-                    this.getS3ManagedLedgerOffloadRegion());
-            setProperty(properties, "s3ManagedLedgerOffloadBucket",
-                    this.getS3ManagedLedgerOffloadBucket());
-            setProperty(properties, "s3ManagedLedgerOffloadServiceEndpoint",
+            setProperty(properties, "s3ManagedLedgerOffloadRegion", this.getS3ManagedLedgerOffloadRegion());
+            setProperty(properties, "s3ManagedLedgerOffloadBucket", this.getS3ManagedLedgerOffloadBucket());
+            setProperty(
+                    properties,
+                    "s3ManagedLedgerOffloadServiceEndpoint",
                     this.getS3ManagedLedgerOffloadServiceEndpoint());
-            setProperty(properties, "s3ManagedLedgerOffloadMaxBlockSizeInBytes",
+            setProperty(
+                    properties,
+                    "s3ManagedLedgerOffloadMaxBlockSizeInBytes",
                     this.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
-            setProperty(properties, "s3ManagedLedgerOffloadCredentialId",
-                    this.getS3ManagedLedgerOffloadCredentialId());
-            setProperty(properties, "s3ManagedLedgerOffloadCredentialSecret",
+            setProperty(properties, "s3ManagedLedgerOffloadCredentialId", this.getS3ManagedLedgerOffloadCredentialId());
+            setProperty(
+                    properties,
+                    "s3ManagedLedgerOffloadCredentialSecret",
                     this.getS3ManagedLedgerOffloadCredentialSecret());
-            setProperty(properties, "s3ManagedLedgerOffloadRole",
-                    this.getS3ManagedLedgerOffloadRole());
-            setProperty(properties, "s3ManagedLedgerOffloadRoleSessionName",
+            setProperty(properties, "s3ManagedLedgerOffloadRole", this.getS3ManagedLedgerOffloadRole());
+            setProperty(
+                    properties,
+                    "s3ManagedLedgerOffloadRoleSessionName",
                     this.getS3ManagedLedgerOffloadRoleSessionName());
-            setProperty(properties, "s3ManagedLedgerOffloadReadBufferSizeInBytes",
+            setProperty(
+                    properties,
+                    "s3ManagedLedgerOffloadReadBufferSizeInBytes",
                     this.getS3ManagedLedgerOffloadReadBufferSizeInBytes());
         } else if (this.isGcsDriver()) {
-            setProperty(properties, "gcsManagedLedgerOffloadRegion",
-                    this.getGcsManagedLedgerOffloadRegion());
-            setProperty(properties, "gcsManagedLedgerOffloadBucket",
-                    this.getGcsManagedLedgerOffloadBucket());
-            setProperty(properties, "gcsManagedLedgerOffloadMaxBlockSizeInBytes",
+            setProperty(properties, "gcsManagedLedgerOffloadRegion", this.getGcsManagedLedgerOffloadRegion());
+            setProperty(properties, "gcsManagedLedgerOffloadBucket", this.getGcsManagedLedgerOffloadBucket());
+            setProperty(
+                    properties,
+                    "gcsManagedLedgerOffloadMaxBlockSizeInBytes",
                     this.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
-            setProperty(properties, "gcsManagedLedgerOffloadReadBufferSizeInBytes",
+            setProperty(
+                    properties,
+                    "gcsManagedLedgerOffloadReadBufferSizeInBytes",
                     this.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
-            setProperty(properties, "gcsManagedLedgerOffloadServiceAccountKeyFile",
+            setProperty(
+                    properties,
+                    "gcsManagedLedgerOffloadServiceAccountKeyFile",
                     this.getGcsManagedLedgerOffloadServiceAccountKeyFile());
         } else if (this.isFileSystemDriver()) {
             setProperty(properties, "fileSystemProfilePath", this.getFileSystemProfilePath());
@@ -399,11 +442,14 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         setProperty(properties, "managedLedgerOffloadBucket", this.getManagedLedgerOffloadBucket());
         setProperty(properties, "managedLedgerOffloadRegion", this.getManagedLedgerOffloadRegion());
-        setProperty(properties, "managedLedgerOffloadServiceEndpoint",
-                this.getManagedLedgerOffloadServiceEndpoint());
-        setProperty(properties, "managedLedgerOffloadMaxBlockSizeInBytes",
+        setProperty(properties, "managedLedgerOffloadServiceEndpoint", this.getManagedLedgerOffloadServiceEndpoint());
+        setProperty(
+                properties,
+                "managedLedgerOffloadMaxBlockSizeInBytes",
                 this.getManagedLedgerOffloadMaxBlockSizeInBytes());
-        setProperty(properties, "managedLedgerOffloadReadBufferSizeInBytes",
+        setProperty(
+                properties,
+                "managedLedgerOffloadReadBufferSizeInBytes",
                 this.getManagedLedgerOffloadReadBufferSizeInBytes());
 
         return properties;
@@ -417,9 +463,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
     @Target(ElementType.FIELD)
     @Retention(RetentionPolicy.RUNTIME)
-    private @interface Configuration {
-
-    }
+    private @interface Configuration {}
 
     /**
      * This method is used to make a compatible with old policies.
@@ -432,15 +476,16 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      * @return offload policies
      */
     public static OffloadPoliciesImpl oldPoliciesCompatible(OffloadPoliciesImpl nsLevelPolicies, Policies policies) {
-        if (policies == null || (policies.offload_threshold == -1 && policies.offload_threshold_in_seconds == -1
-                && policies.offload_deletion_lag_ms == null)) {
+        if (policies == null
+                || (policies.offload_threshold == -1
+                        && policies.offload_threshold_in_seconds == -1
+                        && policies.offload_deletion_lag_ms == null)) {
             return nsLevelPolicies;
         }
         if (nsLevelPolicies == null) {
             nsLevelPolicies = new OffloadPoliciesImpl();
         }
-        if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null
-                && policies.offload_threshold != -1) {
+        if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null && policies.offload_threshold != -1) {
             nsLevelPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
         }
         if (nsLevelPolicies.getManagedLedgerOffloadThresholdInSeconds() == null
@@ -464,9 +509,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      * @param brokerProperties broker level offload configuration
      * @return offload policies
      */
-    public static OffloadPoliciesImpl mergeConfiguration(OffloadPoliciesImpl topicLevelPolicies,
-                                                         OffloadPoliciesImpl nsLevelPolicies,
-                                                         Properties brokerProperties) {
+    public static OffloadPoliciesImpl mergeConfiguration(
+            OffloadPoliciesImpl topicLevelPolicies, OffloadPoliciesImpl nsLevelPolicies, Properties brokerProperties) {
         try {
             boolean allConfigValuesAreNull = true;
             OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
@@ -511,14 +555,15 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     private static Object getCompatibleValue(Properties properties, Field field) {
         Object object;
         if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
-            object = properties.getProperty("managedLedgerOffloadThresholdInBytes",
+            object = properties.getProperty(
+                    "managedLedgerOffloadThresholdInBytes",
                     properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
         } else if (field.getName().equals("managedLedgerOffloadDeletionLagInMillis")) {
-            object = properties.getProperty("managedLedgerOffloadDeletionLagInMillis",
-                    properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE));
+            object = properties.getProperty(
+                    "managedLedgerOffloadDeletionLagInMillis", properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE));
         } else if (field.getName().equals("managedLedgerOffloadedReadPriority")) {
-            object = properties.getProperty("managedLedgerOffloadedReadPriority",
-                    properties.getProperty(DATA_READ_PRIORITY_NAME_IN_CONF_FILE));
+            object = properties.getProperty(
+                    "managedLedgerOffloadedReadPriority", properties.getProperty(DATA_READ_PRIORITY_NAME_IN_CONF_FILE));
         } else {
             object = properties.get(field.getName());
         }

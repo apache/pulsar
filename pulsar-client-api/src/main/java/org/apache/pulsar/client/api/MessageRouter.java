@@ -56,5 +56,4 @@ public interface MessageRouter extends Serializable {
     default int choosePartition(Message<?> msg, TopicMetadata metadata) {
         return choosePartition(msg);
     }
-
 }

@@ -38,42 +38,42 @@ public class HdfsSyncThread<V> extends Thread {
     private boolean keepRunning = true;
 
     public HdfsSyncThread(Syncable stream, BlockingQueue<Record<V>> unackedRecords, long syncInterval) {
-      this.stream = stream;
-      this.unackedRecords = unackedRecords;
-      this.syncInterval = syncInterval;
+        this.stream = stream;
+        this.unackedRecords = unackedRecords;
+        this.syncInterval = syncInterval;
     }
 
     @Override
     public void run() {
-       while (keepRunning) {
-         try {
-            Thread.sleep(syncInterval);
-            ackRecords();
-         } catch (InterruptedException e) {
-            return;
-         } catch (IOException e) {
-            e.printStackTrace();
-         }
-       }
+        while (keepRunning) {
+            try {
+                Thread.sleep(syncInterval);
+                ackRecords();
+            } catch (InterruptedException e) {
+                return;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public final void halt() throws IOException, InterruptedException {
-       keepRunning = false;
-       ackRecords();
+        keepRunning = false;
+        ackRecords();
     }
 
     private void ackRecords() throws IOException, InterruptedException {
 
         if (CollectionUtils.isEmpty(unackedRecords)) {
-           return;
+            return;
         }
 
         synchronized (stream) {
-          stream.hsync();
+            stream.hsync();
         }
 
         while (!unackedRecords.isEmpty()) {
-          unackedRecords.take().ack();
+            unackedRecords.take().ack();
         }
     }
 }

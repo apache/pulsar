@@ -60,10 +60,13 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     @Setter
     @Getter
     private int brokerCount = 3;
+
     @Getter
     private final List<ServiceConfiguration> serviceConfigurationList = new ArrayList<>();
+
     @Getter
     protected final List<PulsarService> pulsarServiceList = new ArrayList<>();
+
     protected List<PulsarTestContext> pulsarTestContexts = new ArrayList<>();
 
     protected PulsarAdmin admin;
@@ -80,14 +83,15 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         if (admin != null) {
             admin.close();
         }
-        admin = spy(
-                createNewPulsarAdmin(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()))
-        );
+        admin = spy(createNewPulsarAdmin(
+                PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress())));
 
         if (pulsarClient != null) {
             pulsarClient.shutdown();
         }
-        pulsarClient = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl()).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .build();
     }
 
     private void init() throws Exception {
@@ -102,21 +106,28 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         return builder.build();
     }
 
-    protected void setUpBase(int numBroker,int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
+    protected void setUpBase(int numBroker, int numPartitionsOfTC, String topic, int numPartitions) throws Exception {
         setBrokerCount(numBroker);
         internalSetup();
 
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:"
-                + webServicePort).build());
+        String[] brokerServiceUrlArr =
+                getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder()
+                                .serviceUrl("http://localhost:" + webServicePort)
+                                .build());
 
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.tenants()
+                .createTenant(
+                        NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                        new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         createTransactionCoordinatorAssign(numPartitionsOfTC);
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.tenants()
+                .createTenant(TENANT, new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1, 4);
         if (topic != null) {
             if (numPartitions == 0) {
@@ -135,10 +146,13 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     }
 
     protected void createTransactionCoordinatorAssign(int numPartitionsOfTC) throws MetadataStoreException {
-        pulsarServiceList.get(0).getPulsarResources()
+        pulsarServiceList
+                .get(0)
+                .getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()
-                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                .createPartitionedTopic(
+                        SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(numPartitionsOfTC));
     }
 
@@ -167,24 +181,21 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
             serviceConfigurationList.add(conf);
 
-            PulsarTestContext.Builder testContextBuilder =
-                    PulsarTestContext.builder()
-                            .brokerInterceptor(new CounterBrokerInterceptor())
-                            .spyByDefault()
-                            .config(conf);
+            PulsarTestContext.Builder testContextBuilder = PulsarTestContext.builder()
+                    .brokerInterceptor(new CounterBrokerInterceptor())
+                    .spyByDefault()
+                    .config(conf);
             if (i > 0) {
                 testContextBuilder.reuseMockBookkeeperAndMetadataStores(pulsarTestContexts.get(0));
             } else {
                 testContextBuilder.withMockZookeeper();
             }
-            PulsarTestContext pulsarTestContext = testContextBuilder
-                    .build();
+            PulsarTestContext pulsarTestContext = testContextBuilder.build();
             PulsarService pulsar = pulsarTestContext.getPulsarService();
             pulsarServiceList.add(pulsar);
             pulsarTestContexts.add(pulsarTestContext);
         }
     }
-
 
     protected final void internalCleanup() {
         markCurrentSetupNumberCleaned();
@@ -200,7 +211,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 pulsarClient = null;
             }
             if (pulsarTestContexts.size() > 0) {
-                for(int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
+                for (int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
                     pulsarTestContexts.get(i).close();
                 }
                 pulsarTestContexts.clear();
@@ -217,31 +228,30 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     /**
      * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceWithRetry(String ns, boolean force)
-            throws Exception {
+    protected void deleteNamespaceWithRetry(String ns, boolean force) throws Exception {
         MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsarServiceList);
     }
 
     /**
      * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
+    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsarServiceList);
     }
 
     public void checkSnapshotPublisherCount(String namespace, int expectCount) {
-        TopicName snTopicName = TopicName.get(TopicDomain.persistent.value(), NamespaceName.get(namespace),
+        TopicName snTopicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                NamespaceName.get(namespace),
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         Awaitility.await()
                 .atMost(5, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
-                    List<PublisherStats> publisherStatsList =
-                            (List<PublisherStats>) admin.topics()
-                                    .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
+                    List<PublisherStats> publisherStatsList = (List<PublisherStats>) admin.topics()
+                            .getStats(snTopicName.getPartitionedTopicName())
+                            .getPublishers();
                     Assert.assertEquals(publisherStatsList.size(), expectCount);
                 });
     }
-
 }

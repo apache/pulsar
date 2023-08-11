@@ -80,8 +80,7 @@ public class AdditionalServlets implements AutoCloseable {
         }
 
         AdditionalServletDefinitions definitions =
-                AdditionalServletUtils.searchForServlets(additionalServletDirectory
-                        , narExtractionDirectory);
+                AdditionalServletUtils.searchForServlets(additionalServletDirectory, narExtractionDirectory);
         ImmutableMap.Builder<String, AdditionalServletWithClassLoader> builder = ImmutableMap.builder();
 
         String[] additionalServletsList = additionalServlets.split(",");

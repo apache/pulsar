@@ -18,32 +18,9 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
-import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
-import okhttp3.Response;
-import org.apache.commons.lang3.RandomUtils;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -52,9 +29,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-
-import static org.mockito.Mockito.doReturn;
-import static org.testng.Assert.assertEquals;
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Response;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
@@ -80,10 +78,10 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setProxyLogLevel(Optional.of(2));
 
         // this is for nar package test
-//        addServletNar();
+        //        addServletNar();
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -91,8 +89,8 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         assertEquals(proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
         proxyService.start();
 
-        AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         mockAdditionalServlet();
 
@@ -110,7 +108,8 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setProperties(properties);
 
         // set protocol related config
-        URL testHandlerUrl = this.getClass().getClassLoader().getResource("proxy-additional-servlet-plugin-1.0-SNAPSHOT.nar");
+        URL testHandlerUrl =
+                this.getClass().getClassLoader().getResource("proxy-additional-servlet-plugin-1.0-SNAPSHOT.nar");
         Path handlerPath;
         try {
             handlerPath = Paths.get(testHandlerUrl.toURI());
@@ -138,7 +137,8 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
-            public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException, IOException {
+            public void service(ServletRequest servletRequest, ServletResponse servletResponse)
+                    throws ServletException, IOException {
                 log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
                 String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
                 ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
@@ -190,14 +190,10 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     String httpGet(String url) throws IOException {
         OkHttpClient client = new OkHttpClient();
-        okhttp3.Request request = new okhttp3.Request.Builder()
-                .get()
-                .url(url)
-                .build();
+        okhttp3.Request request = new okhttp3.Request.Builder().get().url(url).build();
 
         try (Response response = client.newCall(request).execute()) {
             return response.body().string();
         }
     }
-
 }

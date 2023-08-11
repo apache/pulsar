@@ -26,6 +26,8 @@ import java.io.InputStream;
  */
 public abstract class BackedInputStream extends InputStream {
     public abstract void seek(long position);
+
     public abstract void seekForward(long position) throws IOException;
+
     public abstract long getCurrentPosition();
 }

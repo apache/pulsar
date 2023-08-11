@@ -90,9 +90,8 @@ public class ContextImplTest {
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
-        FunctionDetails functionDetails = FunctionDetails.newBuilder()
-            .setUserConfig("")
-            .build();
+        FunctionDetails functionDetails =
+                FunctionDetails.newBuilder().setUserConfig("").build();
         config.setFunctionDetails(functionDetails);
         logger = mock(Logger.class);
         pulsarAdmin = mock(PulsarAdmin.class);
@@ -112,12 +111,17 @@ public class ContextImplTest {
         doReturn(new CompletableFuture<>()).when(messageBuilder).sendAsync();
         when(producer.newMessage()).thenReturn(messageBuilder);
         context = new ContextImpl(
-            config,
-            logger,
-            client,
-            new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(),
+                FunctionCollectorRegistry.getDefaultImplementation(),
+                new String[0],
+                FunctionDetails.ComponentType.FUNCTION,
+                null,
+                new InstanceStateManager(),
+                pulsarAdmin,
+                clientBuilder);
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
@@ -187,7 +191,6 @@ public class ContextImplTest {
         Assert.assertEquals(ctx.getSubscriptionType(), SubscriptionType.Shared);
     }
 
-
     @Test
     public void testPutStateStateEnabled() throws Exception {
         context.defaultStateStore = mock(BKStateStoreImpl.class);
@@ -228,10 +231,14 @@ public class ContextImplTest {
                 config,
                 logger,
                 client,
-                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new EnvironmentBasedSecretsProvider(),
+                FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                FunctionDetails.ComponentType.FUNCTION,
+                null,
+                new InstanceStateManager(),
+                pulsarAdmin,
+                clientBuilder);
         context.getPulsarAdmin();
     }
 
@@ -242,10 +249,14 @@ public class ContextImplTest {
                 config,
                 logger,
                 client,
-                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new EnvironmentBasedSecretsProvider(),
+                FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                FunctionDetails.ComponentType.FUNCTION,
+                null,
+                new InstanceStateManager(),
+                pulsarAdmin,
+                clientBuilder);
         try {
             context.seek("z", 0, Mockito.mock(MessageId.class));
             Assert.fail("Expected exception");
@@ -273,10 +284,14 @@ public class ContextImplTest {
                 config,
                 logger,
                 client,
-                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new EnvironmentBasedSecretsProvider(),
+                FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                FunctionDetails.ComponentType.FUNCTION,
+                null,
+                new InstanceStateManager(),
+                pulsarAdmin,
+                clientBuilder);
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
         when(mockConsumer.getTopic()).thenReturn(TopicName.get("z").toString());
         context.setInputConsumers(Lists.newArrayList(mockConsumer));
@@ -305,10 +320,14 @@ public class ContextImplTest {
                 config,
                 logger,
                 client,
-                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new EnvironmentBasedSecretsProvider(),
+                FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                FunctionDetails.ComponentType.FUNCTION,
+                null,
+                new InstanceStateManager(),
+                pulsarAdmin,
+                clientBuilder);
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
         when(mockConsumer.getTopic()).thenReturn(TopicName.get("z").toString());
         context.setInputConsumers(Lists.newArrayList(mockConsumer));
@@ -329,10 +348,14 @@ public class ContextImplTest {
                 config,
                 logger,
                 client,
-                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new EnvironmentBasedSecretsProvider(),
+                FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                FunctionDetails.ComponentType.FUNCTION,
+                null,
+                new InstanceStateManager(),
+                pulsarAdmin,
+                clientBuilder);
         ConsumerImpl<?> consumer1 = Mockito.mock(ConsumerImpl.class);
         when(consumer1.getTopic()).thenReturn(TopicName.get("first").toString());
         ConsumerImpl<?> consumer2 = Mockito.mock(ConsumerImpl.class);
@@ -369,7 +392,6 @@ public class ContextImplTest {
         } catch (PulsarClientException e) {
             // pass
         }
-
     }
 
     @Test

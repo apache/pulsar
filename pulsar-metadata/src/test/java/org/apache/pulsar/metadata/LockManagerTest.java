@@ -52,21 +52,21 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void acquireLocks(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
 
-        @Cleanup
-        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+        @Cleanup LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
         String key = newKey();
 
         assertEquals(lockManager.listLocks(key).join(), Collections.emptyList());
         assertEquals(lockManager.readLock(key + "/1").join(), Optional.empty());
 
-        ResourceLock<String> lock1 = lockManager.acquireLock(key + "/1", "lock-1").join();
+        ResourceLock<String> lock1 =
+                lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lockManager.listLocks(key).join(), Collections.singletonList("1"));
         assertEquals(lockManager.readLock(key + "/1").join(), Optional.of("lock-1"));
         assertEquals(lock1.getPath(), key + "/1");
@@ -93,7 +93,8 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         // Double release shoud be a no-op
         lock1.release().join();
 
-        ResourceLock<String> lock2 = lockManager.acquireLock(key + "/1", "lock-1").join();
+        ResourceLock<String> lock2 =
+                lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lockManager.listLocks(key).join(), Collections.singletonList("1"));
         assertEquals(lockManager.readLock(key + "/1").join(), Optional.of("lock-1"));
         assertEquals(lock2.getPath(), key + "/1");
@@ -103,11 +104,11 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void cleanupOnClose(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
 
         LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
@@ -134,19 +135,19 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void updateValue(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
 
-        @Cleanup
-        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+        @Cleanup LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
         String key = newKey();
-        ResourceLock<String> lock = lockManager.acquireLock(key + "/1", "lock-1").join();
+        ResourceLock<String> lock =
+                lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lock.getValue(), "lock-1");
         assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
@@ -158,25 +159,28 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void updateValueWhenVersionIsOutOfSync(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
 
-        @Cleanup
-        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+        @Cleanup LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
         String key = newKey();
-        ResourceLock<String> lock = lockManager.acquireLock(key + "/1", "lock-1").join();
+        ResourceLock<String> lock =
+                lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lock.getValue(), "lock-1");
         assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
-        store.put(key + "/1",
-                ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-2"),
-                Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+        store.put(
+                        key + "/1",
+                        ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-2"),
+                        Optional.empty(),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
 
         lock.updateValue("value-2").join();
         assertEquals(lock.getValue(), "value-2");
@@ -186,19 +190,19 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void updateValueWhenKeyDisappears(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
-        @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService coordinationService = new CoordinationServiceImpl(store);
 
-        @Cleanup
-        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+        @Cleanup LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
         String key = newKey();
-        ResourceLock<String> lock = lockManager.acquireLock(key + "/1", "lock-1").join();
+        ResourceLock<String> lock =
+                lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lock.getValue(), "lock-1");
         assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
@@ -212,19 +216,22 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void revalidateLockWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store);
-        @Cleanup
-        LockManager<String> lm2 = cs2.getLockManager(String.class);
+        @Cleanup CoordinationService cs2 = new CoordinationServiceImpl(store);
+        @Cleanup LockManager<String> lm2 = cs2.getLockManager(String.class);
 
         String path1 = newKey();
 
         // Simulate existing lock with same content
-        store.put(path1, "\"value-1\"".getBytes(StandardCharsets.UTF_8), Optional.of(-1L),
-                EnumSet.of(CreateOption.Ephemeral)).join();
+        store.put(
+                        path1,
+                        "\"value-1\"".getBytes(StandardCharsets.UTF_8),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
         ResourceLock<String> rl2 = lm2.acquireLock(path1, "value-1").join();
 
         assertEquals(new String(store.get(path1).join().get().getValue()), "\"value-1\"");
@@ -233,8 +240,12 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         String path2 = newKey();
 
         // Simulate existing lock with different content
-        store.put(path2, "\"value-1\"".getBytes(StandardCharsets.UTF_8), Optional.of(-1L),
-                EnumSet.of(CreateOption.Ephemeral)).join();
+        store.put(
+                        path2,
+                        "\"value-1\"".getBytes(StandardCharsets.UTF_8),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
         rl2 = lm2.acquireLock(path2, "value-2").join();
 
         assertEquals(new String(store.get(path2).join().get().getValue()), "\"value-2\"");
@@ -249,21 +260,17 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(store1);
-        @Cleanup
-        LockManager<String> lm1 = cs1.getLockManager(String.class);
+        @Cleanup CoordinationService cs1 = new CoordinationServiceImpl(store1);
+        @Cleanup LockManager<String> lm1 = cs1.getLockManager(String.class);
 
-        @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store2);
-        @Cleanup
-        LockManager<String> lm2 = cs2.getLockManager(String.class);
+        @Cleanup CoordinationService cs2 = new CoordinationServiceImpl(store2);
+        @Cleanup LockManager<String> lm2 = cs2.getLockManager(String.class);
 
         String path1 = newKey();
 
@@ -283,8 +290,12 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
         // Simulate existing lock with same content. The 2nd acquirer will steal the lock
         String path2 = newKey();
-        store1.put(path2, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-1"), Optional.of(-1L),
-                EnumSet.of(CreateOption.Ephemeral)).join();
+        store1.put(
+                        path2,
+                        ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-1"),
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral))
+                .join();
 
         ResourceLock<String> rl2 = lm2.acquireLock(path2, "value-1").join();
 
@@ -307,28 +318,24 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(store1);
-        @Cleanup
-        LockManager<String> lm1 = cs1.getLockManager(String.class);
+        @Cleanup CoordinationService cs1 = new CoordinationServiceImpl(store1);
+        @Cleanup LockManager<String> lm1 = cs1.getLockManager(String.class);
 
-        @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store2);
-        @Cleanup
-        LockManager<String> lm2 = cs2.getLockManager(String.class);
+        @Cleanup CoordinationService cs2 = new CoordinationServiceImpl(store2);
+        @Cleanup LockManager<String> lm2 = cs2.getLockManager(String.class);
 
         String path1 = newKey();
 
         ResourceLock<String> lock1 = lm1.acquireLock(path1, "value-1").join();
         AtomicReference<ResourceLock<String>> lock2 = new AtomicReference<>();
         // lock 2 will steal the distributed lock first.
-        Awaitility.await().until(()-> {
+        Awaitility.await().until(() -> {
             // Ensure steal the lock success.
             try {
                 lock2.set(lm2.acquireLock(path1, "value-1").join());

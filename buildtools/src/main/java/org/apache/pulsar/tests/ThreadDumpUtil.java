@@ -72,10 +72,17 @@ public class ThreadDumpUtil {
         for (Map.Entry<Thread, StackTraceElement[]> e : stackTraces.entrySet()) {
             Thread thread = e.getKey();
             dump.append('\n');
-            dump.append(String.format("\"%s\" %s prio=%d tid=%d %s\njava.lang.Thread.State: %s", thread.getName(),
-                    (thread.isDaemon() ? "daemon" : ""), thread.getPriority(), thread.getId(),
-                    Thread.State.WAITING.equals(thread.getState()) ? "in Object.wait()" : thread.getState().name(),
-                    Thread.State.WAITING.equals(thread.getState()) ? "WAITING (on object monitor)"
+            dump.append(String.format(
+                    "\"%s\" %s prio=%d tid=%d %s\njava.lang.Thread.State: %s",
+                    thread.getName(),
+                    (thread.isDaemon() ? "daemon" : ""),
+                    thread.getPriority(),
+                    thread.getId(),
+                    Thread.State.WAITING.equals(thread.getState())
+                            ? "in Object.wait()"
+                            : thread.getState().name(),
+                    Thread.State.WAITING.equals(thread.getState())
+                            ? "WAITING (on object monitor)"
                             : thread.getState()));
             for (StackTraceElement stackTraceElement : e.getValue()) {
                 dump.append("\n        at ");
@@ -93,11 +100,13 @@ public class ThreadDumpUtil {
      * to find out the available operations. For example, the jcmd command "Thread.print" maps
      * to "threadPrint" operation name.
      */
-    static String callDiagnosticCommand(String operationName, String... args)
-            throws JMException {
+    static String callDiagnosticCommand(String operationName, String... args) throws JMException {
         return (String) ManagementFactory.getPlatformMBeanServer()
-                .invoke(new ObjectName("com.sun.management:type=DiagnosticCommand"),
-                        operationName, new Object[]{args}, new String[]{String[].class.getName()});
+                .invoke(
+                        new ObjectName("com.sun.management:type=DiagnosticCommand"),
+                        operationName,
+                        new Object[] {args},
+                        new String[] {String[].class.getName()});
     }
 
     static String buildDeadlockInfo() {
@@ -165,5 +174,4 @@ public class ThreadDumpUtil {
         }
         out.println();
     }
-
 }

@@ -34,7 +34,7 @@ public class FunctionInstanceIdTest {
 
             fail("Expected exception!");
         } catch (IllegalArgumentException e) {
-            //pass
+            // pass
         }
     }
 
@@ -45,7 +45,7 @@ public class FunctionInstanceIdTest {
 
             fail("Expected exception!");
         } catch (IllegalArgumentException e) {
-            //pass
+            // pass
         }
     }
 

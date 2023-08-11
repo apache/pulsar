@@ -49,10 +49,7 @@ public class NettySourceConfig implements Serializable {
             help = "The host name or address that the source instance to listen on")
     private String host = "127.0.0.1";
 
-    @FieldDoc(
-            required = true,
-            defaultValue = "10999",
-            help = "The port that the source instance to listen on")
+    @FieldDoc(required = true, defaultValue = "10999", help = "The port that the source instance to listen on")
     private int port = 10999;
 
     @FieldDoc(
@@ -71,5 +68,4 @@ public class NettySourceConfig implements Serializable {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), NettySourceConfig.class);
     }
-
 }

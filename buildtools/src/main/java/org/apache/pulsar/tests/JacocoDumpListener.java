@@ -55,8 +55,8 @@ public class JacocoDumpListener implements ISuiteListener, IExecutionListener {
         }
         enabled = checkEnabled();
         if (enabled) {
-            jacocoProxy = MBeanServerInvocationHandler.newProxyInstance(platformMBeanServer, jacocoObjectName,
-                    JacocoProxy.class, false);
+            jacocoProxy = MBeanServerInvocationHandler.newProxyInstance(
+                    platformMBeanServer, jacocoObjectName, JacocoProxy.class, false);
         } else {
             jacocoProxy = null;
         }
@@ -81,6 +81,7 @@ public class JacocoDumpListener implements ISuiteListener, IExecutionListener {
             triggerJacocoDump();
         }
     }
+
     @Override
     public void onExecutionFinish() {
         if (enabled) {

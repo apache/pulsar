@@ -43,9 +43,9 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -61,22 +61,23 @@ public class AcknowledgementsGroupingTrackerTest {
     public void setup() throws NoSuchFieldException, IllegalAccessException {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
-        consumer.unAckedChunkedMessageIdSequenceMap =
-                ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
+        consumer.unAckedChunkedMessageIdSequenceMap = ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder()
+                .build();
         cnx = spy(new ClientCnxTest(new ClientConfigurationData(), eventLoopGroup));
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         doReturn(client).when(consumer).getClient();
         doReturn(cnx).when(consumer).getClientCnx();
         doReturn(new ConsumerStatsRecorderImpl()).when(consumer).getStats();
         doReturn(new UnAckedMessageTracker().UNACKED_MESSAGE_TRACKER_DISABLED)
-                .when(consumer).getUnAckedMessageTracker();
+                .when(consumer)
+                .getUnAckedMessageTracker();
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
     }
 
     @DataProvider(name = "isNeedReceipt")
     public Object[][] isNeedReceipt() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @AfterClass(alwaysRun = true)
@@ -389,24 +390,27 @@ public class AcknowledgementsGroupingTrackerTest {
     }
 
     @Test
-    public void testDoIndividualBatchAckAsync() throws Exception{
+    public void testDoIndividualBatchAckAsync() throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
-        AcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        AcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
         MessageId messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
         BitSet bitSet = new BitSet(20);
-        for(int i = 0; i < 20; i ++) {
+        for (int i = 0; i < 20; i++) {
             bitSet.set(i, true);
         }
         MessageId messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, bitSet);
-        Method doIndividualBatchAckAsync = PersistentAcknowledgmentsGroupingTracker.class
-                .getDeclaredMethod("doIndividualBatchAckAsync", MessageIdAdv.class);
+        Method doIndividualBatchAckAsync = PersistentAcknowledgmentsGroupingTracker.class.getDeclaredMethod(
+                "doIndividualBatchAckAsync", MessageIdAdv.class);
         doIndividualBatchAckAsync.setAccessible(true);
         doIndividualBatchAckAsync.invoke(tracker, messageId1);
         doIndividualBatchAckAsync.invoke(tracker, messageId2);
-        Field pendingIndividualBatchIndexAcks = PersistentAcknowledgmentsGroupingTracker.class.getDeclaredField("pendingIndividualBatchIndexAcks");
+        Field pendingIndividualBatchIndexAcks =
+                PersistentAcknowledgmentsGroupingTracker.class.getDeclaredField("pendingIndividualBatchIndexAcks");
         pendingIndividualBatchIndexAcks.setAccessible(true);
         ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable> batchIndexAcks =
-                (ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable>) pendingIndividualBatchIndexAcks.get(tracker);
+                (ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable>)
+                        pendingIndividualBatchIndexAcks.get(tracker);
         MessageIdImpl position1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl position2 = new MessageIdImpl(3, 2, 0);
         assertTrue(batchIndexAcks.containsKey(position1));
@@ -430,8 +434,6 @@ public class AcknowledgementsGroupingTrackerTest {
         }
 
         @Override
-        public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
-                                               TimedCompletableFuture<Void> future) {
-        }
+        public void newAckForReceiptWithFuture(ByteBuf request, long requestId, TimedCompletableFuture<Void> future) {}
     }
 }

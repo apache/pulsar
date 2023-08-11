@@ -41,8 +41,8 @@ import org.slf4j.LoggerFactory;
  * @param <HdfsK> - The HDFS Key type
  * @param <HdfsV> - The HDFS Value type
  */
-public abstract class HdfsAbstractSequenceFileSink<K, V, HdfsK, HdfsV>
-    extends HdfsAbstractSink<K, V> implements Sink<V> {
+public abstract class HdfsAbstractSequenceFileSink<K, V, HdfsK, HdfsV> extends HdfsAbstractSink<K, V>
+        implements Sink<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(HdfsAbstractSequenceFileSink.class);
 
@@ -54,18 +54,18 @@ public abstract class HdfsAbstractSequenceFileSink<K, V, HdfsK, HdfsV>
 
     @Override
     public void close() throws Exception {
-       writer.close();
-       super.close();
+        writer.close();
+        super.close();
     }
 
     @Override
     protected void createWriter() throws IOException {
-       writer = getWriter();
+        writer = getWriter();
     }
 
     @Override
     public void write(Record<V> record) {
-       try {
+        try {
             KeyValue<K, V> kv = extractKeyValue(record);
             KeyValue<HdfsK, HdfsV> keyValue = convert(kv);
             writer.append(keyValue.getKey(), keyValue.getValue());
@@ -79,9 +79,8 @@ public abstract class HdfsAbstractSequenceFileSink<K, V, HdfsK, HdfsV>
     protected Writer getWriter() throws IOException {
         counter = new AtomicLong(0);
         List<Option> options = getOptions();
-        return SequenceFile.createWriter(getConfiguration(),
-                options.toArray(new Option[options.size()]));
-     }
+        return SequenceFile.createWriter(getConfiguration(), options.toArray(new Option[options.size()]));
+    }
 
     protected List<Option> getOptions() throws IllegalArgumentException, IOException {
         List<Option> list = new ArrayList<Option>();

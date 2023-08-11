@@ -47,14 +47,15 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * @param functionConfig Configuration of Pulsar Function
      * @param authParams the authentication parameters associated with the request
      */
-    void registerFunction(String tenant,
-                          String namespace,
-                          String functionName,
-                          InputStream uploadedInputStream,
-                          FormDataContentDisposition fileDetail,
-                          String functionPkgUrl,
-                          FunctionConfig functionConfig,
-                          AuthenticationParameters authParams);
+    void registerFunction(
+            String tenant,
+            String namespace,
+            String functionName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String functionPkgUrl,
+            FunctionConfig functionConfig,
+            AuthenticationParameters authParams);
 
     /**
      * Update a function.
@@ -68,36 +69,36 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * @param authParams the authentication parameters associated with the request
      * @param updateOptions Options while updating the function
      */
-    void updateFunction(String tenant,
-                        String namespace,
-                        String functionName,
-                        InputStream uploadedInputStream,
-                        FormDataContentDisposition fileDetail,
-                        String functionPkgUrl,
-                        FunctionConfig functionConfig,
-                        AuthenticationParameters authParams,
-                        UpdateOptionsImpl updateOptions);
+    void updateFunction(
+            String tenant,
+            String namespace,
+            String functionName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String functionPkgUrl,
+            FunctionConfig functionConfig,
+            AuthenticationParameters authParams,
+            UpdateOptionsImpl updateOptions);
 
-    void updateFunctionOnWorkerLeader(String tenant,
-                                      String namespace,
-                                      String functionName,
-                                      InputStream uploadedInputStream,
-                                      boolean delete,
-                                      URI uri,
-                                      AuthenticationParameters authParams);
+    void updateFunctionOnWorkerLeader(
+            String tenant,
+            String namespace,
+            String functionName,
+            InputStream uploadedInputStream,
+            boolean delete,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    FunctionStatus getFunctionStatus(String tenant,
-                                     String namespace,
-                                     String componentName,
-                                     URI uri,
-                                     AuthenticationParameters authParams);
+    FunctionStatus getFunctionStatus(
+            String tenant, String namespace, String componentName, URI uri, AuthenticationParameters authParams);
 
-    FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
-                                                         String namespace,
-                                                         String componentName,
-                                                         String instanceId,
-                                                         URI uri,
-                                                         AuthenticationParameters authParams);
+    FunctionInstanceStatusData getFunctionInstanceStatus(
+            String tenant,
+            String namespace,
+            String componentName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
     void reloadBuiltinFunctions(AuthenticationParameters authParams) throws IOException;
 

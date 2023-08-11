@@ -45,8 +45,9 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private final Set<ManagedLedgerPayloadProcessor.Processor> inputProcessors;
     private final Set<ManagedLedgerPayloadProcessor.Processor> outputProcessors;
 
-    public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors,
-                                        Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors) {
+    public ManagedLedgerInterceptorImpl(
+            Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors,
+            Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors) {
         this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
 
         // save appendIndexMetadataInterceptor to field
@@ -86,9 +87,9 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
 
     @Override
     public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
-       if (op == null || numberOfMessages <= 0) {
-           return op;
-       }
+        if (op == null || numberOfMessages <= 0) {
+            return op;
+        }
         op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors, numberOfMessages));
         return op;
     }
@@ -108,8 +109,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
 
         if (propertiesMap.containsKey(INDEX)) {
             if (appendIndexMetadataInterceptor != null) {
-                appendIndexMetadataInterceptor.recoveryIndexGenerator(
-                        Long.parseLong(propertiesMap.get(INDEX)));
+                appendIndexMetadataInterceptor.recoveryIndexGenerator(Long.parseLong(propertiesMap.get(INDEX)));
             }
         }
     }
@@ -139,8 +139,10 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                             promise.complete(null);
                         } catch (Exception e) {
                             entries.close();
-                            log.error("[{}] Failed to recover the index generator from the last add confirmed entry.",
-                                    name, e);
+                            log.error(
+                                    "[{}] Failed to recover the index generator from the last add confirmed entry.",
+                                    name,
+                                    e);
                             promise.completeExceptionally(e);
                         }
                     } else {
@@ -161,8 +163,8 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         }
     }
 
-    private PayloadProcessorHandle processPayload(Set<ManagedLedgerPayloadProcessor.Processor> processors,
-                                                  Object context, ByteBuf payload) {
+    private PayloadProcessorHandle processPayload(
+            Set<ManagedLedgerPayloadProcessor.Processor> processors, Object context, ByteBuf payload) {
 
         ByteBuf tmpData = payload;
         final Set<ImmutablePair<ManagedLedgerPayloadProcessor.Processor, ByteBuf>> processedSet = new LinkedHashSet<>();
@@ -188,6 +190,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
             }
         };
     }
+
     @Override
     public PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry op, ByteBuf ledgerData) {
         if (this.inputProcessors == null || this.inputProcessors.size() == 0) {
@@ -197,7 +200,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
-    public PayloadProcessorHandle processPayloadBeforeEntryCache(ByteBuf ledgerData){
+    public PayloadProcessorHandle processPayloadBeforeEntryCache(ByteBuf ledgerData) {
         if (this.outputProcessors == null || this.outputProcessors.size() == 0) {
             return null;
         }

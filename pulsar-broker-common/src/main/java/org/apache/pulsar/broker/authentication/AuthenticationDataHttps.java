@@ -42,5 +42,4 @@ public class AuthenticationDataHttps extends AuthenticationDataHttp {
     public X509Certificate[] getTlsCertificates() {
         return certificates;
     }
-
 }

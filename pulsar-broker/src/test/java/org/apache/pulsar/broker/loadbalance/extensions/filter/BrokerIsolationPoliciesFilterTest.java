@@ -27,13 +27,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -83,42 +81,58 @@ public class BrokerIsolationPoliciesFilterTest {
         BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
 
         // a. available-brokers: broker1, broker2, broker3 => result: broker1
-        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1", getLookupData(),
-                "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+        Map<String, BrokerLookupData> result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker1", getLookupData(),
+                                "broker2", getLookupData(),
+                                "broker3", getLookupData())),
+                        namespaceName,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker1"));
 
         // b. available-brokers: broker2, broker3          => result: broker2
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+        result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker2", getLookupData(),
+                                "broker3", getLookupData())),
+                        namespaceName,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker2"));
 
         // c. available-brokers: broker3                   => result: NULL
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+        result = filter.filterAsync(new HashMap<>(Map.of("broker3", getLookupData())), namespaceName, getContext())
+                .get();
         assertTrue(result.isEmpty());
 
         // 2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
         setIsolationPolicies(policies, namespaceName, Set.of("broker1"), Set.of("broker2"), Set.of("broker3"), 2);
 
         // a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1", getLookupData(),
-                "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+        result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker1", getLookupData(),
+                                "broker2", getLookupData(),
+                                "broker3", getLookupData())),
+                        namespaceName,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker1", "broker2"));
 
         // b. available-brokers: broker2, broker3          => result: broker2
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+        result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker2", getLookupData(),
+                                "broker3", getLookupData())),
+                        namespaceName,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker2"));
 
         // c. available-brokers: broker3                   => result: NULL
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+        result = filter.filterAsync(new HashMap<>(Map.of("broker3", getLookupData())), namespaceName, getContext())
+                .get();
         assertTrue(result.isEmpty());
     }
 
@@ -133,51 +147,67 @@ public class BrokerIsolationPoliciesFilterTest {
 
         var policies = mock(SimpleResourceAllocationPolicies.class);
         doReturn(CompletableFuture.completedFuture(false))
-                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
+                .when(policies)
+                .areIsolationPoliciesPresentAsync(eq(namespaceName));
         doReturn(true).when(policies).isSharedBroker(any());
         IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
 
         BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
 
-
-
-        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1", getLookupData(),
-                "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+        Map<String, BrokerLookupData> result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker1", getLookupData(),
+                                "broker2", getLookupData(),
+                                "broker3", getLookupData())),
+                        namespaceBundle,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker1", "broker2", "broker3"));
 
-
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1", getLookupData(true, false),
-                "broker2", getLookupData(true, false),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+        result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker1", getLookupData(true, false),
+                                "broker2", getLookupData(true, false),
+                                "broker3", getLookupData())),
+                        namespaceBundle,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker3"));
 
         doReturn(false).when(namespaceBundle).hasNonPersistentTopic();
 
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1", getLookupData(),
-                "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+        result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker1", getLookupData(),
+                                "broker2", getLookupData(),
+                                "broker3", getLookupData())),
+                        namespaceBundle,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker1", "broker2", "broker3"));
 
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1", getLookupData(false, true),
-                "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+        result = filter.filterAsync(
+                        new HashMap<>(Map.of(
+                                "broker1", getLookupData(false, true),
+                                "broker2", getLookupData(),
+                                "broker3", getLookupData())),
+                        namespaceBundle,
+                        getContext())
+                .get();
         assertEquals(result.keySet(), Set.of("broker2", "broker3"));
     }
 
-    private void setIsolationPolicies(SimpleResourceAllocationPolicies policies,
-                                      NamespaceName namespaceName,
-                                      Set<String> primary,
-                                      Set<String> secondary,
-                                      Set<String> shared,
-                                      int min_limit) {
+    private void setIsolationPolicies(
+            SimpleResourceAllocationPolicies policies,
+            NamespaceName namespaceName,
+            Set<String> primary,
+            Set<String> secondary,
+            Set<String> shared,
+            int min_limit) {
         reset(policies);
         doReturn(CompletableFuture.completedFuture(true))
-                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
+                .when(policies)
+                .areIsolationPoliciesPresentAsync(eq(namespaceName));
         doReturn(false).when(policies).isPrimaryBroker(eq(namespaceName), any());
         doReturn(false).when(policies).isSecondaryBroker(eq(namespaceName), any());
         doReturn(false).when(policies).isSharedBroker(any());
@@ -195,30 +225,40 @@ public class BrokerIsolationPoliciesFilterTest {
         });
 
         doAnswer(invocationOnMock -> {
-            Integer totalPrimaryCandidates = invocationOnMock.getArgument(1, Integer.class);
-            return totalPrimaryCandidates < min_limit;
-        }).when(policies).shouldFailoverToSecondaries(eq(namespaceName), anyInt());
+                    Integer totalPrimaryCandidates = invocationOnMock.getArgument(1, Integer.class);
+                    return totalPrimaryCandidates < min_limit;
+                })
+                .when(policies)
+                .shouldFailoverToSecondaries(eq(namespaceName), anyInt());
     }
 
     public BrokerLookupData getLookupData() {
         return getLookupData(true, true);
     }
 
-    public BrokerLookupData getLookupData(boolean persistentTopicsEnabled,
-                                          boolean nonPersistentTopicsEnabled) {
+    public BrokerLookupData getLookupData(boolean persistentTopicsEnabled, boolean nonPersistentTopicsEnabled) {
         String webServiceUrl = "http://localhost:8080";
         String webServiceUrlTls = "https://localhoss:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
         String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        Map<String, String> protocols = new HashMap<>(){{
-            put("kafka", "9092");
-        }};
+        Map<String, String> protocols = new HashMap<>() {
+            {
+                put("kafka", "9092");
+            }
+        };
         return new BrokerLookupData(
-                webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols,
-                persistentTopicsEnabled, nonPersistentTopicsEnabled,
-                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0.0");
+                webServiceUrl,
+                webServiceUrlTls,
+                pulsarServiceUrl,
+                pulsarServiceUrlTls,
+                advertisedListeners,
+                protocols,
+                persistentTopicsEnabled,
+                nonPersistentTopicsEnabled,
+                ExtensibleLoadManagerImpl.class.getName(),
+                System.currentTimeMillis(),
+                "3.0.0");
     }
 
     public LoadManagerContext getContext() {

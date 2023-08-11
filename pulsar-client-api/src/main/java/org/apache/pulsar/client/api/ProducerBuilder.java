@@ -549,7 +549,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     @Deprecated
-    ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
+    ProducerBuilder<T> intercept(ProducerInterceptor<T>... interceptors);
 
     /**
      * Add a set of {@link org.apache.pulsar.client.api.interceptor.ProducerInterceptor} to the producer.

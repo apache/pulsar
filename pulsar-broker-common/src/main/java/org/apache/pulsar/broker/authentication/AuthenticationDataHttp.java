@@ -87,5 +87,4 @@ public class AuthenticationDataHttp implements AuthenticationDataSource {
     public String getSubscription() {
         return subscription;
     }
-
 }

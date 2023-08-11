@@ -58,7 +58,8 @@ public class ClientCnxTest {
 
     @Test
     public void testClientCnxTimeout() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop =
+                EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
@@ -84,7 +85,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop =
+                EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -100,16 +102,16 @@ public class ClientCnxTest {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
         new Thread(() -> {
-            try {
-                Thread.sleep(1_000);
-                CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
-                        cnx.newLookup(null, 123);
-                countDownLatch.countDown();
-                future.get();
-            } catch (Exception e) {
-                completableFuture.complete(e);
-            }
-        }).start();
+                    try {
+                        Thread.sleep(1_000);
+                        CompletableFuture<BinaryProtoLookupService.LookupDataResult> future = cnx.newLookup(null, 123);
+                        countDownLatch.countDown();
+                        future.get();
+                    } catch (Exception e) {
+                        completableFuture.complete(e);
+                    }
+                })
+                .start();
         countDownLatch.await();
         cnx.channelInactive(ctx);
         assertTrue(completableFuture.get().getCause() instanceof PulsarClientException.ConnectException);
@@ -122,7 +124,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphoreServiceNotReady() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop =
+                EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -139,16 +142,16 @@ public class ClientCnxTest {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
         new Thread(() -> {
-            try {
-                Thread.sleep(1_000);
-                CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
-                        cnx.newLookup(null, 123);
-                countDownLatch.countDown();
-                future.get();
-            } catch (Exception e) {
-                completableFuture.complete(e);
-            }
-        }).start();
+                    try {
+                        Thread.sleep(1_000);
+                        CompletableFuture<BinaryProtoLookupService.LookupDataResult> future = cnx.newLookup(null, 123);
+                        countDownLatch.countDown();
+                        future.get();
+                    } catch (Exception e) {
+                        completableFuture.complete(e);
+                    }
+                })
+                .start();
         countDownLatch.await();
         CommandError commandError = new CommandError();
         commandError.setRequestId(123L);
@@ -165,7 +168,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingWaitingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop =
+                EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -212,9 +216,9 @@ public class ClientCnxTest {
 
         // receive error
         CommandError commandError = new CommandError()
-            .setRequestId(-1)
-            .setError(ServerError.AuthenticationError)
-            .setMessage("authentication was failed");
+                .setRequestId(-1)
+                .setError(ServerError.AuthenticationError)
+                .setMessage("authentication was failed");
         try {
             cnx.handleError(commandError);
         } catch (Exception e) {
@@ -255,9 +259,9 @@ public class ClientCnxTest {
 
         // receive error
         CommandError commandError = new CommandError()
-            .setRequestId(requestId)
-            .setError(ServerError.MetadataError)
-            .setMessage("failed to read");
+                .setRequestId(requestId)
+                .setError(ServerError.MetadataError)
+                .setMessage("failed to read");
         cnx.handleError(commandError);
 
         try {
@@ -309,13 +313,11 @@ public class ClientCnxTest {
     @Test
     public void testNoWatchersWhenNoServerSupport() {
         withConnection("testNoWatchersWhenNoServerSupport", cnx -> {
-            cnx.handleConnected(new CommandConnected()
-                    .setServerVersion("Some old Server")
-                    .setProtocolVersion(1));
+            cnx.handleConnected(
+                    new CommandConnected().setServerVersion("Some old Server").setProtocolVersion(1));
 
             CompletableFuture<CommandWatchTopicListSuccess> result =
-                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns",
-                            ".*", null), 7);
+                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns", ".*", null), 7);
             assertTrue(result.isCompletedExceptionally());
             assertFalse(cnx.getTopicListWatchers().containsKey(5));
         });
@@ -331,20 +333,18 @@ public class ClientCnxTest {
             cnx.handleConnected(connected);
 
             CompletableFuture<CommandWatchTopicListSuccess> result =
-                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns",
-                            ".*", null), 7);
+                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns", ".*", null), 7);
             verify(cnx.ctx()).writeAndFlush(any(ByteBuf.class));
             assertFalse(result.isDone());
 
             CommandWatchTopicListSuccess success = new CommandWatchTopicListSuccess()
                     .setRequestId(7)
-                    .setWatcherId(5).setTopicsHash("f00");
+                    .setWatcherId(5)
+                    .setTopicsHash("f00");
             cnx.handleCommandWatchTopicListSuccess(success);
             assertEquals(result.getNow(null), success);
         });
     }
-
-
 
     @Test
     public void testUpdateWatcher() {
@@ -359,15 +359,15 @@ public class ClientCnxTest {
 
             CommandWatchTopicListSuccess success = new CommandWatchTopicListSuccess()
                     .setRequestId(7)
-                    .setWatcherId(5).setTopicsHash("f00");
+                    .setWatcherId(5)
+                    .setTopicsHash("f00");
             cnx.handleCommandWatchTopicListSuccess(success);
 
             TopicListWatcher watcher = mock(TopicListWatcher.class);
             cnx.registerTopicListWatcher(5, watcher);
 
-            CommandWatchTopicUpdate update = new CommandWatchTopicUpdate()
-                    .setWatcherId(5)
-                    .setTopicsHash("ADD");
+            CommandWatchTopicUpdate update =
+                    new CommandWatchTopicUpdate().setWatcherId(5).setTopicsHash("ADD");
             update.addNewTopic("persistent://tenant/ns/topic");
             cnx.handleCommandWatchTopicUpdate(update);
             verify(watcher).handleCommandWatchTopicUpdate(update);
@@ -407,5 +407,4 @@ public class ClientCnxTest {
             eventLoop.shutdownGracefully();
         }
     }
-
 }

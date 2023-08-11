@@ -72,34 +72,41 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         conf.setRetentionCheckIntervalInSeconds(Integer.MAX_VALUE);
     }
 
-    private MessageIdImpl getLastMessageIdByTopic(String topicName) throws Exception{
-        return (MessageIdImpl) pulsar.getBrokerService().getTopic(topicName, false)
-                .get().get().getLastMessageId().get();
+    private MessageIdImpl getLastMessageIdByTopic(String topicName) throws Exception {
+        return (MessageIdImpl) pulsar.getBrokerService()
+                .getTopic(topicName, false)
+                .get()
+                .get()
+                .getLastMessageId()
+                .get();
     }
 
     private void triggerCompactionAndWait(String topicName) throws Exception {
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topicName, false).get().get();
         persistentTopic.triggerCompaction();
         Awaitility.await().untilAsserted(() -> {
-            PositionImpl lastConfirmPos = (PositionImpl) persistentTopic.getManagedLedger().getLastConfirmedEntry();
+            PositionImpl lastConfirmPos =
+                    (PositionImpl) persistentTopic.getManagedLedger().getLastConfirmedEntry();
             PositionImpl markDeletePos = (PositionImpl) persistentTopic
-                    .getSubscription(Compactor.COMPACTION_SUBSCRIPTION).getCursor().getMarkDeletedPosition();
+                    .getSubscription(Compactor.COMPACTION_SUBSCRIPTION)
+                    .getCursor()
+                    .getMarkDeletedPosition();
             assertEquals(markDeletePos.getLedgerId(), lastConfirmPos.getLedgerId());
             assertEquals(markDeletePos.getEntryId(), lastConfirmPos.getEntryId());
         });
     }
 
-    private void triggerLedgerSwitch(String topicName) throws Exception{
+    private void triggerLedgerSwitch(String topicName) throws Exception {
         admin.topics().unload(topicName);
         Awaitility.await().until(() -> {
             CompletableFuture<Optional<Topic>> topicFuture =
                     pulsar.getBrokerService().getTopic(topicName, false);
-            if (!topicFuture.isDone() || topicFuture.isCompletedExceptionally()){
+            if (!topicFuture.isDone() || topicFuture.isCompletedExceptionally()) {
                 return false;
             }
             Optional<Topic> topicOptional = topicFuture.join();
-            if (!topicOptional.isPresent()){
+            if (!topicOptional.isPresent()) {
                 return false;
             }
             PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
@@ -109,8 +116,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     }
 
     private void clearAllTheLedgersOutdated(String topicName) throws Exception {
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topicName, false).get().get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
             CompletableFuture<Void> future = new CompletableFuture();
@@ -135,11 +142,11 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     }
 
     private Producer<String> createProducer(boolean enabledBatch, String topicName) throws Exception {
-        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(enabledBatch);
-        if (enabledBatch){
-            producerBuilder.batchingMaxBytes(Integer.MAX_VALUE)
+        ProducerBuilder<String> producerBuilder =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(enabledBatch);
+        if (enabledBatch) {
+            producerBuilder
+                    .batchingMaxBytes(Integer.MAX_VALUE)
                     .batchingMaxPublishDelay(3, TimeUnit.HOURS)
                     .batchingMaxBytes(Integer.MAX_VALUE);
         }
@@ -147,7 +154,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     }
 
     private Consumer<String> createConsumer(String topicName, String subName) throws Exception {
-        return pulsarClient.newConsumer(Schema.STRING)
+        return pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)
                 .receiverQueueSize(1)
@@ -159,7 +167,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdWhenNoNonEmptyLedgerExists() throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
-        ReaderImpl<String> reader = (ReaderImpl<String>) pulsarClient.newReader(Schema.STRING)
+        ReaderImpl<String> reader = (ReaderImpl<String>) pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)
                 .receiverQueueSize(1)
@@ -185,11 +194,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     }
 
     @DataProvider(name = "enabledBatch")
-    public Object[][] enabledBatch(){
-        return new Object[][]{
-                {true},
-                {false}
-        };
+    public Object[][] enabledBatch() {
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(dataProvider = "enabledBatch")
@@ -214,7 +220,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         MessageIdImpl lastMessageId = (MessageIdImpl) consumer.getLastMessageId();
         assertEquals(lastMessageId.getLedgerId(), lastMessageIdExpected.getLedgerId());
         assertEquals(lastMessageId.getEntryId(), lastMessageIdExpected.getEntryId());
-        if (enabledBatch){
+        if (enabledBatch) {
             BatchMessageIdImpl lastBatchMessageIdByTopic = (BatchMessageIdImpl) lastMessageIdExpected;
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) lastMessageId;
             assertEquals(batchMessageId.getBatchSize(), lastBatchMessageIdByTopic.getBatchSize());
@@ -251,7 +257,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         MessageIdImpl messageId = (MessageIdImpl) consumer.getLastMessageId();
         assertEquals(messageId.getLedgerId(), lastMessageIdByTopic.getLedgerId());
         assertEquals(messageId.getEntryId(), lastMessageIdByTopic.getEntryId());
-        if (enabledBatch){
+        if (enabledBatch) {
             BatchMessageIdImpl lastBatchMessageIdByTopic = (BatchMessageIdImpl) lastMessageIdByTopic;
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
             assertEquals(batchMessageId.getBatchSize(), lastBatchMessageIdByTopic.getBatchSize());
@@ -269,12 +275,14 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
-        var producer = pulsarClient.newProducer(Schema.STRING)
+        var producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topicName)
                 .batchingMaxPublishDelay(3, TimeUnit.HOURS)
                 .batchingMaxBytes(Integer.MAX_VALUE)
                 .compressionType(CompressionType.ZSTD)
-                .enableBatching(enabledBatch).create();
+                .enableBatching(enabledBatch)
+                .create();
 
         List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());
@@ -293,7 +301,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         MessageIdImpl messageId = (MessageIdImpl) consumer.getLastMessageId();
         assertEquals(messageId.getLedgerId(), lastMessageIdByTopic.getLedgerId());
         assertEquals(messageId.getEntryId(), lastMessageIdByTopic.getEntryId());
-        if (enabledBatch){
+        if (enabledBatch) {
             BatchMessageIdImpl lastBatchMessageIdByTopic = (BatchMessageIdImpl) lastMessageIdByTopic;
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
             assertEquals(batchMessageId.getBatchSize(), lastBatchMessageIdByTopic.getBatchSize());
@@ -333,7 +341,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         MessageIdImpl lastMessageId = (MessageIdImpl) consumer.getLastMessageId();
         assertEquals(lastMessageId.getLedgerId(), lastMessageIdExpected.getLedgerId());
         assertEquals(lastMessageId.getEntryId(), lastMessageIdExpected.getEntryId());
-        if (enabledBatch){
+        if (enabledBatch) {
             BatchMessageIdImpl lastBatchMessageIdExpected = (BatchMessageIdImpl) lastMessageIdExpected;
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) lastMessageId;
             assertEquals(batchMessageId.getBatchSize(), lastBatchMessageIdExpected.getBatchSize());
@@ -372,7 +380,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         MessageIdImpl lastMessageId = (MessageIdImpl) consumer.getLastMessageId();
         assertEquals(lastMessageId.getLedgerId(), lastMessageIdExpected.getLedgerId());
         assertEquals(lastMessageId.getEntryId(), lastMessageIdExpected.getEntryId());
-        if (enabledBatch){
+        if (enabledBatch) {
             BatchMessageIdImpl lastBatchMessageIdExpected = (BatchMessageIdImpl) lastMessageIdExpected;
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) lastMessageId;
             assertEquals(batchMessageId.getBatchSize(), lastBatchMessageIdExpected.getBatchSize());

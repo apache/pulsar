@@ -31,12 +31,14 @@ public class FlowOrQpsEquallyDivideBundleSplitOption extends BundleSplitOption {
     private int loadBalancerNamespaceBundleMaxBandwidthMbytes;
     private int flowOrQpsDifferenceThresholdPercentage;
 
-    public FlowOrQpsEquallyDivideBundleSplitOption(NamespaceService namespaceService, NamespaceBundle bundle,
-                                                   List<Long> boundaries,
-                                                   Map<String, TopicStatsImpl> topicStatsMap,
-                                                   int loadBalancerNamespaceBundleMaxMsgRate,
-                                                   int loadBalancerNamespaceBundleMaxBandwidthMbytes,
-                                                   int flowOrQpsDifferenceThresholdPercentage) {
+    public FlowOrQpsEquallyDivideBundleSplitOption(
+            NamespaceService namespaceService,
+            NamespaceBundle bundle,
+            List<Long> boundaries,
+            Map<String, TopicStatsImpl> topicStatsMap,
+            int loadBalancerNamespaceBundleMaxMsgRate,
+            int loadBalancerNamespaceBundleMaxBandwidthMbytes,
+            int flowOrQpsDifferenceThresholdPercentage) {
         super(namespaceService, bundle, boundaries);
         this.topicStatsMap = topicStatsMap;
         this.loadBalancerNamespaceBundleMaxMsgRate = loadBalancerNamespaceBundleMaxMsgRate;

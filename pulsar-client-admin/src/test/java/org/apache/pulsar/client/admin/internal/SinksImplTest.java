@@ -23,7 +23,6 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.ws.rs.client.WebTarget;
@@ -86,8 +85,8 @@ public class SinksImplTest {
         });
     }
 
-    private void testBadConfig(String tenant, String namespace, String sinkname,
-            Consumer<ExecutionException> handler) throws Exception {
+    private void testBadConfig(String tenant, String namespace, String sinkname, Consumer<ExecutionException> handler)
+            throws Exception {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setName(sinkname);
         sinkConfig.setTenant(tenant);
@@ -103,28 +102,32 @@ public class SinksImplTest {
         }
 
         try {
-            instance.getSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            instance.getSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            instance.getSinkStatusAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0)
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.deleteSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            instance.deleteSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
@@ -145,56 +148,64 @@ public class SinksImplTest {
         }
 
         try {
-            instance.updateSinkAsync(sinkConfig, "file.nar", new UpdateOptionsImpl()).get();
+            instance.updateSinkAsync(sinkConfig, "file.nar", new UpdateOptionsImpl())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.updateSinkWithUrlAsync(sinkConfig, "http://localhost", new UpdateOptionsImpl()).get();
+            instance.updateSinkWithUrlAsync(sinkConfig, "http://localhost", new UpdateOptionsImpl())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.restartSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            instance.restartSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0)
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.restartSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            instance.restartSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.stopSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            instance.stopSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0)
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.stopSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            instance.stopSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.startSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0).get();
+            instance.startSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), 0)
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.startSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName()).get();
+            instance.startSinkAsync(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName())
+                    .get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
@@ -203,12 +214,12 @@ public class SinksImplTest {
         // this function is only about namespace and tenant
         if (!StringUtils.isBlank(sinkname)) {
             try {
-                instance.listSinksAsync(sinkConfig.getTenant(), sinkConfig.getNamespace()).get();
+                instance.listSinksAsync(sinkConfig.getTenant(), sinkConfig.getNamespace())
+                        .get();
                 fail();
             } catch (ExecutionException err) {
                 handler.accept(err);
             }
         }
-
     }
 }

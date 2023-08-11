@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -76,7 +76,9 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         List<Metrics> list1 = metrics.generate();
         Assert.assertTrue(list1.isEmpty());
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
                 .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -84,8 +86,10 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         }
 
         for (Entry<String, ManagedLedgerImpl> ledger : ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
-                .getManagedLedgers().entrySet()) {
-            ManagedLedgerMBeanImpl stats = (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
+                .getManagedLedgers()
+                .entrySet()) {
+            ManagedLedgerMBeanImpl stats =
+                    (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
             stats.refreshStats(1, TimeUnit.SECONDS);
         }
 
@@ -97,30 +101,37 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
         for (Entry<String, ManagedLedgerImpl> ledger : ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
-                .getManagedLedgers().entrySet()) {
-            ManagedLedgerMBeanImpl stats = (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
+                .getManagedLedgers()
+                .entrySet()) {
+            ManagedLedgerMBeanImpl stats =
+                    (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
             stats.refreshStats(1, TimeUnit.SECONDS);
         }
         List<Metrics> list3 = metrics.generate();
         Assert.assertEquals(list3.get(0).getMetrics().get(addEntryRateKey), 5.0D);
-
     }
 
     @Test
     public void testTransactionTopic() throws Exception {
         TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
         txnLogBufferedWriterConfig.setBatchEnabled(false);
-        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
-                1, TimeUnit.MILLISECONDS);
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        HashedWheelTimer transactionTimer =
+                new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"), 1, TimeUnit.MILLISECONDS);
+        admin.tenants()
+                .createTenant(
+                        NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                        new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         createTransactionCoordinatorAssign();
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
-        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
-                pulsar.getManagedLedgerFactory(), managedLedgerConfig, txnLogBufferedWriterConfig,
-                transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(
+                TransactionCoordinatorID.get(0),
+                pulsar.getManagedLedgerFactory(),
+                managedLedgerConfig,
+                txnLogBufferedWriterConfig,
+                transactionTimer,
+                DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);
         metrics.generate();
@@ -128,5 +139,4 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         mlTransactionLog.closeAsync().get();
         transactionTimer.stop();
     }
-
 }

@@ -19,17 +19,14 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -76,23 +73,21 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
-        webServer = new WebServer(proxyConfig, new AuthenticationService(
-                                          PulsarConfigurationLoader.convertFrom(proxyConfig)));
+        webServer = new WebServer(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)));
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
+        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper), new ZKMetadataStore(mockZooKeeperGlobal));
         discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, resource));
         adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
 
-        webServer.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, proxyConfig.getStatusFilePath(),
-                VipStatus.class);
+        webServer.addRestResource(
+                "/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, proxyConfig.getStatusFilePath(), VipStatus.class);
 
         // start web-service
         webServer.start();
-
     }
 
     @Override
@@ -105,19 +100,21 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUnauthenticatedProxy() throws Exception {
         PulsarAdmin admin = PulsarAdmin.builder()
-            .serviceHttpUrl("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
-            .build();
+                .serviceHttpUrl(
+                        "http://127.0.0.1:" + webServer.getListenPortHTTP().get())
+                .build();
         List<String> activeBrokers = admin.brokers().getActiveBrokers(configClusterName);
         Assert.assertEquals(activeBrokers.size(), 1);
-        Assert.assertEquals(adminProxyHandler.rewrittenUrl, String.format("%s/admin/v2/brokers/%s",
-                brokerUrl.toString(), configClusterName));
+        Assert.assertEquals(
+                adminProxyHandler.rewrittenUrl,
+                String.format("%s/admin/v2/brokers/%s", brokerUrl.toString(), configClusterName));
     }
 
     @Test
     public void testVipStatus() throws Exception {
-        @Cleanup
-        Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        WebTarget webTarget = client.target("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
+        @Cleanup Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        WebTarget webTarget = client.target(
+                        "http://127.0.0.1:" + webServer.getListenPortHTTP().get())
                 .path("/status.html");
         String response = webTarget.request().get(String.class);
         Assert.assertEquals(response, "OK");
@@ -135,7 +132,5 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
             rewrittenUrl = super.rewriteTarget(clientRequest);
             return rewrittenUrl;
         }
-
     }
-
 }

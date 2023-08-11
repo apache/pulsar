@@ -43,8 +43,8 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
     protected final HashMap<MessageId, Long> ackTimeoutMessages;
     private final RedeliveryBackoff ackTimeoutRedeliveryBackoff;
 
-    public UnAckedMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
-                                           ConsumerConfigurationData<?> conf) {
+    public UnAckedMessageRedeliveryTracker(
+            PulsarClientImpl client, ConsumerBase<?> consumerBase, ConsumerConfigurationData<?> conf) {
         super(client, consumerBase, conf);
         this.ackTimeoutRedeliveryBackoff = conf.getAckTimeoutRedeliveryBackoff();
         this.ackTimeoutMessages = new HashMap<MessageId, Long>();
@@ -56,29 +56,33 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
             redeliveryTimePartitions.add(new HashSet<>(16, 1));
         }
 
-        timeout = client.timer().newTimeout(new TimerTask() {
-            @Override
-            public void run(Timeout t) throws Exception {
-                writeLock.lock();
-                try {
-                    HashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
-                    if (!headPartition.isEmpty()) {
-                        headPartition.forEach(unackMessageIdWrapper -> {
-                            addAckTimeoutMessages(unackMessageIdWrapper);
-                            redeliveryMessageIdPartitionMap.remove(unackMessageIdWrapper);
-                            unackMessageIdWrapper.recycle();
-                        });
-                    }
-                    headPartition.clear();
-                    redeliveryTimePartitions.addLast(headPartition);
-                    triggerRedelivery(consumerBase);
-                } finally {
-                    writeLock.unlock();
-                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
-                }
-            }
-        }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
-
+        timeout = client.timer()
+                .newTimeout(
+                        new TimerTask() {
+                            @Override
+                            public void run(Timeout t) throws Exception {
+                                writeLock.lock();
+                                try {
+                                    HashSet<UnackMessageIdWrapper> headPartition =
+                                            redeliveryTimePartitions.removeFirst();
+                                    if (!headPartition.isEmpty()) {
+                                        headPartition.forEach(unackMessageIdWrapper -> {
+                                            addAckTimeoutMessages(unackMessageIdWrapper);
+                                            redeliveryMessageIdPartitionMap.remove(unackMessageIdWrapper);
+                                            unackMessageIdWrapper.recycle();
+                                        });
+                                    }
+                                    headPartition.clear();
+                                    redeliveryTimePartitions.addLast(headPartition);
+                                    triggerRedelivery(consumerBase);
+                                } finally {
+                                    writeLock.unlock();
+                                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                                }
+                            }
+                        },
+                        this.tickDurationInMs,
+                        TimeUnit.MILLISECONDS);
     }
 
     private void addAckTimeoutMessages(UnackMessageIdWrapper messageIdWrapper) {
@@ -140,10 +144,9 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         try {
             redeliveryMessageIdPartitionMap.clear();
             redeliveryTimePartitions.forEach(tp -> {
-                        tp.forEach(unackMessageIdWrapper -> unackMessageIdWrapper.recycle());
-                        tp.clear();
-                    }
-            );
+                tp.forEach(unackMessageIdWrapper -> unackMessageIdWrapper.recycle());
+                tp.clear();
+            });
             ackTimeoutMessages.clear();
         } finally {
             writeLock.unlock();
@@ -161,8 +164,8 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         try {
             UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId, redeliveryCount);
             HashSet<UnackMessageIdWrapper> partition = redeliveryTimePartitions.peekLast();
-            HashSet<UnackMessageIdWrapper> previousPartition = redeliveryMessageIdPartitionMap
-                    .putIfAbsent(messageIdWrapper, partition);
+            HashSet<UnackMessageIdWrapper> previousPartition =
+                    redeliveryMessageIdPartitionMap.putIfAbsent(messageIdWrapper, partition);
             if (previousPartition == null) {
                 return partition.add(messageIdWrapper);
             } else {
@@ -180,8 +183,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId);
         try {
             boolean removed = false;
-            HashSet<UnackMessageIdWrapper> exist =
-                    redeliveryMessageIdPartitionMap.remove(messageIdWrapper);
+            HashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.remove(messageIdWrapper);
             if (exist != null) {
                 removed = exist.remove(messageIdWrapper);
             }
@@ -233,5 +235,4 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
             writeLock.unlock();
         }
     }
-
 }

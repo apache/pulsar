@@ -28,8 +28,7 @@ public class ExceptionHandler {
     /**
      * This utility class should not be instantiated.
      */
-    private ExceptionHandler() {
-    }
+    private ExceptionHandler() {}
 
     /**
      * If the throwable is InterruptedException, reset the thread interrupted flag.

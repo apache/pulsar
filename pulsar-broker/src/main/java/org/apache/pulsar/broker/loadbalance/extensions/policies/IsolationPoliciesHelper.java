@@ -37,10 +37,10 @@ public class IsolationPoliciesHelper {
         this.policies = policies;
     }
 
-    public CompletableFuture<Set<String>> applyIsolationPoliciesAsync(Map<String, BrokerLookupData> availableBrokers,
-                                                                      ServiceUnitId serviceUnit) {
-        return LoadManagerShared.applyNamespacePoliciesAsync(serviceUnit, policies,
-                availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
+    public CompletableFuture<Set<String>> applyIsolationPoliciesAsync(
+            Map<String, BrokerLookupData> availableBrokers, ServiceUnitId serviceUnit) {
+        return LoadManagerShared.applyNamespacePoliciesAsync(
+                serviceUnit, policies, availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
                     @Override
                     public boolean isEnablePersistentTopics(String brokerUrl) {
                         BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
@@ -58,5 +58,4 @@ public class IsolationPoliciesHelper {
     public boolean hasIsolationPolicy(NamespaceName namespaceName) {
         return policies.areIsolationPoliciesPresent(namespaceName);
     }
-
 }

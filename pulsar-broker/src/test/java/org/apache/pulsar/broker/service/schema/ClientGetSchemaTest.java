@@ -20,16 +20,14 @@ package org.apache.pulsar.broker.service.schema;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
-
+import static org.testng.Assert.assertNotEquals;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 import java.util.function.Supplier;
 import lombok.Cleanup;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -45,8 +43,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 @Test(groups = "broker")
 public class ClientGetSchemaTest extends ProducerConsumerBase {
@@ -74,13 +70,40 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         // Create few topics with different types
         producers.add(pulsarClient.newProducer(Schema.BYTES).topic(topicBytes).create());
         producers.add(pulsarClient.newProducer(Schema.STRING).topic(topicString).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(MyClass.class)).topic(topicAvro).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(MyClass.class)).topic(topicJson).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).build())).topic(topicAvro).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).build())).topic(topicJson).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicAvroNotNull).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder().withPojo(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicJsonNotNull).create());
-
+        producers.add(pulsarClient
+                .newProducer(Schema.AVRO(MyClass.class))
+                .topic(topicAvro)
+                .create());
+        producers.add(pulsarClient
+                .newProducer(Schema.JSON(MyClass.class))
+                .topic(topicJson)
+                .create());
+        producers.add(pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder()
+                        .withPojo(MyClass.class)
+                        .build()))
+                .topic(topicAvro)
+                .create());
+        producers.add(pulsarClient
+                .newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder()
+                        .withPojo(MyClass.class)
+                        .build()))
+                .topic(topicJson)
+                .create());
+        producers.add(pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder()
+                        .withPojo(MyClass.class)
+                        .withAlwaysAllowNull(false)
+                        .build()))
+                .topic(topicAvroNotNull)
+                .create());
+        producers.add(pulsarClient
+                .newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder()
+                        .withPojo(MyClass.class)
+                        .withAlwaysAllowNull(false)
+                        .build()))
+                .topic(topicJsonNotNull)
+                .create());
     }
 
     @AfterClass(alwaysRun = true)
@@ -98,8 +121,8 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
     @DataProvider(name = "serviceUrl")
     public Object[] serviceUrls() {
         return new Object[] {
-                stringSupplier(() -> getPulsar().getBrokerServiceUrl()),
-                stringSupplier(() -> getPulsar().getWebServiceAddress())
+            stringSupplier(() -> getPulsar().getBrokerServiceUrl()),
+            stringSupplier(() -> getPulsar().getWebServiceAddress())
         };
     }
 
@@ -110,13 +133,18 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
     @Test(dataProvider = "serviceUrl")
     public void testGetSchema(Supplier<String> serviceUrl) throws Exception {
         @Cleanup
-        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
+        PulsarClientImpl client = (PulsarClientImpl)
+                PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         assertEquals(client.getSchema("non-existing-topic").join(), Optional.empty());
         assertEquals(client.getSchema(topicBytes).join(), Optional.empty());
         assertEquals(client.getSchema(topicString).join(), Optional.of(Schema.STRING.getSchemaInfo()));
-        assertEquals(client.getSchema(topicJson).join(), Optional.of(Schema.JSON(MyClass.class).getSchemaInfo()));
-        assertEquals(client.getSchema(topicAvro).join(), Optional.of(Schema.AVRO(MyClass.class).getSchemaInfo()));
+        assertEquals(
+                client.getSchema(topicJson).join(),
+                Optional.of(Schema.JSON(MyClass.class).getSchemaInfo()));
+        assertEquals(
+                client.getSchema(topicAvro).join(),
+                Optional.of(Schema.AVRO(MyClass.class).getSchemaInfo()));
     }
 
     /**
@@ -130,15 +158,20 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
         final String topicOne = "test-broken-schema-storage";
-        final String fqtnOne = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+        final String fqtnOne = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne)
+                .toString();
 
         admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet("test"));
 
         // (1) create topic with schema
         Producer<Schemas.PersonTwo> producer = pulsarClient
-                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
-                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
-                .topic(fqtnOne).create();
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
+                .topic(fqtnOne)
+                .create();
 
         producer.close();
 
@@ -153,9 +186,13 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
         // (3) create topic again: broker should handle broken schema and load the topic successfully
         producer = pulsarClient
-                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
-                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
-                .topic(fqtnOne).create();
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
+                .topic(fqtnOne)
+                .create();
 
         assertNotEquals(schemaLedgerId, schemaStrogate.getSchemaLedgerList(key).get(0));
 
@@ -164,9 +201,14 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         personTwo.setName("Tom");
 
         Consumer<Schemas.PersonTwo> consumer = pulsarClient
-                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
-                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
-                .subscriptionName("test").topic(fqtnOne).subscribe();
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder()
+                        .withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true)
+                        .withPojo(Schemas.PersonTwo.class)
+                        .build()))
+                .subscriptionName("test")
+                .topic(fqtnOne)
+                .subscribe();
 
         producer.send(personTwo);
 

@@ -70,17 +70,22 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots =
             new ConcurrentHashMap<>();
 
-    private static final Gauge pendingSnapshotsMetric = Gauge
-            .build("pulsar_replicated_subscriptions_pending_snapshots",
-                    "Counter of currently pending snapshots")
+    private static final Gauge pendingSnapshotsMetric = Gauge.build(
+                    "pulsar_replicated_subscriptions_pending_snapshots", "Counter of currently pending snapshots")
             .register();
 
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
         this.localCluster = localCluster;
-        timer = topic.getBrokerService().pulsar().getExecutor()
-                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
-                        topic.getBrokerService().pulsar().getConfiguration()
+        timer = topic.getBrokerService()
+                .pulsar()
+                .getExecutor()
+                .scheduleAtFixedRate(
+                        catchingAndLoggingThrowables(this::startNewSnapshot),
+                        0,
+                        topic.getBrokerService()
+                                .pulsar()
+                                .getConfiguration()
                                 .getReplicatedSubscriptionsSnapshotFrequencyMillis(),
                         TimeUnit.MILLISECONDS);
     }
@@ -90,20 +95,20 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
         try {
             switch (markerType) {
-            case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
-                receivedSnapshotRequest(Markers.parseReplicatedSubscriptionsSnapshotRequest(payload));
-                break;
+                case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
+                    receivedSnapshotRequest(Markers.parseReplicatedSubscriptionsSnapshotRequest(payload));
+                    break;
 
-            case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE:
-                receivedSnapshotResponse(position, Markers.parseReplicatedSubscriptionsSnapshotResponse(payload));
-                break;
+                case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE:
+                    receivedSnapshotResponse(position, Markers.parseReplicatedSubscriptionsSnapshotResponse(payload));
+                    break;
 
-            case MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE:
-                receiveSubscriptionUpdated(Markers.parseReplicatedSubscriptionsUpdate(payload));
-                break;
+                case MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE:
+                    receiveSubscriptionUpdated(Markers.parseReplicatedSubscriptionsUpdate(payload));
+                    break;
 
-            default:
-                // Ignore
+                default:
+                    // Ignore
             }
 
         } catch (IOException e) {
@@ -113,10 +118,16 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     public void localSubscriptionUpdated(String subscriptionName, ReplicatedSubscriptionsSnapshot snapshot) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Updating subscription to snapshot {}", topic, subscriptionName,
+            log.debug(
+                    "[{}][{}] Updating subscription to snapshot {}",
+                    topic,
+                    subscriptionName,
                     snapshot.getClustersList().stream()
-                            .map(cmid -> String.format("%s -> %d:%d", cmid.getCluster(),
-                                    cmid.getMessageId().getLedgerId(), cmid.getMessageId().getEntryId()))
+                            .map(cmid -> String.format(
+                                    "%s -> %d:%d",
+                                    cmid.getCluster(),
+                                    cmid.getMessageId().getLedgerId(),
+                                    cmid.getMessageId().getEntryId()))
                             .collect(Collectors.toList()));
         }
 
@@ -149,7 +160,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 request.getSnapshotId(),
                 request.getSourceCluster(),
                 localCluster,
-                lastMsgId.getLedgerId(), lastMsgId.getEntryId());
+                lastMsgId.getLedgerId(),
+                lastMsgId.getEntryId());
         writeMarker(marker);
     }
 
@@ -158,7 +170,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         ReplicatedSubscriptionsSnapshotBuilder builder = pendingSnapshots.get(snapshotId);
         if (builder == null) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Received late reply for timed-out snapshot {} from {}", topic.getName(), snapshotId,
+                log.debug(
+                        "[{}] Received late reply for timed-out snapshot {} from {}",
+                        topic.getName(),
+                        snapshotId,
                         response.getCluster().getCluster());
             }
             return;
@@ -192,13 +207,20 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             sub.acknowledgeMessage(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
         } else {
             // Subscription doesn't exist. We need to force the creation of the subscription in this cluster, because
-            log.info("[{}][{}] Creating subscription at {}:{} after receiving update from replicated subscription",
-                    topic, update.getSubscriptionName(), updatedMessageId.getLedgerId(), pos);
-            topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
-                            true /* replicateSubscriptionState */, Collections.emptyMap())
+            log.info(
+                    "[{}][{}] Creating subscription at {}:{} after receiving update from replicated subscription",
+                    topic,
+                    update.getSubscriptionName(),
+                    updatedMessageId.getLedgerId(),
+                    pos);
+            topic.createSubscription(
+                            update.getSubscriptionName(),
+                            InitialPosition.Earliest,
+                            true /* replicateSubscriptionState */,
+                            Collections.emptyMap())
                     .thenAccept(subscriptionCreated -> {
-                        subscriptionCreated.acknowledgeMessage(Collections.singletonList(pos),
-                                AckType.Cumulative, Collections.emptyMap());
+                        subscriptionCreated.acknowledgeMessage(
+                                Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
                     });
         }
     }
@@ -225,7 +247,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         if (anyReplicatorDisconnected.isTrue()) {
             // Do not attempt to create snapshot when some of the clusters are not reachable
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Do not attempt to create snapshot when some of the clusters are not reachable.",
+                log.debug(
+                        "[{}] Do not attempt to create snapshot when some of the clusters are not reachable.",
                         topic.getName());
             }
             return;
@@ -236,11 +259,13 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         pendingSnapshotsMetric.inc();
-        ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
-                topic.getReplicators().keys(), topic.getBrokerService().pulsar().getConfiguration(), Clock.systemUTC());
+        ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(
+                this,
+                topic.getReplicators().keys(),
+                topic.getBrokerService().pulsar().getConfiguration(),
+                Clock.systemUTC());
         pendingSnapshots.put(builder.getSnapshotId(), builder);
         builder.start();
-
     }
 
     public Optional<String> getLastCompletedSnapshotId() {
@@ -248,7 +273,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void cleanupTimedOutSnapshots() {
-        Iterator<Map.Entry<String, ReplicatedSubscriptionsSnapshotBuilder>> it = pendingSnapshots.entrySet().iterator();
+        Iterator<Map.Entry<String, ReplicatedSubscriptionsSnapshotBuilder>> it =
+                pendingSnapshots.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, ReplicatedSubscriptionsSnapshotBuilder> entry = it.next();
             if (entry.getValue().isTimedOut()) {

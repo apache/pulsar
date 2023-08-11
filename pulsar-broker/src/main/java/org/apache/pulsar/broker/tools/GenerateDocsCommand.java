@@ -42,8 +42,7 @@ public class GenerateDocsCommand extends CliCommand<CliFlags, GenerateDocsComman
     protected static class GenDocFlags extends CliFlags {
         @Parameter(
                 names = {"-n", "--command-names"},
-                description = "List of command names"
-        )
+                description = "List of command names")
         private List<String> commandNames = new ArrayList<>();
     }
 

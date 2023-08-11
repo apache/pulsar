@@ -152,5 +152,6 @@ public interface AuthenticationDataSource {
     /**
      * Subscription name can be necessary for consumption.
      */
-    default void setSubscription(String subscription) { };
+    default void setSubscription(String subscription) {}
+    ;
 }

@@ -20,6 +20,10 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -27,11 +31,6 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.file.FileStreamSinkTask;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.testng.collections.Maps;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
 /**
  * A FileStreamSinkTask for testing that writes data other than just a value, i.e.:
@@ -45,7 +44,7 @@ public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
 
         List<SinkRecord> out = Lists.newLinkedList();
 
-        for (SinkRecord record: sinkRecords) {
+        for (SinkRecord record : sinkRecords) {
             Object val = record.valueSchema() == Schema.BYTES_SCHEMA
                     ? new String((byte[]) record.value(), StandardCharsets.US_ASCII)
                     : record.value();
@@ -66,7 +65,8 @@ public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
 
                 log.info("FileSink writing {}", valueAsString);
 
-                SinkRecord toSink = new SinkRecord(record.topic(),
+                SinkRecord toSink = new SinkRecord(
+                        record.topic(),
                         record.kafkaPartition(),
                         Schema.STRING_SCHEMA,
                         "", // blank key, real one is serialized with recOut
@@ -90,7 +90,7 @@ public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
             Struct struct = (Struct) val;
 
             // no recursion needed for tests
-            for (Field f: struct.schema().fields()) {
+            for (Field f : struct.schema().fields()) {
                 map.put(f.name(), struct.get(f));
             }
             return map;
@@ -98,5 +98,4 @@ public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
             return val;
         }
     }
-
 }

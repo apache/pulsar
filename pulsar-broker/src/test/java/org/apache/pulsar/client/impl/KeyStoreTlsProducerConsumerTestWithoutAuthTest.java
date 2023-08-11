@@ -96,7 +96,8 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
             pulsarClient.close();
         }
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(lookupUrl)
                 .enableTls(true)
                 .useKeyStoreTls(true)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
@@ -122,20 +123,27 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
             admin.close();
         }
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrlTls.toString())
                 .useKeyStoreTls(true)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
                 .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
                 .allowTlsInsecureConnection(true)
-                .authentication(AuthenticationKeyStoreTls.class.getName(), authParams).build());
-        admin.clusters().createCluster(clusterName, ClusterData.builder()
-                .serviceUrl(brokerUrl.toString())
-                .serviceUrlTls(brokerUrlTls.toString())
-                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .authentication(AuthenticationKeyStoreTls.class.getName(), authParams)
                 .build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
+        admin.clusters()
+                .createCluster(
+                        clusterName,
+                        ClusterData.builder()
+                                .serviceUrl(brokerUrl.toString())
+                                .serviceUrlTls(brokerUrlTls.toString())
+                                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace("my-property/my-ns");
     }
 
@@ -151,17 +159,18 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
         log.info("-- message size -- {}", MESSAGE_SIZE);
-        String topicName = "persistent://my-property/use/my-ns/testTlsLargeSizeMessage"
-                           + System.currentTimeMillis();
+        String topicName = "persistent://my-property/use/my-ns/testTlsLargeSizeMessage" + System.currentTimeMillis();
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < 10; i++) {
             byte[] message = new byte[MESSAGE_SIZE];
             Arrays.fill(message, (byte) i);
@@ -187,8 +196,8 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
         log.info("-- message size -- {}", MESSAGE_SIZE);
-        String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverBinaryProtocol"
-                           + System.currentTimeMillis();
+        String topicName =
+                "persistent://my-property/use/my-ns/testTlsClientAuthOverBinaryProtocol" + System.currentTimeMillis();
 
         internalSetUpForNamespace();
 
@@ -196,8 +205,12 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
         internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
 
         try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic(topicName)
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
@@ -206,8 +219,12 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
         // Test 2 - Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic(topicName)
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
@@ -219,16 +236,20 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
         log.info("-- message size -- {}", MESSAGE_SIZE);
-        String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverHTTPProtocol"
-                           + System.currentTimeMillis();
+        String topicName =
+                "persistent://my-property/use/my-ns/testTlsClientAuthOverHTTPProtocol" + System.currentTimeMillis();
 
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure
         internalSetUpForClient(false, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic(topicName)
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
@@ -237,8 +258,12 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
         // Test 2 - Using TLS on https - sending certs
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            pulsarClient
+                    .newConsumer()
+                    .topic(topicName)
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
@@ -252,13 +277,13 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
         Supplier<String> webServiceAddressTls = () -> pulsar.getWebServiceAddressTls();
         Supplier<String> brokerServiceUrlTls = () -> pulsar.getBrokerServiceUrlTls();
 
-        return new Object[][]{
-                // Set TLS transport directly.
-                {webServiceAddressTls, null},
-                {brokerServiceUrlTls, null},
-                // Using TLS authentication data to set up TLS transport.
-                {webServiceAddressTls, tlsAuth},
-                {brokerServiceUrlTls, tlsAuth},
+        return new Object[][] {
+            // Set TLS transport directly.
+            {webServiceAddressTls, null},
+            {brokerServiceUrlTls, null},
+            // Using TLS authentication data to set up TLS transport.
+            {webServiceAddressTls, tlsAuth},
+            {brokerServiceUrlTls, tlsAuth},
         };
     }
 
@@ -268,7 +293,8 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         internalSetUpForNamespace();
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(url.get())
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(url.get())
                 .useKeyStoreTls(true)
                 .tlsTrustStoreType(KEYSTORE_TYPE)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
@@ -278,13 +304,13 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
                 .authentication(auth);
 
         if (auth == null) {
-            clientBuilder.tlsKeyStoreType(KEYSTORE_TYPE)
+            clientBuilder
+                    .tlsKeyStoreType(KEYSTORE_TYPE)
                     .tlsKeyStorePath(CLIENT_KEYSTORE_FILE_PATH)
                     .tlsKeyStorePassword(CLIENT_KEYSTORE_PW);
         }
 
-        @Cleanup
-        PulsarClient client = clientBuilder.build();
+        @Cleanup PulsarClient client = clientBuilder.build();
 
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();

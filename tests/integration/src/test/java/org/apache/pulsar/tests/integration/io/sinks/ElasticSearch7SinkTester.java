@@ -26,16 +26,12 @@ public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
     public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
 
-
     public ElasticSearch7SinkTester(boolean schemaEnable) {
         super(schemaEnable);
     }
 
-
     @Override
     protected ElasticsearchContainer createElasticContainer() {
-        return new ElasticsearchContainer(ELASTICSEARCH_7)
-                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
+        return new ElasticsearchContainer(ELASTICSEARCH_7).withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
     }
-
 }

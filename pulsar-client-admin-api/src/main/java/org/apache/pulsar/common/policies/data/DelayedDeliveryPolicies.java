@@ -25,11 +25,14 @@ import org.apache.pulsar.common.policies.data.impl.DelayedDeliveryPoliciesImpl;
  */
 public interface DelayedDeliveryPolicies {
     long getTickTime();
+
     boolean isActive();
 
     interface Builder {
         Builder tickTime(long tickTime);
+
         Builder active(boolean active);
+
         DelayedDeliveryPolicies build();
     }
 

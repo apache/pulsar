@@ -45,12 +45,12 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
      * Record which Ledger is dirty.
      */
     private final DefaultRangeSet<Long> dirtyLedgers = new LongPairRangeSet.DefaultRangeSet<>(
-            (LongPairConsumer<Long>) (key, value) -> key,
-            (RangeBoundConsumer<Long>) key -> new LongPair(key, 0));
+            (LongPairConsumer<Long>) (key, value) -> key, (RangeBoundConsumer<Long>) key -> new LongPair(key, 0));
 
-    public RangeSetWrapper(LongPairConsumer<T> rangeConverter,
-                           RangeBoundConsumer<T> rangeBoundConsumer,
-                           ManagedCursorImpl managedCursor) {
+    public RangeSetWrapper(
+            LongPairConsumer<T> rangeConverter,
+            RangeBoundConsumer<T> rangeBoundConsumer,
+            ManagedCursorImpl managedCursor) {
         requireNonNull(managedCursor);
         this.config = managedCursor.getConfig();
         this.rangeConverter = rangeConverter;

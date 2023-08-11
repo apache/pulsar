@@ -25,8 +25,8 @@ public class CombinedLedgerRangeIterator implements LedgerManager.LedgerRangeIte
     private final LedgerManager.LedgerRangeIterator iteratorA;
     private final LedgerManager.LedgerRangeIterator iteratorB;
 
-    CombinedLedgerRangeIterator(LedgerManager.LedgerRangeIterator iteratorA,
-                                    LedgerManager.LedgerRangeIterator iteratorB) {
+    CombinedLedgerRangeIterator(
+            LedgerManager.LedgerRangeIterator iteratorA, LedgerManager.LedgerRangeIterator iteratorB) {
         this.iteratorA = iteratorA;
         this.iteratorB = iteratorB;
     }

@@ -41,8 +41,7 @@ public class SaslRoleToken implements Principal {
     private static final String EXPIRES = "e";
     private static final String SESSION = "i";
 
-    private static final Set<String> ATTRIBUTES =
-        new HashSet<String>(Arrays.asList(USER_ROLE,  EXPIRES,  SESSION));
+    private static final Set<String> ATTRIBUTES = new HashSet<String>(Arrays.asList(USER_ROLE, EXPIRES, SESSION));
 
     private String userRole;
     private String session;
@@ -222,5 +221,4 @@ public class SaslRoleToken implements Principal {
         }
         return map;
     }
-
 }

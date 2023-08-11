@@ -37,14 +37,13 @@ public class MetadataStoreFactoryImpl {
 
     public static final String METADATASTORE_PROVIDERS_PROPERTY = "pulsar.metadatastore.providers";
 
-    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws
-            MetadataStoreException {
+    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig)
+            throws MetadataStoreException {
         return newInstance(metadataURL, metadataStoreConfig, false);
     }
 
     public static MetadataStoreExtended createExtended(String metadataURL, MetadataStoreConfig metadataStoreConfig)
-            throws
-            MetadataStoreException {
+            throws MetadataStoreException {
         MetadataStore store = MetadataStoreFactoryImpl.newInstance(metadataURL, metadataStoreConfig, true);
         if (!(store instanceof MetadataStoreExtended)) {
             throw new MetadataStoreException.InvalidImplementationException(
@@ -54,8 +53,8 @@ public class MetadataStoreFactoryImpl {
         return (MetadataStoreExtended) store;
     }
 
-    private static MetadataStore newInstance(String metadataURL, MetadataStoreConfig metadataStoreConfig,
-                                             boolean enableSessionWatcher)
+    private static MetadataStore newInstance(
+            String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
             throws MetadataStoreException {
         MetadataStoreProvider provider = findProvider(metadataURL);
         return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
@@ -70,7 +69,8 @@ public class MetadataStoreFactoryImpl {
 
         String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY, "");
 
-        for (String className : Splitter.on(',').trimResults().omitEmptyStrings().split(factoryClasses)) {
+        for (String className :
+                Splitter.on(',').trimResults().omitEmptyStrings().split(factoryClasses)) {
             try {
                 Class<? extends MetadataStoreProvider> clazz =
                         (Class<? extends MetadataStoreProvider>) Class.forName(className);

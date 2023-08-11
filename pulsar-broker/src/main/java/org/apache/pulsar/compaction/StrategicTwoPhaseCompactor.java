@@ -70,29 +70,29 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
     private final RawBatchMessageContainerImpl batchMessageContainer;
 
     @VisibleForTesting
-    public StrategicTwoPhaseCompactor(ServiceConfiguration conf,
-                                      PulsarClient pulsar,
-                                      BookKeeper bk,
-                                      ScheduledExecutorService scheduler,
-                                      int maxNumMessagesInBatch) {
+    public StrategicTwoPhaseCompactor(
+            ServiceConfiguration conf,
+            PulsarClient pulsar,
+            BookKeeper bk,
+            ScheduledExecutorService scheduler,
+            int maxNumMessagesInBatch) {
         this(conf, pulsar, bk, scheduler, maxNumMessagesInBatch, MAX_BYTES_IN_BATCH);
     }
 
-    private StrategicTwoPhaseCompactor(ServiceConfiguration conf,
-                                      PulsarClient pulsar,
-                                      BookKeeper bk,
-                                      ScheduledExecutorService scheduler,
-                                      int maxNumMessagesInBatch,
-                                      int maxBytesInBatch) {
+    private StrategicTwoPhaseCompactor(
+            ServiceConfiguration conf,
+            PulsarClient pulsar,
+            BookKeeper bk,
+            ScheduledExecutorService scheduler,
+            int maxNumMessagesInBatch,
+            int maxBytesInBatch) {
         super(conf, pulsar, bk, scheduler);
         batchMessageContainer = new RawBatchMessageContainerImpl(maxNumMessagesInBatch, maxBytesInBatch);
         phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     }
 
-    public StrategicTwoPhaseCompactor(ServiceConfiguration conf,
-                                      PulsarClient pulsar,
-                                      BookKeeper bk,
-                                      ScheduledExecutorService scheduler) {
+    public StrategicTwoPhaseCompactor(
+            ServiceConfiguration conf, PulsarClient pulsar, BookKeeper bk, ScheduledExecutorService scheduler) {
         this(conf, pulsar, bk, scheduler, MAX_NUM_MESSAGES_IN_BATCH, MAX_BYTES_IN_BATCH);
     }
 
@@ -100,15 +100,12 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         throw new UnsupportedOperationException();
     }
 
-
-    public <T> CompletableFuture<Long> compact(String topic,
-                                               TopicCompactionStrategy<T> strategy) {
+    public <T> CompletableFuture<Long> compact(String topic, TopicCompactionStrategy<T> strategy) {
         return compact(topic, strategy, null);
     }
 
-    public <T> CompletableFuture<Long> compact(String topic,
-                                               TopicCompactionStrategy<T> strategy,
-                                               CryptoKeyReader cryptoKeyReader) {
+    public <T> CompletableFuture<Long> compact(
+            String topic, TopicCompactionStrategy<T> strategy, CryptoKeyReader cryptoKeyReader) {
         CompletableFuture<Consumer<T>> consumerFuture = new CompletableFuture<>();
         if (cryptoKeyReader != null) {
             batchMessageContainer.setCryptoKeyReader(cryptoKeyReader);
@@ -122,41 +119,37 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
     <T> CompletableFuture<Long> doCompaction(Reader<T> reader, TopicCompactionStrategy strategy) {
 
         if (!(reader instanceof CompactionReaderImpl<T>)) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("reader has to be CompactionReaderImpl"));
+            return CompletableFuture.failedFuture(new IllegalStateException("reader has to be CompactionReaderImpl"));
         }
-        return reader.hasMessageAvailableAsync()
-                .thenCompose(available -> {
-                    if (available) {
-                        return phaseOne(reader, strategy)
-                                .thenCompose((result) -> phaseTwo(result, reader, bk));
-                    } else {
-                        log.info("Skip compaction of the empty topic {}", reader.getTopic());
-                        return CompletableFuture.completedFuture(-1L);
-                    }
-                });
+        return reader.hasMessageAvailableAsync().thenCompose(available -> {
+            if (available) {
+                return phaseOne(reader, strategy).thenCompose((result) -> phaseTwo(result, reader, bk));
+            } else {
+                log.info("Skip compaction of the empty topic {}", reader.getTopic());
+                return CompletableFuture.completedFuture(-1L);
+            }
+        });
     }
 
     <T> CompletableFuture<Long> compactAndCloseReader(Reader<T> reader, TopicCompactionStrategy strategy) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
         mxBean.addCompactionStartOp(reader.getTopic());
-        doCompaction(reader, strategy).whenComplete(
-                (ledgerId, exception) -> {
-                    log.info("Completed doCompaction ledgerId:{}", ledgerId);
-                    reader.closeAsync().whenComplete((v, exception2) -> {
-                        if (exception2 != null) {
-                            log.warn("Error closing reader handle {}, ignoring", reader, exception2);
-                        }
-                        if (exception != null) {
-                            // complete with original exception
-                            mxBean.addCompactionEndOp(reader.getTopic(), false);
-                            promise.completeExceptionally(exception);
-                        } else {
-                            mxBean.addCompactionEndOp(reader.getTopic(), true);
-                            promise.complete(ledgerId);
-                        }
-                    });
-                });
+        doCompaction(reader, strategy).whenComplete((ledgerId, exception) -> {
+            log.info("Completed doCompaction ledgerId:{}", ledgerId);
+            reader.closeAsync().whenComplete((v, exception2) -> {
+                if (exception2 != null) {
+                    log.warn("Error closing reader handle {}, ignoring", reader, exception2);
+                }
+                if (exception != null) {
+                    // complete with original exception
+                    mxBean.addCompactionEndOp(reader.getTopic(), false);
+                    promise.completeExceptionally(exception);
+                } else {
+                    mxBean.addCompactionEndOp(reader.getTopic(), true);
+                    promise.complete(ledgerId);
+                }
+            });
+        });
         return promise;
     }
 
@@ -193,7 +186,6 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
             result.invalidCompactionCount.incrementAndGet();
             return false;
         }
-
     }
 
     private static class PhaseOneResult<T> {
@@ -232,24 +224,26 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         }
     }
 
-
     private <T> CompletableFuture<PhaseOneResult> phaseOne(Reader<T> reader, TopicCompactionStrategy strategy) {
         CompletableFuture<PhaseOneResult> promise = new CompletableFuture<>();
         PhaseOneResult<T> result = new PhaseOneResult(reader.getTopic());
 
-        ((CompactionReaderImpl<T>) reader).getLastMessageIdAsync()
+        ((CompactionReaderImpl<T>) reader)
+                .getLastMessageIdAsync()
                 .thenAccept(lastMessageId -> {
-                    log.info("Commencing phase one of compaction for {}, reading to {}",
-                            reader.getTopic(), lastMessageId);
+                    log.info(
+                            "Commencing phase one of compaction for {}, reading to {}",
+                            reader.getTopic(),
+                            lastMessageId);
                     result.lastId = copyMessageId(lastMessageId);
                     phaseOneLoop(reader, promise, result, strategy);
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     promise.completeExceptionally(ex);
                     return null;
                 });
 
         return promise;
-
     }
 
     private static MessageId copyMessageId(MessageId msgId) {
@@ -258,63 +252,68 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
             return new BatchMessageIdImpl(tempId);
         } else if (msgId instanceof MessageIdImpl) {
             MessageIdImpl tempId = (MessageIdImpl) msgId;
-            return new MessageIdImpl(tempId.getLedgerId(), tempId.getEntryId(),
-                    tempId.getPartitionIndex());
+            return new MessageIdImpl(tempId.getLedgerId(), tempId.getEntryId(), tempId.getPartitionIndex());
         } else {
             throw new IllegalStateException("Unknown lastMessageId type");
         }
     }
 
-    private <T> void phaseOneLoop(Reader<T> reader, CompletableFuture<PhaseOneResult> promise,
-                                  PhaseOneResult<T> result, TopicCompactionStrategy<T> strategy) {
+    private <T> void phaseOneLoop(
+            Reader<T> reader,
+            CompletableFuture<PhaseOneResult> promise,
+            PhaseOneResult<T> result,
+            TopicCompactionStrategy<T> strategy) {
 
         if (promise.isDone()) {
             return;
         }
 
         CompletableFuture<Message<T>> future = reader.readNextAsync();
-        FutureUtil.addTimeoutHandling(future,
-                phaseOneLoopReadTimeout, scheduler,
-                () -> FutureUtil.createTimeoutException("Timeout", getClass(),
-                        "phaseOneLoop(...)"));
+        FutureUtil.addTimeoutHandling(
+                future,
+                phaseOneLoopReadTimeout,
+                scheduler,
+                () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
 
-        future.thenAcceptAsync(msg -> {
+        future.thenAcceptAsync(
+                        msg -> {
+                            MessageId id = msg.getMessageId();
+                            boolean completed = false;
+                            if (result.lastId.compareTo(id) == 0) {
+                                completed = true;
+                            }
 
-            MessageId id = msg.getMessageId();
-            boolean completed = false;
-            if (result.lastId.compareTo(id) == 0) {
-                completed = true;
-            }
-
-            result.numReadMessages.incrementAndGet();
-            mxBean.addCompactionReadOp(reader.getTopic(), msg.size());
-            if (doCompactMessage(msg, result, strategy)) {
-                mxBean.addCompactionRemovedEvent(reader.getTopic());
-            }
-            //set ids in the result
-            if (result.firstId == null) {
-                result.firstId = copyMessageId(id);
-                log.info("Resetting cursor to firstId:{}", result.firstId);
-                try {
-                    reader.seek(result.firstId);
-                } catch (Throwable e) {
-                    throw new RuntimeException(
-                            String.format("Failed while resetting the cursor to firstId:%s", result.firstId), e);
-                }
-                // reconnect after cursor reset.
-                waitForReconnection(reader);
-            }
-            if (completed) {
-                promise.complete(result);
-            } else {
-                phaseOneLoop(reader, promise, result, strategy);
-            }
-
-        }, scheduler).exceptionally(ex -> {
-            promise.completeExceptionally(ex);
-            return null;
-        });
-
+                            result.numReadMessages.incrementAndGet();
+                            mxBean.addCompactionReadOp(reader.getTopic(), msg.size());
+                            if (doCompactMessage(msg, result, strategy)) {
+                                mxBean.addCompactionRemovedEvent(reader.getTopic());
+                            }
+                            // set ids in the result
+                            if (result.firstId == null) {
+                                result.firstId = copyMessageId(id);
+                                log.info("Resetting cursor to firstId:{}", result.firstId);
+                                try {
+                                    reader.seek(result.firstId);
+                                } catch (Throwable e) {
+                                    throw new RuntimeException(
+                                            String.format(
+                                                    "Failed while resetting the cursor to firstId:%s", result.firstId),
+                                            e);
+                                }
+                                // reconnect after cursor reset.
+                                waitForReconnection(reader);
+                            }
+                            if (completed) {
+                                promise.complete(result);
+                            } else {
+                                phaseOneLoop(reader, promise, result, strategy);
+                            }
+                        },
+                        scheduler)
+                .exceptionally(ex -> {
+                    promise.completeExceptionally(ex);
+                    return null;
+                });
     }
 
     private <T> void waitForReconnection(Reader<T> reader) {
@@ -335,8 +334,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                 throw new RuntimeException(errorMsg);
             }
             log.warn(
-                    "Reader has not been reconnected after the cursor reset. elapsed :{} ms. Retrying "
-                            + "soon.", now - started);
+                    "Reader has not been reconnected after the cursor reset. elapsed :{} ms. Retrying " + "soon.",
+                    now - started);
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -347,17 +346,18 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
 
     private <T> CompletableFuture<Long> phaseTwo(PhaseOneResult<T> phaseOneResult, Reader<T> reader, BookKeeper bk) {
         log.info("Completed phase one. Result:{}. ", phaseOneResult);
-        Map<String, byte[]> metadata =
-                LedgerMetadataUtils.buildMetadataForCompactedLedger(
-                        phaseOneResult.topic, phaseOneResult.lastId.toByteArray());
-        return createLedger(bk, metadata)
-                .thenCompose((ledger) -> {
-                    log.info(
-                            "Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
-                            phaseOneResult.topic, phaseOneResult.firstId, phaseOneResult.lastId,
-                            phaseOneResult.cache.size(), ledger.getId());
-                    return runPhaseTwo(phaseOneResult, reader, ledger, bk);
-                });
+        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForCompactedLedger(
+                phaseOneResult.topic, phaseOneResult.lastId.toByteArray());
+        return createLedger(bk, metadata).thenCompose((ledger) -> {
+            log.info(
+                    "Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
+                    phaseOneResult.topic,
+                    phaseOneResult.firstId,
+                    phaseOneResult.lastId,
+                    phaseOneResult.cache.size(),
+                    ledger.getId());
+            return runPhaseTwo(phaseOneResult, reader, ledger, bk);
+        });
     }
 
     private <T> CompletableFuture<Long> runPhaseTwo(
@@ -365,10 +365,11 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         CompletableFuture<Long> promise = new CompletableFuture<>();
         Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
         CompletableFuture<Void> loopPromise = new CompletableFuture<>();
-        phaseTwoLoop(phaseOneResult.topic, phaseOneResult.cache.values().iterator(), ledger,
-                outstanding, loopPromise);
-        loopPromise.thenCompose((v) -> {
-                    log.info("Flushing batch container numMessagesInBatch:{}",
+        phaseTwoLoop(phaseOneResult.topic, phaseOneResult.cache.values().iterator(), ledger, outstanding, loopPromise);
+        loopPromise
+                .thenCompose((v) -> {
+                    log.info(
+                            "Flushing batch container numMessagesInBatch:{}",
                             batchMessageContainer.getNumMessagesInBatch());
                     return addToCompactedLedger(ledger, null, reader.getTopic(), outstanding)
                             .whenComplete((res, exception2) -> {
@@ -382,8 +383,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                     log.info("Acking ledger id {}", phaseOneResult.lastId);
                     return ((CompactionReaderImpl<T>) reader)
                             .acknowledgeCumulativeAsync(
-                                    phaseOneResult.lastId, Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY,
-                                            ledger.getId()));
+                                    phaseOneResult.lastId, Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId()));
                 })
                 .thenCompose((v) -> closeLedger(ledger))
                 .whenComplete((v, exception) -> {
@@ -404,37 +404,41 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         return promise;
     }
 
-    private <T> void phaseTwoLoop(String topic, Iterator<Message<T>> reader,
-                                  LedgerHandle lh, Semaphore outstanding,
-                                  CompletableFuture<Void> promise) {
+    private <T> void phaseTwoLoop(
+            String topic,
+            Iterator<Message<T>> reader,
+            LedgerHandle lh,
+            Semaphore outstanding,
+            CompletableFuture<Void> promise) {
         if (promise.isDone()) {
             return;
         }
-        CompletableFuture.runAsync(() -> {
-                    if (reader.hasNext()) {
-                        Message<T> message = reader.next();
-                        mxBean.addCompactionReadOp(topic, message.size());
-                        addToCompactedLedger(lh, message, topic, outstanding)
-                                .whenComplete((res, exception2) -> {
-                                    if (exception2 != null) {
-                                        promise.completeExceptionally(exception2);
-                                        return;
-                                    }
-                                });
-                        phaseTwoLoop(topic, reader, lh, outstanding, promise);
-                    } else {
-                        try {
-                            outstanding.acquire(MAX_OUTSTANDING);
-                        } catch (InterruptedException e) {
-                            promise.completeExceptionally(e);
-                            return;
-                        }
-                        outstanding.release(MAX_OUTSTANDING);
-                        promise.complete(null);
-                        return;
-                    }
-
-                }, scheduler)
+        CompletableFuture.runAsync(
+                        () -> {
+                            if (reader.hasNext()) {
+                                Message<T> message = reader.next();
+                                mxBean.addCompactionReadOp(topic, message.size());
+                                addToCompactedLedger(lh, message, topic, outstanding)
+                                        .whenComplete((res, exception2) -> {
+                                            if (exception2 != null) {
+                                                promise.completeExceptionally(exception2);
+                                                return;
+                                            }
+                                        });
+                                phaseTwoLoop(topic, reader, lh, outstanding, promise);
+                            } else {
+                                try {
+                                    outstanding.acquire(MAX_OUTSTANDING);
+                                } catch (InterruptedException e) {
+                                    promise.completeExceptionally(e);
+                                    return;
+                                }
+                                outstanding.release(MAX_OUTSTANDING);
+                                promise.complete(null);
+                                return;
+                            }
+                        },
+                        scheduler)
                 .exceptionally(ex -> {
                     promise.completeExceptionally(ex);
                     return null;
@@ -451,7 +455,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                     outstanding.acquire();
                     mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
                     long start = System.nanoTime();
-                    lh.asyncAddEntry(serialized,
+                    lh.asyncAddEntry(
+                            serialized,
                             (rc, ledger, eid, ctx) -> {
                                 outstanding.release();
                                 mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
@@ -460,7 +465,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                                 } else {
                                     bkf.complete(true);
                                 }
-                            }, null);
+                            },
+                            null);
 
                 } catch (Throwable t) {
                     log.error("Failed to add entry", t);
@@ -475,5 +481,4 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         }
         return bkf;
     }
-
 }

@@ -64,15 +64,16 @@ public class RawBatchConverter {
 
         SingleMessageMetadata smm = new SingleMessageMetadata();
         for (int i = 0; i < batchSize; i++) {
-            ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                                                                                    smm,
-                                                                                    0, batchSize);
-            MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
-                                                  msg.getMessageIdData().getEntryId(),
-                                                  msg.getMessageIdData().getPartition(),
-                                                  i);
+            ByteBuf singleMessagePayload =
+                    Commands.deSerializeSingleMessageInBatch(uncompressedPayload, smm, 0, batchSize);
+            MessageId id = new BatchMessageIdImpl(
+                    msg.getMessageIdData().getLedgerId(),
+                    msg.getMessageIdData().getEntryId(),
+                    msg.getMessageIdData().getPartition(),
+                    i);
             if (!smm.isCompactedOut()) {
-                idsAndKeysAndSize.add(ImmutableTriple.of(id,
+                idsAndKeysAndSize.add(ImmutableTriple.of(
+                        id,
                         smm.hasPartitionKey() ? smm.getPartitionKey() : null,
                         smm.hasPayloadSize() ? smm.getPayloadSize() : 0));
             }
@@ -88,8 +89,7 @@ public class RawBatchConverter {
      *
      *  NOTE: this message does not alter the reference count of the RawMessage argument.
      */
-    public static Optional<RawMessage> rebatchMessage(RawMessage msg,
-                                                      BiPredicate<String, MessageId> filter)
+    public static Optional<RawMessage> rebatchMessage(RawMessage msg, BiPredicate<String, MessageId> filter)
             throws IOException {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
@@ -117,25 +117,25 @@ public class RawBatchConverter {
             SingleMessageMetadata emptyMetadata = new SingleMessageMetadata().setCompactedOut(true);
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
             for (int i = 0; i < batchSize; i++) {
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                                                                                        singleMessageMetadata,
-                                                                                        0, batchSize);
-                MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
-                                                      msg.getMessageIdData().getEntryId(),
-                                                      msg.getMessageIdData().getPartition(),
-                                                      i);
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(
+                        uncompressedPayload, singleMessageMetadata, 0, batchSize);
+                MessageId id = new BatchMessageIdImpl(
+                        msg.getMessageIdData().getLedgerId(),
+                        msg.getMessageIdData().getEntryId(),
+                        msg.getMessageIdData().getPartition(),
+                        i);
                 if (!singleMessageMetadata.hasPartitionKey()) {
                     messagesRetained++;
-                    Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
-                                                                      singleMessagePayload, batchBuffer);
+                    Commands.serializeSingleMessageInBatchWithPayload(
+                            singleMessageMetadata, singleMessagePayload, batchBuffer);
                 } else if (filter.test(singleMessageMetadata.getPartitionKey(), id)
-                           && singleMessagePayload.readableBytes() > 0) {
+                        && singleMessagePayload.readableBytes() > 0) {
                     messagesRetained++;
-                    Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
-                                                                      singleMessagePayload, batchBuffer);
+                    Commands.serializeSingleMessageInBatchWithPayload(
+                            singleMessageMetadata, singleMessagePayload, batchBuffer);
                 } else {
-                    Commands.serializeSingleMessageInBatchWithPayload(emptyMetadata,
-                                                                      Unpooled.EMPTY_BUFFER, batchBuffer);
+                    Commands.serializeSingleMessageInBatchWithPayload(
+                            emptyMetadata, Unpooled.EMPTY_BUFFER, batchBuffer);
                 }
 
                 singleMessagePayload.release();
@@ -147,8 +147,8 @@ public class RawBatchConverter {
 
                 metadata.setUncompressedSize(newUncompressedSize);
 
-                ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
-                                                                                  metadata, compressedPayload);
+                ByteBuf metadataAndPayload =
+                        Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata, compressedPayload);
 
                 if (brokerMeta != null) {
                     CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeDirectBuffer();

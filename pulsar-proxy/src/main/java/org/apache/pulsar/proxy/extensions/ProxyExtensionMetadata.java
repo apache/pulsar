@@ -38,5 +38,4 @@ class ProxyExtensionMetadata {
      * The path to the extension package.
      */
     private Path archivePath;
-
 }

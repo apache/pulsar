@@ -30,14 +30,14 @@ public class LongSchemaTest {
         LongSchema longSchema = LongSchema.of();
         Long data = 1234578l;
         byte[] expected = new byte[] {
-                (byte) (data >>> 56),
-                (byte) (data >>> 48),
-                (byte) (data >>> 40),
-                (byte) (data >>> 32),
-                (byte) (data >>> 24),
-                (byte) (data >>> 16),
-                (byte) (data >>> 8),
-                data.byteValue()
+            (byte) (data >>> 56),
+            (byte) (data >>> 48),
+            (byte) (data >>> 40),
+            (byte) (data >>> 32),
+            (byte) (data >>> 24),
+            (byte) (data >>> 16),
+            (byte) (data >>> 8),
+            data.byteValue()
         };
         Assert.assertEquals(expected, longSchema.encode(data));
     }
@@ -61,17 +61,8 @@ public class LongSchemaTest {
 
     @Test
     public void testSchemaDecode() {
-        byte[] byteData = new byte[] {
-               0,
-               0,
-               0,
-               0,
-               0,
-               10,
-               24,
-               42
-        };
-        Long expected = 10*65536l + 24*256 + 42;
+        byte[] byteData = new byte[] {0, 0, 0, 0, 0, 10, 24, 42};
+        Long expected = 10 * 65536l + 24 * 256 + 42;
         LongSchema longSchema = LongSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
         byteBuf.writeBytes(byteData);
@@ -88,5 +79,4 @@ public class LongSchemaTest {
         Assert.assertNull(LongSchema.of().decode(byteBuf));
         Assert.assertNull(LongSchema.of().decode(bytes));
     }
-
 }

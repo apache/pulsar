@@ -53,11 +53,16 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final Clock clock;
 
-    private static final Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
-            "Time taken to create a consistent snapshot across clusters").register();
+    private static final Summary snapshotMetric = Summary.build(
+                    "pulsar_replicated_subscriptions_snapshot_ms",
+                    "Time taken to create a consistent snapshot across clusters")
+            .register();
 
-    public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
-            List<String> remoteClusters, ServiceConfiguration conf, Clock clock) {
+    public ReplicatedSubscriptionsSnapshotBuilder(
+            ReplicatedSubscriptionsController controller,
+            List<String> remoteClusters,
+            ServiceConfiguration conf,
+            Clock clock) {
         this.snapshotId = UUID.randomUUID().toString();
         this.controller = controller;
         this.remoteClusters = remoteClusters;
@@ -76,7 +81,10 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     void start() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Starting new snapshot {} - Clusters: {}", controller.topic().getName(), snapshotId,
+            log.debug(
+                    "[{}] Starting new snapshot {} - Clusters: {}",
+                    controller.topic().getName(),
+                    snapshotId,
                     missingClusters);
         }
         startTimeMillis = clock.millis();
@@ -86,11 +94,15 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     synchronized void receivedSnapshotResponse(Position position, ReplicatedSubscriptionsSnapshotResponse response) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received response from {}", controller.topic().getName(),
+            log.debug(
+                    "[{}] Received response from {}",
+                    controller.topic().getName(),
                     response.getCluster().getCluster());
         }
         String cluster = response.getCluster().getCluster();
-        responses.putIfAbsent(cluster, new MarkersMessageIdData().copyFrom(response.getCluster().getMessageId()));
+        responses.putIfAbsent(
+                cluster,
+                new MarkersMessageIdData().copyFrom(response.getCluster().getMessageId()));
         missingClusters.remove(cluster);
 
         if (log.isDebugEnabled()) {
@@ -119,9 +131,8 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
         }
         // Snapshot is now complete, store it in the local topic
         PositionImpl p = (PositionImpl) position;
-        controller.writeMarker(
-                Markers.newReplicatedSubscriptionsSnapshot(snapshotId, controller.localCluster(),
-                        p.getLedgerId(), p.getEntryId(), responses));
+        controller.writeMarker(Markers.newReplicatedSubscriptionsSnapshot(
+                snapshotId, controller.localCluster(), p.getLedgerId(), p.getEntryId(), responses));
         controller.snapshotCompleted(snapshotId);
 
         double latencyMillis = clock.millis() - startTimeMillis;

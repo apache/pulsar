@@ -27,7 +27,7 @@ import lombok.Data;
  */
 @Data
 @JsonInclude(JsonInclude.Include.ALWAYS)
-@JsonPropertyOrder({ "instanceId", "metrics" })
+@JsonPropertyOrder({"instanceId", "metrics"})
 public class FunctionInstanceStatsImpl implements FunctionInstanceStats {
     /** Instance Id of function instance. **/
     public int instanceId;

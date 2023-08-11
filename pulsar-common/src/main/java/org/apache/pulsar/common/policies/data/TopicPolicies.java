@@ -34,7 +34,6 @@ import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverr
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
-
 /**
  * Topic policies.
  */
@@ -46,8 +45,10 @@ public class TopicPolicies {
 
     @Builder.Default
     private Map<String, BacklogQuotaImpl> backLogQuotaMap = new HashMap<>();
+
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
+
     private List<String> replicationClusters;
     private List<String> shadowTopics;
     private Boolean isGlobal = false;
@@ -82,7 +83,7 @@ public class TopicPolicies {
      * Subscription level policies for specific subscription.
      */
     @Builder.Default
-    private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
+    private Map<String /*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
 
     private Boolean schemaValidationEnforced;
 
@@ -102,7 +103,7 @@ public class TopicPolicies {
         return maxMessageSize != null;
     }
 
-    public boolean isDeduplicationSnapshotIntervalSecondsSet(){
+    public boolean isDeduplicationSnapshotIntervalSecondsSet() {
         return deduplicationSnapshotIntervalSeconds != null;
     }
 
@@ -118,11 +119,11 @@ public class TopicPolicies {
         return maxUnackedMessagesOnConsumer != null;
     }
 
-    public boolean isDelayedDeliveryTickTimeMillisSet(){
+    public boolean isDelayedDeliveryTickTimeMillisSet() {
         return delayedDeliveryTickTimeMillis != null;
     }
 
-    public boolean isDelayedDeliveryEnabledSet(){
+    public boolean isDelayedDeliveryEnabledSet() {
         return delayedDeliveryEnabled != null;
     }
 

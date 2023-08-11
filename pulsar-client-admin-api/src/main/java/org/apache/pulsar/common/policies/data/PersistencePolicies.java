@@ -35,7 +35,10 @@ public class PersistencePolicies {
         this(2, 2, 2, 0.0);
     }
 
-    public PersistencePolicies(int bookkeeperEnsemble, int bookkeeperWriteQuorum, int bookkeeperAckQuorum,
+    public PersistencePolicies(
+            int bookkeeperEnsemble,
+            int bookkeeperWriteQuorum,
+            int bookkeeperAckQuorum,
             double managedLedgerMaxMarkDeleteRate) {
         this.bookkeeperEnsemble = bookkeeperEnsemble;
         this.bookkeeperWriteQuorum = bookkeeperWriteQuorum;
@@ -61,9 +64,10 @@ public class PersistencePolicies {
 
     @Override
     public int hashCode() {
-        return Objects.hash(bookkeeperEnsemble, bookkeeperWriteQuorum,
-                bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate);
+        return Objects.hash(
+                bookkeeperEnsemble, bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate);
     }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof PersistencePolicies) {

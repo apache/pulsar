@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -26,8 +25,8 @@ public class PersistentOfflineTopicStatsTest {
 
     @Test
     public void testPersistentOfflineTopicStats() {
-        PersistentOfflineTopicStats pot = new PersistentOfflineTopicStats("topic1",
-                "prod1-broker1.messaging.use.example.com");
+        PersistentOfflineTopicStats pot =
+                new PersistentOfflineTopicStats("topic1", "prod1-broker1.messaging.use.example.com");
         String cursor = "cursor0";
         long time = System.currentTimeMillis();
         pot.addCursorDetails(cursor, 0, 1);

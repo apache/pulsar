@@ -379,8 +379,7 @@ public interface Functions {
      * @throws PulsarAdminException
      */
     FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(
-            String tenant, String namespace, String function, int id)
-            throws PulsarAdminException;
+            String tenant, String namespace, String function, int id) throws PulsarAdminException;
 
     /**
      * Gets the current status of a function instance asynchronously.
@@ -412,8 +411,7 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionInstanceStatsData getFunctionStats(
-            String tenant, String namespace, String function, int id)
+    FunctionInstanceStatsData getFunctionStats(String tenant, String namespace, String function, int id)
             throws PulsarAdminException;
 
     /**
@@ -444,9 +442,7 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-
-    FunctionStats getFunctionStats(String tenant, String namespace, String function)
-            throws PulsarAdminException;
+    FunctionStats getFunctionStats(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
      * Gets the current stats of a function asynchronously.
@@ -459,7 +455,6 @@ public interface Functions {
      *            Function name
      * @return
      */
-
     CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant, String namespace, String function);
 
     /**
@@ -772,8 +767,9 @@ public interface Functions {
      *            Whether to download the transform function (for sources and sinks)
      * @throws PulsarAdminException
      */
-    void downloadFunction(String destinationFile, String tenant, String namespace, String function,
-                          boolean transformFunction) throws PulsarAdminException;
+    void downloadFunction(
+            String destinationFile, String tenant, String namespace, String function, boolean transformFunction)
+            throws PulsarAdminException;
 
     /**
      * Download Function Code asynchronously.
@@ -791,7 +787,6 @@ public interface Functions {
      */
     CompletableFuture<Void> downloadFunctionAsync(
             String destinationFile, String tenant, String namespace, String function, boolean transformFunction);
-
 
     /**
      * Deprecated in favor of getting sources and sinks for their own APIs.

@@ -84,8 +84,12 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(0).subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(0)
+                .subscribe();
         consumer.receive(10, TimeUnit.SECONDS);
     }
 
@@ -96,7 +100,12 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String subscriptionName = "my-ex-subscription-" + key;
         int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
-        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
+        pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(0)
+                .subscribe();
     }
 
     @Test
@@ -109,14 +118,20 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 3. Create Consumer
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(0)
+                .subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -146,23 +161,30 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 3. Create Consumer
         List<Message<byte[]>> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(totalMessages);
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(0).messageListener((cons, msg) -> {
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(0)
+                .messageListener((cons, msg) -> {
                     assertEquals(((ConsumerImpl) cons).numMessagesInQueue(), 0);
-                    synchronized(messages) {
+                    synchronized (messages) {
                         messages.add(msg);
                     }
                     log.info("Consumer received: " + new String(msg.getData()));
                     latch.countDown();
-                }).subscribe();
+                })
+                .subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -190,17 +212,23 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 3. Create Consumer
         int numOfSubscribers = 4;
         ConsumerImpl<?>[] consumers = new ConsumerImpl[numOfSubscribers];
         for (int i = 0; i < numOfSubscribers; i++) {
-            consumers[i] = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Shared)
+            consumers[i] = (ConsumerImpl<byte[]>) pulsarClient
+                    .newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .receiverQueueSize(0)
+                    .subscriptionType(SubscriptionType.Shared)
                     .subscribe();
         }
 
@@ -231,16 +259,22 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 3. Create Consumer
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Failover)
-                .consumerName("consumer-1").subscribe();
-
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(0)
+                .subscriptionType(SubscriptionType.Failover)
+                .consumerName("consumer-1")
+                .subscribe();
 
         // 4. Produce Messages
         for (int i = 0; i < totalMessages; i++) {
@@ -258,9 +292,14 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             log.info("Consumer received : " + new String(message.getData()));
         }
 
-        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Failover)
-                .consumerName("consumer-2").subscribe();
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(0)
+                .subscriptionType(SubscriptionType.Failover)
+                .consumerName("consumer-2")
+                .subscribe();
 
         // 6. Trigger redelivery
         consumer1.redeliverUnacknowledgedMessages();
@@ -282,16 +321,23 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     public void testFailedZeroQueueSizeBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-xyz/use/ns-abc/topic1")
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://prop-xyz/use/ns-abc/topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
                 .subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-            .topic("persistent://prop-xyz/use/ns-abc/topic1")
-            .messageRoutingMode(MessageRoutingMode.SinglePartition);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient
+                .newProducer()
+                .topic("persistent://prop-xyz/use/ns-abc/topic1")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+            producerBuilder
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         } else {
             producerBuilder.enableBatching(false);
@@ -319,19 +365,21 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     @Test
     public void testZeroQueueSizeMessageRedelivery() throws PulsarClientException {
         final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedelivery";
-        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .receiverQueueSize(0)
-            .subscriptionName("sub")
-            .subscriptionType(SubscriptionType.Shared)
-            .ackTimeout(1, TimeUnit.SECONDS)
-            .subscribe();
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .receiverQueueSize(0)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
 
         final int messages = 10;
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .enableBatching(false)
-            .create();
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
 
         for (int i = 0; i < messages; i++) {
             producer.send(i);
@@ -354,25 +402,27 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final int messages = 10;
         final CountDownLatch latch = new CountDownLatch(messages * 2);
         Set<Integer> receivedMessages = new HashSet<>();
-        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .receiverQueueSize(0)
-            .subscriptionName("sub")
-            .subscriptionType(SubscriptionType.Shared)
-            .ackTimeout(1, TimeUnit.SECONDS)
-            .messageListener((MessageListener<Integer>) (c, msg) -> {
-                try {
-                    receivedMessages.add(msg.getValue());
-                } finally {
-                    latch.countDown();
-                }
-            })
-            .subscribe();
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .receiverQueueSize(0)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .messageListener((MessageListener<Integer>) (c, msg) -> {
+                    try {
+                        receivedMessages.add(msg.getValue());
+                    } finally {
+                        latch.countDown();
+                    }
+                })
+                .subscribe();
 
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .enableBatching(false)
-            .create();
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
 
         for (int i = 0; i < messages; i++) {
             producer.send(i);
@@ -386,21 +436,24 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
     @Test
-    public void testZeroQueueSizeMessageRedeliveryForAsyncReceive() throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testZeroQueueSizeMessageRedeliveryForAsyncReceive()
+            throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForAsyncReceive";
-        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .receiverQueueSize(0)
-            .subscriptionName("sub")
-            .subscriptionType(SubscriptionType.Shared)
-            .ackTimeout(1, TimeUnit.SECONDS)
-            .subscribe();
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .receiverQueueSize(0)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
 
         final int messages = 10;
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .enableBatching(false)
-            .create();
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
 
         for (int i = 0; i < messages; i++) {
             producer.send(i);
@@ -429,16 +482,25 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
         AtomicInteger received = new AtomicInteger();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .receiverQueueSize(0).messageListener((c1, msg) -> {
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .receiverQueueSize(0)
+                .messageListener((c1, msg) -> {
                     assertNotNull(msg, "Message cannot be null");
                     c1.acknowledgeAsync(msg);
                     received.incrementAndGet();
                     latch.get().countDown();
-                }).subscribe();
+                })
+                .subscribe();
         consumer.pause();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
 
         for (int i = 0; i < 2; i++) {
             producer.send(("my-message-" + i).getBytes());
@@ -465,16 +527,25 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
         AtomicInteger received = new AtomicInteger();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .receiverQueueSize(0).messageListener((c1, msg) -> {
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .receiverQueueSize(0)
+                .messageListener((c1, msg) -> {
                     assertNotNull(msg, "Message cannot be null");
                     c1.acknowledgeAsync(msg);
                     received.incrementAndGet();
                     latch.get().countDown();
-                }).subscribe();
+                })
+                .subscribe();
         consumer.pause();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
 
         for (int i = 0; i < 2; i++) {
             producer.send(("my-message-" + i).getBytes());
@@ -505,7 +576,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         AtomicBoolean running = new AtomicBoolean(false);
 
         final List<Integer> receivedMessages = Collections.synchronizedList(new ArrayList<>());
-        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+        final Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionName(subName)
                 .receiverQueueSize(0)
@@ -520,8 +592,10 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
                         running.set(false);
                         object.notifyAll();
                     }
-                }).subscribe();
-        final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                })
+                .subscribe();
+        final Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
                 .topic(topicName)
                 .enableBatching(false)
                 .create();

@@ -59,5 +59,4 @@ public class NettyTCPServerHandler extends SimpleChannelInboundHandler<byte[]> {
         private final Optional<String> key;
         private final byte[] value;
     }
-
 }

@@ -66,12 +66,9 @@ public abstract class CoordinatorException extends Exception {
             super(message);
         }
 
-        public InvalidTxnStatusException(TxnID txnID,
-                                         TxnStatus expectedStatus,
-                                         TxnStatus actualStatus) {
-            super("Expect Txn `" + txnID + "` to be in " + expectedStatus
-                            + " status but it is in " + actualStatus + " status");
-
+        public InvalidTxnStatusException(TxnID txnID, TxnStatus expectedStatus, TxnStatus actualStatus) {
+            super("Expect Txn `" + txnID + "` to be in " + expectedStatus + " status but it is in " + actualStatus
+                    + " status");
         }
     }
 
@@ -110,13 +107,13 @@ public abstract class CoordinatorException extends Exception {
             super(message);
         }
 
-        public TransactionMetadataStoreStateException(TransactionCoordinatorID tcID,
-                                                      TransactionMetadataStoreState.State expectedState,
-                                                      TransactionMetadataStoreState.State currentState,
-                                                      String operation) {
-            super("Expect Transaction Coordinator `" + tcID + "` to be in " + expectedState
-                    + " status but it is in " + currentState + " state for " + operation);
-
+        public TransactionMetadataStoreStateException(
+                TransactionCoordinatorID tcID,
+                TransactionMetadataStoreState.State expectedState,
+                TransactionMetadataStoreState.State currentState,
+                String operation) {
+            super("Expect Transaction Coordinator `" + tcID + "` to be in " + expectedState + " status but it is in "
+                    + currentState + " state for " + operation);
         }
     }
 

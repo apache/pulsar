@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import org.testng.annotations.Test;
 
 public class NamespaceNameTest {
@@ -64,8 +63,8 @@ public class NamespaceNameTest {
 
     @Test
     public void namespace_persistentTopic() {
-        assertEquals(NamespaceName.get("prop/cluster/ns").getPersistentTopicName("ds"),
-                "persistent://prop/cluster/ns/ds");
+        assertEquals(
+                NamespaceName.get("prop/cluster/ns").getPersistentTopicName("ds"), "persistent://prop/cluster/ns/ds");
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -75,7 +74,8 @@ public class NamespaceNameTest {
 
     @Test
     public void namespace_persistentTopicExplicitDomain() {
-        assertEquals(NamespaceName.get("prop/cluster/ns").getTopicName(TopicDomain.persistent, "ds"),
+        assertEquals(
+                NamespaceName.get("prop/cluster/ns").getTopicName(TopicDomain.persistent, "ds"),
                 "persistent://prop/cluster/ns/ds");
     }
 

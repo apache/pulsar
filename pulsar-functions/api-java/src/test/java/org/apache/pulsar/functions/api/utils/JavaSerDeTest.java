@@ -35,7 +35,6 @@ public class JavaSerDeTest {
 
         private int intField;
         private String stringField;
-
     }
 
     @Test
@@ -47,5 +46,4 @@ public class JavaSerDeTest {
 
         assertEquals(to, deserializeTo);
     }
-
 }

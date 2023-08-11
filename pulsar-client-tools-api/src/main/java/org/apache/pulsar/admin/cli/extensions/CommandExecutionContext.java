@@ -29,5 +29,4 @@ public interface CommandExecutionContext {
     PulsarAdmin getPulsarAdmin();
 
     Properties getConfiguration();
-
 }

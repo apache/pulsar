@@ -130,5 +130,4 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     public long getCacheEntriesCount() {
         return cacheEntryCount.sum();
     }
-
 }

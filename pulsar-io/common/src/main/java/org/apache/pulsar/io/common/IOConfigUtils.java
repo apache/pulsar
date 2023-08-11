@@ -55,8 +55,8 @@ public class IOConfigUtils {
         return MAPPER.readValue(config, new TypeReference<>() {});
     }
 
-    private static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz,
-                                         Function<String, String> secretsGetter) {
+    private static <T> T loadWithSecrets(
+            Map<String, Object> map, Class<T> clazz, Function<String, String> secretsGetter) {
         Map<String, Object> configs = new HashMap<>(map);
 
         for (Field field : getAllFields(clazz)) {

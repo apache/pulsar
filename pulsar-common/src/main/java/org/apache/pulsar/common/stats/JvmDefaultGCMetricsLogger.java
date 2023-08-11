@@ -132,5 +132,4 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
             log.error("Failed to collect GC stats: {}", e.getMessage());
         }
     }
-
 }

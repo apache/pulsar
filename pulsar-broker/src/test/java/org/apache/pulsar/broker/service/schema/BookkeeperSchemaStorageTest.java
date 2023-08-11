@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.bkException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import java.nio.ByteBuffer;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
-
-import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.bkException;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker")
 public class BookkeeperSchemaStorageTest {
@@ -38,14 +37,11 @@ public class BookkeeperSchemaStorageTest {
         Exception ex = bkException("test", BKException.Code.ReadException, 1, -1);
         assertEquals("Error while reading ledger -  ledger=1 - operation=test", ex.getMessage());
         ex = bkException("test", BKException.Code.ReadException, 1, 0);
-        assertEquals("Error while reading ledger -  ledger=1 - operation=test - entry=0",
-                ex.getMessage());
+        assertEquals("Error while reading ledger -  ledger=1 - operation=test - entry=0", ex.getMessage());
         ex = bkException("test", BKException.Code.QuorumException, 1, -1);
-        assertEquals("Invalid quorum size on ensemble size -  ledger=1 - operation=test",
-                ex.getMessage());
+        assertEquals("Invalid quorum size on ensemble size -  ledger=1 - operation=test", ex.getMessage());
         ex = bkException("test", BKException.Code.QuorumException, 1, 0);
-        assertEquals("Invalid quorum size on ensemble size -  ledger=1 - operation=test - entry=0",
-                ex.getMessage());
+        assertEquals("Invalid quorum size on ensemble size -  ledger=1 - operation=test - entry=0", ex.getMessage());
     }
 
     @Test

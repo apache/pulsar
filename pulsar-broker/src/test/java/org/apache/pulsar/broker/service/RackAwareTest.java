@@ -63,20 +63,21 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
     @DataProvider(name = "forceMinRackNumProvider")
     public Object[][] forceMinRackNumProvider() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @Override
     protected void configurePulsar(ServiceConfiguration config) throws Exception {
         // Start bookies with specific racks
         for (int i = 0; i < NUM_BOOKIES; i++) {
-            File bkDataDir = Files.createTempDirectory("bk" + Integer.toString(i) + "test").toFile();
+            File bkDataDir = Files.createTempDirectory("bk" + Integer.toString(i) + "test")
+                    .toFile();
             ServerConfiguration conf = new ServerConfiguration();
 
             conf.setBookiePort(0);
             conf.setZkServers("127.0.0.1:" + bkEnsemble.getZookeeperPort());
             conf.setJournalDirName(bkDataDir.getPath());
-            conf.setLedgerDirNames(new String[] { bkDataDir.getPath() });
+            conf.setLedgerDirNames(new String[] {bkDataDir.getPath()});
             conf.setAllowLoopback(true);
 
             // Use different advertised addresses for each bookie, so we can place them in different
@@ -90,7 +91,6 @@ public class RackAwareTest extends BkEnsemblesTestBase {
             tester.getServer().start();
             servers.add(tester);
         }
-
     }
 
     @Override
@@ -122,8 +122,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
         // Make sure the racks cache gets updated through the ZK watch
         Awaitility.await().untilAsserted(() -> {
-            byte[] data = bkEnsemble.getZkClient()
-                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            byte[] data =
+                    bkEnsemble.getZkClient().getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
                     new Gson().fromJson(new String(data), TreeMap.class);
             assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES);
@@ -141,13 +141,14 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         for (int i = 0; i < 100; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
             log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
-            assertTrue(lh.getLedgerMetadata().getEnsembleAt(0).contains(firstBookie),
+            assertTrue(
+                    lh.getLedgerMetadata().getEnsembleAt(0).contains(firstBookie),
                     "first bookie in rack 0 not included in ensemble");
             lh.close();
         }
     }
 
-    @Test(dataProvider="forceMinRackNumProvider")
+    @Test(dataProvider = "forceMinRackNumProvider")
     public void testPlacementMinRackNumsPerWriteQuorum(boolean forceMinRackNums) throws Exception {
         cleanup();
         config = new ServiceConfiguration();
@@ -169,8 +170,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
         // Make sure the racks cache gets updated through the ZK watch
         Awaitility.await().untilAsserted(() -> {
-            byte[] data = bkEnsemble.getZkClient()
-                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            byte[] data =
+                    bkEnsemble.getZkClient().getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
                     new Gson().fromJson(new String(data), TreeMap.class);
             assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES);
@@ -226,8 +227,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         }
 
         Awaitility.await().untilAsserted(() -> {
-            byte[] data = bkEnsemble.getZkClient()
-                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            byte[] data =
+                    bkEnsemble.getZkClient().getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
                     new Gson().fromJson(new String(data), TreeMap.class);
             assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES / 2);
@@ -244,8 +245,11 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         Field field = bkc.getClass().getDeclaredField("placementPolicy");
         field.setAccessible(true);
         RackawareEnsemblePlacementPolicy ensemblePlacementPolicy = (RackawareEnsemblePlacementPolicy) field.get(bkc);
-        Field topoField =
-                ensemblePlacementPolicy.getClass().getSuperclass().getSuperclass().getDeclaredField("topology");
+        Field topoField = ensemblePlacementPolicy
+                .getClass()
+                .getSuperclass()
+                .getSuperclass()
+                .getDeclaredField("topology");
         topoField.setAccessible(true);
         NetworkTopologyImpl networkTopology = (NetworkTopologyImpl) topoField.get(ensemblePlacementPolicy);
 
@@ -272,8 +276,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         }
 
         Awaitility.await().untilAsserted(() -> {
-            byte[] data = bkEnsemble.getZkClient()
-                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            byte[] data =
+                    bkEnsemble.getZkClient().getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
                     new Gson().fromJson(new String(data), TreeMap.class);
             assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES);
@@ -304,8 +308,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         }
 
         Awaitility.await().untilAsserted(() -> {
-            byte[] data = bkEnsemble.getZkClient()
-                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            byte[] data =
+                    bkEnsemble.getZkClient().getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
                     new Gson().fromJson(new String(data), TreeMap.class);
             assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES / 2);
@@ -325,7 +329,6 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         } catch (BKException.BKNotEnoughBookiesException e) {
             // ignore
         }
-
     }
 
     private static final Logger log = LoggerFactory.getLogger(RackAwareTest.class);

@@ -74,13 +74,13 @@ public class ProduceWithMessageIdTest {
                 .build();
 
         String topic = "persistent://public/default/t1";
-        ProducerImpl<byte[]> producer =
-                (ProducerImpl<byte[]>) client.newProducer().topic(topic).enableBatching(false).create();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>)
+                client.newProducer().topic(topic).enableBatching(false).create();
 
         MessageMetadata metadata = new MessageMetadata();
         ByteBuffer buffer = ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8));
         MessageImpl<byte[]> msg = MessageImpl.create(metadata, buffer, Schema.BYTES, topic);
-        //set message id here.
+        // set message id here.
         msg.setMessageId(new MessageIdImpl(ledgerId, entryId, -1));
 
         AtomicBoolean result = new AtomicBoolean(false);
@@ -92,9 +92,7 @@ public class ProduceWithMessageIdTest {
             }
 
             @Override
-            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
-
-            }
+            public void addCallback(MessageImpl<?> msg, SendCallback scb) {}
 
             @Override
             public SendCallback getNextSendCallback() {

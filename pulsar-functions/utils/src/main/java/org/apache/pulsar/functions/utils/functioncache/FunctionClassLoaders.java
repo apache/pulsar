@@ -40,9 +40,7 @@ public class FunctionClassLoaders {
         }
     }
 
-    public static URLClassLoader create(URL[] urls,
-                                        ClassLoader parent) {
+    public static URLClassLoader create(URL[] urls, ClassLoader parent) {
         return new ParentFirstClassLoader(urls, parent);
     }
-
 }

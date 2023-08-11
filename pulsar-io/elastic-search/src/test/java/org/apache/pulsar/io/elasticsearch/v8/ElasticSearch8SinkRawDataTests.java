@@ -26,4 +26,3 @@ public class ElasticSearch8SinkRawDataTests extends ElasticSearchSinkRawDataTest
         super(ELASTICSEARCH_8);
     }
 }
-

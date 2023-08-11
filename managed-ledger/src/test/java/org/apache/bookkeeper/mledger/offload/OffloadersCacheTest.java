@@ -18,11 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.offload;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.testng.Assert.assertSame;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.testng.Assert.assertSame;
 
 public class OffloadersCacheTest {
 
@@ -31,7 +31,8 @@ public class OffloadersCacheTest {
         Offloaders expectedOffloaders = new Offloaders();
 
         try (MockedStatic<OffloaderUtils> offloaderUtils = Mockito.mockStatic(OffloaderUtils.class)) {
-            offloaderUtils.when(() -> OffloaderUtils.searchForOffloaders(eq("./offloaders"), eq("/tmp")))
+            offloaderUtils
+                    .when(() -> OffloaderUtils.searchForOffloaders(eq("./offloaders"), eq("/tmp")))
                     .thenReturn(expectedOffloaders);
 
             OffloadersCache cache = new OffloadersCache();

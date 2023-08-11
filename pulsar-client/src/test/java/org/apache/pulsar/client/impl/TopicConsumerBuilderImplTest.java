@@ -42,8 +42,7 @@ public class TopicConsumerBuilderImplTest {
 
     @Test
     public void testInvalidPriorityLevel() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> topicConsumerBuilderImpl.priorityLevel(-1));
+        assertThatIllegalArgumentException().isThrownBy(() -> topicConsumerBuilderImpl.priorityLevel(-1));
         verify(topicConsumerConfigurationData, never()).setPriorityLevel(anyInt());
     }
 

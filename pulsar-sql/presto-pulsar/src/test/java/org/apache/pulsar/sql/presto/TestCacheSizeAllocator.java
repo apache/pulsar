@@ -61,11 +61,15 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         // so that clients can test short names
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants()
+                .createTenant(
+                        "public", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
         admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
     }
@@ -78,22 +82,21 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "cacheSizeProvider")
     public Object[][] dataProvider() {
-        return new Object[][] {
-                {-1}, {0}, {2000}, {5000}
-        };
+        return new Object[][] {{-1}, {0}, {2000}, {5000}};
     }
 
     @Test(dataProvider = "cacheSizeProvider", timeOut = 1000 * 20)
     public void cacheSizeAllocatorTest(long entryQueueSizeBytes) throws Exception {
-        TopicName topicName = TopicName.get(
-                "public/default/cache-size-" + entryQueueSizeBytes + "test_" + + RandomUtils.nextInt()) ;
+        TopicName topicName =
+                TopicName.get("public/default/cache-size-" + entryQueueSizeBytes + "test_" + +RandomUtils.nextInt());
         int totalMsgCnt = 1000;
         MessageIdImpl firstMessageId = prepareData(topicName, totalMsgCnt);
 
-        ReadOnlyCursor readOnlyCursor = pulsar.getManagedLedgerFactory().openReadOnlyCursor(
-                topicName.getPersistenceNamingEncoding(),
-                PositionImpl.get(firstMessageId.getLedgerId(), firstMessageId.getEntryId()),
-                new ManagedLedgerConfig());
+        ReadOnlyCursor readOnlyCursor = pulsar.getManagedLedgerFactory()
+                .openReadOnlyCursor(
+                        topicName.getPersistenceNamingEncoding(),
+                        PositionImpl.get(firstMessageId.getLedgerId(), firstMessageId.getEntryId()),
+                        new ManagedLedgerConfig());
         readOnlyCursor.skipEntries(totalMsgCnt);
         PositionImpl lastPosition = (PositionImpl) readOnlyCursor.getReadPosition();
 
@@ -124,8 +127,12 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
 
         ConnectorContext prestoConnectorContext = new TestingConnectorContext();
         PulsarRecordCursor pulsarRecordCursor = new PulsarRecordCursor(
-                pulsarColumnHandles, pulsarSplit, connectorConfig, pulsar.getManagedLedgerFactory(),
-                new ManagedLedgerConfig(), new PulsarConnectorMetricsTracker(new NullStatsProvider()),
+                pulsarColumnHandles,
+                pulsarSplit,
+                connectorConfig,
+                pulsar.getManagedLedgerFactory(),
+                new ManagedLedgerConfig(),
+                new PulsarConnectorMetricsTracker(new NullStatsProvider()),
                 new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager()));
 
         Class<PulsarRecordCursor> recordCursorClass = PulsarRecordCursor.class;
@@ -150,7 +157,7 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
         int receiveCnt = 0;
         while (receiveCnt != totalMsgCnt) {
             if (pulsarRecordCursor.advanceNextPosition()) {
-                receiveCnt ++;
+                receiveCnt++;
             }
             Assert.assertTrue(entryQueue.size() <= maxQueueSize);
             Assert.assertTrue(messageQueue.size() <= maxQueueSize);
@@ -158,9 +165,8 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
     }
 
     private MessageIdImpl prepareData(TopicName topicName, int messageNum) throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName.toString())
-                .create();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topicName.toString()).create();
 
         MessageIdImpl firstMessageId = null;
         for (int i = 0; i < messageNum; i++) {
@@ -171,5 +177,4 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
         }
         return firstMessageId;
     }
-
 }

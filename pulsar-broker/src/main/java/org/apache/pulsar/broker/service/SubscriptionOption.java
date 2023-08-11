@@ -56,7 +56,7 @@ public class SubscriptionOption {
         if (list == null) {
             return Optional.of(Collections.emptyMap());
         }
-        return Optional.of(list.stream().collect(Collectors.toMap(
-                KeyValue::getKey, KeyValue::getValue, (key1, key2) -> key1)));
+        return Optional.of(
+                list.stream().collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (key1, key2) -> key1)));
     }
 }

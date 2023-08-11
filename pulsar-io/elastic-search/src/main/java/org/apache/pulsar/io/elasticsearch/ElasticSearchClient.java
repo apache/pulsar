@@ -41,9 +41,7 @@ import org.apache.pulsar.io.elasticsearch.client.RestClientFactory;
 public class ElasticSearchClient implements AutoCloseable {
 
     static final String[] MALFORMED_ERRORS = {
-            "mapper_parsing_exception",
-            "action_request_validation_exception",
-            "illegal_argument_exception"
+        "mapper_parsing_exception", "action_request_validation_exception", "illegal_argument_exception"
     };
 
     private ElasticSearchConfig config;
@@ -66,13 +64,15 @@ public class ElasticSearchClient implements AutoCloseable {
         final BulkProcessor.Listener bulkListener = new BulkProcessor.Listener() {
 
             @Override
-            public void afterBulk(long executionId, List<BulkProcessor.BulkOperationRequest> bulkOperationList,
-                                  List<BulkProcessor.BulkOperationResult> results) {
+            public void afterBulk(
+                    long executionId,
+                    List<BulkProcessor.BulkOperationRequest> bulkOperationList,
+                    List<BulkProcessor.BulkOperationResult> results) {
                 if (log.isTraceEnabled()) {
                     log.trace("Bulk request id={} size={}:", executionId, bulkOperationList.size());
                 }
                 int index = 0;
-                for (BulkProcessor.BulkOperationResult result: results) {
+                for (BulkProcessor.BulkOperationResult result : results) {
                     final Record record = bulkOperationList.get(index++).getPulsarRecord();
                     if (result.isError()) {
                         record.fail();
@@ -84,9 +84,10 @@ public class ElasticSearchClient implements AutoCloseable {
             }
 
             @Override
-            public void afterBulk(long executionId, List<BulkProcessor.BulkOperationRequest> bulkOperationList, Throwable throwable) {
+            public void afterBulk(
+                    long executionId, List<BulkProcessor.BulkOperationRequest> bulkOperationList, Throwable throwable) {
                 log.warn("Bulk request id={} failed:", executionId, throwable);
-                for (BulkProcessor.BulkOperationRequest operation: bulkOperationList) {
+                for (BulkProcessor.BulkOperationRequest operation : bulkOperationList) {
                     final Record record = operation.getPulsarRecord();
                     record.fail();
                 }
@@ -119,13 +120,15 @@ public class ElasticSearchClient implements AutoCloseable {
                     case IGNORE:
                         break;
                     case WARN:
-                        log.warn("Ignoring malformed document index={} id={}",
+                        log.warn(
+                                "Ignoring malformed document index={} id={}",
                                 result.getIndex(),
                                 result.getDocumentId(),
                                 error);
                         break;
                     case FAIL:
-                        log.error("Failure due to the malformed document index={} id={}",
+                        log.error(
+                                "Failure due to the malformed document index={} id={}",
                                 result.getIndex(),
                                 result.getDocumentId(),
                                 error);
@@ -135,11 +138,11 @@ public class ElasticSearchClient implements AutoCloseable {
             }
         }
         if (!isMalformed) {
-            log.warn("Bulk request failed, message id=[{}] index={} error={}",
-                    record.getMessage()
-                            .map(m -> m.getMessageId().toString())
-                            .orElse(""),
-                    result.getIndex(), result.getError());
+            log.warn(
+                    "Bulk request failed, message id=[{}] index={} error={}",
+                    record.getMessage().map(m -> m.getMessageId().toString()).orElse(""),
+                    result.getIndex(),
+                    result.getError());
         }
     }
 
@@ -296,7 +299,8 @@ public class ElasticSearchClient implements AutoCloseable {
     @VisibleForTesting
     public String topicToIndexName(String topicName) {
         return topicToIndexCache.computeIfAbsent(topicName, k -> {
-            // see elasticsearch limitations https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
+            // see elasticsearch limitations
+            // https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
             String indexName = topicName.toLowerCase(Locale.ROOT);
 
             // remove the pulsar topic info persistent://tenant/namespace/topic
@@ -310,8 +314,8 @@ public class ElasticSearchClient implements AutoCloseable {
                 indexName = indexName.substring(0, indexName.length() - 1);
             }
             if (indexName.length() <= 0 || !indexName.matches("[a-zA-Z\\.0-9][a-zA-Z_\\.\\-\\+0-9]*")) {
-                throw new RuntimeException(new IOException("Cannot convert the topic name='"
-                        + topicName + "' to a valid elasticsearch index name"));
+                throw new RuntimeException(new IOException(
+                        "Cannot convert the topic name='" + topicName + "' to a valid elasticsearch index name"));
             }
             if (log.isDebugEnabled()) {
                 log.debug("Translate topic={} to index={}", k, indexName);

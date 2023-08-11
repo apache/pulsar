@@ -39,8 +39,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         this(ledgerId, entryId, partitionIndex, batchIndex, 0, null);
     }
 
-    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize,
-                              BitSet ackSet) {
+    public BatchMessageIdImpl(
+            long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize, BitSet ackSet) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
         this.batchSize = batchSize;
@@ -48,8 +48,13 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     }
 
     public BatchMessageIdImpl(MessageIdAdv other) {
-        this(other.getLedgerId(), other.getEntryId(), other.getPartitionIndex(),
-                other.getBatchIndex(), other.getBatchSize(), other.getAckSet());
+        this(
+                other.getLedgerId(),
+                other.getEntryId(),
+                other.getPartitionIndex(),
+                other.getBatchIndex(),
+                other.getBatchSize(),
+                other.getAckSet());
     }
 
     @Override

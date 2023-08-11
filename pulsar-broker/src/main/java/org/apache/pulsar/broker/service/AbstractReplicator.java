@@ -57,8 +57,8 @@ public abstract class AbstractReplicator {
     protected final int producerQueueSize;
     protected final ProducerBuilder<byte[]> producerBuilder;
 
-    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0,
-            TimeUnit.MILLISECONDS);
+    protected final Backoff backOff =
+            new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
 
     protected final String replicatorPrefix;
 
@@ -67,11 +67,20 @@ public abstract class AbstractReplicator {
     private volatile State state = State.Stopped;
 
     protected enum State {
-        Stopped, Starting, Started, Stopping
+        Stopped,
+        Starting,
+        Started,
+        Stopping
     }
 
-    public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
-                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient)
+    public AbstractReplicator(
+            String localCluster,
+            Topic localTopic,
+            String remoteCluster,
+            String remoteTopicName,
+            String replicatorPrefix,
+            BrokerService brokerService,
+            PulsarClientImpl replicationClient)
             throws PulsarServerException {
         this.brokerService = brokerService;
         this.localTopic = localTopic;
@@ -84,12 +93,14 @@ public abstract class AbstractReplicator {
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
-        this.replicatorId = String.format("%s | %s",
-                StringUtils.equals(localTopicName, remoteTopicName) ? localTopicName :
-                        localTopicName + "-->" + remoteTopicName,
-                StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
-        );
-        this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
+        this.replicatorId = String.format(
+                "%s | %s",
+                StringUtils.equals(localTopicName, remoteTopicName)
+                        ? localTopicName
+                        : localTopicName + "-->" + remoteTopicName,
+                StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster);
+        this.producerBuilder = replicationClient
+                .newProducer(Schema.AUTO_PRODUCE_BYTES()) //
                 .topic(remoteTopicName)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .enableBatching(false)
@@ -121,11 +132,13 @@ public abstract class AbstractReplicator {
             if (log.isDebugEnabled()) {
                 log.debug(
                         "[{}] waiting for producer to close before attempting to reconnect, retrying in {} s",
-                        replicatorId, waitTimeMs / 1000.0);
+                        replicatorId,
+                        waitTimeMs / 1000.0);
             }
             // BackOff before retrying
-            brokerService.executor().schedule(this::checkTopicActiveAndRetryStartProducer, waitTimeMs,
-                    TimeUnit.MILLISECONDS);
+            brokerService
+                    .executor()
+                    .schedule(this::checkTopicActiveAndRetryStartProducer, waitTimeMs, TimeUnit.MILLISECONDS);
             return;
         }
         State state = STATE_UPDATER.get(this);
@@ -143,49 +156,67 @@ public abstract class AbstractReplicator {
         }
 
         log.info("[{}] Starting replicator", replicatorId);
-        producerBuilder.createAsync().thenAccept(producer -> {
-            readEntries(producer);
-        }).exceptionally(ex -> {
-            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
-                long waitTimeMs = backOff.next();
-                log.warn("[{}] Failed to create remote producer ({}), retrying in {} s",
-                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
+        producerBuilder
+                .createAsync()
+                .thenAccept(producer -> {
+                    readEntries(producer);
+                })
+                .exceptionally(ex -> {
+                    if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
+                        long waitTimeMs = backOff.next();
+                        log.warn(
+                                "[{}] Failed to create remote producer ({}), retrying in {} s",
+                                replicatorId,
+                                ex.getMessage(),
+                                waitTimeMs / 1000.0);
 
-                // BackOff before retrying
-                brokerService.executor().schedule(this::checkTopicActiveAndRetryStartProducer, waitTimeMs,
-                        TimeUnit.MILLISECONDS);
-            } else {
-                log.warn("[{}] Failed to create remote producer. Replicator state: {}", replicatorId,
-                        STATE_UPDATER.get(this), ex);
-            }
-            return null;
-        });
-
+                        // BackOff before retrying
+                        brokerService
+                                .executor()
+                                .schedule(
+                                        this::checkTopicActiveAndRetryStartProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+                    } else {
+                        log.warn(
+                                "[{}] Failed to create remote producer. Replicator state: {}",
+                                replicatorId,
+                                STATE_UPDATER.get(this),
+                                ex);
+                    }
+                    return null;
+                });
     }
 
     protected void checkTopicActiveAndRetryStartProducer() {
-        isLocalTopicActive().thenAccept(isTopicActive -> {
-            if (isTopicActive) {
-                startProducer();
-            }
-        }).exceptionally(ex -> {
-            log.warn("[{}] Stop retry to create producer due to topic load fail. Replicator state: {}", replicatorId,
-                    STATE_UPDATER.get(this), ex);
-            return null;
-        });
+        isLocalTopicActive()
+                .thenAccept(isTopicActive -> {
+                    if (isTopicActive) {
+                        startProducer();
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.warn(
+                            "[{}] Stop retry to create producer due to topic load fail. Replicator state: {}",
+                            replicatorId,
+                            STATE_UPDATER.get(this),
+                            ex);
+                    return null;
+                });
     }
 
     protected CompletableFuture<Boolean> isLocalTopicActive() {
-        CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(localTopicName);
-        if (topicFuture == null){
+        CompletableFuture<Optional<Topic>> topicFuture =
+                brokerService.getTopics().get(localTopicName);
+        if (topicFuture == null) {
             return CompletableFuture.completedFuture(false);
         }
-        return topicFuture.thenApplyAsync(optional -> {
-            if (optional.isEmpty()) {
-                return false;
-            }
-            return optional.get() == localTopic;
-        }, brokerService.executor());
+        return topicFuture.thenApplyAsync(
+                optional -> {
+                    if (optional.isEmpty()) {
+                        return false;
+                    }
+                    return optional.get() == localTopic;
+                },
+                brokerService.executor());
     }
 
     protected synchronized CompletableFuture<Void> closeProducerAsync() {
@@ -195,23 +226,25 @@ public abstract class AbstractReplicator {
         }
         CompletableFuture<Void> future = producer.closeAsync();
         future.thenRun(() -> {
-            STATE_UPDATER.set(this, State.Stopped);
-            this.producer = null;
-            // deactivate further read
-            disableReplicatorRead();
-        }).exceptionally(ex -> {
-            long waitTimeMs = backOff.next();
-            log.warn(
-                    "[{}] Exception: '{}' occurred while trying to close the producer."
-                            + " retrying again in {} s",
-                    replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
-            // BackOff before retrying
-            brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
-            return null;
-        });
+                    STATE_UPDATER.set(this, State.Stopped);
+                    this.producer = null;
+                    // deactivate further read
+                    disableReplicatorRead();
+                })
+                .exceptionally(ex -> {
+                    long waitTimeMs = backOff.next();
+                    log.warn(
+                            "[{}] Exception: '{}' occurred while trying to close the producer."
+                                    + " retrying again in {} s",
+                            replicatorId,
+                            ex.getMessage(),
+                            waitTimeMs / 1000.0);
+                    // BackOff before retrying
+                    brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
+                    return null;
+                });
         return future;
     }
-
 
     public CompletableFuture<Void> disconnect() {
         return disconnect(false);
@@ -236,8 +269,11 @@ public abstract class AbstractReplicator {
 
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)
                 || STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping)) {
-            log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
-                    getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
+            log.info(
+                    "[{}] Disconnect replicator at position {} with backlog {}",
+                    replicatorId,
+                    getReplicatorReadPosition(),
+                    getNumberOfEntriesInBacklog());
         }
 
         return closeProducerAsync();
@@ -284,16 +320,21 @@ public abstract class AbstractReplicator {
      */
     public static CompletableFuture<Void> validatePartitionedTopicAsync(String topic, BrokerService brokerService) {
         TopicName topicName = TopicName.get(topic);
-        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-            .partitionedTopicExistsAsync(topicName).thenCompose(isPartitionedTopic -> {
-                if (isPartitionedTopic) {
-                    String s = topicName
-                            + " is a partitioned-topic and replication can't be started for partitioned-producer ";
-                    log.error(s);
-                    return FutureUtil.failedFuture(new NamingException(s));
-                }
-                return CompletableFuture.completedFuture(null);
-            });
+        return brokerService
+                .pulsar()
+                .getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .partitionedTopicExistsAsync(topicName)
+                .thenCompose(isPartitionedTopic -> {
+                    if (isPartitionedTopic) {
+                        String s = topicName
+                                + " is a partitioned-topic and replication can't be started for partitioned-producer ";
+                        log.error(s);
+                        return FutureUtil.failedFuture(new NamingException(s));
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);

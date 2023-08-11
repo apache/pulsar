@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.ImmutableMap;
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-
-import static org.testng.Assert.assertEquals;
 
 public class ElasticSearchBWCTests {
 
@@ -36,7 +34,15 @@ public class ElasticSearchBWCTests {
         String json = "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}";
 
         ElasticSearchSink elasticSearchSink = new ElasticSearchSink();
-        elasticSearchSink.open(ImmutableMap.of("elasticSearchUrl", "http://localhost:9200", "schemaEnable", "true", "compatibilityMode", "ELASTICSEARCH"), null);
+        elasticSearchSink.open(
+                ImmutableMap.of(
+                        "elasticSearchUrl",
+                        "http://localhost:9200",
+                        "schemaEnable",
+                        "true",
+                        "compatibilityMode",
+                        "ELASTICSEARCH"),
+                null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(new Record<GenericObject>() {
             @Override
             public GenericObject getValue() {

@@ -30,7 +30,8 @@ import org.apache.pulsar.common.stats.Metrics;
 /**
  */
 public class BrokerOperabilityMetrics {
-    private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-").register();
+    private static final Counter TOPIC_LOAD_FAILED =
+            Counter.build("topic_load_failed", "-").register();
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats oldTopicLoadStats;

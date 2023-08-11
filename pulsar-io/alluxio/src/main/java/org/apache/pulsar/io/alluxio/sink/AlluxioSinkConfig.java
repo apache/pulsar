@@ -45,51 +45,45 @@ public class AlluxioSinkConfig extends AlluxioAbstractConfig implements Serializ
     private static final long serialVersionUID = -8917657634001769807L;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "The prefix of the files to create in the Alluxio directory (e.g. a value of 'TopicA' results"
-            + " in files named topicA-, topicA-, etc being produced)")
+            required = false,
+            defaultValue = "",
+            help = "The prefix of the files to create in the Alluxio directory (e.g. a value of 'TopicA' results"
+                    + " in files named topicA-, topicA-, etc being produced)")
     private String filePrefix;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "The extension to add to the files written to Alluxio (e.g. '.txt')")
+            required = false,
+            defaultValue = "",
+            help = "The extension to add to the files written to Alluxio (e.g. '.txt')")
     private String fileExtension;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "The character used to separate records in a text file. If no value is provided then the content"
-            + " from all of the records is concatenated together in one continuous byte array")
+            required = false,
+            defaultValue = "",
+            help = "The character used to separate records in a text file. If no value is provided then the content"
+                    + " from all of the records is concatenated together in one continuous byte array")
     private char lineSeparator;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "10000L",
-        help = "The number records of Alluxio file rotation")
+    @FieldDoc(required = false, defaultValue = "10000L", help = "The number records of Alluxio file rotation")
     private long rotationRecords = 10000L;
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "-1L",
-        help = "The interval to rotate a Alluxio file (in milliseconds)")
+    @FieldDoc(required = false, defaultValue = "-1L", help = "The interval to rotate a Alluxio file (in milliseconds)")
     private long rotationInterval = -1L;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "MUST_CACHE",
-        help = "Default write type when creating Alluxio files. Valid options are `MUST_CACHE` (write only goes to"
-            + " Alluxio and must be stored in Alluxio), `CACHE_THROUGH` (try to cache, write to UnderFS synchronously),"
-            + " `THROUGH` (no cache, write to UnderFS synchronously)")
+            required = false,
+            defaultValue = "MUST_CACHE",
+            help = "Default write type when creating Alluxio files. Valid options are `MUST_CACHE` (write only goes to"
+                    + " Alluxio and must be stored in Alluxio), `CACHE_THROUGH` (try to cache, write to UnderFS synchronously),"
+                    + " `THROUGH` (no cache, write to UnderFS synchronously)")
     private String writeType = "MUST_CACHE";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "false",
-        help = "Sets whether the Sink has to take into account the Schema or if it should simply copy the raw message"
-            + " to Alluxio"
-    )
+            required = false,
+            defaultValue = "false",
+            help =
+                    "Sets whether the Sink has to take into account the Schema or if it should simply copy the raw message"
+                            + " to Alluxio")
     private boolean schemaEnable = false;
 
     public static AlluxioSinkConfig load(String yamlFile) throws IOException {
@@ -106,7 +100,8 @@ public class AlluxioSinkConfig extends AlluxioAbstractConfig implements Serializ
     public void validate() {
         super.validate();
         checkArgument(rotationRecords > 0, "rotationRecords must be a positive long.");
-        checkArgument(rotationInterval == -1 || rotationInterval > 0,
-            "rotationInterval must be either -1 or a positive long.");
+        checkArgument(
+                rotationInterval == -1 || rotationInterval > 0,
+                "rotationInterval must be either -1 or a positive long.");
     }
 }

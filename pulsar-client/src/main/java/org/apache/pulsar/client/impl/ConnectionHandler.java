@@ -32,13 +32,14 @@ import org.slf4j.LoggerFactory;
 public class ConnectionHandler {
     private static final AtomicReferenceFieldUpdater<ConnectionHandler, ClientCnx> CLIENT_CNX_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ConnectionHandler.class, ClientCnx.class, "clientCnx");
+
     @SuppressWarnings("unused")
     private volatile ClientCnx clientCnx = null;
 
     protected final HandlerState state;
     protected final Backoff backoff;
-    private static final AtomicLongFieldUpdater<ConnectionHandler> EPOCH_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(ConnectionHandler.class, "epoch");
+    private static final AtomicLongFieldUpdater<ConnectionHandler> EPOCH_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(ConnectionHandler.class, "epoch");
     // Start with -1L because it gets incremented before sending on the first connection
     private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
@@ -50,8 +51,8 @@ public class ConnectionHandler {
          * @apiNote If the returned future is completed exceptionally, reconnectLater will be called.
          */
         CompletableFuture<Void> connectionOpened(ClientCnx cnx);
-        default void connectionFailed(PulsarClientException e) {
-        }
+
+        default void connectionFailed(PulsarClientException e) {}
     }
 
     protected Connection connection;
@@ -65,36 +66,44 @@ public class ConnectionHandler {
 
     protected void grabCnx() {
         if (!duringConnect.compareAndSet(false, true)) {
-            log.info("[{}] [{}] Skip grabbing the connection since there is a pending connection",
-                    state.topic, state.getHandlerName());
+            log.info(
+                    "[{}] [{}] Skip grabbing the connection since there is a pending connection",
+                    state.topic,
+                    state.getHandlerName());
             return;
         }
 
         if (CLIENT_CNX_UPDATER.get(this) != null) {
-            log.warn("[{}] [{}] Client cnx already set, ignoring reconnection request",
-                    state.topic, state.getHandlerName());
+            log.warn(
+                    "[{}] [{}] Client cnx already set, ignoring reconnection request",
+                    state.topic,
+                    state.getHandlerName());
             return;
         }
 
         if (!isValidStateForReconnection()) {
             // Ignore connection closed when we are shutting down
-            log.info("[{}] [{}] Ignoring reconnection request (state: {})",
-                    state.topic, state.getHandlerName(), state.getState());
+            log.info(
+                    "[{}] [{}] Ignoring reconnection request (state: {})",
+                    state.topic,
+                    state.getHandlerName(),
+                    state.getState());
             return;
         }
 
         try {
             CompletableFuture<ClientCnx> cnxFuture;
             if (state.redirectedClusterURI != null) {
-                InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
-                        state.redirectedClusterURI.getPort());
+                InetSocketAddress address = InetSocketAddress.createUnresolved(
+                        state.redirectedClusterURI.getHost(), state.redirectedClusterURI.getPort());
                 cnxFuture = state.client.getConnection(address, address);
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
                 cnxFuture = state.client.getConnection(state.topic); //
             }
-            cnxFuture.thenCompose(cnx -> connection.connectionOpened(cnx))
+            cnxFuture
+                    .thenCompose(cnx -> connection.connectionOpened(cnx))
                     .thenAccept(__ -> duringConnect.set(false))
                     .exceptionally(this::handleConnectionError);
         } catch (Throwable t) {
@@ -105,8 +114,11 @@ public class ConnectionHandler {
 
     private Void handleConnectionError(Throwable exception) {
         try {
-            log.warn("[{}] [{}] Error connecting to broker: {}",
-                    state.topic, state.getHandlerName(), exception.getMessage());
+            log.warn(
+                    "[{}] [{}] Error connecting to broker: {}",
+                    state.topic,
+                    state.getHandlerName(),
+                    exception.getMessage());
             if (exception instanceof PulsarClientException) {
                 connection.connectionFailed((PulsarClientException) exception);
             } else if (exception.getCause() instanceof PulsarClientException) {
@@ -115,8 +127,11 @@ public class ConnectionHandler {
                 connection.connectionFailed(new PulsarClientException(exception));
             }
         } catch (Throwable throwable) {
-            log.error("[{}] [{}] Unexpected exception after the connection",
-                    state.topic, state.getHandlerName(), throwable);
+            log.error(
+                    "[{}] [{}] Unexpected exception after the connection",
+                    state.topic,
+                    state.getHandlerName(),
+                    throwable);
         }
 
         reconnectLater(exception);
@@ -127,22 +142,39 @@ public class ConnectionHandler {
         CLIENT_CNX_UPDATER.set(this, null);
         duringConnect.set(false);
         if (!isValidStateForReconnection()) {
-            log.info("[{}] [{}] Ignoring reconnection request (state: {})",
-                    state.topic, state.getHandlerName(), state.getState());
+            log.info(
+                    "[{}] [{}] Ignoring reconnection request (state: {})",
+                    state.topic,
+                    state.getHandlerName(),
+                    state.getState());
             return;
         }
         long delayMs = backoff.next();
-        log.warn("[{}] [{}] Could not get connection to broker: {} -- Will try again in {} s",
-                state.topic, state.getHandlerName(),
-                exception.getMessage(), delayMs / 1000.0);
+        log.warn(
+                "[{}] [{}] Could not get connection to broker: {} -- Will try again in {} s",
+                state.topic,
+                state.getHandlerName(),
+                exception.getMessage(),
+                delayMs / 1000.0);
         if (state.changeToConnecting()) {
-            state.client.timer().newTimeout(timeout -> {
-                log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
-                grabCnx();
-            }, delayMs, TimeUnit.MILLISECONDS);
+            state.client
+                    .timer()
+                    .newTimeout(
+                            timeout -> {
+                                log.info(
+                                        "[{}] [{}] Reconnecting after connection was closed",
+                                        state.topic,
+                                        state.getHandlerName());
+                                grabCnx();
+                            },
+                            delayMs,
+                            TimeUnit.MILLISECONDS);
         } else {
-            log.info("[{}] [{}] Ignoring reconnection request (state: {})",
-                    state.topic, state.getHandlerName(), state.getState());
+            log.info(
+                    "[{}] [{}] Ignoring reconnection request (state: {})",
+                    state.topic,
+                    state.getHandlerName(),
+                    state.getState());
         }
     }
 
@@ -152,19 +184,30 @@ public class ConnectionHandler {
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {
-                log.info("[{}] [{}] Ignoring reconnection request (state: {})",
-                        state.topic, state.getHandlerName(), state.getState());
+                log.info(
+                        "[{}] [{}] Ignoring reconnection request (state: {})",
+                        state.topic,
+                        state.getHandlerName(),
+                        state.getState());
                 return;
             }
             long delayMs = backoff.next();
             state.setState(State.Connecting);
-            log.info("[{}] [{}] Closed connection {} -- Will try again in {} s",
-                    state.topic, state.getHandlerName(), cnx.channel(),
+            log.info(
+                    "[{}] [{}] Closed connection {} -- Will try again in {} s",
+                    state.topic,
+                    state.getHandlerName(),
+                    cnx.channel(),
                     delayMs / 1000.0);
-            state.client.timer().newTimeout(timeout -> {
-                log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
-                grabCnx();
-            }, delayMs, TimeUnit.MILLISECONDS);
+            state.client
+                    .timer()
+                    .newTimeout(
+                            timeout -> {
+                                log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
+                                grabCnx();
+                            },
+                            delayMs,
+                            TimeUnit.MILLISECONDS);
         }
     }
 

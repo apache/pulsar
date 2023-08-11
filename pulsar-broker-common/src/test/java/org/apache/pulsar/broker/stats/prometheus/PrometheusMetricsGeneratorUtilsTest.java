@@ -43,10 +43,9 @@ public class PrometheusMetricsGeneratorUtilsTest {
                 .register(CollectorRegistry.defaultRegistry);
         counter.labels(specifyClusterValue).inc();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrometheusMetricsGeneratorUtils.generate(defaultClusterValue, out,  Collections.emptyList());
-        assertTrue(out.toString().contains(
-                String.format("%s_total{cluster=\"%s\"} 1.0", metricsName, specifyClusterValue)
-        ));
+        PrometheusMetricsGeneratorUtils.generate(defaultClusterValue, out, Collections.emptyList());
+        assertTrue(out.toString()
+                .contains(String.format("%s_total{cluster=\"%s\"} 1.0", metricsName, specifyClusterValue)));
         // cleanup
         out.close();
         CollectorRegistry.defaultRegistry.unregister(counter);
@@ -66,11 +65,11 @@ public class PrometheusMetricsGeneratorUtilsTest {
                 .register(CollectorRegistry.defaultRegistry);
         counter.labels(labelValue).inc();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrometheusMetricsGeneratorUtils.generate(defaultClusterValue, out,  Collections.emptyList());
-        assertTrue(out.toString().contains(
-                String.format("%s_total{cluster=\"%s\",%s=\"%s\"} 1.0",
-                        metricsName, defaultClusterValue, labelName, labelValue)
-        ));
+        PrometheusMetricsGeneratorUtils.generate(defaultClusterValue, out, Collections.emptyList());
+        assertTrue(out.toString()
+                .contains(String.format(
+                        "%s_total{cluster=\"%s\",%s=\"%s\"} 1.0",
+                        metricsName, defaultClusterValue, labelName, labelValue)));
         // cleanup
         out.close();
         CollectorRegistry.defaultRegistry.unregister(counter);
@@ -81,22 +80,18 @@ public class PrometheusMetricsGeneratorUtilsTest {
         String defaultClusterValue = "cluster_test";
         // default cluster.
         String metricsName = "label_without_customized_label" + randomString();
-        Counter counter = new Counter.Builder()
-                .name(metricsName)
-                .help("x")
-                .register(CollectorRegistry.defaultRegistry);
+        Counter counter = new Counter.Builder().name(metricsName).help("x").register(CollectorRegistry.defaultRegistry);
         counter.inc();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrometheusMetricsGeneratorUtils.generate(defaultClusterValue, out,  Collections.emptyList());
-        assertTrue(out.toString().contains(
-                String.format("%s_total{cluster=\"%s\"} 1.0", metricsName, defaultClusterValue)
-        ));
+        PrometheusMetricsGeneratorUtils.generate(defaultClusterValue, out, Collections.emptyList());
+        assertTrue(out.toString()
+                .contains(String.format("%s_total{cluster=\"%s\"} 1.0", metricsName, defaultClusterValue)));
         // cleanup
         out.close();
         CollectorRegistry.defaultRegistry.unregister(counter);
     }
 
-    private static String randomString(){
+    private static String randomString() {
         return UUID.randomUUID().toString().replaceAll("-", "");
     }
 }

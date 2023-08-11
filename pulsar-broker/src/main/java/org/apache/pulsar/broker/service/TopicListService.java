@@ -39,7 +39,6 @@ import org.slf4j.LoggerFactory;
 
 public class TopicListService {
 
-
     public static class TopicListWatcher implements BiConsumer<String, NotificationType> {
 
         private final List<String> matchingTopics;
@@ -47,8 +46,8 @@ public class TopicListService {
         private final long id;
         private final Pattern topicsPattern;
 
-        public TopicListWatcher(TopicListService topicListService, long id,
-                                Pattern topicsPattern, List<String> topics) {
+        public TopicListWatcher(
+                TopicListService topicListService, long id, Pattern topicsPattern, List<String> topics) {
             this.topicListService = topicListService;
             this.id = id;
             this.topicsPattern = topicsPattern;
@@ -79,7 +78,6 @@ public class TopicListService {
         }
     }
 
-
     private static final Logger log = LoggerFactory.getLogger(TopicListService.class);
 
     private final NamespaceService namespaceService;
@@ -89,9 +87,11 @@ public class TopicListService {
     private final int maxSubscriptionPatternLength;
     private final ConcurrentLongHashMap<CompletableFuture<TopicListWatcher>> watchers;
 
-
-    public TopicListService(PulsarService pulsar, ServerCnx connection,
-                            boolean enableSubscriptionPatternEvaluation, int maxSubscriptionPatternLength) {
+    public TopicListService(
+            PulsarService pulsar,
+            ServerCnx connection,
+            boolean enableSubscriptionPatternEvaluation,
+            int maxSubscriptionPatternLength) {
         this.namespaceService = pulsar.getNamespaceService();
         this.connection = connection;
         this.enableSubscriptionPatternEvaluation = enableSubscriptionPatternEvaluation;
@@ -109,8 +109,13 @@ public class TopicListService {
         }
     }
 
-    public void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId, Pattern topicsPattern,
-                                     String topicsHash, Semaphore lookupSemaphore) {
+    public void handleWatchTopicList(
+            NamespaceName namespaceName,
+            long watcherId,
+            long requestId,
+            Pattern topicsPattern,
+            String topicsHash,
+            Semaphore lookupSemaphore) {
 
         if (!enableSubscriptionPatternEvaluation || topicsPattern.pattern().length() > maxSubscriptionPatternLength) {
             String msg = "Unable to create topic list watcher: ";
@@ -130,16 +135,20 @@ public class TopicListService {
         if (existingWatcherFuture != null) {
             if (existingWatcherFuture.isDone() && !existingWatcherFuture.isCompletedExceptionally()) {
                 TopicListWatcher watcher = existingWatcherFuture.getNow(null);
-                log.info("[{}] Watcher with the same id is already created:"
-                                + " watcherId={}, watcher={}",
-                        connection.getRemoteAddress(), watcherId, watcher);
+                log.info(
+                        "[{}] Watcher with the same id is already created:" + " watcherId={}, watcher={}",
+                        connection.getRemoteAddress(),
+                        watcherId,
+                        watcher);
                 watcherFuture = existingWatcherFuture;
             } else {
                 // There was an early request to create a watcher with the same watcherId. This can happen when
                 // client timeout is lower the broker timeouts. We need to wait until the previous watcher
                 // creation request either completes or fails.
-                log.warn("[{}] Watcher with id is already present on the connection,"
-                        + " consumerId={}", connection.getRemoteAddress(), watcherId);
+                log.warn(
+                        "[{}] Watcher with id is already present on the connection," + " consumerId={}",
+                        connection.getRemoteAddress(),
+                        watcherId);
                 ServerError error;
                 if (!existingWatcherFuture.isDone()) {
                     error = ServerError.ServiceNotReady;
@@ -147,8 +156,9 @@ public class TopicListService {
                     error = ServerError.UnknownError;
                     watchers.remove(watcherId, existingWatcherFuture);
                 }
-                connection.getCommandSender().sendErrorResponse(requestId, error,
-                        "Topic list watcher is already present on the connection");
+                connection
+                        .getCommandSender()
+                        .sendErrorResponse(requestId, error, "Topic list watcher is already present on the connection");
                 lookupSemaphore.release();
                 return;
             }
@@ -156,9 +166,9 @@ public class TopicListService {
             initializeTopicsListWatcher(watcherFuture, namespaceName, watcherId, topicsPattern);
         }
 
-
         CompletableFuture<TopicListWatcher> finalWatcherFuture = watcherFuture;
-        finalWatcherFuture.thenAccept(watcher -> {
+        finalWatcherFuture
+                .thenAccept(watcher -> {
                     List<String> topicList = watcher.getMatchingTopics();
                     String hash = TopicList.calculateHash(topicList);
                     if (hash.equals(topicsHash)) {
@@ -167,45 +177,58 @@ public class TopicListService {
                     if (log.isDebugEnabled()) {
                         log.debug(
                                 "[{}] Received WatchTopicList for namespace [//{}] by {}",
-                                connection.getRemoteAddress(), namespaceName, requestId);
+                                connection.getRemoteAddress(),
+                                namespaceName,
+                                requestId);
                     }
                     connection.getCommandSender().sendWatchTopicListSuccess(requestId, watcherId, hash, topicList);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
-                    log.warn("[{}] Error WatchTopicList for namespace [//{}] by {}",
-                            connection.getRemoteAddress(), namespaceName, requestId);
-                    connection.getCommandSender().sendErrorResponse(requestId,
-                            BrokerServiceException.getClientErrorCode(
-                                    new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
+                    log.warn(
+                            "[{}] Error WatchTopicList for namespace [//{}] by {}",
+                            connection.getRemoteAddress(),
+                            namespaceName,
+                            requestId);
+                    connection
+                            .getCommandSender()
+                            .sendErrorResponse(
+                                    requestId,
+                                    BrokerServiceException.getClientErrorCode(
+                                            new BrokerServiceException.ServerMetadataException(ex)),
+                                    ex.getMessage());
                     watchers.remove(watcherId, finalWatcherFuture);
                     lookupSemaphore.release();
                     return null;
                 });
     }
 
-
-    public void initializeTopicsListWatcher(CompletableFuture<TopicListWatcher> watcherFuture,
-            NamespaceName namespace, long watcherId, Pattern topicsPattern) {
-        namespaceService.getListOfPersistentTopics(namespace).
-                thenApply(topics -> {
+    public void initializeTopicsListWatcher(
+            CompletableFuture<TopicListWatcher> watcherFuture,
+            NamespaceName namespace,
+            long watcherId,
+            Pattern topicsPattern) {
+        namespaceService
+                .getListOfPersistentTopics(namespace)
+                .thenApply(topics -> {
                     TopicListWatcher watcher = new TopicListWatcher(this, watcherId, topicsPattern, topics);
                     topicResources.registerPersistentTopicListener(namespace, watcher);
                     return watcher;
-                }).
-                whenComplete((watcher, exception) -> {
+                })
+                .whenComplete((watcher, exception) -> {
                     if (exception != null) {
                         watcherFuture.completeExceptionally(exception);
                     } else {
                         if (!watcherFuture.complete(watcher)) {
-                            log.warn("[{}] Watcher future was already completed. Deregistering watcherId={}.",
-                                    connection.getRemoteAddress(), watcherId);
+                            log.warn(
+                                    "[{}] Watcher future was already completed. Deregistering watcherId={}.",
+                                    connection.getRemoteAddress(),
+                                    watcherId);
                             topicResources.deregisterPersistentTopicListener(watcher);
                         }
                     }
                 });
     }
-
 
     public void handleWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
         long requestId = commandWatchTopicListClose.getRequestId();
@@ -217,25 +240,32 @@ public class TopicListService {
     public void deleteTopicListWatcher(Long watcherId) {
         CompletableFuture<TopicListWatcher> watcherFuture = watchers.get(watcherId);
         if (watcherFuture == null) {
-            log.info("[{}] TopicListWatcher was not registered on the connection: {}",
-                    watcherId, connection.getRemoteAddress());
+            log.info(
+                    "[{}] TopicListWatcher was not registered on the connection: {}",
+                    watcherId,
+                    connection.getRemoteAddress());
             return;
         }
 
-        if (!watcherFuture.isDone() && watcherFuture
-                .completeExceptionally(new IllegalStateException("Closed watcher before creation was complete"))) {
+        if (!watcherFuture.isDone()
+                && watcherFuture.completeExceptionally(
+                        new IllegalStateException("Closed watcher before creation was complete"))) {
             // We have received a request to close the watcher before it was actually completed, we have marked the
             // watcher future as failed and we can tell the client the close operation was successful. When the actual
             // create operation will complete, the new watcher will be discarded.
-            log.info("[{}] Closed watcher before its creation was completed. watcherId={}",
-                    connection.getRemoteAddress(), watcherId);
+            log.info(
+                    "[{}] Closed watcher before its creation was completed. watcherId={}",
+                    connection.getRemoteAddress(),
+                    watcherId);
             watchers.remove(watcherId);
             return;
         }
 
         if (watcherFuture.isCompletedExceptionally()) {
-            log.info("[{}] Closed watcher that already failed to be created. watcherId={}",
-                    connection.getRemoteAddress(), watcherId);
+            log.info(
+                    "[{}] Closed watcher that already failed to be created. watcherId={}",
+                    connection.getRemoteAddress(),
+                    watcherId);
             watchers.remove(watcherId);
             return;
         }
@@ -246,10 +276,8 @@ public class TopicListService {
         log.info("[{}] Closed watcher, watcherId={}", connection.getRemoteAddress(), watcherId);
     }
 
-    public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
-                                    List<String> newTopics) {
+    public void sendTopicListUpdate(
+            long watcherId, String topicsHash, List<String> deletedTopics, List<String> newTopics) {
         connection.getCommandSender().sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash);
     }
-
-
 }

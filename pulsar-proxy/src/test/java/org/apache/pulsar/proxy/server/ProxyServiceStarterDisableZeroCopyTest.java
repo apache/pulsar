@@ -21,7 +21,7 @@ package org.apache.pulsar.proxy.server;
 import java.util.Optional;
 import org.testng.annotations.BeforeClass;
 
-public class ProxyServiceStarterDisableZeroCopyTest extends ProxyServiceStarterTest{
+public class ProxyServiceStarterDisableZeroCopyTest extends ProxyServiceStarterTest {
 
     @Override
     @BeforeClass

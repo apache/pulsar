@@ -160,8 +160,8 @@ final class ProtectedObjectMapper extends ObjectMapper {
     }
 
     @Override
-    public ObjectMapper setAnnotationIntrospectors(AnnotationIntrospector serializerAI,
-                                                   AnnotationIntrospector deserializerAI) {
+    public ObjectMapper setAnnotationIntrospectors(
+            AnnotationIntrospector serializerAI, AnnotationIntrospector deserializerAI) {
         throw createUnsupportedOperationException();
     }
 
@@ -256,14 +256,14 @@ final class ProtectedObjectMapper extends ObjectMapper {
     }
 
     @Override
-    public ObjectMapper activateDefaultTyping(PolymorphicTypeValidator ptv, DefaultTyping applicability,
-                                              JsonTypeInfo.As includeAs) {
+    public ObjectMapper activateDefaultTyping(
+            PolymorphicTypeValidator ptv, DefaultTyping applicability, JsonTypeInfo.As includeAs) {
         throw createUnsupportedOperationException();
     }
 
     @Override
-    public ObjectMapper activateDefaultTypingAsProperty(PolymorphicTypeValidator ptv, DefaultTyping applicability,
-                                                        String propertyName) {
+    public ObjectMapper activateDefaultTypingAsProperty(
+            PolymorphicTypeValidator ptv, DefaultTyping applicability, String propertyName) {
         throw createUnsupportedOperationException();
     }
 

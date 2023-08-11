@@ -20,6 +20,12 @@ package org.apache.pulsar.tests.integration.cli;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
@@ -28,12 +34,6 @@ import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
 import org.testng.annotations.Test;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class ClientToolTest extends TopicMessagingBase {
 
@@ -69,21 +69,30 @@ public class ClientToolTest extends TopicMessagingBase {
         return IntStream.range(0, MESSAGE_COUNT).mapToObj(i -> randomName(10)).collect(Collectors.toList());
     }
 
-    private void produce(ChaosContainer<?> container, String url, String topic, List<String> messages) throws Exception {
-        ContainerExecResult result = container.execCmd("bin/pulsar-client", "--url", url, "produce", topic,
-                "-m", String.join(",", messages));
+    private void produce(ChaosContainer<?> container, String url, String topic, List<String> messages)
+            throws Exception {
+        ContainerExecResult result = container.execCmd(
+                "bin/pulsar-client", "--url", url, "produce", topic, "-m", String.join(",", messages));
         if (result.getExitCode() != 0) {
-            fail("Producing failed. Command output:\n" + result.getStdout()
-                    + "\nError output:\n" + result.getStderr());
+            fail("Producing failed. Command output:\n" + result.getStdout() + "\nError output:\n" + result.getStderr());
         }
     }
 
     private List<String> consume(ChaosContainer<?> container, String url, String topic) throws Exception {
-        ContainerExecResult result = container.execCmd("bin/pulsar-client", "--url", url, "consume",
-                "-s", randomName(8), "-n", String.valueOf(MESSAGE_COUNT), "-p", "Earliest", topic);
+        ContainerExecResult result = container.execCmd(
+                "bin/pulsar-client",
+                "--url",
+                url,
+                "consume",
+                "-s",
+                randomName(8),
+                "-n",
+                String.valueOf(MESSAGE_COUNT),
+                "-p",
+                "Earliest",
+                topic);
         if (result.getExitCode() != 0) {
-            fail("Consuming failed. Command output:\n" + result.getStdout()
-                    + "\nError output:\n" + result.getStderr());
+            fail("Consuming failed. Command output:\n" + result.getStdout() + "\nError output:\n" + result.getStderr());
         }
         String output = result.getStdout();
         Pattern message = Pattern.compile("----- got message -----\nkey:\\[null\\], properties:\\[\\], content:(.*)");
@@ -94,5 +103,4 @@ public class ClientToolTest extends TopicMessagingBase {
         }
         return received;
     }
-
 }

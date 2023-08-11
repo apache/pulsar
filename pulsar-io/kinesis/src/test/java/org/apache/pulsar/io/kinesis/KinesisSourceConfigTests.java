@@ -20,7 +20,6 @@ package org.apache.pulsar.io.kinesis;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.io.File;
 import java.io.IOException;
 import java.time.ZoneOffset;
@@ -29,13 +28,11 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SourceContext;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 import software.amazon.kinesis.common.InitialPositionInStream;
-
 
 public class KinesisSourceConfigTests {
 
@@ -62,8 +59,7 @@ public class KinesisSourceConfigTests {
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
         assertEquals(config.getAwsKinesisStreamName(), "my-stream");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         assertEquals(config.getApplicationName(), "My test application");
         assertEquals(config.getCheckpointInterval(), 30000);
         assertEquals(config.getBackoffTime(), 4000);
@@ -80,7 +76,7 @@ public class KinesisSourceConfigTests {
 
     @Test
     public final void loadFromMapTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
@@ -100,8 +96,7 @@ public class KinesisSourceConfigTests {
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
         assertEquals(config.getAwsKinesisStreamName(), "my-stream");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         assertEquals(config.getApplicationName(), "My test application");
         assertEquals(config.getCheckpointInterval(), 30000);
         assertEquals(config.getBackoffTime(), 4000);
@@ -118,7 +113,7 @@ public class KinesisSourceConfigTests {
 
     @Test
     public final void loadFromMapCredentialFromSecretTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
@@ -139,8 +134,7 @@ public class KinesisSourceConfigTests {
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
         assertEquals(config.getAwsKinesisStreamName(), "my-stream");
-        assertEquals(config.getAwsCredentialPluginParam(),
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getAwsCredentialPluginParam(), "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         assertEquals(config.getApplicationName(), "My test application");
         assertEquals(config.getCheckpointInterval(), 30000);
         assertEquals(config.getBackoffTime(), 4000);
@@ -155,10 +149,11 @@ public class KinesisSourceConfigTests {
         assertEquals(actual, expected);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "empty aws-credential param")
     public final void missingCredentialsTest() throws Exception {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
@@ -167,15 +162,15 @@ public class KinesisSourceConfigTests {
         source.open(map, null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Timestamp must be specified")
     public final void missingStartTimeTest() throws Exception {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
-        map.put("awsCredentialPluginParam",
-                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        map.put("awsCredentialPluginParam", "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         map.put("initialPositionInStream", InitialPositionInStream.AT_TIMESTAMP);
 
         KinesisSource source = new KinesisSource();

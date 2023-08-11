@@ -34,11 +34,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Connector(
-    name = "nsq",
-    type = IOType.SOURCE,
-    help = "A Simple connector moving messages from an NSQ topic to a Pulsar Topic",
-    configClass = NSQSourceConfig.class
-)
+        name = "nsq",
+        type = IOType.SOURCE,
+        help = "A Simple connector moving messages from an NSQ topic to a Pulsar Topic",
+        configClass = NSQSourceConfig.class)
 @Slf4j
 public class NSQSource extends PushSource<byte[]> {
 
@@ -58,7 +57,7 @@ public class NSQSource extends PushSource<byte[]> {
     }
 
     @Override
-    public void close() throws Exception{
+    public void close() throws Exception {
         stopThread();
     }
 
@@ -68,11 +67,11 @@ public class NSQSource extends PushSource<byte[]> {
         subscriber = new Subscriber(lookupds);
 
         Thread runnerThread = new Thread(() -> {
-            subscriber.subscribe(config.getTopic(), config.getChannel(), (byte[]data) ->{
+            subscriber.subscribe(config.getTopic(), config.getChannel(), (byte[] data) -> {
                 consume(new NSQRecord(data));
             });
             LOG.info("NSQ Consumer started for topic {} with channel {}", config.getTopic(), config.getChannel());
-            //wait
+            // wait
             try {
                 synchronized (waitObject) {
                     waitObject.wait();
@@ -102,4 +101,3 @@ public class NSQSource extends PushSource<byte[]> {
         private final byte[] value;
     }
 }
-

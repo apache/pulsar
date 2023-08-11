@@ -49,192 +49,165 @@ public class Packages extends PackagesBase {
 
     @GET
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}/metadata")
-    @ApiOperation(
-        value = "Get the metadata of a package.",
-        response = PackageMetadata.class
-    )
+    @ApiOperation(value = "Get the metadata of a package.", response = PackageMetadata.class)
     @ApiResponses(
-        value = {
-            @ApiResponse(code = 200, message = "Return the metadata of the specified package."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
-        }
-    )
+            value = {
+                @ApiResponse(code = 200, message = "Return the metadata of the specified package."),
+                @ApiResponse(code = 404, message = "The specified package is not existent."),
+                @ApiResponse(code = 412, message = "The package name is illegal."),
+                @ApiResponse(code = 500, message = "Internal server error."),
+                @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            })
     public void getMeta(
-        final @PathParam("type") String type,
-        final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
-        final @PathParam("packageName") String packageName,
-        final @PathParam("version") String version,
-        @Suspended AsyncResponse asyncResponse
-    ) {
+            final @PathParam("type") String type,
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("packageName") String packageName,
+            final @PathParam("version") String version,
+            @Suspended AsyncResponse asyncResponse) {
         internalGetMetadata(type, tenant, namespace, packageName, version, asyncResponse);
     }
 
     @PUT
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}/metadata")
-    @ApiOperation(
-        value = "Update the metadata of a package."
-    )
+    @ApiOperation(value = "Update the metadata of a package.")
     @ApiResponses(
-        value = {
-            @ApiResponse(code = 200, message = "Update the metadata of the specified package successfully."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
-        }
-    )
+            value = {
+                @ApiResponse(code = 200, message = "Update the metadata of the specified package successfully."),
+                @ApiResponse(code = 404, message = "The specified package is not existent."),
+                @ApiResponse(code = 412, message = "The package name is illegal."),
+                @ApiResponse(code = 500, message = "Internal server error."),
+                @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            })
     @Consumes(MediaType.APPLICATION_JSON)
     public void updateMeta(
-        final @PathParam("type") String type,
-        final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
-        final @PathParam("packageName") String packageName,
-        final @PathParam("version") String version,
-        final PackageMetadata metadata,
-        @Suspended AsyncResponse asyncResponse
-    ) {
+            final @PathParam("type") String type,
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("packageName") String packageName,
+            final @PathParam("version") String version,
+            final PackageMetadata metadata,
+            @Suspended AsyncResponse asyncResponse) {
         if (metadata != null) {
             metadata.setModificationTime(System.currentTimeMillis());
             internalUpdateMetadata(type, tenant, namespace, packageName, version, metadata, asyncResponse);
         } else {
-            asyncResponse.resume(new RestException(Response.Status.BAD_REQUEST, "Unknown error, metadata is "
-                + "null when processing update package metadata request"));
+            asyncResponse.resume(new RestException(
+                    Response.Status.BAD_REQUEST,
+                    "Unknown error, metadata is " + "null when processing update package metadata request"));
         }
     }
 
     @POST
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
-    @ApiOperation(
-        value = "Upload a package."
-    )
+    @ApiOperation(value = "Upload a package.")
     @ApiResponses(
-        value = {
-            @ApiResponse(code = 200, message = "Upload the specified package successfully."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
-        }
-    )
+            value = {
+                @ApiResponse(code = 200, message = "Upload the specified package successfully."),
+                @ApiResponse(code = 412, message = "The package name is illegal."),
+                @ApiResponse(code = 500, message = "Internal server error."),
+                @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            })
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void upload(
-        final @PathParam("type") String type,
-        final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
-        final @PathParam("packageName") String packageName,
-        final @PathParam("version") String version,
-        final @FormDataParam("metadata") PackageMetadata packageMetadata,
-        final @FormDataParam("file") InputStream uploadedInputStream,
-        @Suspended AsyncResponse asyncResponse) {
+            final @PathParam("type") String type,
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("packageName") String packageName,
+            final @PathParam("version") String version,
+            final @FormDataParam("metadata") PackageMetadata packageMetadata,
+            final @FormDataParam("file") InputStream uploadedInputStream,
+            @Suspended AsyncResponse asyncResponse) {
         if (packageMetadata != null) {
             packageMetadata.setCreateTime(System.currentTimeMillis());
             packageMetadata.setModificationTime(System.currentTimeMillis());
-            internalUpload(type, tenant, namespace, packageName, version, packageMetadata,
-                uploadedInputStream, asyncResponse);
+            internalUpload(
+                    type, tenant, namespace, packageName, version, packageMetadata, uploadedInputStream, asyncResponse);
         } else {
-            asyncResponse.resume(new RestException(Response.Status.BAD_REQUEST, "Unknown error, metadata is "
-                + "null when processing update package metadata request"));
+            asyncResponse.resume(new RestException(
+                    Response.Status.BAD_REQUEST,
+                    "Unknown error, metadata is " + "null when processing update package metadata request"));
         }
     }
 
     @GET
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
-    @ApiOperation(
-        value = "Download a package with the package name.",
-        response = StreamingOutput.class
-    )
+    @ApiOperation(value = "Download a package with the package name.", response = StreamingOutput.class)
     @ApiResponses(
-        value = {
-            @ApiResponse(code = 200, message = "Download the specified package successfully."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
-        }
-    )
+            value = {
+                @ApiResponse(code = 200, message = "Download the specified package successfully."),
+                @ApiResponse(code = 404, message = "The specified package is not existent."),
+                @ApiResponse(code = 412, message = "The package name is illegal."),
+                @ApiResponse(code = 500, message = "Internal server error."),
+                @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            })
     public StreamingOutput download(
-        final @PathParam("type") String type,
-        final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
-        final @PathParam("packageName") String packageName,
-        final @PathParam("version") String version
-        ) {
+            final @PathParam("type") String type,
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("packageName") String packageName,
+            final @PathParam("version") String version) {
         return internalDownload(type, tenant, namespace, packageName, version);
     }
 
     @DELETE
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
     @ApiResponses(
-        value = {
-            @ApiResponse(code = 200, message = "Delete the specified package successfully."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
-        }
-    )
+            value = {
+                @ApiResponse(code = 200, message = "Delete the specified package successfully."),
+                @ApiResponse(code = 404, message = "The specified package is not existent."),
+                @ApiResponse(code = 412, message = "The package name is illegal."),
+                @ApiResponse(code = 500, message = "Internal server error."),
+                @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            })
     @ApiOperation(value = "Delete a package with the package name.")
     public void delete(
-        final @PathParam("type") String type,
-        final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
-        final @PathParam("packageName") String packageName,
-        final @PathParam("version") String version,
-        @Suspended AsyncResponse asyncResponse
-    ){
+            final @PathParam("type") String type,
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("packageName") String packageName,
+            final @PathParam("version") String version,
+            @Suspended AsyncResponse asyncResponse) {
         internalDelete(type, tenant, namespace, packageName, version, asyncResponse);
     }
 
     @GET
     @Path("/{type}/{tenant}/{namespace}/{packageName}")
-    @ApiOperation(
-        value = "Get all the versions of a package.",
-        response = String.class,
-        responseContainer = "List"
-    )
+    @ApiOperation(value = "Get all the versions of a package.", response = String.class, responseContainer = "List")
     @ApiResponses(
-        value = {
-            @ApiResponse(code = 200, message = "Return the package versions of the specified package."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
-        }
-    )
+            value = {
+                @ApiResponse(code = 200, message = "Return the package versions of the specified package."),
+                @ApiResponse(code = 404, message = "The specified package is not existent."),
+                @ApiResponse(code = 412, message = "The package name is illegal."),
+                @ApiResponse(code = 500, message = "Internal server error."),
+                @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            })
     public void listPackageVersion(
-        final @PathParam("type") String type,
-        final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
-        final @PathParam("packageName") String packageName,
-        @Suspended AsyncResponse asyncResponse
-    ) {
+            final @PathParam("type") String type,
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("packageName") String packageName,
+            @Suspended AsyncResponse asyncResponse) {
         internalListVersions(type, tenant, namespace, packageName, asyncResponse);
     }
 
     @GET
     @Path("/{type}/{tenant}/{namespace}")
-    @ApiOperation(
-        value = "Get all the specified type packages in a namespace.",
-        response = PackageMetadata.class
-    )
+    @ApiOperation(value = "Get all the specified type packages in a namespace.", response = PackageMetadata.class)
     @ApiResponses(
-        value = {
-            @ApiResponse(code = 200, message =
-                "Return all the specified type package names in the specified namespace."),
-            @ApiResponse(code = 412, message = "The package type is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
-        }
-    )
+            value = {
+                @ApiResponse(
+                        code = 200,
+                        message = "Return all the specified type package names in the specified namespace."),
+                @ApiResponse(code = 412, message = "The package type is illegal."),
+                @ApiResponse(code = 500, message = "Internal server error."),
+                @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            })
     public void listPackages(
-        final @PathParam("type") String type,
-        final @PathParam("tenant") String tenant,
-        final @PathParam("namespace") String namespace,
-        @Suspended AsyncResponse asyncResponse
-    ) {
+            final @PathParam("type") String type,
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            @Suspended AsyncResponse asyncResponse) {
         internalListPackages(type, tenant, namespace, asyncResponse);
     }
 }

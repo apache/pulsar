@@ -50,14 +50,19 @@ public class ResourceAvailabilityRanker implements LoadRanker, Comparator<Resour
         // any resource available only 5% will take this machine out of active
         int absolutelyMinRequiredToFunction = 5;
         boolean makeNonFunctional = false;
-        for (Map.Entry<String, ResourceUsage> entry : resourceDescription.getResourceUsage().entrySet()) {
+        for (Map.Entry<String, ResourceUsage> entry :
+                resourceDescription.getResourceUsage().entrySet()) {
             int percentAvailable = 0;
             if (entry.getValue().limit > 0 && entry.getValue().limit > entry.getValue().usage) {
                 Double temp = ((entry.getValue().limit - entry.getValue().usage) / entry.getValue().limit) * 100;
                 percentAvailable = temp.intValue();
             }
-            log.debug("Resource [{}] in Percentage Available - [{}], Actual Usage is - [{}], Actual Limit is [{}]",
-                    entry.getKey(), percentAvailable, entry.getValue().usage, entry.getValue().limit);
+            log.debug(
+                    "Resource [{}] in Percentage Available - [{}], Actual Usage is - [{}], Actual Limit is [{}]",
+                    entry.getKey(),
+                    percentAvailable,
+                    entry.getValue().usage,
+                    entry.getValue().limit);
             // give equal weight to each resource
             int resourceWeight = weight * percentAvailable;
             if (percentAvailable < minAvailableRequired) {

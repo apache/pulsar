@@ -62,5 +62,4 @@ public interface StateStore extends AutoCloseable {
 
     @Override
     void close();
-
 }

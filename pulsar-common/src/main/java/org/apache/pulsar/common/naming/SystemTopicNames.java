@@ -54,27 +54,28 @@ public class SystemTopicNames {
     /**
      * The set of all local topic names declared above.
      */
-    public static final Set<String> EVENTS_TOPIC_NAMES =
-            Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT,
-                    TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
+    public static final Set<String> EVENTS_TOPIC_NAMES = Collections.unmodifiableSet(Sets.newHashSet(
+            NAMESPACE_EVENTS_LOCAL_NAME,
+            TRANSACTION_BUFFER_SNAPSHOT,
+            TRANSACTION_BUFFER_SNAPSHOT_INDEXES,
+            TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
 
+    public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(
+            TopicDomain.persistent.value(), NamespaceName.SYSTEM_NAMESPACE, "transaction_coordinator_assign");
 
-    public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, "transaction_coordinator_assign");
+    public static final TopicName TRANSACTION_COORDINATOR_LOG =
+            TopicName.get(TopicDomain.persistent.value(), NamespaceName.SYSTEM_NAMESPACE, "__transaction_log_");
 
-    public static final TopicName TRANSACTION_COORDINATOR_LOG = TopicName.get(TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, "__transaction_log_");
-
-    public static final TopicName RESOURCE_USAGE_TOPIC = TopicName.get(TopicDomain.non_persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, "resource-usage");
+    public static final TopicName RESOURCE_USAGE_TOPIC =
+            TopicName.get(TopicDomain.non_persistent.value(), NamespaceName.SYSTEM_NAMESPACE, "resource-usage");
 
     public static boolean isEventSystemTopic(TopicName topicName) {
-        return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
+        return EVENTS_TOPIC_NAMES.contains(
+                TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
     }
 
     public static boolean isTransactionCoordinatorAssign(TopicName topicName) {
-        return topicName != null && topicName.toString()
-                .startsWith(TRANSACTION_COORDINATOR_ASSIGN.toString());
+        return topicName != null && topicName.toString().startsWith(TRANSACTION_COORDINATOR_ASSIGN.toString());
     }
 
     public static boolean isTopicPoliciesSystemTopic(String topic) {

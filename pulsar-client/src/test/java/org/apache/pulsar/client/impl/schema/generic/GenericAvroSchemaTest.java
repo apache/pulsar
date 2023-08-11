@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -29,10 +32,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class GenericAvroSchemaTest {
 
     private GenericAvroSchema writerSchema;
@@ -41,9 +40,13 @@ public class GenericAvroSchemaTest {
     @BeforeMethod
     public void init() {
         AvroSchema<FooV2> avroFooV2Schema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.FooV2>builder()
-            .withAlwaysAllowNull(false).withPojo(SchemaTestUtils.FooV2.class).build());
+                .withAlwaysAllowNull(false)
+                .withPojo(SchemaTestUtils.FooV2.class)
+                .build());
         AvroSchema<Foo> avroFooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
-            .withAlwaysAllowNull(false).withPojo(SchemaTestUtils.Foo.class).build());
+                .withAlwaysAllowNull(false)
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
         writerSchema = new GenericAvroSchema(avroFooV2Schema.getSchemaInfo());
         readerSchema = new GenericAvroSchema(avroFooSchema.getSchemaInfo());
     }
@@ -56,10 +59,11 @@ public class GenericAvroSchemaTest {
 
     @Test(expectedExceptions = org.apache.pulsar.client.api.SchemaSerializationException.class)
     public void testFailDecodeWithoutMultiVersioningSupport() {
-        GenericRecord dataForWriter = writerSchema.newRecordBuilder()
-            .set("field1", SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING)
-            .set("field3", 0)
-            .build();
+        GenericRecord dataForWriter = writerSchema
+                .newRecordBuilder()
+                .set("field1", SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING)
+                .set("field3", 0)
+                .build();
         readerSchema.decode(writerSchema.encode(dataForWriter));
     }
 
@@ -68,14 +72,16 @@ public class GenericAvroSchemaTest {
         MultiVersionSchemaInfoProvider provider = mock(MultiVersionSchemaInfoProvider.class);
         readerSchema.setSchemaInfoProvider(provider);
         when(provider.getSchemaByVersion(any(byte[].class)))
-            .thenReturn(CompletableFuture.completedFuture(writerSchema.getSchemaInfo()));
-        GenericRecord dataForWriter = writerSchema.newRecordBuilder()
-            .set("field1", SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING)
-            .set("field3", 0)
-            .build();
+                .thenReturn(CompletableFuture.completedFuture(writerSchema.getSchemaInfo()));
+        GenericRecord dataForWriter = writerSchema
+                .newRecordBuilder()
+                .set("field1", SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING)
+                .set("field3", 0)
+                .build();
         GenericRecord record = readerSchema.decode(writerSchema.encode(dataForWriter), new byte[10]);
         Assert.assertEquals(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING, record.getField("field1"));
         Assert.assertEquals(0, record.getField("field3"));
-        Assert.assertEquals(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_DEFAULT_STRING, record.getField("fieldUnableNull"));
+        Assert.assertEquals(
+                SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_DEFAULT_STRING, record.getField("fieldUnableNull"));
     }
 }

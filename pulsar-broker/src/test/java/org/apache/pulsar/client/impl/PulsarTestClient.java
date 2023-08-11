@@ -71,20 +71,27 @@ public class PulsarTestClient extends PulsarClientImpl {
         // instances after the constructor of PulsarClientImpl has been called.
         // An anonymous subclass of ClientCnx class is used to override the getRemoteEndpointProtocolVersion()
         // method.
-        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(clientConfigurationData.getNumIoThreads(),
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(
+                clientConfigurationData.getNumIoThreads(),
                 false,
-                new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon()));
+                new DefaultThreadFactory(
+                        "pulsar-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
-        ConnectionPool connectionPool = new ConnectionPool(clientConfigurationData, eventLoopGroup,
-                () -> clientCnxSupplierReference.get().get());
+        ConnectionPool connectionPool =
+                new ConnectionPool(clientConfigurationData, eventLoopGroup, () -> clientCnxSupplierReference
+                        .get()
+                        .get());
 
-        return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,
-                clientCnxSupplierReference);
+        return new PulsarTestClient(
+                clientConfigurationData, eventLoopGroup, connectionPool, clientCnxSupplierReference);
     }
 
-    private PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
-                             AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
+    private PulsarTestClient(
+            ClientConfigurationData conf,
+            EventLoopGroup eventLoopGroup,
+            ConnectionPool cnxPool,
+            AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
             throws PulsarClientException {
         super(conf, eventLoopGroup, cnxPool);
         // workaround initialization order issue so that ClientCnx can be created in this class
@@ -132,12 +139,16 @@ public class PulsarTestClient extends PulsarClientImpl {
      * It also configures the hook to drop OpSend messages when dropping is enabled.
      */
     @Override
-    protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex, ProducerConfigurationData conf,
-                                                  Schema<T> schema, ProducerInterceptors interceptors,
-                                                  CompletableFuture<Producer<T>> producerCreatedFuture,
-                                                  Optional<String> overrideProducerName) {
-        return new ProducerImpl<T>(this, topic, conf, producerCreatedFuture, partitionIndex, schema,
-                interceptors, overrideProducerName) {
+    protected <T> ProducerImpl<T> newProducerImpl(
+            String topic,
+            int partitionIndex,
+            ProducerConfigurationData conf,
+            Schema<T> schema,
+            ProducerInterceptors interceptors,
+            CompletableFuture<Producer<T>> producerCreatedFuture,
+            Optional<String> overrideProducerName) {
+        return new ProducerImpl<T>(
+                this, topic, conf, producerCreatedFuture, partitionIndex, schema, interceptors, overrideProducerName) {
             @Override
             protected OpSendMsgQueue createPendingMessagesQueue() {
                 return new OpSendMsgQueue() {
@@ -205,8 +216,7 @@ public class PulsarTestClient extends PulsarClientImpl {
      * Assigns the callback to use for handling OpSend messages once a message had been added to pending messages.
      * @param pendingMessageCallback
      */
-    public void setPendingMessageCallback(
-            Consumer<ProducerImpl.OpSendMsg> pendingMessageCallback) {
+    public void setPendingMessageCallback(Consumer<ProducerImpl.OpSendMsg> pendingMessageCallback) {
         this.pendingMessageCallback = pendingMessageCallback;
     }
 

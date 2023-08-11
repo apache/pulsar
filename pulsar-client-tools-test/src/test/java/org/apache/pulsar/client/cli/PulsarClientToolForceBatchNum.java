@@ -39,7 +39,7 @@ import org.testng.Assert;
  * An implement of {@link PulsarClientTool} for test, which will publish messages iff there is enough messages
  * in the batch.
  */
-public class PulsarClientToolForceBatchNum extends PulsarClientTool{
+public class PulsarClientToolForceBatchNum extends PulsarClientTool {
     private final String topic;
     private final int batchNum;
 
@@ -74,10 +74,10 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool{
     private ClientBuilder mockClientBuilder(ClientBuilder newBuilder) throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) newBuilder.build();
         ProducerBuilder<byte[]> producerBuilder = client.newProducer()
-            .batchingMaxBytes(Integer.MAX_VALUE)
-            .batchingMaxMessages(batchNum)
-            .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
-            .topic(topic);
+                .batchingMaxBytes(Integer.MAX_VALUE)
+                .batchingMaxMessages(batchNum)
+                .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .topic(topic);
         Producer<byte[]> producer = producerBuilder.create();
 
         PulsarClientImpl mockClient = spy(client);
@@ -86,15 +86,19 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool{
         ClientBuilder mockClientBuilder = spy(newBuilder);
 
         doAnswer((Answer<TypedMessageBuilder>) invocation -> {
-            TypedMessageBuilder typedMessageBuilder = spy((TypedMessageBuilder) invocation.callRealMethod());
-            doAnswer((Answer<MessageId>) invocation1 -> {
-                TypedMessageBuilder mock = ((TypedMessageBuilder) invocation1.getMock());
-                // using sendAsync() to replace send()
-                mock.sendAsync();
-                return null;
-            }).when(typedMessageBuilder).send();
-            return typedMessageBuilder;
-        }).when(mockProducer).newMessage();
+                    TypedMessageBuilder typedMessageBuilder = spy((TypedMessageBuilder) invocation.callRealMethod());
+                    doAnswer((Answer<MessageId>) invocation1 -> {
+                                TypedMessageBuilder mock = ((TypedMessageBuilder) invocation1.getMock());
+                                // using sendAsync() to replace send()
+                                mock.sendAsync();
+                                return null;
+                            })
+                            .when(typedMessageBuilder)
+                            .send();
+                    return typedMessageBuilder;
+                })
+                .when(mockProducer)
+                .newMessage();
 
         doReturn(mockProducer).when(mockProducerBuilder).create();
         doReturn(mockProducerBuilder).when(mockClient).newProducer(any(Schema.class));

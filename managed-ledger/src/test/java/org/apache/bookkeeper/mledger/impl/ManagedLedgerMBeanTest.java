@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
@@ -59,7 +58,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.addAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(1, TimeUnit.SECONDS);
-        
+
         mbean.addLedgerAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addLedgerAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
         mbean.addLedgerAddEntryLatencySample(1, TimeUnit.SECONDS);
@@ -69,9 +68,11 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.addLedgerSwitchLatencySample(1, TimeUnit.SECONDS);
 
         // Simulate stats getting update from different thread
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor
+                .submit(() -> {
+                    mbean.refreshStats(1, TimeUnit.SECONDS);
+                })
+                .get();
 
         assertEquals(mbean.getAddEntryBytesRate(), 0.0);
         assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 0.0);
@@ -84,22 +85,24 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         assertEquals(mbean.getReadEntriesErrors(), 0);
         assertEquals(mbean.getMarkDeleteRate(), 0.0);
 
-        assertEquals(mbean.getAddEntryLatencyBuckets(), new long[] { 0, 1, 0, 1, 0, 0, 0, 0, 1, 0 });
+        assertEquals(mbean.getAddEntryLatencyBuckets(), new long[] {0, 1, 0, 1, 0, 0, 0, 0, 1, 0});
         assertEquals(mbean.getAddEntryLatencyAverageUsec(), 337_000.0);
-        assertEquals(mbean.getLedgerAddEntryLatencyBuckets(), new long[] { 0, 1, 0, 1, 0, 0, 0, 0, 1, 0 });
+        assertEquals(mbean.getLedgerAddEntryLatencyBuckets(), new long[] {0, 1, 0, 1, 0, 0, 0, 0, 1, 0});
         assertEquals(mbean.getLedgerAddEntryLatencyAverageUsec(), 337_000.0);
-        assertEquals(mbean.getEntrySizeBuckets(), new long[] { 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+        assertEquals(mbean.getEntrySizeBuckets(), new long[] {0, 0, 0, 0, 0, 0, 0, 0, 0});
 
-        assertEquals(mbean.getLedgerSwitchLatencyBuckets(), new long[] { 0, 1, 0, 1, 0, 0, 0, 0, 1, 0 });
+        assertEquals(mbean.getLedgerSwitchLatencyBuckets(), new long[] {0, 1, 0, 1, 0, 0, 0, 0, 1, 0});
         assertEquals(mbean.getLedgerSwitchLatencyAverageUsec(), 337_000.0);
 
         Position p1 = ledger.addEntry(new byte[200]);
         ledger.addEntry(new byte[600]);
         cursor.markDelete(p1);
 
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor
+                .submit(() -> {
+                    mbean.refreshStats(1, TimeUnit.SECONDS);
+                })
+                .get();
 
         assertEquals(mbean.getAddEntryBytesRate(), 800.0);
         assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 1600.0);
@@ -112,14 +115,16 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         assertEquals(mbean.getReadEntriesErrors(), 0);
         assertTrue(mbean.getMarkDeleteRate() > 0.0);
 
-        assertEquals(mbean.getEntrySizeBuckets(), new long[] { 0, 1, 1, 0, 0, 0, 0, 0, 0 });
+        assertEquals(mbean.getEntrySizeBuckets(), new long[] {0, 1, 1, 0, 0, 0, 0, 0, 0});
 
         mbean.recordAddEntryError();
         mbean.recordReadEntriesError();
 
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor
+                .submit(() -> {
+                    mbean.refreshStats(1, TimeUnit.SECONDS);
+                })
+                .get();
 
         assertEquals(mbean.getAddEntryErrors(), 1);
         assertEquals(mbean.getReadEntriesErrors(), 1);
@@ -127,9 +132,11 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
 
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor
+                .submit(() -> {
+                    mbean.refreshStats(1, TimeUnit.SECONDS);
+                })
+                .get();
 
         assertEquals(mbean.getReadEntriesBytesRate(), 600.0);
         assertEquals(mbean.getReadEntriesRate(), 1.0);
@@ -140,5 +147,4 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
 
         factory.shutdown();
     }
-
 }

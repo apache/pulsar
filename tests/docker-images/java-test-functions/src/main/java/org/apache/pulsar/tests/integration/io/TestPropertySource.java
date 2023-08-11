@@ -27,8 +27,7 @@ import org.apache.pulsar.io.core.SourceContext;
 public class TestPropertySource implements Source<String> {
 
     @Override
-    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-    }
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {}
 
     @Override
     public Record<String> read() throws Exception {
@@ -39,6 +38,7 @@ public class TestPropertySource implements Source<String> {
             public String getValue() {
                 return "property";
             }
+
             @Override
             public Map<String, String> getProperties() {
                 HashMap<String, String> props = new HashMap<String, String>();
@@ -50,7 +50,5 @@ public class TestPropertySource implements Source<String> {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

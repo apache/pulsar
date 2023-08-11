@@ -49,5 +49,4 @@ public class PolicyPath {
         }
         return result;
     }
-
 }

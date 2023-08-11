@@ -65,8 +65,8 @@ public class LoadReport implements LoadManagerReport {
         this(null, null, null, null);
     }
 
-    public LoadReport(String webServiceUrl, String webServiceUrlTls, String pulsarServiceUrl,
-            String pulsarServiceUrlTls) {
+    public LoadReport(
+            String webServiceUrl, String webServiceUrlTls, String pulsarServiceUrl, String pulsarServiceUrlTls) {
         this.webServiceUrl = webServiceUrl;
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;

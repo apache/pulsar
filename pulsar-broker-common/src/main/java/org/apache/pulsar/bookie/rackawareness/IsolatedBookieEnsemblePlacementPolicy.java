@@ -61,15 +61,18 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private static final String PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP = "*";
 
-
     public IsolatedBookieEnsemblePlacementPolicy() {
         super();
     }
 
     @Override
-    public RackawareEnsemblePlacementPolicyImpl initialize(ClientConfiguration conf,
-            Optional<DNSToSwitchMapping> optionalDnsResolver, HashedWheelTimer timer, FeatureProvider featureProvider,
-            StatsLogger statsLogger, BookieAddressResolver bookieAddressResolver) {
+    public RackawareEnsemblePlacementPolicyImpl initialize(
+            ClientConfiguration conf,
+            Optional<DNSToSwitchMapping> optionalDnsResolver,
+            HashedWheelTimer timer,
+            FeatureProvider featureProvider,
+            StatsLogger statsLogger,
+            BookieAddressResolver bookieAddressResolver) {
         MetadataStore store;
         try {
             store = BookieRackAffinityMapping.createMetadataStore(conf);
@@ -79,18 +82,20 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         Set<String> primaryIsolationGroups = new HashSet<>();
         Set<String> secondaryIsolationGroups = new HashSet<>();
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
-            String isolationGroupsString = ConfigurationStringUtil
-                    .castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
+            String isolationGroupsString =
+                    ConfigurationStringUtil.castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
             if (!isolationGroupsString.isEmpty()) {
                 Collections.addAll(primaryIsolationGroups, isolationGroupsString.split(","));
             }
             // Only add the bookieMappingCache if we have defined an isolation group
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
+            bookieMappingCache
+                    .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
+                    .join();
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
-            String secondaryIsolationGroupsString = ConfigurationStringUtil
-                    .castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
+            String secondaryIsolationGroupsString =
+                    ConfigurationStringUtil.castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
             if (!secondaryIsolationGroupsString.isEmpty()) {
                 Collections.addAll(secondaryIsolationGroups, secondaryIsolationGroupsString.split(","));
             }
@@ -100,8 +105,12 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     }
 
     @Override
-    public PlacementResult<List<BookieId>> newEnsemble(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
-            Map<String, byte[]> customMetadata, Set<BookieId> excludeBookies)
+    public PlacementResult<List<BookieId>> newEnsemble(
+            int ensembleSize,
+            int writeQuorumSize,
+            int ackQuorumSize,
+            Map<String, byte[]> customMetadata,
+            Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
         if (excludeBookies == null) {
             excludeBookies = new HashSet<>();
@@ -111,19 +120,30 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     }
 
     @Override
-    public PlacementResult<BookieId> replaceBookie(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
-            Map<String, byte[]> customMetadata, List<BookieId> currentEnsemble,
-            BookieId bookieToReplace, Set<BookieId> excludeBookies)
+    public PlacementResult<BookieId> replaceBookie(
+            int ensembleSize,
+            int writeQuorumSize,
+            int ackQuorumSize,
+            Map<String, byte[]> customMetadata,
+            List<BookieId> currentEnsemble,
+            BookieId bookieToReplace,
+            Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
         if (excludeBookies == null) {
             excludeBookies = new HashSet<>();
         }
         excludeBookies.addAll(getExcludedBookies(ensembleSize, customMetadata));
-        return super.replaceBookie(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, currentEnsemble,
-                bookieToReplace, excludeBookies);
+        return super.replaceBookie(
+                ensembleSize,
+                writeQuorumSize,
+                ackQuorumSize,
+                customMetadata,
+                currentEnsemble,
+                bookieToReplace,
+                excludeBookies);
     }
 
-    private Set<BookieId> getExcludedBookies(int ensembleSize, Map<String, byte[]> customMetadata){
+    private Set<BookieId> getExcludedBookies(int ensembleSize, Map<String, byte[]> customMetadata) {
         // parse the ensemble placement policy from the custom metadata, if it is present, we will apply it to
         // the isolation groups for filtering the bookies.
         Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
@@ -140,10 +160,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     }
 
     private static Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(
-        Map<String, byte[]> customMetadata) {
+            Map<String, byte[]> customMetadata) {
 
-        byte[] ensemblePlacementPolicyConfigData = customMetadata.get(
-            EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
+        byte[] ensemblePlacementPolicyConfigData =
+                customMetadata.get(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
         if (ensemblePlacementPolicyConfigData != null) {
             try {
                 return Optional.ofNullable(EnsemblePlacementPolicyConfig.decode(ensemblePlacementPolicyConfigData));
@@ -161,10 +181,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         String className = IsolatedBookieEnsemblePlacementPolicy.class.getName();
         if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
-            String primaryIsolationGroupString = ConfigurationStringUtil
-                    .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
-            String secondaryIsolationGroupString = ConfigurationStringUtil
-                    .castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
+            String primaryIsolationGroupString =
+                    ConfigurationStringUtil.castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
+            String secondaryIsolationGroupString = ConfigurationStringUtil.castToString(
+                    properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
             if (!primaryIsolationGroupString.isEmpty()) {
                 pair.setLeft(new HashSet<>(Arrays.asList(primaryIsolationGroupString.split(","))));
             } else {
@@ -179,10 +199,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         return pair;
     }
 
-    private Set<BookieId> getExcludedBookiesWithIsolationGroups(int ensembleSize,
-        Pair<Set<String>, Set<String>> isolationGroups) {
+    private Set<BookieId> getExcludedBookiesWithIsolationGroups(
+            int ensembleSize, Pair<Set<String>, Set<String>> isolationGroups) {
         Set<BookieId> excludedBookies = new HashSet<>();
-        if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP))  {
+        if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
             return excludedBookies;
         }
         try {
@@ -190,8 +210,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 CompletableFuture<Optional<BookiesRackConfiguration>> future =
                         bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
 
-                Optional<BookiesRackConfiguration> optRes = (future.isDone() && !future.isCompletedExceptionally())
-                        ? future.join() : Optional.empty();
+                Optional<BookiesRackConfiguration> optRes =
+                        (future.isDone() && !future.isCompletedExceptionally()) ? future.join() : Optional.empty();
 
                 if (optRes.isEmpty()) {
                     return excludedBookies;
@@ -208,22 +228,23 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     secondaryIsolationGroup = isolationGroups.getRight();
                 }
                 for (String group : allBookies) {
-                    Set<String> bookiesInGroup = allGroupsBookieMapping.get(group).keySet();
+                    Set<String> bookiesInGroup =
+                            allGroupsBookieMapping.get(group).keySet();
                     if (!primaryIsolationGroup.contains(group)) {
                         for (String bookieAddress : bookiesInGroup) {
                             excludedBookies.add(BookieId.parse(bookieAddress));
                         }
                     } else {
                         for (String groupBookie : bookiesInGroup) {
-                            totalAvailableBookiesInPrimaryGroup += knownBookies
-                                .containsKey(BookieId.parse(groupBookie)) ? 1 : 0;
+                            totalAvailableBookiesInPrimaryGroup +=
+                                    knownBookies.containsKey(BookieId.parse(groupBookie)) ? 1 : 0;
                             primaryGroupBookies.add(BookieId.parse(groupBookie));
                         }
                     }
                 }
 
                 Set<BookieId> otherGroupBookies = new HashSet<>(excludedBookies);
-                Set<BookieId> nonRegionBookies  = new HashSet<>(knownBookies.keySet());
+                Set<BookieId> nonRegionBookies = new HashSet<>(knownBookies.keySet());
                 nonRegionBookies.removeAll(primaryGroupBookies);
                 excludedBookies.addAll(nonRegionBookies);
 
@@ -243,8 +264,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 int totalAvailableBookiesFromPrimaryAndSecondary = totalAvailableBookiesInPrimaryGroup;
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
                     log.info(
-                        "Not found enough available-bookies from primary isolation group [{}], checking secondary "
-                                + "group [{}]", primaryIsolationGroup, secondaryIsolationGroup);
+                            "Not found enough available-bookies from primary isolation group [{}], checking secondary "
+                                    + "group [{}]",
+                            primaryIsolationGroup,
+                            secondaryIsolationGroup);
                     for (String group : secondaryIsolationGroup) {
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {
@@ -259,9 +282,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     log.info(
                             "Not found enough available-bookies from primary isolation group [{}] and secondary "
                                     + "isolation group [{}], checking from non-region bookies",
-                            primaryIsolationGroup, secondaryIsolationGroup);
+                            primaryIsolationGroup,
+                            secondaryIsolationGroup);
                     nonRegionBookies.removeAll(otherGroupBookies);
-                    for (BookieId bookie: nonRegionBookies) {
+                    for (BookieId bookie : nonRegionBookies) {
                         excludedBookies.remove(bookie);
                     }
                 }

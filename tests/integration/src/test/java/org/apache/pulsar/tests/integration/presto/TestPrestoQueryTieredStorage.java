@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.presto;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -66,18 +65,23 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
 
     private void setupExtraContainers() throws Exception {
         log.info("[TestPrestoQueryTieredStorage] setupExtraContainers...");
-        pulsarCluster.runAdminCommandOnAnyBroker( "tenants",
-                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
-                "--admin-roles", "offload-admin", TENANT);
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "tenants",
+                "create",
+                "--allowed-clusters",
+                pulsarCluster.getClusterName(),
+                "--admin-roles",
+                "offload-admin",
+                TENANT);
 
         pulsarCluster.runAdminCommandOnAnyBroker(
                 "namespaces",
-                "create", "--clusters", pulsarCluster.getClusterName(),
+                "create",
+                "--clusters",
+                pulsarCluster.getClusterName(),
                 NamespaceName.get(TENANT, NAMESPACE).toString());
 
-        s3Container = new S3Container(
-                pulsarCluster.getClusterName(),
-                S3Container.NAME)
+        s3Container = new S3Container(pulsarCluster.getClusterName(), S3Container.NAME)
                 .withNetwork(pulsarCluster.getNetwork())
                 .withNetworkAliases(S3Container.NAME);
         s3Container.start();
@@ -92,12 +96,21 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         checkNotNull(bucket);
         StringBuilder sb = new StringBuilder();
         sb.append("{");
-        sb.append("\"s3ManagedLedgerOffloadBucket\":").append("\"").append(bucket).append("\",");
+        sb.append("\"s3ManagedLedgerOffloadBucket\":")
+                .append("\"")
+                .append(bucket)
+                .append("\",");
         if (StringUtils.isNotEmpty(region)) {
-            sb.append("\"s3ManagedLedgerOffloadRegion\":").append("\"").append(region).append("\",");
+            sb.append("\"s3ManagedLedgerOffloadRegion\":")
+                    .append("\"")
+                    .append(region)
+                    .append("\",");
         }
         if (StringUtils.isNotEmpty(endpoint)) {
-            sb.append("\"s3ManagedLedgerOffloadServiceEndpoint\":").append("\"").append(endpoint).append("\"");
+            sb.append("\"s3ManagedLedgerOffloadServiceEndpoint\":")
+                    .append("\"")
+                    .append(endpoint)
+                    .append("\"");
         }
         sb.append("}");
         return sb.toString();
@@ -114,33 +127,37 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
 
     @Test
     public void testQueryTieredStorage1() throws Exception {
-        TopicName topicName = TopicName.get(
-                TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_nons_" + randomName(5));
+        TopicName topicName =
+                TopicName.get(TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_nons_" + randomName(5));
         pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
     }
 
     @Test
     public void testQueryTieredStorage2() throws Exception {
-        TopicName topicName = TopicName.get(
-                TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_ns_" + randomName(5));
+        TopicName topicName =
+                TopicName.get(TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_ns_" + randomName(5));
         pulsarSQLBasicTest(topicName, false, true, JSONSchema.of(Stock.class), CompressionType.NONE);
     }
 
     @Override
-    protected int prepareData(TopicName topicName,
-                              boolean isBatch,
-                              boolean useNsOffloadPolices,
-                              Schema<?> schema,
-                              CompressionType compressionType) throws Exception {
+    protected int prepareData(
+            TopicName topicName,
+            boolean isBatch,
+            boolean useNsOffloadPolices,
+            Schema<?> schema,
+            CompressionType compressionType)
+            throws Exception {
         @Cleanup
-        Consumer<Stock> consumer = pulsarClient.newConsumer(JSONSchema.of(Stock.class))
+        Consumer<Stock> consumer = pulsarClient
+                .newConsumer(JSONSchema.of(Stock.class))
                 .topic(topicName.toString())
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
         @Cleanup
-        Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
+        Producer<Stock> producer = pulsarClient
+                .newProducer(JSONSchema.of(Stock.class))
                 .topic(topicName.toString())
                 .compressionType(compressionType)
                 .create();
@@ -148,16 +165,17 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         long firstLedgerId = -1;
         int sendMessageCnt = 0;
         while (true) {
-            Stock stock = new Stock(
-                    sendMessageCnt,"STOCK_" + sendMessageCnt, 100.0 + sendMessageCnt * 10);
+            Stock stock = new Stock(sendMessageCnt, "STOCK_" + sendMessageCnt, 100.0 + sendMessageCnt * 10);
             MessageIdImpl messageId = (MessageIdImpl) producer.send(stock);
-            sendMessageCnt ++;
+            sendMessageCnt++;
             if (firstLedgerId == -1) {
                 firstLedgerId = messageId.getLedgerId();
             }
             if (messageId.getLedgerId() > firstLedgerId) {
-                log.info("ledger rollover firstLedgerId: {}, currentLedgerId: {}",
-                        firstLedgerId, messageId.getLedgerId());
+                log.info(
+                        "ledger rollover firstLedgerId: {}, currentLedgerId: {}",
+                        firstLedgerId,
+                        messageId.getLedgerId());
                 break;
             }
             Thread.sleep(100);
@@ -171,32 +189,44 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         String adminUrl = pulsarCluster.getHttpServiceUrl();
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
             // read managed ledger info, check ledgers exist
-            long firstLedger = admin.topics().getInternalStats(topicName.toString()).ledgers.get(0).ledgerId;
+            long firstLedger = admin.topics()
+                    .getInternalStats(topicName.toString())
+                    .ledgers
+                    .get(0)
+                    .ledgerId;
 
             String output = "";
 
             if (useNsOffloadPolices) {
                 pulsarCluster.runAdminCommandOnAnyBroker(
-                        "namespaces", "set-offload-policies",
-                        "--bucket", "pulsar-integtest",
-                        "--driver", OFFLOAD_DRIVER,
-                        "--endpoint", "http://" + S3Container.NAME + ":9090",
-                        "--offloadAfterElapsed", "1000",
+                        "namespaces",
+                        "set-offload-policies",
+                        "--bucket",
+                        "pulsar-integtest",
+                        "--driver",
+                        OFFLOAD_DRIVER,
+                        "--endpoint",
+                        "http://" + S3Container.NAME + ":9090",
+                        "--offloadAfterElapsed",
+                        "1000",
                         topicName.getNamespace());
 
-                output = pulsarCluster.runAdminCommandOnAnyBroker(
-                        "namespaces", "get-offload-policies", topicName.getNamespace()).getStdout();
+                output = pulsarCluster
+                        .runAdminCommandOnAnyBroker("namespaces", "get-offload-policies", topicName.getNamespace())
+                        .getStdout();
                 Assert.assertTrue(output.contains("pulsar-integtest"));
                 Assert.assertTrue(output.contains(OFFLOAD_DRIVER));
             }
 
             // offload with a low threshold
-            output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "offload", "--size-threshold", "0", topicName.toString()).getStdout();
+            output = pulsarCluster
+                    .runAdminCommandOnAnyBroker("topics", "offload", "--size-threshold", "0", topicName.toString())
+                    .getStdout();
             Assert.assertTrue(output.contains("Offload triggered"));
 
-            output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "offload-status", "-w", topicName.toString()).getStdout();
+            output = pulsarCluster
+                    .runAdminCommandOnAnyBroker("topics", "offload-status", "-w", topicName.toString())
+                    .getStdout();
             Assert.assertTrue(output.contains("Offload was a success"));
 
             // delete the first ledger, so that we cannot possibly read from it
@@ -224,5 +254,4 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
             assertThat(contentArr).contains("\"" + (100.0 + i * 10) + "\"");
         }
     }
-
 }

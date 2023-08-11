@@ -20,7 +20,8 @@ package org.apache.pulsar.tests.integration.io.sources.debezium;
 
 import com.google.common.collect.Sets;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
@@ -35,9 +36,6 @@ import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContaine
 import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
@@ -68,63 +66,73 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
-
     @Test(groups = "source")
-    public void testDebeziumMongoDbSource() throws Exception{
+    public void testDebeziumMongoDbSource() throws Exception {
         testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     @Test(groups = "source")
-    public void testDebeziumMsSqlSource() throws Exception{
+    public void testDebeziumMsSqlSource() throws Exception {
         testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
-    private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope,
-                                          boolean testWithClientBuilder) throws Exception {
+    private void testDebeziumMySqlConnect(
+            String converterClassName, boolean jsonWithEnvelope, boolean testWithClientBuilder) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
         boolean isJsonConverter = converterClassName.endsWith("JsonConverter");
-        final String consumeTopicName = "debezium/mysql-"
-                + (isJsonConverter ? "json" : "avro")
-                + "/dbserver1.inventory.products";
-        final String sourceName = "test-source-debezium-mysql" + (isJsonConverter ? "json" : "avro")
-                + "-" + functionRuntimeType + "-" + randomName(8);
+        final String consumeTopicName =
+                "debezium/mysql-" + (isJsonConverter ? "json" : "avro") + "/dbserver1.inventory.products";
+        final String sourceName = "test-source-debezium-mysql" + (isJsonConverter ? "json" : "avro") + "-"
+                + functionRuntimeType + "-" + randomName(8);
 
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build();
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
         initNamespace(admin);
 
         try {
             SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
             log.info("lastSchemaInfo: {}", lastSchemaInfo == null ? "null" : lastSchemaInfo.toString());
         } catch (Exception e) {
-            log.warn("failed to get schemaInfo for topic: {}, exceptions message: {}",
-                    consumeTopicName, e.getMessage());
+            log.warn(
+                    "failed to get schemaInfo for topic: {}, exceptions message: {}", consumeTopicName, e.getMessage());
         }
 
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName, testWithClientBuilder);
+        DebeziumMySqlSourceTester sourceTester =
+                new DebeziumMySqlSourceTester(pulsarCluster, converterClassName, testWithClientBuilder);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mysql server
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mySQLContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-                consumeTopicName, client);
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(
+                pulsarCluster,
+                functionRuntimeType.toString(),
+                converterClassName,
+                tenant,
+                namespace,
+                sourceName,
+                outputTopicName,
+                numMessages,
+                jsonWithEnvelope,
+                consumeTopicName,
+                client);
 
         runner.testSource(sourceTester);
     }
@@ -146,23 +154,34 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
                 .build();
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
         initNamespace(admin);
 
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
-        @Cleanup
-        DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
+        @Cleanup DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium postgresql server
-        DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
+        DebeziumPostgreSqlContainer postgreSqlContainer =
+                new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(postgreSqlContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-                consumeTopicName, client);
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(
+                pulsarCluster,
+                functionRuntimeType.toString(),
+                converterClassName,
+                tenant,
+                namespace,
+                sourceName,
+                outputTopicName,
+                numMessages,
+                jsonWithEnvelope,
+                consumeTopicName,
+                client);
 
         runner.testSource(sourceTester);
     }
@@ -173,35 +192,44 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
         final String consumeTopicName = "debezium/mongodb/dbserver1.inventory.products";
-        final String sourceName = "test-source-connector-"
-                + functionRuntimeType + "-name-" + randomName(8);
+        final String sourceName = "test-source-connector-" + functionRuntimeType + "-name-" + randomName(8);
 
         // This is the binlog count that contained in mongodb container.
         final int numMessages = 17;
-        
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
         initNamespace(admin);
 
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
-        @Cleanup
-        DebeziumMongoDbSourceTester sourceTester = new DebeziumMongoDbSourceTester(pulsarCluster);
+        @Cleanup DebeziumMongoDbSourceTester sourceTester = new DebeziumMongoDbSourceTester(pulsarCluster);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mongodb server
         DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mongoDbContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-                consumeTopicName, client);
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(
+                pulsarCluster,
+                functionRuntimeType.toString(),
+                converterClassName,
+                tenant,
+                namespace,
+                sourceName,
+                outputTopicName,
+                numMessages,
+                jsonWithEnvelope,
+                consumeTopicName,
+                client);
 
         runner.testSource(sourceTester);
     }
@@ -222,22 +250,32 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
                 .build();
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
         initNamespace(admin);
 
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
-        @Cleanup
-        DebeziumMsSqlSourceTester sourceTester = new DebeziumMsSqlSourceTester(pulsarCluster);
+        @Cleanup DebeziumMsSqlSourceTester sourceTester = new DebeziumMsSqlSourceTester(pulsarCluster);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         DebeziumMsSqlContainer msSqlContainer = new DebeziumMsSqlContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(msSqlContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-                consumeTopicName, client);
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(
+                pulsarCluster,
+                functionRuntimeType.toString(),
+                converterClassName,
+                tenant,
+                namespace,
+                sourceName,
+                outputTopicName,
+                numMessages,
+                jsonWithEnvelope,
+                consumeTopicName,
+                client);
 
         runner.testSource(sourceTester);
     }
@@ -245,9 +283,11 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
     protected void initNamespace(PulsarAdmin admin) {
         log.info("[initNamespace] start.");
         try {
-            admin.tenants().createTenant("debezium", new TenantInfoImpl(Sets.newHashSet(),
-                    Sets.newHashSet(pulsarCluster.getClusterName())));
-            String [] namespaces = {
+            admin.tenants()
+                    .createTenant(
+                            "debezium",
+                            new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(pulsarCluster.getClusterName())));
+            String[] namespaces = {
                 "debezium/mysql-json",
                 "debezium/mysql-avro",
                 "debezium/mongodb",
@@ -256,7 +296,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
             };
             Policies policies = new Policies();
             policies.retention_policies = new RetentionPolicies(-1, 50);
-            for (String ns: namespaces) {
+            for (String ns : namespaces) {
                 admin.namespaces().createNamespace(ns, policies);
             }
         } catch (Exception e) {

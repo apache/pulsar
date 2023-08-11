@@ -67,7 +67,8 @@ public class ProxyPingTest extends ProducerConsumerBase {
         config.setWebSocketSessionIdleTimeoutMillis(3 * 1000);
         config.setWebSocketPingDurationSeconds(2);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal))
+                .when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
@@ -88,8 +89,8 @@ public class ProxyPingTest extends ProducerConsumerBase {
 
     @Test
     public void testPing() throws Exception {
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
-                "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
 
         URI produceUri = URI.create(producerUri);
         WebSocketClient produceClient = new WebSocketClient();
@@ -101,7 +102,8 @@ public class ProxyPingTest extends ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             assertThat(producerFuture).succeedsWithin(2, SECONDS);
             Session session = producerFuture.get();
-            Awaitility.await().during(5, SECONDS).untilAsserted(() -> assertThat(session.isOpen()).isTrue());
+            Awaitility.await().during(5, SECONDS).untilAsserted(() -> assertThat(session.isOpen())
+                    .isTrue());
         } finally {
             produceClient.stop();
         }

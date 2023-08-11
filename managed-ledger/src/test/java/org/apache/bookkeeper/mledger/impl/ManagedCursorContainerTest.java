@@ -110,14 +110,18 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                     PositionImpl maxPosition) {
+        public void asyncReadEntries(
+                int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
             callback.readEntriesComplete(null, ctx);
         }
 
         @Override
-        public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                                     Object ctx, PositionImpl maxPosition) {
+        public void asyncReadEntries(
+                int numberOfEntriesToRead,
+                long maxSizeBytes,
+                ReadEntriesCallback callback,
+                Object ctx,
+                PositionImpl maxPosition) {
             callback.readEntriesComplete(null, ctx);
         }
 
@@ -153,8 +157,8 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback,
-                Object ctx) {
+        public void asyncMarkDelete(
+                Position position, Map<String, Long> properties, MarkDeleteCallback callback, Object ctx) {
             fail();
         }
 
@@ -193,54 +197,45 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void rewind() {
-        }
+        public void rewind() {}
 
         @Override
-        public void seek(Position newReadPosition, boolean force) {
-        }
+        public void seek(Position newReadPosition, boolean force) {}
 
         @Override
-        public void close() {
-        }
+        public void close() {}
 
         @Override
-        public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        }
+        public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {}
 
         @Override
-        public void delete(Position position) throws InterruptedException, ManagedLedgerException {
-        }
+        public void delete(Position position) throws InterruptedException, ManagedLedgerException {}
 
         @Override
-        public void asyncDelete(Position position, DeleteCallback callback, Object ctx) {
-        }
+        public void asyncDelete(Position position, DeleteCallback callback, Object ctx) {}
 
         @Override
-        public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {
-        }
+        public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {}
 
         @Override
-        public void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx) {
-        }
+        public void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx) {}
 
         @Override
-        public void clearBacklog() throws InterruptedException, ManagedLedgerException {
-        }
+        public void clearBacklog() throws InterruptedException, ManagedLedgerException {}
 
         @Override
-        public void asyncClearBacklog(ClearBacklogCallback callback, Object ctx) {
-        }
+        public void asyncClearBacklog(ClearBacklogCallback callback, Object ctx) {}
 
         @Override
         public void skipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries)
-                throws InterruptedException, ManagedLedgerException {
-        }
+                throws InterruptedException, ManagedLedgerException {}
 
         @Override
-        public void asyncSkipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries,
-                final SkipEntriesCallback callback, Object ctx) {
-        }
+        public void asyncSkipEntries(
+                int numEntriesToSkip,
+                IndividualDeletedEntries deletedEntries,
+                final SkipEntriesCallback callback,
+                Object ctx) {}
 
         @Override
         public Position findNewestMatching(Predicate<Entry> condition)
@@ -249,30 +244,32 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
+        public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition)
+                throws InterruptedException, ManagedLedgerException {
             return null;
         }
 
         @Override
-        public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
-                AsyncCallbacks.FindEntryCallback callback, Object ctx) {
-        }
+        public void asyncFindNewestMatching(
+                FindPositionConstraint constraint,
+                Predicate<Entry> condition,
+                AsyncCallbacks.FindEntryCallback callback,
+                Object ctx) {}
 
         @Override
-        public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
-                AsyncCallbacks.FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
-        }
+        public void asyncFindNewestMatching(
+                FindPositionConstraint constraint,
+                Predicate<Entry> condition,
+                AsyncCallbacks.FindEntryCallback callback,
+                Object ctx,
+                boolean isFindFromLedger) {}
 
         @Override
-        public void asyncResetCursor(final Position position, boolean forceReset,
-                AsyncCallbacks.ResetCursorCallback callback) {
-
-        }
+        public void asyncResetCursor(
+                final Position position, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback) {}
 
         @Override
-        public void resetCursor(final Position position) throws ManagedLedgerException, InterruptedException {
-
-        }
+        public void resetCursor(final Position position) throws ManagedLedgerException, InterruptedException {}
 
         @Override
         public Position getFirstPosition() {
@@ -280,8 +277,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void setAlwaysInactive() {
-        }
+        public void setAlwaysInactive() {}
 
         @Override
         public List<Entry> replayEntries(Set<? extends Position> positions)
@@ -290,12 +286,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+        public Set<? extends Position> asyncReplayEntries(
+                Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
             return Sets.newConcurrentHashSet();
         }
 
         @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
+        public Set<? extends Position> asyncReplayEntries(
+                Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
             return Sets.newConcurrentHashSet();
         }
 
@@ -306,15 +304,16 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                           PositionImpl maxPosition) {
-        }
+        public void asyncReadEntriesOrWait(
+                int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {}
 
         @Override
-        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
-                                           Object ctx, PositionImpl maxPosition) {
-
-        }
+        public void asyncReadEntriesOrWait(
+                int maxEntries,
+                long maxSizeBytes,
+                ReadEntriesCallback callback,
+                Object ctx,
+                PositionImpl maxPosition) {}
 
         @Override
         public boolean cancelPendingReadRequest() {
@@ -328,17 +327,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncGetNthEntry(int N, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
-                Object ctx) {
-        }
+        public void asyncGetNthEntry(
+                int N, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback, Object ctx) {}
 
         @Override
-        public void setActive() {
-        }
+        public void setActive() {}
 
         @Override
-        public void setInactive() {
-        }
+        public void setInactive() {}
 
         @Override
         public boolean isActive() {
@@ -366,8 +362,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void setThrottleMarkDelete(double throttleMarkDelete) {
-        }
+        public void setThrottleMarkDelete(double throttleMarkDelete) {}
 
         @Override
         public double getThrottleMarkDelete() {
@@ -385,9 +380,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void trimDeletedEntries(List<Entry> entries) {
-
-        }
+        public void trimDeletedEntries(List<Entry> entries) {}
 
         @Override
         public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
@@ -399,9 +392,8 @@ public class ManagedCursorContainerTest {
             return null;
         }
 
-        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
-                Object ctx) {
-        }
+        public void asyncReadEntriesOrWait(
+                int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx) {}
 
         @Override
         public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
@@ -426,7 +418,7 @@ public class ManagedCursorContainerTest {
         assertNull(container.getSlowestReaderPosition());
 
         // Add no durable cursor
-        PositionImpl position = PositionImpl.get(5,5);
+        PositionImpl position = PositionImpl.get(5, 5);
         ManagedCursor cursor1 = spy(new MockManagedCursor(container, "test1", position));
         doReturn(false).when(cursor1).isDurable();
         doReturn(position).when(cursor1).getReadPosition();
@@ -434,7 +426,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
 
         // Add no durable cursor
-        position = PositionImpl.get(1,1);
+        position = PositionImpl.get(1, 1);
         ManagedCursor cursor2 = spy(new MockManagedCursor(container, "test2", position));
         doReturn(false).when(cursor2).isDurable();
         doReturn(position).when(cursor2).getReadPosition();
@@ -442,13 +434,13 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(1, 1));
 
         // Move forward cursor, cursor1 = 5:5, cursor2 = 5:6, slowest is 5:5
-        position = PositionImpl.get(5,6);
+        position = PositionImpl.get(5, 6);
         container.cursorUpdated(cursor2, position);
         doReturn(position).when(cursor2).getReadPosition();
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
 
         // Move forward cursor, cursor1 = 5:8, cursor2 = 5:6, slowest is 5:6
-        position = PositionImpl.get(5,8);
+        position = PositionImpl.get(5, 8);
         doReturn(position).when(cursor1).getReadPosition();
         container.cursorUpdated(cursor1, position);
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 6));

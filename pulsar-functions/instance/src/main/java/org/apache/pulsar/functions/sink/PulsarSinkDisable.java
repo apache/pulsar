@@ -43,5 +43,4 @@ public class PulsarSinkDisable<T> implements Sink<T> {
     public void write(Record<T> record) throws Exception {
         record.ack();
     }
-
 }

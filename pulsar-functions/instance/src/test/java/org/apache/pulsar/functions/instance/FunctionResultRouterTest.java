@@ -122,5 +122,4 @@ public class FunctionResultRouterTest {
         assertEquals(hash.makeHash(key1) % 100, router.choosePartition(msg1, metadata));
         assertEquals(hash.makeHash(key2) % 100, router.choosePartition(msg2, metadata));
     }
-
 }

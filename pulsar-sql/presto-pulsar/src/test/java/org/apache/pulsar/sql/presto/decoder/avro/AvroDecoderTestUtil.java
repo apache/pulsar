@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.sql.presto.decoder.avro;
 
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.lang.String.format;
+import static org.testng.Assert.*;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.*;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.sql.presto.decoder.DecoderTestUtil;
-
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
-
-import static io.trino.spi.type.VarcharType.VARCHAR;
-import static java.lang.String.format;
-import static org.testng.Assert.*;
 
 /**
  * TestUtil for AvroDecoder
@@ -64,7 +62,6 @@ public class AvroDecoderTestUtil extends DecoderTestUtil {
             assertEquals(actual, expected);
         }
     }
-
 
     public void checkArrayValues(Block block, Type type, Object value) {
         assertNotNull(type, "Type is null");
@@ -124,7 +121,6 @@ public class AvroDecoderTestUtil extends DecoderTestUtil {
         assertNotNull(block, "Block is null");
         assertNotNull(value, "Value is null");
 
-
         Map<?, ?> expected = (Map<?, ?>) value;
 
         assertEquals(block.getPositionCount(), expected.size() * 2);
@@ -138,7 +134,11 @@ public class AvroDecoderTestUtil extends DecoderTestUtil {
                     continue;
                 }
                 Block arrayBlock = block.getObject(index + 1, Block.class);
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().toString().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().toString().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkArrayValues(arrayBlock, valueType, keyValue);
             }
         } else if (valueType instanceof MapType) {
@@ -150,7 +150,11 @@ public class AvroDecoderTestUtil extends DecoderTestUtil {
                     continue;
                 }
                 Block mapBlock = block.getObject(index + 1, Block.class);
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().toString().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().toString().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkMapValues(mapBlock, valueType, keyValue);
             }
         } else if (valueType instanceof RowType) {
@@ -162,14 +166,22 @@ public class AvroDecoderTestUtil extends DecoderTestUtil {
                     continue;
                 }
                 Block rowBlock = block.getObject(index + 1, Block.class);
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().toString().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().toString().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkRowValues(rowBlock, valueType, keyValue);
             }
         } else {
             for (int index = 0; index < block.getPositionCount(); index += 2) {
                 String actualKey = VARCHAR.getSlice(block, index).toStringUtf8();
                 assertTrue(expected.keySet().stream().anyMatch(e -> e.toString().equals(actualKey)));
-                Object keyValue = expected.entrySet().stream().filter(e -> e.getKey().toString().equals(actualKey)).findFirst().get().getValue();
+                Object keyValue = expected.entrySet().stream()
+                        .filter(e -> e.getKey().toString().equals(actualKey))
+                        .findFirst()
+                        .get()
+                        .getValue();
                 checkPrimitiveValue(getObjectValue(valueType, block, index + 1), keyValue);
             }
         }
@@ -195,5 +207,4 @@ public class AvroDecoderTestUtil extends DecoderTestUtil {
             checkField(block, rowField.getType(), fieldIndex, expectedValue);
         }
     }
-
 }

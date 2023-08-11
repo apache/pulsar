@@ -36,15 +36,19 @@ public interface SchemaRegistryService extends SchemaRegistry {
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();
         for (String className : checkerClasses) {
-            SchemaCompatibilityCheck schemaCompatibilityCheck = Reflections.createInstance(className,
-                    SchemaCompatibilityCheck.class, Thread.currentThread().getContextClassLoader());
+            SchemaCompatibilityCheck schemaCompatibilityCheck = Reflections.createInstance(
+                    className,
+                    SchemaCompatibilityCheck.class,
+                    Thread.currentThread().getContextClassLoader());
             checkers.put(schemaCompatibilityCheck.getSchemaType(), schemaCompatibilityCheck);
         }
         return checkers;
     }
 
-    static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers,
-                                        ScheduledExecutorService scheduler) {
+    static SchemaRegistryService create(
+            SchemaStorage schemaStorage,
+            Set<String> schemaRegistryCompatibilityCheckers,
+            ScheduledExecutorService scheduler) {
         if (schemaStorage != null) {
             try {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);

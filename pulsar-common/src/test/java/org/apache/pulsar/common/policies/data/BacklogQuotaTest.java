@@ -25,7 +25,8 @@ import org.testng.annotations.Test;
 public class BacklogQuotaTest {
     @Test
     public void testBacklogQuotaIdentity() {
-        Assert.assertNotEquals(BacklogQuota.builder()
+        Assert.assertNotEquals(
+                BacklogQuota.builder()
                         .limitSize(1)
                         .retentionPolicy(RetentionPolicy.producer_exception)
                         .build(),
@@ -33,7 +34,8 @@ public class BacklogQuotaTest {
                         .limitSize(2)
                         .retentionPolicy(RetentionPolicy.producer_exception)
                         .build());
-        Assert.assertNotEquals(BacklogQuota.builder()
+        Assert.assertNotEquals(
+                BacklogQuota.builder()
                         .limitSize(1)
                         .retentionPolicy(RetentionPolicy.producer_exception)
                         .build(),
@@ -41,7 +43,8 @@ public class BacklogQuotaTest {
                         .limitSize(2)
                         .retentionPolicy(RetentionPolicy.consumer_backlog_eviction)
                         .build());
-        Assert.assertNotEquals(BacklogQuota.builder()
+        Assert.assertNotEquals(
+                BacklogQuota.builder()
                         .limitSize(2)
                         .retentionPolicy(RetentionPolicy.producer_exception)
                         .build(),
@@ -49,7 +52,8 @@ public class BacklogQuotaTest {
                         .limitSize(1)
                         .retentionPolicy(RetentionPolicy.consumer_backlog_eviction)
                         .build());
-        Assert.assertEquals(BacklogQuota.builder()
+        Assert.assertEquals(
+                BacklogQuota.builder()
                         .limitSize(10)
                         .retentionPolicy(RetentionPolicy.producer_exception)
                         .build(),

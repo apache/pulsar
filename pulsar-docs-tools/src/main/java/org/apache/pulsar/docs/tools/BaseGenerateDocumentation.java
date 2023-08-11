@@ -41,11 +41,15 @@ public abstract class BaseGenerateDocumentation {
 
     JCommander jcommander;
 
-    @Parameter(names = {"-c", "--class-names"}, description =
-            "List of class names, generate documentation based on the annotations in the Class")
+    @Parameter(
+            names = {"-c", "--class-names"},
+            description = "List of class names, generate documentation based on the annotations in the Class")
     private List<String> classNames = new ArrayList<>();
 
-    @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
+    @Parameter(
+            names = {"-h", "--help"},
+            help = true,
+            description = "Show this help.")
     boolean help;
 
     public BaseGenerateDocumentation() {
@@ -94,7 +98,9 @@ public abstract class BaseGenerateDocumentation {
 
     private Annotation getFieldContextAnnotation(Field field) {
         for (Annotation annotation : field.getAnnotations()) {
-            if (annotation.annotationType().getCanonicalName()
+            if (annotation
+                    .annotationType()
+                    .getCanonicalName()
                     .equals("org.apache.pulsar.common.configuration.FieldContext")) {
                 return annotation;
             }
@@ -140,8 +146,8 @@ public abstract class BaseGenerateDocumentation {
         }
     }
 
-    protected void writeDocListByFieldContext(List<Pair<Field, FieldContextWrapper>> fieldList,
-                                              StringBuilder sb, Object obj) throws Exception {
+    protected void writeDocListByFieldContext(
+            List<Pair<Field, FieldContextWrapper>> fieldList, StringBuilder sb, Object obj) throws Exception {
         for (Pair<Field, FieldContextWrapper> fieldPair : fieldList) {
             FieldContextWrapper fieldContext = fieldPair.getValue();
             final Field field = fieldPair.getKey();
@@ -199,9 +205,9 @@ public abstract class BaseGenerateDocumentation {
         fieldList.sort(new CategoryComparator());
         List<Pair<Field, FieldContextWrapper>> requiredFields =
                 fieldList.stream().filter(p -> p.getValue().required()).collect(Collectors.toList());
-        List<Pair<Field, FieldContextWrapper>> optionalFields =
-                fieldList.stream().filter(p -> !p.getValue().required() && !p.getValue().deprecated())
-                        .collect(Collectors.toList());
+        List<Pair<Field, FieldContextWrapper>> optionalFields = fieldList.stream()
+                .filter(p -> !p.getValue().required() && !p.getValue().deprecated())
+                .collect(Collectors.toList());
         List<Pair<Field, FieldContextWrapper>> deprecatedFields =
                 fieldList.stream().filter(p -> p.getValue().deprecated()).collect(Collectors.toList());
 
@@ -226,8 +232,10 @@ public abstract class BaseGenerateDocumentation {
 
         fieldList.removeIf(f -> f.getAnnotation(ApiModelProperty.class) == null);
         fieldList.sort(Comparator.comparing(Field::getName));
-        List<Field> requiredFields = fieldList.stream().filter(isRequiredApiModel).collect(Collectors.toList());
-        List<Field> optionalFields = fieldList.stream().filter(isOptionalApiModel).collect(Collectors.toList());
+        List<Field> requiredFields =
+                fieldList.stream().filter(isRequiredApiModel).collect(Collectors.toList());
+        List<Field> optionalFields =
+                fieldList.stream().filter(isOptionalApiModel).collect(Collectors.toList());
 
         sb.append("# ").append(type).append("\n\n");
         sb.append("## Required\n");

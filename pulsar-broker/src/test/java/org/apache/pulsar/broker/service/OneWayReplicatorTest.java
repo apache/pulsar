@@ -63,14 +63,19 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Verify replicator works.
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
-        Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subscribeName).subscribe();
+        Consumer<byte[]> consumer2 = client2.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscribeName)
+                .subscribe();
         producer1.newMessage().value(msgValue).send();
         pulsar1.getBrokerService().checkReplicationPolicies();
         assertEquals(consumer2.receive(10, TimeUnit.SECONDS).getValue(), msgValue);
 
         // Verify there has one item in the attribute "publishers" or "replications"
         TopicStats topicStats2 = admin2.topics().getStats(topicName);
-        assertTrue(topicStats2.getPublishers().size() + topicStats2.getReplication().size() > 0);
+        assertTrue(topicStats2.getPublishers().size()
+                        + topicStats2.getReplication().size()
+                > 0);
 
         // cleanup.
         consumer2.close();
@@ -84,18 +89,23 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     @Test
     public void testCreateRemoteConsumerFirst() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
-        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        Producer<String> producer1 =
+                client1.newProducer(Schema.STRING).topic(topicName).create();
         // Wait for replicator started.
         Awaitility.await().untilAsserted(() -> {
-            Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
+            Optional<Topic> topicOptional2 =
+                    pulsar2.getBrokerService().getTopic(topicName, false).get();
             assertTrue(topicOptional2.isPresent());
             PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
             assertFalse(persistentTopic2.getProducers().isEmpty());
         });
         // The topic in cluster2 has a replicator created producer(schema Auto_Produce), but does not have any schema。
         // Verify: the consumer of this cluster2 can create successfully.
-        Consumer<String> consumer2 = client2.newConsumer(Schema.STRING).topic(topicName).subscriptionName("s1")
-                .subscribe();;
+        Consumer<String> consumer2 = client2.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("s1")
+                .subscribe();
+        ;
 
         // cleanup.
         producer1.close();

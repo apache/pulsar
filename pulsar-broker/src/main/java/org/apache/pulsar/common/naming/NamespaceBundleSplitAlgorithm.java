@@ -32,13 +32,15 @@ public interface NamespaceBundleSplitAlgorithm {
     String SPECIFIED_POSITIONS_DIVIDE = "specified_positions_divide";
     String FLOW_OR_QPS_EQUALLY_DIVIDE = "flow_or_qps_equally_divide";
 
-    List<String> AVAILABLE_ALGORITHMS = Lists.newArrayList(RANGE_EQUALLY_DIVIDE_NAME,
-            TOPIC_COUNT_EQUALLY_DIVIDE, SPECIFIED_POSITIONS_DIVIDE, FLOW_OR_QPS_EQUALLY_DIVIDE);
+    List<String> AVAILABLE_ALGORITHMS = Lists.newArrayList(
+            RANGE_EQUALLY_DIVIDE_NAME,
+            TOPIC_COUNT_EQUALLY_DIVIDE,
+            SPECIFIED_POSITIONS_DIVIDE,
+            FLOW_OR_QPS_EQUALLY_DIVIDE);
 
     NamespaceBundleSplitAlgorithm RANGE_EQUALLY_DIVIDE_ALGO = new RangeEquallyDivideBundleSplitAlgorithm();
     NamespaceBundleSplitAlgorithm TOPIC_COUNT_EQUALLY_DIVIDE_ALGO = new TopicCountEquallyDivideBundleSplitAlgorithm();
-    NamespaceBundleSplitAlgorithm SPECIFIED_POSITIONS_DIVIDE_ALGO =
-            new SpecifiedPositionsBundleSplitAlgorithm();
+    NamespaceBundleSplitAlgorithm SPECIFIED_POSITIONS_DIVIDE_ALGO = new SpecifiedPositionsBundleSplitAlgorithm();
 
     NamespaceBundleSplitAlgorithm SPECIFIED_POSITIONS_DIVIDE_FORCE_ALGO =
             new SpecifiedPositionsBundleSplitAlgorithm(true);

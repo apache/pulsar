@@ -39,7 +39,8 @@ public class MetadataBenchmark extends MetadataStoreTest {
     @Test(dataProvider = "impl", enabled = false)
     public void testGet(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         final int N_KEYS = 128;
         final int N_GETS = 1_000_000;
@@ -58,7 +59,8 @@ public class MetadataBenchmark extends MetadataStoreTest {
                     .thenAccept(__ -> {
                         s.release();
                         latch.countDown();
-                    }).exceptionally(ex -> {
+                    })
+                    .exceptionally(ex -> {
                         log.warn("Failed to do get operation", ex);
                         return null;
                     });
@@ -74,7 +76,8 @@ public class MetadataBenchmark extends MetadataStoreTest {
     @Test(dataProvider = "impl", enabled = false)
     public void testGetChildren(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         final int N_KEYS = 128;
         final int N_GETS = 1_000_000;
@@ -92,7 +95,8 @@ public class MetadataBenchmark extends MetadataStoreTest {
                     .thenAccept(__ -> {
                         s.release();
                         latch.countDown();
-                    }).exceptionally(ex -> {
+                    })
+                    .exceptionally(ex -> {
                         log.warn("Failed to do get children operation", ex);
                         return null;
                     });
@@ -108,7 +112,8 @@ public class MetadataBenchmark extends MetadataStoreTest {
     @Test(dataProvider = "impl", enabled = false)
     public void testPut(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         final int N_KEYS = 10_000;
         final int N_PUTS = 100_000;
@@ -129,7 +134,8 @@ public class MetadataBenchmark extends MetadataStoreTest {
                     .thenAccept(__ -> {
                         s.release();
                         latch.countDown();
-                    }).exceptionally(ex -> {
+                    })
+                    .exceptionally(ex -> {
                         log.warn("Failed to do put operation", ex);
                         return null;
                     });
@@ -151,5 +157,4 @@ public class MetadataBenchmark extends MetadataStoreTest {
 
         FutureUtil.waitForAll(futures).join();
     }
-
 }

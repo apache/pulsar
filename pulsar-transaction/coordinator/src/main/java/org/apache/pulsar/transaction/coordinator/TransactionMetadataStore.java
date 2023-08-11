@@ -56,7 +56,7 @@ public interface TransactionMetadataStore {
      * Create a new transaction in the transaction metadata store.
      *
      * @param timeoutInMills the timeout duration of the transaction in mills
-*      @param owner the role which is the owner of the transaction
+     *      @param owner the role which is the owner of the transaction
      * @return a future represents the result of creating a new transaction.
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
@@ -70,8 +70,7 @@ public interface TransactionMetadataStore {
      * @param partitions the list of partitions that a transaction produces to
      * @return a future represents the result of this operation
      */
-    CompletableFuture<Void> addProducedPartitionToTxn(
-        TxnID txnid, List<String> partitions);
+    CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnid, List<String> partitions);
 
     /**
      * Add the acked partitions to transaction identified by <tt>txnid</tt>.
@@ -80,8 +79,7 @@ public interface TransactionMetadataStore {
      * @param partitions the list of partitions that a transaction acknowledge to
      * @return a future represents the result of the operation
      */
-    CompletableFuture<Void> addAckedPartitionToTxn(
-        TxnID txnid, List<TransactionSubscription> partitions);
+    CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnid, List<TransactionSubscription> partitions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.
@@ -96,7 +94,7 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> updateTxnStatus(
-        TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus, boolean isTimeout);
+            TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus, boolean isTimeout);
 
     /**
      * Get the low water mark of this tc, in order to delete unless transaction in transaction buffer and pending ack.

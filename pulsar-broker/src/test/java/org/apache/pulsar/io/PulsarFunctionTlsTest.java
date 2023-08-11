@@ -160,8 +160,10 @@ public class PulsarFunctionTlsTest {
         workerServer = new WorkerServer(functionsWorkerService, authenticationService);
         workerServer.start();
         Thread.sleep(2000);
-        String functionTlsUrl = String.format("https://%s:%s",
-                functionsWorkerService.getWorkerConfig().getWorkerHostname(), workerServer.getListenPortHTTPS().get());
+        String functionTlsUrl = String.format(
+                "https://%s:%s",
+                functionsWorkerService.getWorkerConfig().getWorkerHostname(),
+                workerServer.getListenPortHTTPS().get());
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
@@ -169,9 +171,11 @@ public class PulsarFunctionTlsTest {
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
 
-        functionAdmin = PulsarAdmin.builder().serviceHttpUrl(functionTlsUrl)
+        functionAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(functionTlsUrl)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                .authentication(authTls).build();
+                .authentication(authTls)
+                .build();
 
         Thread.sleep(100);
     }
@@ -191,8 +195,7 @@ public class PulsarFunctionTlsTest {
         }
     }
 
-    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
-                                                           PulsarAdmin mockPulsarAdmin) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config, PulsarAdmin mockPulsarAdmin) {
         workerConfig = new WorkerConfig();
         tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
         tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
@@ -200,12 +203,14 @@ public class PulsarFunctionTlsTest {
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper()
-                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper()
+                .getObjectMapper()
+                .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
-        workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePort().get());
+        workerConfig.setPulsarServiceUrl(
+                "pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
+        workerConfig.setPulsarWebServiceUrl(
+                "https://127.0.0.1:" + config.getWebServicePort().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -264,10 +269,16 @@ public class PulsarFunctionTlsTest {
         final String subscriptionName = "test-sub";
         namespaceList.add(replNamespace);
 
-        String jarFilePathUrl = String.format("%s:%s", org.apache.pulsar.common.functions.Utils.FILE,
-                PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-        FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion,
-                functionName, "my.*", sinkTopic, subscriptionName);
+        String jarFilePathUrl = String.format(
+                "%s:%s",
+                org.apache.pulsar.common.functions.Utils.FILE,
+                PulsarSink.class
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .getPath());
+        FunctionConfig functionConfig = createFunctionConfig(
+                jarFilePathUrl, tenant, namespacePortion, functionName, "my.*", sinkTopic, subscriptionName);
 
         try {
             functionAdmin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
@@ -275,16 +286,16 @@ public class PulsarFunctionTlsTest {
         } catch (PulsarAdminException e) {
             assertTrue(e.getMessage().contains("already exists"));
         }
-
     }
 
-    protected static FunctionConfig createFunctionConfig(String jarFile,
-                                                         String tenant,
-                                                         String namespace,
-                                                         String functionName,
-                                                         String sourceTopic,
-                                                         String sinkTopic,
-                                                         String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(
+            String jarFile,
+            String tenant,
+            String namespace,
+            String functionName,
+            String sourceTopic,
+            String sinkTopic,
+            String subscriptionName) {
 
         File file = new File(jarFile);
         try {
@@ -312,5 +323,4 @@ public class PulsarFunctionTlsTest {
 
         return functionConfig;
     }
-
 }

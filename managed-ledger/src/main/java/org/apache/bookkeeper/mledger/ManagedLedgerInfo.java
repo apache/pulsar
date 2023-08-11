@@ -29,6 +29,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 public class ManagedLedgerInfo {
     /** Z-Node version. */
     public long version;
+
     public String creationDate;
     public String modificationDate;
 
@@ -51,6 +52,7 @@ public class ManagedLedgerInfo {
     public static class CursorInfo {
         /** Z-Node version. */
         public long version;
+
         public String creationDate;
         public String modificationDate;
 

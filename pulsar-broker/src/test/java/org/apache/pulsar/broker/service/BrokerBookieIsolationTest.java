@@ -138,10 +138,8 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
-                bookies[1].getBookieId());
-        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
-                bookies[3].getBookieId());
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(), bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(), bookies[3].getBookieId());
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
@@ -171,10 +169,13 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarService.getWebServiceAddress())
+                .build();
 
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
-
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(pulsarService.getWebServiceAddress())
+                .build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -182,33 +183,42 @@ public class BrokerBookieIsolationTest {
         admin.namespaces().createNamespace(ns2);
         admin.namespaces().createNamespace(ns3);
         admin.namespaces().createNamespace(ns4);
-        admin.namespaces().setBookieAffinityGroup(ns2,
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns2,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                                .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns3,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                                .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns4,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                                .build());
+
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns2),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
-        admin.namespaces().setBookieAffinityGroup(ns3,
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns3),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
-        admin.namespaces().setBookieAffinityGroup(ns4,
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns4),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
 
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
-                        .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
-                        .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns4),
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
-                        .build());
-
-        //Checks the namespace bundles after setting the bookie affinity
+        // Checks the namespace bundles after setting the bookie affinity
         assertEquals(admin.namespaces().getBundles(ns2).getNumBundles(), config.getDefaultNumberOfNamespaceBundles());
 
         try {
@@ -219,15 +229,17 @@ public class BrokerBookieIsolationTest {
         }
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
-                .statsInterval(-1, TimeUnit.SECONDS).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS)
+                .build();
 
         PersistentTopic topic1 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns1, "topic1", totalPublish);
         PersistentTopic topic2 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", totalPublish);
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
@@ -255,9 +267,9 @@ public class BrokerBookieIsolationTest {
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
         ManagedLedgerClientFactory mlFactory =
-            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
-        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
-                .getBkEnsemblePolicyToBookKeeperMap();
+                (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
+        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap =
+                mlFactory.getBkEnsemblePolicyToBookKeeperMap();
 
         // broker should create only 1 bk-client and factory per isolation-group
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 1);
@@ -273,17 +285,16 @@ public class BrokerBookieIsolationTest {
     }
 
     private LedgerManager getLedgerManager(BookieImpl bookie1) throws IllegalAccessException {
-        DbLedgerStorage ledgerStorage =
-                (DbLedgerStorage)FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
-        SingleDirectoryDbLedgerStorage singleDirectoryDbLedgerStorage =
-                ((List<SingleDirectoryDbLedgerStorage>)FieldUtils
-                        .readDeclaredField(ledgerStorage, "ledgerStorageList", true)).get(0);
+        DbLedgerStorage ledgerStorage = (DbLedgerStorage) FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
+        SingleDirectoryDbLedgerStorage singleDirectoryDbLedgerStorage = ((List<SingleDirectoryDbLedgerStorage>)
+                        FieldUtils.readDeclaredField(ledgerStorage, "ledgerStorageList", true))
+                .get(0);
         GarbageCollectorThread gcThread =
-                (GarbageCollectorThread)FieldUtils.readDeclaredField(singleDirectoryDbLedgerStorage, "gcThread", true);
+                (GarbageCollectorThread) FieldUtils.readDeclaredField(singleDirectoryDbLedgerStorage, "gcThread", true);
         ScanAndCompareGarbageCollector garbageCollector =
-                (ScanAndCompareGarbageCollector)FieldUtils.readDeclaredField(gcThread, "garbageCollector", true);
+                (ScanAndCompareGarbageCollector) FieldUtils.readDeclaredField(gcThread, "garbageCollector", true);
         LedgerManager ledgerManager =
-                (LedgerManager)FieldUtils.readDeclaredField(garbageCollector, "ledgerManager", true);
+                (LedgerManager) FieldUtils.readDeclaredField(garbageCollector, "ledgerManager", true);
         return ledgerManager;
     }
 
@@ -300,8 +311,7 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
-                bookies[3].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(), bookies[3].getBookieId());
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
@@ -328,9 +338,13 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarService.getWebServiceAddress())
+                .build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(pulsarService.getWebServiceAddress())
+                .build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -344,16 +358,22 @@ public class BrokerBookieIsolationTest {
         }
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
-                .statsInterval(-1, TimeUnit.SECONDS).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS)
+                .build();
 
         final String topicName = String.format("persistent://%s/%s", ns2, "topic1");
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 20; i++) {
@@ -362,27 +382,34 @@ public class BrokerBookieIsolationTest {
         }
 
         setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
-        admin.namespaces().setBookieAffinityGroup(ns2,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
-                        .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns2,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                                .build());
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns2),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
 
-        PersistentTopic topic2 = (PersistentTopic) pulsarService.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topic2 = (PersistentTopic)
+                pulsarService.getBrokerService().getTopicReference(topicName).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic2.getManagedLedger();
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(ml.getConfig().getBookKeeperEnsemblePlacementPolicyProperties().size() > 0));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertTrue(ml.getConfig()
+                                .getBookKeeperEnsemblePlacementPolicyProperties()
+                                .size()
+                        > 0));
 
-        for (int i=0; i<80; i++) {
+        for (int i = 0; i < 80; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
         producer.close();
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
@@ -391,13 +418,14 @@ public class BrokerBookieIsolationTest {
 
         List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
         // validate ledgers' ensemble with affinity bookies
-        for (int i=1; i<ledgers.size();i++) {
+        for (int i = 1; i < ledgers.size(); i++) {
             LedgerInfo lInfo = ledgers.get(i);
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
             LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
             Set<BookieId> ledgerBookies = new HashSet<>();
-            ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
+            ledgerBookies.addAll(
+                    ledgerMetadata.getAllEnsembles().values().iterator().next());
             assertEquals(ledgerBookies.size(), isolatedBookies.size());
             ledgerBookies.removeAll(isolatedBookies);
             assertEquals(ledgerBookies.size(), 0);
@@ -437,10 +465,8 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
-                bookies[1].getBookieId());
-        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
-                bookies[3].getBookieId());
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(), bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(), bookies[3].getBookieId());
 
         setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
 
@@ -471,10 +497,13 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarService.getWebServiceAddress())
+                .build();
 
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
-
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(pulsarService.getWebServiceAddress())
+                .build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -482,28 +511,37 @@ public class BrokerBookieIsolationTest {
         admin.namespaces().createNamespace(ns2);
         admin.namespaces().createNamespace(ns3);
         admin.namespaces().createNamespace(ns4);
-        admin.namespaces().setBookieAffinityGroup(ns2,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
-                        .build());
-        admin.namespaces().setBookieAffinityGroup(ns3,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
-                        .build());
-        admin.namespaces().setBookieAffinityGroup(ns4,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
-                        .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns2,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                                .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns3,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                                .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns4,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                                .build());
 
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns2),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns3),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns4),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns4),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
@@ -516,15 +554,17 @@ public class BrokerBookieIsolationTest {
         }
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
-                .statsInterval(-1, TimeUnit.SECONDS).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS)
+                .build();
 
         PersistentTopic topic1 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns1, "topic1", totalPublish);
         PersistentTopic topic2 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", totalPublish);
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
@@ -553,8 +593,8 @@ public class BrokerBookieIsolationTest {
 
         ManagedLedgerClientFactory mlFactory =
                 (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
-        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
-                .getBkEnsemblePolicyToBookKeeperMap();
+        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap =
+                mlFactory.getBkEnsemblePolicyToBookKeeperMap();
 
         // broker should create only 1 bk-client and factory per isolation-group
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 2);
@@ -592,12 +632,9 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
-                bookies[1].getBookieId());
-        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
-                bookies[3].getBookieId());
-        Set<BookieId> downedBookies = Sets.newHashSet(BookieId.parse("1.1.1.1:1111"),
-                BookieId.parse("1.1.1.1:1112"));
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(), bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(), bookies[3].getBookieId());
+        Set<BookieId> downedBookies = Sets.newHashSet(BookieId.parse("1.1.1.1:1111"), BookieId.parse("1.1.1.1:1112"));
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         // primary group empty
@@ -627,9 +664,13 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarService.getWebServiceAddress())
+                .build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(pulsarService.getWebServiceAddress())
+                .build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -637,32 +678,41 @@ public class BrokerBookieIsolationTest {
         admin.namespaces().createNamespace(ns2);
         admin.namespaces().createNamespace(ns3);
         admin.namespaces().createNamespace(ns4);
-        admin.namespaces().setBookieAffinityGroup(ns2,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
-                        .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
-                        .build());
-        admin.namespaces().setBookieAffinityGroup(ns3,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
-                        .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
-                        .build());
-        admin.namespaces().setBookieAffinityGroup(ns4,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
-                        .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns2,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                                .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
+                                .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns3,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                                .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
+                                .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns4,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                                .build());
 
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns2),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns3),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns4),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns4),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
                         .build());
@@ -675,14 +725,16 @@ public class BrokerBookieIsolationTest {
         }
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
-                .statsInterval(-1, TimeUnit.SECONDS).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS)
+                .build();
 
         PersistentTopic topic1 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns1, "topic1", totalPublish);
         PersistentTopic topic2 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", totalPublish);
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
 
-        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
         LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
@@ -704,9 +756,9 @@ public class BrokerBookieIsolationTest {
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
         ManagedLedgerClientFactory mlFactory =
-            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
-        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
-                .getBkEnsemblePolicyToBookKeeperMap();
+                (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
+        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap =
+                mlFactory.getBkEnsemblePolicyToBookKeeperMap();
 
         // broker should create only 1 bk-client and factory per isolation-group
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 1);
@@ -735,10 +787,8 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
-                bookies[1].getBookieId());
-        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
-                bookies[3].getBookieId());
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(), bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(), bookies[3].getBookieId());
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         // primary group empty
@@ -765,9 +815,13 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarService.getWebServiceAddress())
+                .build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(pulsarService.getWebServiceAddress())
+                .build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -775,24 +829,30 @@ public class BrokerBookieIsolationTest {
         admin.namespaces().createNamespace(ns3);
 
         // (1) set affinity-group
-        admin.namespaces().setBookieAffinityGroup(ns2,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
-                        .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
-                        .build());
-        admin.namespaces().setBookieAffinityGroup(ns3,
-                BookieAffinityGroupData.builder()
-                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
-                        .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
-                        .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns2,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                                .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
+                                .build());
+        admin.namespaces()
+                .setBookieAffinityGroup(
+                        ns3,
+                        BookieAffinityGroupData.builder()
+                                .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                                .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
+                                .build());
 
         // (2) get affinity-group
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns2),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns3),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
@@ -803,22 +863,23 @@ public class BrokerBookieIsolationTest {
 
         assertNull(admin.namespaces().getBookieAffinityGroup(ns2));
 
-        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
+        assertEquals(
+                admin.namespaces().getBookieAffinityGroup(ns3),
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
-
     }
 
-    private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,
-            Set<BookieId> defaultBookies) throws Exception {
+    private void assertAffinityBookies(
+            LedgerManager ledgerManager, List<LedgerInfo> ledgers1, Set<BookieId> defaultBookies) throws Exception {
         for (LedgerInfo lInfo : ledgers1) {
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
             LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
             Set<BookieId> ledgerBookies = new HashSet<>();
-            ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
+            ledgerBookies.addAll(
+                    ledgerMetadata.getAllEnsembles().values().iterator().next());
             assertEquals(ledgerBookies.size(), defaultBookies.size());
             ledgerBookies.removeAll(defaultBookies);
             assertEquals(ledgerBookies.size(), 0);
@@ -828,11 +889,15 @@ public class BrokerBookieIsolationTest {
     private Topic createTopicAndPublish(PulsarClient pulsarClient, String ns, String topicLocalName, int totalPublish)
             throws Exception {
         final String topicName = String.format("persistent://%s/%s", ns, topicLocalName);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < totalPublish; i++) {
@@ -844,8 +909,9 @@ public class BrokerBookieIsolationTest {
         return pulsarService.getBrokerService().getTopicReference(topicName).get();
     }
 
-    private void setDefaultIsolationGroup(String brokerBookkeeperClientIsolationGroups, ZooKeeper zkClient,
-            Set<BookieId> bookieAddresses) throws Exception {
+    private void setDefaultIsolationGroup(
+            String brokerBookkeeperClientIsolationGroups, ZooKeeper zkClient, Set<BookieId> bookieAddresses)
+            throws Exception {
         BookiesRackConfiguration bookies = null;
         try {
             byte[] data = zkClient.getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
@@ -853,8 +919,7 @@ public class BrokerBookieIsolationTest {
             bookies = jsonMapper.readValue(data, BookiesRackConfiguration.class);
         } catch (KeeperException.NoNodeException e) {
             // Ok.. create new bookie znode
-            zkClient.create(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "".getBytes(), Acl,
-                    CreateMode.PERSISTENT);
+            zkClient.create(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "".getBytes(), Acl, CreateMode.PERSISTENT);
         }
         if (bookies == null) {
             bookies = new BookiesRackConfiguration();
@@ -862,13 +927,16 @@ public class BrokerBookieIsolationTest {
 
         Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
         for (BookieId bkSocket : bookieAddresses) {
-            BookieInfo info = BookieInfo.builder().rack("use").hostname(bkSocket.toString()).build();
+            BookieInfo info = BookieInfo.builder()
+                    .rack("use")
+                    .hostname(bkSocket.toString())
+                    .build();
             bookieInfoMap.put(bkSocket.toString(), info);
         }
         bookies.put(brokerBookkeeperClientIsolationGroups, bookieInfoMap);
 
         zkClient.setData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
     }
-    private static final Logger log = LoggerFactory.getLogger(BrokerBookieIsolationTest.class);
 
+    private static final Logger log = LoggerFactory.getLogger(BrokerBookieIsolationTest.class);
 }

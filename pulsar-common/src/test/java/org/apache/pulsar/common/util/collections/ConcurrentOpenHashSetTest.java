@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,11 +31,8 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import lombok.Cleanup;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 // Deprecation warning suppressed as this test targets deprecated class
 @SuppressWarnings("deprecation")
@@ -78,11 +75,10 @@ public class ConcurrentOpenHashSetTest {
 
     @Test
     public void testReduceUnnecessaryExpansions() {
-        ConcurrentOpenHashSet<String> set =
-                ConcurrentOpenHashSet.<String>newBuilder()
-                        .expectedItems(2)
-                        .concurrencyLevel(1)
-                        .build();
+        ConcurrentOpenHashSet<String> set = ConcurrentOpenHashSet.<String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .build();
 
         assertTrue(set.add("1"));
         assertTrue(set.add("2"));
@@ -98,8 +94,7 @@ public class ConcurrentOpenHashSetTest {
 
     @Test
     public void testClear() {
-        ConcurrentOpenHashSet<String> set =
-                ConcurrentOpenHashSet.<String>newBuilder()
+        ConcurrentOpenHashSet<String> set = ConcurrentOpenHashSet.<String>newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
                 .autoShrink(true)
@@ -118,8 +113,7 @@ public class ConcurrentOpenHashSetTest {
 
     @Test
     public void testExpandAndShrink() {
-        ConcurrentOpenHashSet<String> map =
-                ConcurrentOpenHashSet.<String>newBuilder()
+        ConcurrentOpenHashSet<String> map = ConcurrentOpenHashSet.<String>newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
                 .autoShrink(true)
@@ -146,7 +140,7 @@ public class ConcurrentOpenHashSetTest {
         assertTrue(map.add("k5"));
         assertEquals(map.capacity(), 8);
 
-        //verify that the map does not keep shrinking at every remove() operation
+        // verify that the map does not keep shrinking at every remove() operation
         assertTrue(map.add("k6"));
         assertTrue(map.remove("k6"));
         assertEquals(map.capacity(), 8);
@@ -309,7 +303,8 @@ public class ConcurrentOpenHashSetTest {
 
     @Test
     public void testIteration() {
-        ConcurrentOpenHashSet<Long> set = ConcurrentOpenHashSet.<Long>newBuilder().build();
+        ConcurrentOpenHashSet<Long> set =
+                ConcurrentOpenHashSet.<Long>newBuilder().build();
 
         assertEquals(set.values(), Collections.emptyList());
 
@@ -414,8 +409,7 @@ public class ConcurrentOpenHashSetTest {
             }
         }
 
-        ConcurrentOpenHashSet<T> set =
-                ConcurrentOpenHashSet.<T>newBuilder().build();
+        ConcurrentOpenHashSet<T> set = ConcurrentOpenHashSet.<T>newBuilder().build();
 
         T t1 = new T(1);
         T t1_b = new T(1);
@@ -434,5 +428,4 @@ public class ConcurrentOpenHashSetTest {
         assertFalse(set.contains(t1));
         assertFalse(set.contains(t1_b));
     }
-
 }

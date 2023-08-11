@@ -29,7 +29,6 @@ public class SubscriptionStatsImplTest {
         stats.earliestMsgPublishTimeInBacklog = 1L;
         stats.reset();
         assertEquals(stats.earliestMsgPublishTimeInBacklog, 0L);
-
     }
 
     @Test

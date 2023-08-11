@@ -42,8 +42,8 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
 
     // the iterator should hold the references to the entries
     // so when the reader is closed, all the entries can be released.
-    public InMemTransactionBufferReader(TxnID txnId, Iterator<Entry<Long, ByteBuf>> entries, long committedAtLedgerId,
-                                        long committedAtEntryId) {
+    public InMemTransactionBufferReader(
+            TxnID txnId, Iterator<Entry<Long, ByteBuf>> entries, long committedAtLedgerId, long committedAtEntryId) {
         this.txnId = txnId;
         this.entries = entries;
         this.committedAtLedgerId = committedAtLedgerId;
@@ -55,9 +55,7 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
         CompletableFuture<List<TransactionEntry>> readFuture = new CompletableFuture<>();
 
         if (numEntries <= 0) {
-            readFuture.completeExceptionally(new IllegalArgumentException(
-                "`numEntries` should be larger than 0"
-            ));
+            readFuture.completeExceptionally(new IllegalArgumentException("`numEntries` should be larger than 0"));
             return readFuture;
         }
 
@@ -66,21 +64,19 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
         while (i < numEntries && entries.hasNext()) {
             Entry<Long, ByteBuf> entry = entries.next();
             TransactionEntry txnEntry = new TransactionEntryImpl(
-                txnId,
-                entry.getKey(),
-                EntryImpl.create(-1L, -1L, entry.getValue()),
-                committedAtLedgerId,
-                committedAtEntryId,
-                -1
-            );
+                    txnId,
+                    entry.getKey(),
+                    EntryImpl.create(-1L, -1L, entry.getValue()),
+                    committedAtLedgerId,
+                    committedAtEntryId,
+                    -1);
             txnEntries.add(txnEntry);
             ++i;
         }
 
         if (txnEntries.isEmpty()) {
             readFuture.completeExceptionally(new TransactionBufferException.EndOfTransactionException(
-                "No more entries found in transaction `" + txnId + "`"
-            ));
+                    "No more entries found in transaction `" + txnId + "`"));
         } else {
             readFuture.complete(txnEntries);
         }

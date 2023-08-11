@@ -23,21 +23,17 @@ import org.testng.annotations.Test;
 
 public class PushSourceTest {
 
-  PushSource testBatchSource = new PushSource() {
-    @Override
-    public void open(Map config, SourceContext context) throws Exception {
+    PushSource testBatchSource = new PushSource() {
+        @Override
+        public void open(Map config, SourceContext context) throws Exception {}
 
+        @Override
+        public void close() throws Exception {}
+    };
+
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "test exception")
+    public void testNotifyErrors() throws Exception {
+        testBatchSource.notifyError(new RuntimeException("test exception"));
+        testBatchSource.readNext();
     }
-
-    @Override
-    public void close() throws Exception {
-
-    }
-  };
-
-  @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "test exception")
-  public void testNotifyErrors() throws Exception {
-    testBatchSource.notifyError(new RuntimeException("test exception"));
-    testBatchSource.readNext();
-  }
 }

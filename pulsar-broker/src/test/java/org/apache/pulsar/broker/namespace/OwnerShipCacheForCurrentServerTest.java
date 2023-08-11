@@ -45,11 +45,17 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
     @BeforeMethod
     protected void setup() throws Exception {
         internalSetup();
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        String[] brokerServiceUrlArr =
+                getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder()
+                                .serviceUrl("http://localhost:" + webServicePort)
+                                .build());
+        admin.tenants()
+                .createTenant(TENANT, new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);
     }
 
@@ -65,7 +71,8 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
             admin.topics().createNonPartitionedTopic(topicName);
             NamespaceService namespaceService = getPulsarServiceList().get(i).getNamespaceService();
             NamespaceBundle bundle = namespaceService.getBundle(TopicName.get(topicName));
-            Assert.assertEquals(namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl(),
+            Assert.assertEquals(
+                    namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl(),
                     namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl());
         }
     }
@@ -79,7 +86,7 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
             if (bs.isTopicNsOwnedByBroker(TopicName.get(topicName))) {
                 continue;
             }
-            verifiedBrokerNum ++;
+            verifiedBrokerNum++;
             try {
                 bs.getOrCreateTopic(topicName).get();
             } catch (Exception ex) {

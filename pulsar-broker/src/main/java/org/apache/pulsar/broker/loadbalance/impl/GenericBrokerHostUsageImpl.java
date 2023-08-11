@@ -41,24 +41,25 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
     private SystemResourceUsage usage;
 
     public GenericBrokerHostUsageImpl(PulsarService pulsar) {
-        this(
-            pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
-            pulsar.getLoadManagerExecutor()
-        );
+        this(pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(), pulsar.getLoadManagerExecutor());
     }
 
-    public GenericBrokerHostUsageImpl(int hostUsageCheckIntervalMin,
-                                      ScheduledExecutorService executorService) {
+    public GenericBrokerHostUsageImpl(int hostUsageCheckIntervalMin, ScheduledExecutorService executorService) {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.usage = new SystemResourceUsage();
         this.totalCpuLimit = getTotalCpuLimit();
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::checkCpuLoad), CPU_CHECK_MILLIS,
-                CPU_CHECK_MILLIS, TimeUnit.MILLISECONDS);
-        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::doCalculateBrokerHostUsage),
+        executorService.scheduleWithFixedDelay(
+                catchingAndLoggingThrowables(this::checkCpuLoad),
+                CPU_CHECK_MILLIS,
+                CPU_CHECK_MILLIS,
+                TimeUnit.MILLISECONDS);
+        executorService.scheduleWithFixedDelay(
+                catchingAndLoggingThrowables(this::doCalculateBrokerHostUsage),
                 hostUsageCheckIntervalMin,
-                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
+                hostUsageCheckIntervalMin,
+                TimeUnit.MINUTES);
     }
 
     @Override

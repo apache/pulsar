@@ -33,14 +33,12 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     //
     // Common Variables used by functions test
     //
-    public static final String EXCLAMATION_JAVA_CLASS =
-        "org.apache.pulsar.functions.api.examples.ExclamationFunction";
+    public static final String EXCLAMATION_JAVA_CLASS = "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
     public static final String PUBLISH_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.TypedMessageBuilderPublish";
 
-    public static final String EXCEPTION_JAVA_CLASS =
-            "org.apache.pulsar.tests.integration.functions.ExceptionFunction";
+    public static final String EXCEPTION_JAVA_CLASS = "org.apache.pulsar.tests.integration.functions.ExceptionFunction";
 
     public static final String GENERIC_OBJECT_FUNCTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.GenericObjectFunction";
@@ -49,22 +47,17 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
             "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldFunction";
 
     public static final String REMOVE_AVRO_FIELD_RECORD_FUNCTION_JAVA_CLASS =
-        "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction";
+            "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction";
 
-    public static final String SERDE_JAVA_CLASS =
-            "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
+    public static final String SERDE_JAVA_CLASS = "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
 
-    public static final String SERDE_CLASS =
-            "org.apache.pulsar.functions.api.examples.CustomBaseSerde";
+    public static final String SERDE_CLASS = "org.apache.pulsar.functions.api.examples.CustomBaseSerde";
 
-    public static final String EXCLAMATION_PYTHON_CLASS =
-        "exclamation_function.ExclamationFunction";
+    public static final String EXCLAMATION_PYTHON_CLASS = "exclamation_function.ExclamationFunction";
 
-    public static final String EXCLAMATION_WITH_DEPS_PYTHON_CLASS =
-        "exclamation_with_extra_deps.ExclamationFunction";
+    public static final String EXCLAMATION_WITH_DEPS_PYTHON_CLASS = "exclamation_with_extra_deps.ExclamationFunction";
 
-    public static final String EXCLAMATION_PYTHON_ZIP_CLASS =
-            "exclamation";
+    public static final String EXCLAMATION_PYTHON_ZIP_CLASS = "exclamation";
 
     public static final String PUBLISH_PYTHON_CLASS = "typed_message_builder_publish.TypedMessageBuilderPublish";
     public static final String EXCEPTION_PYTHON_CLASS = "exception_function";
@@ -79,24 +72,16 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCLAMATION_GO_FILE = "exclamationFunc";
     public static final String PUBLISH_FUNCTION_GO_FILE = "exclamationFunc";
 
-    public static final String LOGGING_JAVA_CLASS =
-            "org.apache.pulsar.functions.api.examples.LoggingFunction";
+    public static final String LOGGING_JAVA_CLASS = "org.apache.pulsar.functions.api.examples.LoggingFunction";
 
     @DataProvider(name = "FunctionRuntimeTypes")
     public static Object[][] getData() {
-        return new Object[][] {
-            { FunctionRuntimeType.PROCESS },
-            { FunctionRuntimeType.THREAD }
-        };
+        return new Object[][] {{FunctionRuntimeType.PROCESS}, {FunctionRuntimeType.THREAD}};
     }
 
     @DataProvider(name = "FunctionRuntimes")
     public static Object[][] functionRuntimes() {
-        return new Object[][] {
-            new Object[] { Runtime.JAVA },
-            new Object[] { Runtime.PYTHON },
-            new Object[] { Runtime.GO }
-        };
+        return new Object[][] {new Object[] {Runtime.JAVA}, new Object[] {Runtime.PYTHON}, new Object[] {Runtime.GO}};
     }
 
     protected final FunctionRuntimeType functionRuntimeType;
@@ -126,8 +111,8 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     protected void setupFunctionWorkers() {
         final int numFunctionWorkers = 2;
-        log.info("Setting up {} function workers : function runtime type = {}",
-            numFunctionWorkers, functionRuntimeType);
+        log.info(
+                "Setting up {} function workers : function runtime type = {}", numFunctionWorkers, functionRuntimeType);
         pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
         log.info("{} function workers has started", numFunctionWorkers);
     }
@@ -138,9 +123,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
         log.info("All functions workers are stopped.");
     }
 
-    protected static String getExclamationClass(Runtime runtime,
-                                                boolean pyZip,
-                                                boolean extraDeps) {
+    protected static String getExclamationClass(Runtime runtime, boolean pyZip, boolean extraDeps) {
         if (Runtime.JAVA == runtime) {
             return EXCLAMATION_JAVA_CLASS;
         } else if (Runtime.PYTHON == runtime) {

@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.Test;
 
@@ -81,7 +80,6 @@ public class InflightReadsLimiterTest {
 
         limiter.release(handle2);
         assertEquals(100, limiter.getRemainingBytes());
-
     }
 
     @Test
@@ -111,7 +109,6 @@ public class InflightReadsLimiterTest {
 
         limiter.release(handle2);
         assertEquals(100, limiter.getRemainingBytes());
-
     }
 
     @Test
@@ -166,7 +163,5 @@ public class InflightReadsLimiterTest {
 
         limiter.release(handle2);
         assertEquals(100, limiter.getRemainingBytes());
-
     }
-
 }

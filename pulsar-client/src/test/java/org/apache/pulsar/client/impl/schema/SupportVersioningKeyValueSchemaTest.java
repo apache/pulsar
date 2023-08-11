@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -27,21 +30,19 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class SupportVersioningKeyValueSchemaTest {
 
     @Test
     public void testKeyValueVersioningEncodeDecode() {
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
-                fooSchema, barSchema);
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                KeyValueSchemaImpl.of(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
@@ -58,8 +59,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = keyValueSchema.decode(
-                encodeBytes, new byte[10]);
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = keyValueSchema.decode(encodeBytes, new byte[10]);
         Assert.assertEquals(keyValue.getKey().getField1(), foo.getField1());
         Assert.assertEquals(keyValue.getKey().getField2(), foo.getField2());
         Assert.assertEquals(keyValue.getKey().getField3(), foo.getField3());
@@ -67,19 +67,22 @@ public class SupportVersioningKeyValueSchemaTest {
         Assert.assertEquals(keyValue.getKey().getColor(), foo.getColor());
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.INLINE);
     }
 
     @Test
     public void testSeparateKeyValueVersioningEncodeDecode() {
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
-                fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                KeyValueSchemaImpl.of(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
@@ -96,22 +99,25 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl)keyValueSchema).decode(
-                fooSchema.encode(foo), encodeBytes, new byte[10]);
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue =
+                ((KeyValueSchemaImpl) keyValueSchema).decode(fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.SEPARATED);
     }
 
     @Test
     public void testKeyValueDefaultVersioningEncodeDecode() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
-                fooSchema, barSchema);
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                KeyValueSchemaImpl.of(fooSchema, barSchema);
 
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
@@ -124,8 +130,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = keyValueSchema.decode(
-                encodeBytes, new byte[10]);
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = keyValueSchema.decode(encodeBytes, new byte[10]);
         Assert.assertEquals(keyValue.getKey().getField1(), foo.getField1());
         Assert.assertEquals(keyValue.getKey().getField2(), foo.getField2());
         Assert.assertEquals(keyValue.getKey().getField3(), foo.getField3());
@@ -133,18 +138,21 @@ public class SupportVersioningKeyValueSchemaTest {
         Assert.assertEquals(keyValue.getKey().getColor(), foo.getColor());
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.INLINE);
     }
 
     @Test
     public void testKeyValueLatestVersioningEncodeDecode() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
-                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
-                fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder()
+                .withPojo(SchemaTestUtils.Foo.class)
+                .build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder()
+                .withPojo(SchemaTestUtils.Bar.class)
+                .build());
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                KeyValueSchemaImpl.of(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
 
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
@@ -157,11 +165,12 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl)keyValueSchema).decode(
-                fooSchema.encode(foo), encodeBytes, new byte[10]);
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue =
+                ((KeyValueSchemaImpl) keyValueSchema).decode(fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
-                KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
+                KeyValueEncodingType.valueOf(
+                        keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.SEPARATED);
     }
 }

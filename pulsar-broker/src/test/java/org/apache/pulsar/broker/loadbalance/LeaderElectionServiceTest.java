@@ -64,8 +64,8 @@ public class LeaderElectionServiceTest {
     }
 
     @Test
-    public void anErrorShouldBeThrowBeforeLeaderElected() throws PulsarServerException, PulsarClientException,
-            PulsarAdminException {
+    public void anErrorShouldBeThrowBeforeLeaderElected()
+            throws PulsarServerException, PulsarClientException, PulsarAdminException {
         final String clusterName = "elect-test";
         ServiceConfiguration config = new ServiceConfiguration();
         config.setBrokerShutdownTimeoutMs(0L);
@@ -75,23 +75,33 @@ public class LeaderElectionServiceTest {
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        @Cleanup
-        PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
+        @Cleanup PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
         pulsar.start();
 
         // mock pulsar.getLeaderElectionService() in a thread safe way
         AtomicReference<LeaderElectionService> leaderElectionServiceReference = new AtomicReference<>();
         Mockito.doAnswer(invocation -> leaderElectionServiceReference.get())
-                .when(pulsar).getLeaderElectionService();
+                .when(pulsar)
+                .getLeaderElectionService();
 
         // broker and webService is started, but leaderElectionService not ready
         final String tenant = "elect";
         final String namespace = "ns";
         @Cleanup
-        PulsarAdmin adminClient = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
-        adminClient.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        adminClient.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                Sets.newHashSet(clusterName)));
+        PulsarAdmin adminClient = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsar.getWebServiceAddress())
+                .build();
+        adminClient
+                .clusters()
+                .createCluster(
+                        clusterName,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        adminClient
+                .tenants()
+                .createTenant(
+                        tenant, new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
         adminClient.namespaces().createNamespace(tenant + "/" + namespace, 16);
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -105,8 +115,7 @@ public class LeaderElectionServiceTest {
         // setup LeaderElectionService mock in a thread safe way
         LeaderElectionService leaderElectionService = Mockito.mock(LeaderElectionService.class);
         AtomicReference<LeaderBroker> leaderBrokerReference = new AtomicReference<>();
-        Mockito.when(leaderElectionService.isLeader()).thenAnswer(invocation ->
-                leaderBrokerReference.get() != null);
+        Mockito.when(leaderElectionService.isLeader()).thenAnswer(invocation -> leaderBrokerReference.get() != null);
         Mockito.when(leaderElectionService.getCurrentLeader())
                 .thenAnswer(invocation -> Optional.ofNullable(leaderBrokerReference.get()));
         leaderElectionServiceReference.set(leaderElectionService);
@@ -130,9 +139,8 @@ public class LeaderElectionServiceTest {
                     .create();
         } catch (PulsarClientException t) {
             Assert.assertTrue(t instanceof PulsarClientException.LookupException);
-            Assert.assertTrue(
-                    t.getMessage().contains(
-                            "java.lang.IllegalStateException: The leader election has not yet been completed!"));
+            Assert.assertTrue(t.getMessage()
+                    .contains("java.lang.IllegalStateException: The leader election has not yet been completed!"));
         }
     }
 
@@ -142,9 +150,10 @@ public class LeaderElectionServiceTest {
             super(config);
         }
 
-        public MockPulsarService(ServiceConfiguration config,
-                                 Optional<WorkerService> functionWorkerService,
-                                 Consumer<Integer> processTerminator) {
+        public MockPulsarService(
+                ServiceConfiguration config,
+                Optional<WorkerService> functionWorkerService,
+                Consumer<Integer> processTerminator) {
             super(config, functionWorkerService, processTerminator);
         }
 
@@ -153,5 +162,4 @@ public class LeaderElectionServiceTest {
             // mock
         }
     }
-
 }

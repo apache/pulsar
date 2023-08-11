@@ -49,18 +49,16 @@ public class ProxyExtensions implements AutoCloseable {
      * @return the collection of extensions
      */
     public static ProxyExtensions load(ProxyConfiguration conf) throws IOException {
-        ExtensionsDefinitions definitions =
-                ProxyExtensionsUtils.searchForExtensions(
-                        conf.getProxyExtensionsDirectory(), conf.getNarExtractionDirectory());
+        ExtensionsDefinitions definitions = ProxyExtensionsUtils.searchForExtensions(
+                conf.getProxyExtensionsDirectory(), conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, ProxyExtensionWithClassLoader> extensionsBuilder = ImmutableMap.builder();
 
         conf.getProxyExtensions().forEach(extensionName -> {
-
             ProxyExtensionMetadata definition = definitions.extensions().get(extensionName);
             if (null == definition) {
                 throw new RuntimeException("No extension is found for extension name `" + extensionName
-                    + "`. Available extensions are : " + definitions.extensions());
+                        + "`. Available extensions are : " + definitions.extensions());
             }
 
             ProxyExtensionWithClassLoader extension;
@@ -117,15 +115,17 @@ public class ProxyExtensions implements AutoCloseable {
 
         for (Map.Entry<String, ProxyExtensionWithClassLoader> extension : extensions.entrySet()) {
             Map<InetSocketAddress, ChannelInitializer<SocketChannel>> initializers =
-                extension.getValue().newChannelInitializers();
+                    extension.getValue().newChannelInitializers();
             initializers.forEach((address, initializer) -> {
                 if (!addresses.add(address)) {
-                    log.error("extension for `{}` attempts to use {} for its listening port."
-                        + " But it is already occupied by other extensions.",
-                        extension.getKey(), address);
+                    log.error(
+                            "extension for `{}` attempts to use {} for its listening port."
+                                    + " But it is already occupied by other extensions.",
+                            extension.getKey(),
+                            address);
                     throw new RuntimeException("extension for `" + extension.getKey()
-                        + "` attempts to use " + address + " for its listening port. But it is"
-                        + " already occupied by other messaging extensions");
+                            + "` attempts to use " + address + " for its listening port. But it is"
+                            + " already occupied by other messaging extensions");
                 }
                 endpoints.put(address, extension.getKey());
                 channelInitializers.put(extension.getKey(), initializers);

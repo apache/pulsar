@@ -46,17 +46,24 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
     ConsumerBase<T> consumer;
 
     ReaderConfigurationData<T> readerConfiguration;
-    private CompactionReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                                 ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture,
-                                 Schema<T> schema) {
+
+    private CompactionReaderImpl(
+            PulsarClientImpl client,
+            ReaderConfigurationData<T> readerConfiguration,
+            ExecutorProvider executorProvider,
+            CompletableFuture<Consumer<T>> consumerFuture,
+            Schema<T> schema) {
         super(client, readerConfiguration, executorProvider, consumerFuture, schema);
         this.readerConfiguration = readerConfiguration;
         this.consumer = getConsumer();
     }
 
-    public static <T> CompactionReaderImpl<T> create(PulsarClientImpl client, Schema<T> schema, String topic,
-                                                     CompletableFuture<Consumer<T>> consumerFuture,
-                                                     CryptoKeyReader cryptoKeyReader) {
+    public static <T> CompactionReaderImpl<T> create(
+            PulsarClientImpl client,
+            Schema<T> schema,
+            String topic,
+            CompletableFuture<Consumer<T>> consumerFuture,
+            CryptoKeyReader cryptoKeyReader) {
         ReaderConfigurationData<T> conf = new ReaderConfigurationData<>();
         conf.setTopicName(topic);
         conf.setSubscriptionName(COMPACTION_SUBSCRIPTION);
@@ -68,7 +75,6 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return new CompactionReaderImpl<>(client, conf, client.externalExecutorProvider(), consumerFuture, schema);
     }
-
 
     @Override
     public Message<T> readNext() throws PulsarClientException {

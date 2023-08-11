@@ -41,14 +41,13 @@ public class OffloadersCache implements AutoCloseable {
      * @throws IOException when fail to retrieve the pulsar offloader class
      */
     public Offloaders getOrLoadOffloaders(String offloadersPath, String narExtractionDirectory) {
-        return loadedOffloaders.computeIfAbsent(offloadersPath,
-                (directory) -> {
-                    try {
-                        return OffloaderUtils.searchForOffloaders(directory, narExtractionDirectory);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+        return loadedOffloaders.computeIfAbsent(offloadersPath, (directory) -> {
+            try {
+                return OffloaderUtils.searchForOffloaders(directory, narExtractionDirectory);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     @Override

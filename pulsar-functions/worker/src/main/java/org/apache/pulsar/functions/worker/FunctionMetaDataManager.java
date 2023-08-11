@@ -73,6 +73,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     // Note that this variable serves a double duty. A non-null value
     // implies we are the leader, while a null value means we are not the leader
     private Producer exclusiveLeaderProducer;
+
     @Getter
     private volatile MessageId lastMessageSeen = MessageId.earliest;
 
@@ -81,10 +82,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
     @Getter
     private CompletableFuture<Void> isInitialized = new CompletableFuture<>();
 
-    public FunctionMetaDataManager(WorkerConfig workerConfig,
-                                   SchedulerManager schedulerManager,
-                                   PulsarClient pulsarClient,
-                                   ErrorNotifier errorNotifier) throws PulsarClientException {
+    public FunctionMetaDataManager(
+            WorkerConfig workerConfig,
+            SchedulerManager schedulerManager,
+            PulsarClient pulsarClient,
+            ErrorNotifier errorNotifier)
+            throws PulsarClientException {
         this.workerConfig = workerConfig;
         this.pulsarClient = pulsarClient;
         this.schedulerManager = schedulerManager;
@@ -101,8 +104,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * We create a new reader
      */
     public synchronized void initialize() {
-        try (Reader reader = FunctionMetaDataTopicTailer.createReader(
-                workerConfig, pulsarClient.newReader(), MessageId.earliest)) {
+        try (Reader reader =
+                FunctionMetaDataTopicTailer.createReader(workerConfig, pulsarClient.newReader(), MessageId.earliest)) {
             // read all existing messages
             while (reader.hasMessageAvailable()) {
                 processMetaDataTopicMessage(reader.readNext());
@@ -178,7 +181,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
         if (!this.functionMetaDataMap.get(tenant).containsKey(namespace)) {
             return ret;
         }
-        for (FunctionMetaData functionMetaData : this.functionMetaDataMap.get(tenant).get(namespace).values()) {
+        for (FunctionMetaData functionMetaData :
+                this.functionMetaDataMap.get(tenant).get(namespace).values()) {
             ret.add(functionMetaData);
         }
         return ret;
@@ -221,8 +225,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
             }
         } else {
             Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
-                    .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE
-                            : Request.ServiceRequest.ServiceRequestType.UPDATE)
+                    .setServiceRequestType(
+                            delete
+                                    ? Request.ServiceRequest.ServiceRequestType.DELETE
+                                    : Request.ServiceRequest.ServiceRequestType.UPDATE)
                     .setFunctionMetaData(functionMetaData)
                     .setWorkerId(workerConfig.getWorkerId())
                     .setRequestId(UUID.randomUUID().toString())
@@ -230,7 +236,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
             toWrite = serviceRequest.toByteArray();
         }
         try {
-            TypedMessageBuilder builder = exclusiveLeaderProducer.newMessage()
+            TypedMessageBuilder builder = exclusiveLeaderProducer
+                    .newMessage()
                     .value(toWrite)
                     .property(versionTag, Long.toString(functionMetaData.getVersion()));
             if (workerConfig.getUseCompactedMetadataTopic()) {
@@ -254,11 +261,15 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private void checkRequestOutDated(FunctionMetaData functionMetaData, boolean delete) {
         Function.FunctionDetails details = functionMetaData.getFunctionDetails();
-        if (isRequestOutdated(details.getTenant(), details.getNamespace(),
-                details.getName(), functionMetaData.getVersion())) {
+        if (isRequestOutdated(
+                details.getTenant(), details.getNamespace(), details.getName(), functionMetaData.getVersion())) {
             if (log.isDebugEnabled()) {
-                log.debug("{}/{}/{} Ignoring outdated request version: {}", details.getTenant(), details.getNamespace(),
-                        details.getName(), functionMetaData.getVersion());
+                log.debug(
+                        "{}/{}/{} Ignoring outdated request version: {}",
+                        details.getTenant(),
+                        details.getNamespace(),
+                        details.getName(),
+                        functionMetaData.getVersion());
             }
             if (delete) {
                 throw new IllegalArgumentException(
@@ -281,7 +292,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 pulsarClient,
                 workerConfig.getFunctionMetadataTopic(),
                 workerConfig.getWorkerId() + "-leader",
-                isLeader, 1000);
+                isLeader,
+                1000);
     }
 
     /**
@@ -381,7 +393,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
     /**
      * Private methods for internal use.  Should not be used outside of this class
      */
-
     private boolean containsFunctionMetaData(FunctionMetaData functionMetaData) {
         return containsFunctionMetaData(functionMetaData.getFunctionDetails());
     }
@@ -409,8 +420,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return processDeregister(tenant, namespace, functionName, deregisterRequestFs.getVersion());
     }
 
-    synchronized boolean processDeregister(String tenant, String namespace,
-                                           String functionName, long version) throws IllegalArgumentException {
+    synchronized boolean processDeregister(String tenant, String namespace, String functionName, long version)
+            throws IllegalArgumentException {
 
         boolean needsScheduling = false;
         if (log.isDebugEnabled()) {
@@ -425,11 +436,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 needsScheduling = true;
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("{}/{}/{} Ignoring outdated request version: {}", tenant, namespace, functionName,
-                            version);
+                    log.debug(
+                            "{}/{}/{} Ignoring outdated request version: {}", tenant, namespace, functionName, version);
                 }
-                throw new IllegalArgumentException("Delete request ignored because "
-                        + "it is out of date. Please try again.");
+                throw new IllegalArgumentException(
+                        "Delete request ignored because " + "it is out of date. Please try again.");
             }
         }
 
@@ -456,8 +467,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 setFunctionMetaData(updateRequestFs);
                 needsScheduling = true;
             } else {
-                throw new IllegalArgumentException("Update request "
-                        + "ignored because it is out of date. Please try again.");
+                throw new IllegalArgumentException(
+                        "Update request " + "ignored because it is out of date. Please try again.");
             }
         }
 
@@ -466,8 +477,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private boolean isRequestOutdated(FunctionMetaData requestFunctionMetaData) {
         Function.FunctionDetails functionDetails = requestFunctionMetaData.getFunctionDetails();
-        return isRequestOutdated(functionDetails.getTenant(), functionDetails.getNamespace(),
-                functionDetails.getName(), requestFunctionMetaData.getVersion());
+        return isRequestOutdated(
+                functionDetails.getTenant(),
+                functionDetails.getNamespace(),
+                functionDetails.getName(),
+                requestFunctionMetaData.getVersion());
     }
 
     private boolean isRequestOutdated(String tenant, String namespace, String functionName, long version) {
@@ -475,8 +489,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
         if (!containsFunctionMetaData(tenant, namespace, functionName)) {
             return false;
         }
-        FunctionMetaData currentFunctionMetaData = this.functionMetaDataMap.get(tenant)
-                .get(namespace).get(functionName);
+        FunctionMetaData currentFunctionMetaData =
+                this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
         return currentFunctionMetaData.getVersion() >= version;
     }
 
@@ -487,16 +501,19 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
 
         if (!this.functionMetaDataMap.get(functionDetails.getTenant()).containsKey(functionDetails.getNamespace())) {
-            this.functionMetaDataMap.get(functionDetails.getTenant())
+            this.functionMetaDataMap
+                    .get(functionDetails.getTenant())
                     .put(functionDetails.getNamespace(), new ConcurrentHashMap<>());
         }
-        this.functionMetaDataMap.get(functionDetails.getTenant())
-                .get(functionDetails.getNamespace()).put(functionDetails.getName(), functionMetaData);
+        this.functionMetaDataMap
+                .get(functionDetails.getTenant())
+                .get(functionDetails.getNamespace())
+                .put(functionDetails.getName(), functionMetaData);
     }
 
     private void initializeTailer() throws PulsarClientException {
-        this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
-                pulsarClient.newReader(), this.workerConfig, lastMessageSeen, this.errorNotifier);
+        this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(
+                this, pulsarClient.newReader(), this.workerConfig, lastMessageSeen, this.errorNotifier);
         this.functionMetaDataTopicTailer.start();
         log.info("MetaData Manager Tailer started");
     }

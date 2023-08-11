@@ -39,6 +39,7 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
 
     private static final AtomicIntegerFieldUpdater<RoundRobinPartitionMessageRouterImpl> PARTITION_INDEX_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(RoundRobinPartitionMessageRouterImpl.class, "partitionIndex");
+
     @SuppressWarnings("unused")
     private volatile int partitionIndex = 0;
 
@@ -50,18 +51,17 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
 
     private static final Clock SYSTEM_CLOCK = Clock.systemUTC();
 
-    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
-                                                int startPtnIdx,
-                                                boolean isBatchingEnabled,
-                                                long partitionSwitchMs) {
+    public RoundRobinPartitionMessageRouterImpl(
+            HashingScheme hashingScheme, int startPtnIdx, boolean isBatchingEnabled, long partitionSwitchMs) {
         this(hashingScheme, startPtnIdx, isBatchingEnabled, partitionSwitchMs, SYSTEM_CLOCK);
     }
 
-    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
-                                                int startPtnIdx,
-                                                boolean isBatchingEnabled,
-                                                long partitionSwitchMs,
-                                                Clock clock) {
+    public RoundRobinPartitionMessageRouterImpl(
+            HashingScheme hashingScheme,
+            int startPtnIdx,
+            boolean isBatchingEnabled,
+            long partitionSwitchMs,
+            Clock clock) {
         super(hashingScheme);
         PARTITION_INDEX_UPDATER.set(this, startPtnIdx);
         this.startPtnIdx = startPtnIdx;
@@ -84,5 +84,4 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
     }
-
 }

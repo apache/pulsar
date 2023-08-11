@@ -126,7 +126,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     private void flush() {
         List<Put> puts = new ArrayList<>();
-        List<Record<T>>  toFlushList;
+        List<Record<T>> toFlushList;
         synchronized (this) {
             if (incomingList.isEmpty()) {
                 return;
@@ -136,7 +136,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         }
 
         if (CollectionUtils.isNotEmpty(toFlushList)) {
-            for (Record<T> record: toFlushList) {
+            for (Record<T> record : toFlushList) {
                 try {
                     bindValue(record, puts);
                 } catch (Exception e) {
@@ -193,7 +193,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         Preconditions.checkNotNull(hbaseSinkConfig.getFamilyName(), "familyName property not set.");
         Preconditions.checkNotNull(hbaseSinkConfig.getQualifierNames(), "qualifierNames property not set.");
 
-        return TableDefinition.of(hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(),
-                hbaseSinkConfig.getQualifierNames());
+        return TableDefinition.of(
+                hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(), hbaseSinkConfig.getQualifierNames());
     }
 }

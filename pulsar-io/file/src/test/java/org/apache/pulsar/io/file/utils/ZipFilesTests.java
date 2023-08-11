@@ -20,12 +20,10 @@ package org.apache.pulsar.io.file.utils;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
-
 import org.testng.annotations.Test;
 
 public class ZipFilesTests {
@@ -34,33 +32,33 @@ public class ZipFilesTests {
     public final void validZipFileTest() {
         assertTrue(ZipFiles.isZip(getFile("org/apache/pulsar/io/file/validZip.zip")));
     }
-    
+
     @Test
     public final void nonZipFileTest() {
         assertFalse(ZipFiles.isZip(getFile("org/apache/pulsar/io/file/nonGzipFile.txt")));
     }
-    
+
     @Test
     public final void mislabelledZipFileTest() {
         assertFalse(ZipFiles.isZip(getFile("org/apache/pulsar/io/file/mislabelled.gz")));
     }
-    
+
     @Test
     public final void nonExistantGzipFileTest() {
         assertFalse(ZipFiles.isZip(null));
     }
-    
+
     @Test
     public final void streamZipFileTest() {
         Path path = Paths.get(getFile("org/apache/pulsar/io/file/validZip.zip").getAbsolutePath(), "");
-        
+
         try (Stream<String> lines = ZipFiles.lines(path)) {
             lines.forEachOrdered(line -> assertTrue(line.startsWith("Line ")));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    
+
     private File getFile(String name) {
         ClassLoader classLoader = getClass().getClassLoader();
         return new File(classLoader.getResource(name).getFile());

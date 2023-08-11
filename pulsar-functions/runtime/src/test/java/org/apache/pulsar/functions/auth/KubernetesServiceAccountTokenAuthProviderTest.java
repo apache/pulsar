@@ -46,11 +46,9 @@ public class KubernetesServiceAccountTokenAuthProviderTest {
 
         // Create a stateful set with a container
         V1StatefulSet statefulSet = new V1StatefulSet();
-        statefulSet.setSpec(
-                new V1StatefulSetSpec().template(
-                        new V1PodTemplateSpec().spec(
-                                new V1PodSpec().containers(
-                                        Collections.singletonList(new V1Container())))));
+        statefulSet.setSpec(new V1StatefulSetSpec()
+                .template(new V1PodTemplateSpec()
+                        .spec(new V1PodSpec().containers(Collections.singletonList(new V1Container())))));
         provider.configureAuthDataStatefulSet(statefulSet, Optional.empty());
 
         List<V1Volume> volumes = statefulSet.getSpec().getTemplate().getSpec().getVolumes();
@@ -62,7 +60,6 @@ public class KubernetesServiceAccountTokenAuthProviderTest {
         Assert.assertEquals(volumes.get(0).getSecret().getItems().get(0).getKey(), "ca.crt");
         Assert.assertEquals(volumes.get(0).getSecret().getItems().get(0).getPath(), "ca.crt");
 
-
         Assert.assertEquals(volumes.get(1).getName(), "service-account-token");
         Assert.assertEquals(volumes.get(1).getProjected().getSources().size(), 1);
         V1ServiceAccountTokenProjection tokenProjection =
@@ -70,12 +67,62 @@ public class KubernetesServiceAccountTokenAuthProviderTest {
         Assert.assertEquals(tokenProjection.getExpirationSeconds(), 600);
         Assert.assertEquals(tokenProjection.getAudience(), "my-audience");
 
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().size(), 2);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getName(), "service-account-token");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(1).getName(), "ca-cert");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(1).getMountPath(), "/etc/auth");
+        Assert.assertEquals(
+                statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .size(),
+                2);
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .get(0)
+                        .getName(),
+                "service-account-token");
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .get(0)
+                        .getMountPath(),
+                "/etc/auth");
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .get(1)
+                        .getName(),
+                "ca-cert");
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .get(1)
+                        .getMountPath(),
+                "/etc/auth");
     }
 
     @Test
@@ -89,11 +136,9 @@ public class KubernetesServiceAccountTokenAuthProviderTest {
 
         // Create a stateful set with a container
         V1StatefulSet statefulSet = new V1StatefulSet();
-        statefulSet.setSpec(
-                new V1StatefulSetSpec().template(
-                        new V1PodTemplateSpec().spec(
-                                new V1PodSpec().containers(
-                                        Collections.singletonList(new V1Container())))));
+        statefulSet.setSpec(new V1StatefulSetSpec()
+                .template(new V1PodTemplateSpec()
+                        .spec(new V1PodSpec().containers(Collections.singletonList(new V1Container())))));
         provider.configureAuthDataStatefulSet(statefulSet, Optional.empty());
 
         List<V1Volume> volumes = statefulSet.getSpec().getTemplate().getSpec().getVolumes();
@@ -106,10 +151,40 @@ public class KubernetesServiceAccountTokenAuthProviderTest {
         Assert.assertEquals(tokenProjection.getExpirationSeconds(), 600);
         Assert.assertEquals(tokenProjection.getAudience(), "pulsar-cluster");
 
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getName(), "service-account-token");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
+        Assert.assertEquals(
+                statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .size(),
+                1);
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .get(0)
+                        .getName(),
+                "service-account-token");
+        Assert.assertEquals(
+                statefulSet
+                        .getSpec()
+                        .getTemplate()
+                        .getSpec()
+                        .getContainers()
+                        .get(0)
+                        .getVolumeMounts()
+                        .get(0)
+                        .getMountPath(),
+                "/etc/auth");
     }
 
     @Test
@@ -118,7 +193,8 @@ public class KubernetesServiceAccountTokenAuthProviderTest {
         config.put("brokerClientTrustCertsSecretName", "my-secret");
         KubernetesServiceAccountTokenAuthProvider provider = new KubernetesServiceAccountTokenAuthProvider();
         provider.initialize(null, null, (fd) -> "default", config);
-        AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
+        AuthenticationConfig authenticationConfig =
+                AuthenticationConfig.builder().build();
         provider.configureAuthenticationConfig(authenticationConfig, Optional.empty());
 
         Assert.assertEquals(authenticationConfig.getClientAuthenticationPlugin(), AuthenticationToken.class.getName());

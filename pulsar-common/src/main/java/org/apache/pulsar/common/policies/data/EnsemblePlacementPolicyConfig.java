@@ -61,9 +61,10 @@ public class EnsemblePlacementPolicyConfig {
     public boolean equals(Object obj) {
         if (obj instanceof EnsemblePlacementPolicyConfig) {
             EnsemblePlacementPolicyConfig other = (EnsemblePlacementPolicyConfig) obj;
-            return Objects.equals(this.policyClass == null ? null : this.policyClass.getName(),
-                other.policyClass == null ? null : other.policyClass.getName())
-                && Objects.equals(this.properties, other.properties);
+            return Objects.equals(
+                            this.policyClass == null ? null : this.policyClass.getName(),
+                            other.policyClass == null ? null : other.policyClass.getName())
+                    && Objects.equals(this.properties, other.properties);
         }
         return false;
     }
@@ -71,16 +72,17 @@ public class EnsemblePlacementPolicyConfig {
     public byte[] encode() throws ParseEnsemblePlacementPolicyConfigException {
         try {
             return ObjectMapperFactory.getMapper()
-                .writer().withDefaultPrettyPrinter()
-                .writeValueAsString(this)
-                .getBytes(StandardCharsets.UTF_8);
+                    .writer()
+                    .withDefaultPrettyPrinter()
+                    .writeValueAsString(this)
+                    .getBytes(StandardCharsets.UTF_8);
         } catch (JsonProcessingException e) {
             throw new ParseEnsemblePlacementPolicyConfigException("Failed to encode to json", e);
         }
     }
 
-    private static final ObjectReader ENSEMBLE_PLACEMENT_CONFIG_READER = ObjectMapperFactory.getMapper()
-            .reader().forType(EnsemblePlacementPolicyConfig.class);
+    private static final ObjectReader ENSEMBLE_PLACEMENT_CONFIG_READER =
+            ObjectMapperFactory.getMapper().reader().forType(EnsemblePlacementPolicyConfig.class);
 
     public static EnsemblePlacementPolicyConfig decode(byte[] data) throws ParseEnsemblePlacementPolicyConfigException {
         try {

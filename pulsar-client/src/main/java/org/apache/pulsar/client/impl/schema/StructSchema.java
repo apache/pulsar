@@ -43,8 +43,8 @@ public abstract class StructSchema<T> extends AbstractStructSchema<T> {
         super(schemaInfo);
         this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
         if (schemaInfo.getProperties().containsKey(GenericAvroSchema.OFFSET_PROP)) {
-            this.schema.addProp(GenericAvroSchema.OFFSET_PROP,
-                    schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));
+            this.schema.addProp(
+                    GenericAvroSchema.OFFSET_PROP, schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));
         }
     }
 

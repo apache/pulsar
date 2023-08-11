@@ -39,8 +39,7 @@ public class SimpleMaterializedConfiguration implements MaterializedConfiguratio
 
     @Override
     public String toString() {
-        return "{ sourceRunners:" + sourceRunners + " sinkRunners:" + sinkRunners
-                + " channels:" + channels + " }";
+        return "{ sourceRunners:" + sourceRunners + " sinkRunners:" + sinkRunners + " channels:" + channels + " }";
     }
 
     @Override
@@ -72,5 +71,4 @@ public class SimpleMaterializedConfiguration implements MaterializedConfiguratio
     public ImmutableMap<String, SinkRunner> getSinkRunners() {
         return ImmutableMap.copyOf(sinkRunners);
     }
-
 }

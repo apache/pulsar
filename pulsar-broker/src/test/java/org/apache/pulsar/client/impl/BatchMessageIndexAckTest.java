@@ -59,96 +59,98 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
         doReturn(CompletableFuture.completedFuture(new LedgerMetadata() {
-            @Override
-            public long getLedgerId() {
-                return 0;
-            }
+                    @Override
+                    public long getLedgerId() {
+                        return 0;
+                    }
 
-            @Override
-            public int getEnsembleSize() {
-                return 0;
-            }
+                    @Override
+                    public int getEnsembleSize() {
+                        return 0;
+                    }
 
-            @Override
-            public int getWriteQuorumSize() {
-                return 0;
-            }
+                    @Override
+                    public int getWriteQuorumSize() {
+                        return 0;
+                    }
 
-            @Override
-            public int getAckQuorumSize() {
-                return 0;
-            }
+                    @Override
+                    public int getAckQuorumSize() {
+                        return 0;
+                    }
 
-            @Override
-            public long getLastEntryId() {
-                return 0;
-            }
+                    @Override
+                    public long getLastEntryId() {
+                        return 0;
+                    }
 
-            @Override
-            public long getLength() {
-                return 0;
-            }
+                    @Override
+                    public long getLength() {
+                        return 0;
+                    }
 
-            @Override
-            public boolean hasPassword() {
-                return false;
-            }
+                    @Override
+                    public boolean hasPassword() {
+                        return false;
+                    }
 
-            @Override
-            public byte[] getPassword() {
-                return new byte[0];
-            }
+                    @Override
+                    public byte[] getPassword() {
+                        return new byte[0];
+                    }
 
-            @Override
-            public DigestType getDigestType() {
-                return null;
-            }
+                    @Override
+                    public DigestType getDigestType() {
+                        return null;
+                    }
 
-            @Override
-            public long getCtime() {
-                return 0;
-            }
+                    @Override
+                    public long getCtime() {
+                        return 0;
+                    }
 
-            @Override
-            public boolean isClosed() {
-                return false;
-            }
+                    @Override
+                    public boolean isClosed() {
+                        return false;
+                    }
 
-            @Override
-            public Map<String, byte[]> getCustomMetadata() {
-                return null;
-            }
+                    @Override
+                    public Map<String, byte[]> getCustomMetadata() {
+                        return null;
+                    }
 
-            @Override
-            public List<BookieId> getEnsembleAt(long entryId) {
-                return null;
-            }
+                    @Override
+                    public List<BookieId> getEnsembleAt(long entryId) {
+                        return null;
+                    }
 
-            @Override
-            public NavigableMap<Long, ? extends List<BookieId>> getAllEnsembles() {
-                return null;
-            }
+                    @Override
+                    public NavigableMap<Long, ? extends List<BookieId>> getAllEnsembles() {
+                        return null;
+                    }
 
-            @Override
-            public State getState() {
-                return null;
-            }
+                    @Override
+                    public State getState() {
+                        return null;
+                    }
 
-            @Override
-            public String toSafeString() {
-                return null;
-            }
+                    @Override
+                    public String toSafeString() {
+                        return null;
+                    }
 
-            @Override
-            public int getMetadataFormatVersion() {
-                return 0;
-            }
+                    @Override
+                    public int getMetadataFormatVersion() {
+                        return 0;
+                    }
 
-            @Override
-            public long getCToken() {
-                return 0;
-            }
-        })).when(pulsarTestContext.getBookKeeperClient()).getLedgerMetadata(anyLong());
+                    @Override
+                    public long getCToken() {
+                        return 0;
+                    }
+                }))
+                .when(pulsarTestContext.getBookKeeperClient())
+                .getLedgerMetadata(anyLong());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -159,7 +161,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
@@ -168,21 +170,23 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         final String subscriptionName = "sub";
 
         @Cleanup
-        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .subscriptionName(subscriptionName)
-            .receiverQueueSize(100)
-            .isAckReceiptEnabled(ackReceiptEnabled)
-            .subscriptionType(SubscriptionType.Shared)
-            .enableBatchIndexAcknowledgment(true)
-            .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
-            .subscribe();
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(100)
+                .isAckReceiptEnabled(ackReceiptEnabled)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
+                .subscribe();
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
-            .create();
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topic)
+                .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
+                .create();
 
         final int messages = 100;
         List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
@@ -244,24 +248,26 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws
-            PulsarClientException, ExecutionException, InterruptedException {
+    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled)
+            throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup
-        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .subscriptionName("sub")
-            .receiverQueueSize(100)
-            .isAckReceiptEnabled(ackReceiptEnabled)
-            .enableBatchIndexAcknowledgment(true)
-            .subscribe();
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(100)
+                .isAckReceiptEnabled(ackReceiptEnabled)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
-            .create();
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topic)
+                .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
+                .create();
 
         final int messages = 100;
         List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
@@ -278,14 +284,15 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             }
         }
 
-        //Wait ack send.
+        // Wait ack send.
         Thread.sleep(1000);
         consumer.close();
-        consumer = pulsarClient.newConsumer(Schema.INT32)
-            .topic(topic)
-            .subscriptionName("sub")
-            .receiverQueueSize(100)
-            .subscribe();
+        consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(100)
+                .subscribe();
 
         List<Message<Integer>> received = new ArrayList<>(50);
         for (int i = 0; i < 50; i++) {
@@ -313,15 +320,18 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testDoNotRecycleAckSetMultipleTimes() throws Exception  {
+    public void testDoNotRecycleAckSetMultipleTimes() throws Exception {
         final String topic = "persistent://my-property/my-ns/testSafeAckSetRecycle";
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .batchingMaxMessages(10)
-                .blockIfQueueFull(true).topic(topic)
+                .blockIfQueueFull(true)
+                .topic(topic)
                 .create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .acknowledgmentGroupTime(1, TimeUnit.MILLISECONDS)
                 .topic(topic)
                 .enableBatchIndexAcknowledgment(true)

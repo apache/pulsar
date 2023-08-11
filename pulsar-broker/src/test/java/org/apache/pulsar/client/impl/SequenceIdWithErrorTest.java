@@ -49,25 +49,32 @@ public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
         int N = 10;
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
 
         // Create consumer
-        Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub")
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
                 .subscribe();
 
         // Fence the topic by opening the ManagedLedger for the topic outside the Pulsar broker. This will cause the
         // broker to fail subsequent send operation and it will trigger a recover
         EventLoopGroup eventLoopGroup = new NioEventLoopGroup(1);
         ManagedLedgerClientFactory clientFactory = new ManagedLedgerClientFactory();
-        clientFactory.initialize(pulsar.getConfiguration(), pulsar.getLocalMetadataStore(),
-                pulsar.getBookKeeperClientFactory(), eventLoopGroup);
+        clientFactory.initialize(
+                pulsar.getConfiguration(),
+                pulsar.getLocalMetadataStore(),
+                pulsar.getBookKeeperClientFactory(),
+                eventLoopGroup);
         ManagedLedgerFactory mlFactory = clientFactory.getManagedLedgerFactory();
         ManagedLedger ml = mlFactory.open(TopicName.get(topicName).getPersistenceNamingEncoding());
         ml.close();
         clientFactory.close();
 
         // Create a producer
-        Producer<String> producer = client.newProducer(Schema.STRING).topic(topicName).create();
+        Producer<String> producer =
+                client.newProducer(Schema.STRING).topic(topicName).create();
 
         for (int i = 0; i < N; i++) {
             producer.send("Hello-" + i);

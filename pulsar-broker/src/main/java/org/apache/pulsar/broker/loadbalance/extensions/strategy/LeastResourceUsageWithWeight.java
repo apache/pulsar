@@ -48,27 +48,24 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
     }
 
     // A broker's max resource usage with weight using its historical load and short-term load data with weight.
-    private double getMaxResourceUsageWithWeight(final String broker, final BrokerLoadData brokerLoadData,
-                                                 final ServiceConfiguration conf, boolean debugMode) {
+    private double getMaxResourceUsageWithWeight(
+            final String broker,
+            final BrokerLoadData brokerLoadData,
+            final ServiceConfiguration conf,
+            boolean debugMode) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final var maxUsageWithWeight = brokerLoadData.getWeightedMaxEMA();
-
 
         if (maxUsageWithWeight > overloadThreshold) {
             log.warn(
                     "Broker {} is overloaded, brokerLoad({}%) > overloadThreshold({}%). load data:{{}}",
-                    broker,
-                    maxUsageWithWeight * 100,
-                    overloadThreshold * 100,
-                    brokerLoadData.toString(conf));
+                    broker, maxUsageWithWeight * 100, overloadThreshold * 100, brokerLoadData.toString(conf));
         } else if (debugMode) {
             log.info("Broker {} load data:{{}}", broker, brokerLoadData.toString(conf));
         }
 
-
         return maxUsageWithWeight;
     }
-
 
     /**
      * Find a suitable broker to assign the given bundle to.
@@ -79,8 +76,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> select(
-            Set<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
+    public Optional<String> select(Set<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
         var conf = context.brokerConfiguration();
         if (candidates.isEmpty()) {
             log.warn("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
@@ -136,15 +132,20 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         if (bestBrokers.isEmpty()) {
             // Assign randomly as all brokers are overloaded.
             if (debugMode) {
-                log.info("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
-                        + "noLoadDataBrokersSize:{}", candidates.size(), noLoadDataBrokers.size());
+                log.info(
+                        "Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
+                                + "noLoadDataBrokersSize:{}",
+                        candidates.size(),
+                        noLoadDataBrokers.size());
             }
             bestBrokers.addAll(candidates);
         }
 
         if (debugMode) {
-            log.info("Selected {} best brokers: {} from candidate brokers: {}, noLoadDataBrokers:{}",
-                    bestBrokers.size(), bestBrokers,
+            log.info(
+                    "Selected {} best brokers: {} from candidate brokers: {}, noLoadDataBrokers:{}",
+                    bestBrokers.size(),
+                    bestBrokers,
                     candidates,
                     noLoadDataBrokers);
         }

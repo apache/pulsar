@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Optional;
+import java.util.Properties;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -28,9 +30,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.Optional;
-import java.util.Properties;
 
 public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBase {
 
@@ -72,7 +71,8 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
     @Test
     public void testBrokerServicePulsarClientConfiguration() {
         // This data only needs to have the service url for this test.
-        ClusterData data = ClusterData.builder().serviceUrl("http://localhost:8080").build();
+        ClusterData data =
+                ClusterData.builder().serviceUrl("http://localhost:8080").build();
 
         // Set the configs and set some configs that won't apply
         Properties config = pulsar.getConfiguration().getProperties();
@@ -81,8 +81,8 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
         config.setProperty("memoryLimitBytes", "10");
         config.setProperty("brokerClient_memoryLimitBytes", "100000");
 
-        PulsarClientImpl client = (PulsarClientImpl) pulsar.getBrokerService()
-                .getReplicationClient("an_arbitrary_name", Optional.of(data));
+        PulsarClientImpl client = (PulsarClientImpl)
+                pulsar.getBrokerService().getReplicationClient("an_arbitrary_name", Optional.of(data));
         ClientConfigurationData clientConf = client.getConfiguration();
         Assert.assertEquals(clientConf.getOperationTimeoutMs(), 60000);
         // Config should override internal default, which is 0.
@@ -94,7 +94,8 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
     @Test
     public void testNamespaceServicePulsarClientConfiguration() {
         // This data only needs to have the service url for this test.
-        ClusterDataImpl data = (ClusterDataImpl) ClusterData.builder().serviceUrl("http://localhost:8080").build();
+        ClusterDataImpl data = (ClusterDataImpl)
+                ClusterData.builder().serviceUrl("http://localhost:8080").build();
 
         // Set the configs and set some configs that won't apply
         Properties config = pulsar.getConfiguration().getProperties();
@@ -111,5 +112,4 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
         // This config defaults to 0 (for good reason), but it could be overridden by configuration.
         Assert.assertEquals(clientConf.getMemoryLimitBytes(), 100000);
     }
-
 }

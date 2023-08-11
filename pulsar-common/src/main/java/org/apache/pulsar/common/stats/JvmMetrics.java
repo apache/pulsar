@@ -51,27 +51,32 @@ public class JvmMetrics {
 
     private final String componentName;
     private static final Map<String, Class<? extends JvmGCMetricsLogger>> gcLoggerMap = new HashMap<>();
+
     static {
         // GC type and implementation mapping
         gcLoggerMap.put("-XX:+UseG1GC", JvmG1GCMetricsLogger.class);
     }
 
-    public static JvmMetrics create(ScheduledExecutorService executor, String componentName,
-            String jvmGCMetricsLoggerClassName) {
-        String gcLoggerImplClassName = StringUtils.isNotBlank(jvmGCMetricsLoggerClassName) ? jvmGCMetricsLoggerClassName
-                : detectGCType();
+    public static JvmMetrics create(
+            ScheduledExecutorService executor, String componentName, String jvmGCMetricsLoggerClassName) {
+        String gcLoggerImplClassName =
+                StringUtils.isNotBlank(jvmGCMetricsLoggerClassName) ? jvmGCMetricsLoggerClassName : detectGCType();
         JvmGCMetricsLogger gcLoggerImpl = null;
         if (StringUtils.isNotBlank(gcLoggerImplClassName)) {
             try {
                 gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(gcLoggerImplClassName)
-                        .getDeclaredConstructor().newInstance();
+                        .getDeclaredConstructor()
+                        .newInstance();
             } catch (Exception e) {
-                log.error("Failed to initialize jvmGCMetricsLogger {} due to {}", jvmGCMetricsLoggerClassName,
-                        e.getMessage(), e);
+                log.error(
+                        "Failed to initialize jvmGCMetricsLogger {} due to {}",
+                        jvmGCMetricsLoggerClassName,
+                        e.getMessage(),
+                        e);
             }
         }
-        return new JvmMetrics(executor, componentName,
-                gcLoggerImpl != null ? gcLoggerImpl : new JvmDefaultGCMetricsLogger());
+        return new JvmMetrics(
+                executor, componentName, gcLoggerImpl != null ? gcLoggerImpl : new JvmDefaultGCMetricsLogger());
     }
 
     private static String detectGCType() {
@@ -175,5 +180,4 @@ public class JvmMetrics {
         // create with current version
         return Metrics.create(dimensionMap);
     }
-
 }

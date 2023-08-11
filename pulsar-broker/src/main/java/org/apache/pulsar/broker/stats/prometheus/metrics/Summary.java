@@ -111,11 +111,11 @@ public class Summary extends SimpleCollector<Summary.Child> implements Collector
             for (Double q : child.quantiles) {
                 List<String> labelValuesWithQuantile = new ArrayList<String>(c.getKey());
                 labelValuesWithQuantile.add(doubleToGoString(q));
-                samples.add(new MetricFamilySamples.Sample(fullname, labelNamesWithQuantile, labelValuesWithQuantile,
-                        child.logger.getQuantileValue(q)));
+                samples.add(new MetricFamilySamples.Sample(
+                        fullname, labelNamesWithQuantile, labelValuesWithQuantile, child.logger.getQuantileValue(q)));
             }
-            samples.add(new MetricFamilySamples.Sample(fullname + "_count", labelNames, c.getKey(),
-                    child.logger.getCount()));
+            samples.add(new MetricFamilySamples.Sample(
+                    fullname + "_count", labelNames, c.getKey(), child.logger.getCount()));
             samples.add(
                     new MetricFamilySamples.Sample(fullname + "_sum", labelNames, c.getKey(), child.logger.getSum()));
         }

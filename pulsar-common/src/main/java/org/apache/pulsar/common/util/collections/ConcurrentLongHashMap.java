@@ -107,8 +107,14 @@ public class ConcurrentLongHashMap<V> {
         }
 
         public ConcurrentLongHashMap<T> build() {
-            return new ConcurrentLongHashMap<>(expectedItems, concurrencyLevel,
-                    mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
+            return new ConcurrentLongHashMap<>(
+                    expectedItems,
+                    concurrencyLevel,
+                    mapFillFactor,
+                    mapIdleFactor,
+                    autoShrink,
+                    expandFactor,
+                    shrinkFactor);
         }
     }
 
@@ -126,13 +132,24 @@ public class ConcurrentLongHashMap<V> {
 
     @Deprecated
     public ConcurrentLongHashMap(int expectedItems, int concurrencyLevel) {
-        this(expectedItems, concurrencyLevel, DefaultMapFillFactor, DefaultMapIdleFactor,
-                DefaultAutoShrink, DefaultExpandFactor, DefaultShrinkFactor);
+        this(
+                expectedItems,
+                concurrencyLevel,
+                DefaultMapFillFactor,
+                DefaultMapIdleFactor,
+                DefaultAutoShrink,
+                DefaultExpandFactor,
+                DefaultShrinkFactor);
     }
 
-    public ConcurrentLongHashMap(int expectedItems, int concurrencyLevel,
-                                 float mapFillFactor, float mapIdleFactor,
-                                 boolean autoShrink, float expandFactor, float shrinkFactor) {
+    public ConcurrentLongHashMap(
+            int expectedItems,
+            int concurrencyLevel,
+            float mapFillFactor,
+            float mapIdleFactor,
+            boolean autoShrink,
+            float expandFactor,
+            float shrinkFactor) {
         checkArgument(expectedItems > 0);
         checkArgument(concurrencyLevel > 0);
         checkArgument(expectedItems >= concurrencyLevel);
@@ -148,8 +165,8 @@ public class ConcurrentLongHashMap<V> {
         this.sections = (Section<V>[]) new Section[numSections];
 
         for (int i = 0; i < numSections; i++) {
-            sections[i] = new Section<>(perSectionCapacity, mapFillFactor, mapIdleFactor,
-                    autoShrink, expandFactor, shrinkFactor);
+            sections[i] = new Section<>(
+                    perSectionCapacity, mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
         }
     }
 
@@ -288,8 +305,13 @@ public class ConcurrentLongHashMap<V> {
         private final float shrinkFactor;
         private final boolean autoShrink;
 
-        Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
-                float expandFactor, float shrinkFactor) {
+        Section(
+                int capacity,
+                float mapFillFactor,
+                float mapIdleFactor,
+                boolean autoShrink,
+                float expandFactor,
+                float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
             this.keys = new long[this.capacity];

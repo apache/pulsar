@@ -84,12 +84,13 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final TxnLogBufferedWriterMetricsStats bufferedWriterMetrics;
 
-    public MLTransactionLogImpl(TransactionCoordinatorID tcID,
-                                ManagedLedgerFactory managedLedgerFactory,
-                                ManagedLedgerConfig managedLedgerConfig,
-                                TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
-                                Timer timer,
-                                TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
+    public MLTransactionLogImpl(
+            TransactionCoordinatorID tcID,
+            ManagedLedgerFactory managedLedgerFactory,
+            ManagedLedgerConfig managedLedgerConfig,
+            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+            Timer timer,
+            TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
         this.topicName = getMLTransactionLogName(tcID);
         this.tcId = tcID.getId();
         this.managedLedgerFactory = managedLedgerFactory;
@@ -104,30 +105,35 @@ public class MLTransactionLogImpl implements TransactionLog {
     }
 
     public static TopicName getMLTransactionLogName(TransactionCoordinatorID tcID) {
-        return TopicName.get(TopicDomain.persistent.value(),
-                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + tcID.getId());
+        return TopicName.get(
+                TopicDomain.persistent.value(), NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + tcID.getId());
     }
 
     @Override
     public CompletableFuture<Void> initialize() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(),
+        managedLedgerFactory.asyncOpen(
+                topicName.getPersistenceNamingEncoding(),
                 managedLedgerConfig,
                 new AsyncCallbacks.OpenLedgerCallback() {
                     @Override
                     public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                         MLTransactionLogImpl.this.managedLedger = ledger;
                         MLTransactionLogImpl.this.bufferedWriter = new TxnLogBufferedWriter<>(
-                                managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(),
-                                timer, TransactionLogDataSerializer.INSTANCE,
+                                managedLedger,
+                                ((ManagedLedgerImpl) managedLedger).getExecutor(),
+                                timer,
+                                TransactionLogDataSerializer.INSTANCE,
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxRecords(),
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxSize(),
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxDelayInMillis(),
                                 txnLogBufferedWriterConfig.isBatchEnabled(),
                                 bufferedWriterMetrics);
 
-                        managedLedger.asyncOpenCursor(TRANSACTION_SUBSCRIPTION_NAME,
-                                CommandSubscribe.InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
+                        managedLedger.asyncOpenCursor(
+                                TRANSACTION_SUBSCRIPTION_NAME,
+                                CommandSubscribe.InitialPosition.Earliest,
+                                new AsyncCallbacks.OpenCursorCallback() {
                                     @Override
                                     public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                                         MLTransactionLogImpl.this.cursor = cursor;
@@ -138,14 +144,17 @@ public class MLTransactionLogImpl implements TransactionLog {
                                     public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
                                         future.completeExceptionally(exception);
                                     }
-                                }, null);
+                                },
+                                null);
                     }
 
                     @Override
                     public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                         future.completeExceptionally(exception);
                     }
-                }, null, null);
+                },
+                null,
+                null);
         return future;
     }
 
@@ -154,8 +163,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         new TransactionLogReplayer(transactionLogReplayCallback).start();
     }
 
-    private void readAsync(int numberOfEntriesToRead,
-                           AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
+    private void readAsync(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
         cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
     }
 
@@ -163,21 +171,23 @@ public class MLTransactionLogImpl implements TransactionLog {
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                log.info("Transaction log with tcId : {} close managedLedger successful!", tcId);
-                completableFuture.complete(null);
-                bufferedWriter.close();
-            }
+        managedLedger.asyncClose(
+                new AsyncCallbacks.CloseCallback() {
+                    @Override
+                    public void closeComplete(Object ctx) {
+                        log.info("Transaction log with tcId : {} close managedLedger successful!", tcId);
+                        completableFuture.complete(null);
+                        bufferedWriter.close();
+                    }
 
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                // If close managed ledger failure, should not close buffered writer.
-                log.error("Transaction log with tcId : {} close managedLedger fail!", tcId);
-                completableFuture.completeExceptionally(exception);
-            }
-        }, null);
+                    @Override
+                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                        // If close managed ledger failure, should not close buffered writer.
+                        log.error("Transaction log with tcId : {} close managedLedger fail!", tcId);
+                        completableFuture.completeExceptionally(exception);
+                    }
+                },
+                null);
 
         return completableFuture;
     }
@@ -185,21 +195,24 @@ public class MLTransactionLogImpl implements TransactionLog {
     @Override
     public CompletableFuture<Position> append(TransactionMetadataEntry transactionMetadataEntry) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        bufferedWriter.asyncAddData(transactionMetadataEntry, new TxnLogBufferedWriter.AddDataCallback() {
-            @Override
-            public void addComplete(Position position, Object context) {
-                completableFuture.complete(position);
-            }
+        bufferedWriter.asyncAddData(
+                transactionMetadataEntry,
+                new TxnLogBufferedWriter.AddDataCallback() {
+                    @Override
+                    public void addComplete(Position position, Object context) {
+                        completableFuture.complete(position);
+                    }
 
-            @Override
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Transaction log write transaction operation error", exception);
-                if (exception instanceof ManagedLedgerAlreadyClosedException) {
-                    managedLedger.readyToCreateNewLedger();
-                }
-                completableFuture.completeExceptionally(exception);
-            }
-        }, null);
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error("Transaction log write transaction operation error", exception);
+                        if (exception instanceof ManagedLedgerAlreadyClosedException) {
+                            managedLedger.readyToCreateNewLedger();
+                        }
+                        completableFuture.completeExceptionally(exception);
+                    }
+                },
+                null);
 
         return completableFuture;
     }
@@ -208,27 +221,37 @@ public class MLTransactionLogImpl implements TransactionLog {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         // Change the flag in ackSet to deleted.
         for (Position position : positions) {
-            if (position instanceof TxnBatchedPositionImpl batchedPosition){
+            if (position instanceof TxnBatchedPositionImpl batchedPosition) {
                 batchedPosition.setAckSetByIndex();
             }
         }
-        this.cursor.asyncDelete(positions, new AsyncCallbacks.DeleteCallback() {
-            @Override
-            public void deleteComplete(Object position) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Deleted message at {}", topicName,
-                            TRANSACTION_SUBSCRIPTION_NAME, position);
-                }
-                completableFuture.complete(null);
-            }
+        this.cursor.asyncDelete(
+                positions,
+                new AsyncCallbacks.DeleteCallback() {
+                    @Override
+                    public void deleteComplete(Object position) {
+                        if (log.isDebugEnabled()) {
+                            log.debug(
+                                    "[{}][{}] Deleted message at {}",
+                                    topicName,
+                                    TRANSACTION_SUBSCRIPTION_NAME,
+                                    position);
+                        }
+                        completableFuture.complete(null);
+                    }
 
-            @Override
-            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}][{}] Failed to delete message at {}", topicName,
-                        TRANSACTION_SUBSCRIPTION_NAME, ctx, exception);
-                completableFuture.completeExceptionally(exception);
-            }
-        }, null);
+                    @Override
+                    public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                        log.warn(
+                                "[{}][{}] Failed to delete message at {}",
+                                topicName,
+                                TRANSACTION_SUBSCRIPTION_NAME,
+                                ctx,
+                                exception);
+                        completableFuture.completeExceptionally(exception);
+                    }
+                },
+                null);
         return completableFuture;
     }
 
@@ -252,9 +275,9 @@ public class MLTransactionLogImpl implements TransactionLog {
                 if (entry != null) {
                     try {
                         List<TransactionMetadataEntry> logs = deserializeEntry(entry);
-                        if (logs.isEmpty()){
+                        if (logs.isEmpty()) {
                             continue;
-                        } else if (logs.size() == 1){
+                        } else if (logs.size() == 1) {
                             TransactionMetadataEntry log = logs.get(0);
                             transactionLogReplayCallback.handleMetadataEntry(entry.getPosition(), log);
                         } else {
@@ -266,20 +289,20 @@ public class MLTransactionLogImpl implements TransactionLog {
                             long[] ackSetAlreadyAck = cursor.getDeletedBatchIndexesAsLongArray(
                                     PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                             BitSetRecyclable bitSetAlreadyAck = null;
-                            if (ackSetAlreadyAck != null){
+                            if (ackSetAlreadyAck != null) {
                                 bitSetAlreadyAck = BitSetRecyclable.valueOf(ackSetAlreadyAck);
                             }
                             int batchSize = logs.size();
-                            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++){
-                                if (bitSetAlreadyAck != null && !bitSetAlreadyAck.get(batchIndex)){
-                                   continue;
+                            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
+                                if (bitSetAlreadyAck != null && !bitSetAlreadyAck.get(batchIndex)) {
+                                    continue;
                                 }
                                 TransactionMetadataEntry log = logs.get(batchIndex);
-                                TxnBatchedPositionImpl batchedPosition = new TxnBatchedPositionImpl(entry.getLedgerId(),
-                                        entry.getEntryId(), batchSize, batchIndex);
+                                TxnBatchedPositionImpl batchedPosition = new TxnBatchedPositionImpl(
+                                        entry.getLedgerId(), entry.getEntryId(), batchSize, batchIndex);
                                 transactionLogReplayCallback.handleMetadataEntry(batchedPosition, log);
                             }
-                            if (ackSetAlreadyAck != null){
+                            if (ackSetAlreadyAck != null) {
                                 bitSetAlreadyAck.recycle();
                             }
                         }
@@ -290,7 +313,7 @@ public class MLTransactionLogImpl implements TransactionLog {
                     try {
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
-                        //no-op
+                        // no-op
                     }
                 }
             }
@@ -298,12 +321,12 @@ public class MLTransactionLogImpl implements TransactionLog {
         }
     }
 
-    public static List<TransactionMetadataEntry> deserializeEntry(ByteBuf buffer){
+    public static List<TransactionMetadataEntry> deserializeEntry(ByteBuf buffer) {
         // Check whether it is batched Entry.
         buffer.markReaderIndex();
         short magicNum = buffer.readShort();
         buffer.resetReaderIndex();
-        if (magicNum == BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER){
+        if (magicNum == BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER) {
             // skip magic num and version mark.
             buffer.skipBytes(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN + BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN);
             BatchedTransactionMetadataEntry batchedLog = new BatchedTransactionMetadataEntry();
@@ -316,7 +339,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         }
     }
 
-    public static List<TransactionMetadataEntry> deserializeEntry(Entry entry){
+    public static List<TransactionMetadataEntry> deserializeEntry(Entry entry) {
         return deserializeEntry(entry.getDataBuffer());
     }
 
@@ -343,15 +366,18 @@ public class MLTransactionLogImpl implements TransactionLog {
 
         @Override
         public void readEntriesComplete(List<Entry> entries, Object ctx) {
-            entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
-                private int i = 0;
-                @Override
-                public Entry get() {
-                    Entry entry = entries.get(i);
-                    i++;
-                    return entry;
-                }
-            }, entries.size());
+            entryQueue.fill(
+                    new MessagePassingQueue.Supplier<Entry>() {
+                        private int i = 0;
+
+                        @Override
+                        public Entry get() {
+                            Entry entry = entries.get(i);
+                            i++;
+                            return entry;
+                        }
+                    },
+                    entries.size());
 
             outstandingReadsRequests.decrementAndGet();
         }
@@ -359,7 +385,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (managedLedgerConfig.isAutoSkipNonRecoverableData()
-                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+                            && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
                     || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
@@ -368,7 +394,6 @@ public class MLTransactionLogImpl implements TransactionLog {
             }
             log.error("Transaction log init fail error!", exception);
         }
-
     }
 
     /**
@@ -387,7 +412,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             };
 
     private static class TransactionLogDataSerializer
-            implements TxnLogBufferedWriter.DataSerializer<TransactionMetadataEntry>{
+            implements TxnLogBufferedWriter.DataSerializer<TransactionMetadataEntry> {
 
         private static final TransactionLogDataSerializer INSTANCE = new TransactionLogDataSerializer();
 

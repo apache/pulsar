@@ -18,19 +18,6 @@
  */
 package org.apache.pulsar.proxy.extensions;
 
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.apache.pulsar.proxy.server.ProxyService;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -39,6 +26,17 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
+import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
+import org.apache.pulsar.proxy.server.ProxyService;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test {@link ProxyExtensions}.
@@ -65,12 +63,8 @@ public class ProxyExtensionsTest {
         this.ncl2 = mock(NarClassLoader.class);
 
         this.extensionsMap = new HashMap<>();
-        this.extensionsMap.put(
-            protocol1,
-            new ProxyExtensionWithClassLoader(extension1, ncl1));
-        this.extensionsMap.put(
-            protocol2,
-            new ProxyExtensionWithClassLoader(extension2, ncl2));
+        this.extensionsMap.put(protocol1, new ProxyExtensionWithClassLoader(extension1, ncl1));
+        this.extensionsMap.put(protocol2, new ProxyExtensionWithClassLoader(extension2, ncl2));
         this.extensions = new ProxyExtensions(this.extensionsMap);
     }
 
@@ -125,7 +119,7 @@ public class ProxyExtensionsTest {
         when(extension2.newChannelInitializers()).thenReturn(p2Initializers);
 
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> initializers =
-            extensions.newChannelInitializers();
+                extensions.newChannelInitializers();
 
         assertEquals(2, initializers.size());
         assertSame(p1Initializers, initializers.get(protocol1));
@@ -151,5 +145,4 @@ public class ProxyExtensionsTest {
 
         extensions.newChannelInitializers();
     }
-
 }

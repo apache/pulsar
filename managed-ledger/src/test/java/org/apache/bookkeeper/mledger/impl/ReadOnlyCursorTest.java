@@ -22,10 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -102,7 +100,8 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void skip() throws Exception {
-        ManagedLedger ledger = factory.open("skip",
+        ManagedLedger ledger = factory.open(
+                "skip",
                 new ManagedLedgerConfig()
                         .setMaxEntriesPerLedger(2)
                         .setRetentionTime(1, TimeUnit.HOURS)
@@ -129,8 +128,8 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void skipAll() throws Exception {
-        ManagedLedger ledger = factory.open("skip-all",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
+        ManagedLedger ledger = factory.open(
+                "skip-all", new ManagedLedgerConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
 
         int N = 10;
 
@@ -138,8 +137,8 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip-all", PositionImpl.EARLIEST,
-                new ManagedLedgerConfig());
+        ReadOnlyCursor cursor =
+                factory.openReadOnlyCursor("skip-all", PositionImpl.EARLIEST, new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), N);
         assertTrue(cursor.hasMoreEntries());
@@ -154,7 +153,8 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void skipMultiple() throws Exception {
-        ManagedLedger ledger = factory.open("skip",
+        ManagedLedger ledger = factory.open(
+                "skip",
                 new ManagedLedgerConfig()
                         .setMaxEntriesPerLedger(7)
                         .setRetentionTime(1, TimeUnit.HOURS)
@@ -225,5 +225,4 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getNumberOfEntries(), N - 5);
         assertTrue(cursor.hasMoreEntries());
     }
-
 }

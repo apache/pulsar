@@ -46,7 +46,8 @@ public class FunctionsManager {
     }
 
     public List<FunctionDefinition> getFunctionDefinitions() {
-        return functions.values().stream().map(FunctionArchive::getFunctionDefinition)
+        return functions.values().stream()
+                .map(FunctionArchive::getFunctionDefinition)
                 .collect(Collectors.toList());
     }
 

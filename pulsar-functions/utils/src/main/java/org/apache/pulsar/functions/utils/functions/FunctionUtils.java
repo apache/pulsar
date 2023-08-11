@@ -35,7 +35,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.utils.Exceptions;
 
-
 @UtilityClass
 @Slf4j
 public class FunctionUtils {
@@ -49,8 +48,8 @@ public class FunctionUtils {
         NarClassLoader ncl = (NarClassLoader) classLoader;
         String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
-        FunctionDefinition conf = ObjectMapperFactory.getYamlMapper().reader().readValue(configStr,
-        FunctionDefinition.class);
+        FunctionDefinition conf =
+                ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, FunctionDefinition.class);
         if (StringUtils.isEmpty(conf.getFunctionClass())) {
             throw new IOException(
                     String.format("The '%s' functionctor does not provide a function implementation", conf.getName()));
@@ -60,9 +59,8 @@ public class FunctionUtils {
             // Try to load source class and check it implements Function interface
             Class functionClass = ncl.loadClass(conf.getFunctionClass());
             if (!(Function.class.isAssignableFrom(functionClass))) {
-                throw new IOException(
-                        "Class " + conf.getFunctionClass() + " does not implement interface " + Function.class
-                                .getName());
+                throw new IOException("Class " + conf.getFunctionClass() + " does not implement interface "
+                        + Function.class.getName());
             }
         } catch (Throwable t) {
             Exceptions.rethrowIOException(t);
@@ -80,8 +78,8 @@ public class FunctionUtils {
         return searchForFunctions(functionsDirectory, false);
     }
 
-    public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory,
-                                                                      boolean alwaysPopulatePath) throws IOException {
+    public static TreeMap<String, FunctionArchive> searchForFunctions(
+            String functionsDirectory, boolean alwaysPopulatePath) throws IOException {
         Path path = Paths.get(functionsDirectory).toAbsolutePath();
         log.info("Searching for functions in {}", path);
 

@@ -34,44 +34,34 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * The data of namespace isolation configuration.
  */
-@ApiModel(
-        value = "NamespaceIsolationData",
-        description = "The data of namespace isolation configuration"
-)
+@ApiModel(value = "NamespaceIsolationData", description = "The data of namespace isolation configuration")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
 
-    @ApiModelProperty(
-            name = "namespaces",
-            value = "The list of namespaces to apply this namespace isolation data"
-    )
+    @ApiModelProperty(name = "namespaces", value = "The list of namespaces to apply this namespace isolation data")
     private List<String> namespaces;
 
     @ApiModelProperty(
             name = "primary",
-            value = "The list of primary brokers for serving the list of namespaces in this isolation policy"
-    )
+            value = "The list of primary brokers for serving the list of namespaces in this isolation policy")
     private List<String> primary;
 
     @ApiModelProperty(
             name = "secondary",
-            value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
-    )
+            value = "The list of secondary brokers for serving the list of namespaces in this isolation policy")
     private List<String> secondary;
 
     @ApiModelProperty(
             name = "auto_failover_policy",
             value = "The data of auto-failover policy configuration",
-            example =
-                    "{"
-                            + "  \"policy_type\": \"min_available\""
-                            + "  \"parameters\": {"
-                            + "    \"\": \"\""
-                            + "  }"
-                            + "}"
-    )
+            example = "{"
+                    + "  \"policy_type\": \"min_available\""
+                    + "  \"parameters\": {"
+                    + "    \"\": \"\""
+                    + "  }"
+                    + "}")
     @JsonProperty("auto_failover_policy")
     private AutoFailoverPolicyData autoFailoverPolicy;
 
@@ -80,8 +70,13 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
     }
 
     public void validate() {
-        checkArgument(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
-                && validateRegex(primary) && secondary != null && validateRegex(secondary)
+        checkArgument(namespaces != null
+                && !namespaces.isEmpty()
+                && primary != null
+                && !primary.isEmpty()
+                && validateRegex(primary)
+                && secondary != null
+                && validateRegex(secondary)
                 && autoFailoverPolicy != null);
         autoFailoverPolicy.validate();
     }

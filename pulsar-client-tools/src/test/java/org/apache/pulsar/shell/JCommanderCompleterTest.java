@@ -20,7 +20,6 @@ package org.apache.pulsar.shell;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.List;
 import java.util.Properties;
 import org.jline.reader.Completer;
@@ -43,8 +42,8 @@ public class JCommanderCompleterTest {
     }
 
     private void createAndCheckCompleters(AdminShell shell, String mainCommand) {
-        final List<Completer> completers = JCommanderCompleter.createCompletersForCommand(mainCommand,
-                shell.getJCommander(), null);
+        final List<Completer> completers =
+                JCommanderCompleter.createCompletersForCommand(mainCommand, shell.getJCommander(), null);
         assertFalse(completers.isEmpty());
         for (Completer completer : completers) {
             assertTrue(completer instanceof OptionStrictArgumentCompleter);

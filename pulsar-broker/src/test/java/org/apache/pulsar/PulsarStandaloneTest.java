@@ -21,7 +21,6 @@ package org.apache.pulsar;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
@@ -40,13 +39,14 @@ public class PulsarStandaloneTest {
 
     @DataProvider
     public Object[][] enableBrokerClientAuth() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test
     public void testStandaloneWithRocksDB() throws Exception {
-        String[] args = new String[]{"--config",
-                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"};
+        String[] args = new String[] {
+            "--config", "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"
+        };
         final int bookieNum = 3;
         final File tempDir = IOUtils.createTempDir("standalone", "test");
 
@@ -76,24 +76,28 @@ public class PulsarStandaloneTest {
     @Test(dataProvider = "enableBrokerClientAuth")
     public void testMetadataInitialization(boolean enableBrokerClientAuth) throws Exception {
         final File metadataDir = IOUtils.createTempDir("standalone", "metadata");
-        @Cleanup final PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[]{
-                "--config",
-                "./src/test/resources/configurations/standalone_no_client_auth.conf",
-                "-nss",
-                "-nfw",
-                "--metadata-url",
-                "rocksdb://" + metadataDir.getAbsolutePath()
+        @Cleanup
+        final PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[] {
+            "--config",
+            "./src/test/resources/configurations/standalone_no_client_auth.conf",
+            "-nss",
+            "-nfw",
+            "--metadata-url",
+            "rocksdb://" + metadataDir.getAbsolutePath()
         });
         if (enableBrokerClientAuth) {
-            standalone.getConfig().setBrokerClientAuthenticationPlugin(
-                    MockTokenAuthenticationProvider.MockAuthentication.class.getName());
+            standalone
+                    .getConfig()
+                    .setBrokerClientAuthenticationPlugin(
+                            MockTokenAuthenticationProvider.MockAuthentication.class.getName());
         }
         final File bkDir = IOUtils.createTempDir("standalone", "bk");
         standalone.setNumOfBk(1);
         standalone.setBkDir(bkDir.getAbsolutePath());
         standalone.start();
 
-        @Cleanup PulsarAdmin admin = PulsarAdmin.builder()
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder()
                 .serviceHttpUrl("http://localhost:8080")
                 .authentication(new MockTokenAuthenticationProvider.MockAuthentication())
                 .build();
@@ -103,15 +107,21 @@ public class PulsarStandaloneTest {
             assertTrue(admin.namespaces().getNamespaces("public").contains("public/default"));
         } else {
             assertTrue(admin.clusters().getClusters().isEmpty());
-            admin.clusters().createCluster("test_cluster", ClusterData.builder()
-                    .serviceUrl("http://localhost:8080/")
-                    .brokerServiceUrl("pulsar://localhost:6650/")
-                    .build());
+            admin.clusters()
+                    .createCluster(
+                            "test_cluster",
+                            ClusterData.builder()
+                                    .serviceUrl("http://localhost:8080/")
+                                    .brokerServiceUrl("pulsar://localhost:6650/")
+                                    .build());
             assertTrue(admin.tenants().getTenants().isEmpty());
-            admin.tenants().createTenant("public", TenantInfo.builder()
-                    .adminRoles(Collections.singleton("admin"))
-                    .allowedClusters(Collections.singleton("test_cluster"))
-                    .build());
+            admin.tenants()
+                    .createTenant(
+                            "public",
+                            TenantInfo.builder()
+                                    .adminRoles(Collections.singleton("admin"))
+                                    .allowedClusters(Collections.singleton("test_cluster"))
+                                    .build());
 
             assertTrue(admin.namespaces().getNamespaces("public").isEmpty());
             admin.namespaces().createNamespace("public/default");

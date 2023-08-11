@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -73,10 +72,10 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         Date exp = new Date(expMillis);
 
         return Jwts.builder()
-            .setSubject("admin")
-            .setExpiration(exp)
-            .signWith(pkey, SignatureAlgorithm.forSigningKey(pkey))
-            .compact();
+                .setSubject("admin")
+                .setExpiration(exp)
+                .signWith(pkey, SignatureAlgorithm.forSigningKey(pkey))
+                .compact();
     }
 
     @BeforeMethod
@@ -105,11 +104,13 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
     // setup both admin and pulsar client
     protected final void clientSetup() throws Exception {
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl.toString())
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
                 .build());
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN)));
     }
@@ -122,14 +123,18 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
     @DataProvider(name = "batch")
     public Object[][] codecProvider() {
-        return new Object[][] { { 0 }, { 1000 } };
+        return new Object[][] {{0}, {1000}};
     }
 
     private void testSyncProducerAndConsumer() throws Exception {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
@@ -157,9 +162,14 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants()
+                .createTenant(
+                        "my-property",
+                        new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // test protocol by producer/consumer
@@ -167,5 +177,4 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
         log.info("-- Exiting {} test --", methodName);
     }
-
 }

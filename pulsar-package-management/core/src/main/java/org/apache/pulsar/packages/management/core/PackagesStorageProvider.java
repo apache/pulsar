@@ -37,8 +37,9 @@ public interface PackagesStorageProvider {
         try {
             providerClass = Class.forName(providerClassName);
             Object obj = providerClass.getDeclaredConstructor().newInstance();
-            checkArgument(obj instanceof PackagesStorageProvider,
-                "The package storage provider has to be an instance of " + PackagesStorageProvider.class.getName());
+            checkArgument(
+                    obj instanceof PackagesStorageProvider,
+                    "The package storage provider has to be an instance of " + PackagesStorageProvider.class.getName());
             return (PackagesStorageProvider) obj;
         } catch (Exception e) {
             throw new IOException(e);

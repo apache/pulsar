@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -35,11 +39,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 /**
  * Source Property related test cases.
  */
@@ -49,7 +48,8 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
     public void testSourceProperty() throws Exception {
         String outputTopicName = "test-source-property-input-" + randomName(8);
         String sourceName = "test-source-property-" + randomName(8);
-        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestPropertySource",  JAVAJAR);
+        submitSourceConnector(
+                sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestPropertySource", JAVAJAR);
 
         // get source info
         getSourceInfoSuccess(sourceName);
@@ -57,7 +57,9 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
         // get source status
         getSourceStatus(sourceName);
 
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(container.getHttpServiceUrl())
+                .build()) {
 
             Awaitility.await().ignoreExceptions().untilAsserted(() -> {
                 SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
@@ -66,10 +68,12 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
             });
         }
 
-        @Cleanup PulsarClient client = PulsarClient.builder()
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(container.getPlainTextServiceUrl())
                 .build();
-        @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(outputTopicName)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("test-sub")
@@ -88,23 +92,24 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
         getSourceInfoNotFound(sourceName);
     }
 
-    private void submitSourceConnector(String sourceName,
-                                       String outputTopicName,
-                                       String className,
-                                       String archive) throws Exception {
+    private void submitSourceConnector(String sourceName, String outputTopicName, String className, String archive)
+            throws Exception {
         String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "sources", "create",
-                "--name", sourceName,
-                "--destinationTopicName", outputTopicName,
-                "--archive", archive,
-                "--classname", className
+            PulsarCluster.ADMIN_SCRIPT,
+            "sources",
+            "create",
+            "--name",
+            sourceName,
+            "--destinationTopicName",
+            outputTopicName,
+            "--archive",
+            archive,
+            "--classname",
+            className
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
-        assertTrue(
-                result.getStdout().contains("Created successfully"),
-                result.getStdout());
+        assertTrue(result.getStdout().contains("Created successfully"), result.getStdout());
     }
 
     private void getSourceInfoSuccess(String sourceName) throws Exception {
@@ -112,10 +117,12 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
                 "get",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sourceName
-        );
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sourceName);
         assertTrue(result.getStdout().contains("\"name\": \"" + sourceName + "\""));
     }
 
@@ -124,10 +131,12 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
                 "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sourceName
-        );
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sourceName);
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
@@ -136,10 +145,12 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
                 "delete",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", sourceName
-        );
+                "--tenant",
+                "public",
+                "--namespace",
+                "default",
+                "--name",
+                sourceName);
         assertTrue(result.getStdout().contains("Delete source successfully"));
         result.assertNoStderr();
     }
@@ -150,13 +161,15 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
                     PulsarCluster.ADMIN_SCRIPT,
                     "sources",
                     "get",
-                    "--tenant", "public",
-                    "--namespace", "default",
-                    "--name", sourceName);
+                    "--tenant",
+                    "public",
+                    "--namespace",
+                    "default",
+                    "--name",
+                    sourceName);
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
             assertTrue(e.getResult().getStderr().contains("Reason: Source " + sourceName + " doesn't exist"));
         }
     }
 }
-

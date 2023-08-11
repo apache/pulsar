@@ -44,7 +44,6 @@ public class ConcurrentLongLongPairHashMap {
 
     private static final long ValueNotFound = -1L;
 
-
     private static final int DefaultExpectedItems = 256;
     private static final int DefaultConcurrencyLevel = 16;
 
@@ -110,8 +109,14 @@ public class ConcurrentLongLongPairHashMap {
         }
 
         public ConcurrentLongLongPairHashMap build() {
-            return new ConcurrentLongLongPairHashMap(expectedItems, concurrencyLevel,
-                    mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
+            return new ConcurrentLongLongPairHashMap(
+                    expectedItems,
+                    concurrencyLevel,
+                    mapFillFactor,
+                    mapIdleFactor,
+                    autoShrink,
+                    expandFactor,
+                    shrinkFactor);
         }
     }
 
@@ -136,9 +141,14 @@ public class ConcurrentLongLongPairHashMap {
         boolean test(long key1, long key2, long value1, long value2);
     }
 
-    private ConcurrentLongLongPairHashMap(int expectedItems, int concurrencyLevel,
-                                          float mapFillFactor, float mapIdleFactor,
-                                         boolean autoShrink, float expandFactor, float shrinkFactor) {
+    private ConcurrentLongLongPairHashMap(
+            int expectedItems,
+            int concurrencyLevel,
+            float mapFillFactor,
+            float mapIdleFactor,
+            boolean autoShrink,
+            float expandFactor,
+            float shrinkFactor) {
         checkArgument(expectedItems > 0);
         checkArgument(concurrencyLevel > 0);
         checkArgument(expectedItems >= concurrencyLevel);
@@ -154,8 +164,8 @@ public class ConcurrentLongLongPairHashMap {
         this.sections = new Section[numSections];
 
         for (int i = 0; i < numSections; i++) {
-            sections[i] = new Section(perSectionCapacity, mapFillFactor, mapIdleFactor,
-                    autoShrink, expandFactor, shrinkFactor);
+            sections[i] = new Section(
+                    perSectionCapacity, mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
         }
     }
 
@@ -302,8 +312,13 @@ public class ConcurrentLongLongPairHashMap {
         private final float shrinkFactor;
         private final boolean autoShrink;
 
-        Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
-                float expandFactor, float shrinkFactor) {
+        Section(
+                int capacity,
+                float mapFillFactor,
+                float mapIdleFactor,
+                boolean autoShrink,
+                float expandFactor,
+                float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
             this.table = new long[4 * this.capacity];
@@ -606,8 +621,8 @@ public class ConcurrentLongLongPairHashMap {
             resizeThresholdBelow = (int) (capacity * mapIdleFactor);
         }
 
-        private static void insertKeyValueNoLock(long[] table, int capacity, long key1, long key2, long value1,
-                long value2) {
+        private static void insertKeyValueNoLock(
+                long[] table, int capacity, long key1, long key2, long value1, long value2) {
             int bucket = signSafeMod(hash(key1, key2), capacity);
 
             while (true) {

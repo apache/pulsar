@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.testng.annotations.Test;
 
@@ -73,7 +72,8 @@ public class PositionTest {
     @Test
     public void hashes() throws Exception {
         PositionImpl p1 = new PositionImpl(5, 15);
-        PositionImpl p2 = new PositionImpl(PositionInfo.parseFrom(p1.getPositionInfo().toByteArray()));
+        PositionImpl p2 =
+                new PositionImpl(PositionInfo.parseFrom(p1.getPositionInfo().toByteArray()));
         assertEquals(p2.getLedgerId(), 5);
         assertEquals(p2.getEntryId(), 15);
         assertEquals(new PositionImpl(5, 15).hashCode(), p2.hashCode());

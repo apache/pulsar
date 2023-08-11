@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
+import io.netty.buffer.ByteBuf;
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -34,10 +34,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.scurrilous.circe.checksum.Crc32cIntChecksum;
-
-import io.netty.buffer.ByteBuf;
 
 @Test(groups = "broker")
 public class ChecksumTest extends BrokerTestBase {
@@ -60,7 +56,8 @@ public class ChecksumTest extends BrokerTestBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicReference(topicName).get();
 
         ManagedLedger ledger = topic.getManagedLedger();
         ManagedCursor cursor = ledger.openCursor("test");
@@ -101,5 +98,4 @@ public class ChecksumTest extends BrokerTestBase {
         producer.close();
         reader.closeAsync().get();
     }
-
 }

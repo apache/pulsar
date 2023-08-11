@@ -57,5 +57,4 @@ public interface BatcherBuilder extends Serializable {
      * @return new batch message container
      */
     BatchMessageContainer build();
-
 }

@@ -31,13 +31,22 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * Provider of a new BookKeeper client instance.
  */
 public interface BookKeeperClientFactory {
-    BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store, EventLoopGroup eventLoopGroup,
-                      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                      Map<String, Object> ensemblePlacementPolicyProperties) throws IOException;
+    BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> ensemblePlacementPolicyProperties)
+            throws IOException;
 
-    BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store, EventLoopGroup eventLoopGroup,
-                      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                      Map<String, Object> ensemblePlacementPolicyProperties,
-                      StatsLogger statsLogger) throws IOException;
+    BookKeeper create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> ensemblePlacementPolicyProperties,
+            StatsLogger statsLogger)
+            throws IOException;
+
     void close();
 }

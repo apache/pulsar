@@ -30,7 +30,8 @@ import org.apache.pulsar.common.util.RestException;
 public final class RestUtils {
 
     public static ObjectNode createBaseMessage(String message) {
-        final ObjectMapper mapper = ObjectMapperFactory.getMapperWithIncludeAlways().getObjectMapper();
+        final ObjectMapper mapper =
+                ObjectMapperFactory.getMapperWithIncludeAlways().getObjectMapper();
         return mapper.createObjectNode().put("message", message);
     }
 
@@ -39,7 +40,8 @@ public final class RestUtils {
     }
 
     public static void throwUnavailableException() {
-        throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
+        throw new RestException(
+                Response.Status.SERVICE_UNAVAILABLE,
                 "Function worker service is not done initializing. " + "Please try again in a little while.");
     }
 }

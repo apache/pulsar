@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-
-import org.testcontainers.containers.wait.strategy.Wait;
-
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContainer> {
 
@@ -30,7 +28,7 @@ public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContaine
     // uppercase letters, lowercase letters, numbers and non-alphanumeric symbols
     public static final String SA_PASSWORD = "p@ssw0rD";
     public static final String NAME = "debezium-mssql";
-    static final Integer[] PORTS = { 1433 };
+    static final Integer[] PORTS = {1433};
 
     // https://hub.docker.com/_/microsoft-mssql-server
     // EULA: https://go.microsoft.com/fwlink/?linkid=857698
@@ -53,20 +51,19 @@ public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContaine
         super.configure();
         // leaving default MSSQL_PID (aka Developer edition)
         this.withNetworkAliases(NAME)
-            .withExposedPorts(PORTS)
-            .withEnv("ACCEPT_EULA", "Y")
-            .withEnv("SA_PASSWORD", SA_PASSWORD)
-            .withEnv("MSSQL_SA_PASSWORD", SA_PASSWORD)
-            .withEnv("MSSQL_AGENT_ENABLED", "true")
-            .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
-            .withCreateContainerCmdModifier(createContainerCmd -> {
-                createContainerCmd.withHostName(NAME);
-                createContainerCmd.withName(getContainerName());
-            })
-            // wait strategy to address problem with MS SQL responding to the connection
-            // before service starts up completely
-            // https://github.com/microsoft/mssql-docker/issues/625#issuecomment-882025521
-            .waitingFor(Wait.forLogMessage(".*The tempdb database has .*", 2));
+                .withExposedPorts(PORTS)
+                .withEnv("ACCEPT_EULA", "Y")
+                .withEnv("SA_PASSWORD", SA_PASSWORD)
+                .withEnv("MSSQL_SA_PASSWORD", SA_PASSWORD)
+                .withEnv("MSSQL_AGENT_ENABLED", "true")
+                .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
+                .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(NAME);
+                    createContainerCmd.withName(getContainerName());
+                })
+                // wait strategy to address problem with MS SQL responding to the connection
+                // before service starts up completely
+                // https://github.com/microsoft/mssql-docker/issues/625#issuecomment-882025521
+                .waitingFor(Wait.forLogMessage(".*The tempdb database has .*", 2));
     }
-
 }

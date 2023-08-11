@@ -59,7 +59,9 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
     protected String clientAuthToken;
 
     protected abstract void createKeysAndTokens(PulsarContainer<?> container) throws Exception;
+
     protected abstract void configureBroker(BrokerContainer brokerContainer) throws Exception;
+
     protected abstract void configureProxy(ProxyContainer proxyContainer) throws Exception;
 
     protected abstract String createClientTokenWithExpiry(long expiryTime, TimeUnit unit) throws Exception;
@@ -96,16 +98,19 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .clusterName(clusterName)
                 .build();
 
-        log.info("Setting up cluster {} with token authentication  and {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info(
+                "Setting up cluster {} with token authentication  and {} bookies, {} brokers",
+                spec.clusterName(),
+                spec.numBookies(),
+                spec.numBrokers());
 
         pulsarCluster = PulsarCluster.forSpec(spec);
 
         for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
             configureBroker(brokerContainer);
             brokerContainer.withEnv("authenticationEnabled", "true");
-            brokerContainer.withEnv("authenticationProviders",
-                    "org.apache.pulsar.broker.authentication.AuthenticationProviderToken");
+            brokerContainer.withEnv(
+                    "authenticationProviders", "org.apache.pulsar.broker.authentication.AuthenticationProviderToken");
             brokerContainer.withEnv("authorizationEnabled", "true");
             brokerContainer.withEnv("superUserRoles", SUPER_USER_ROLE + "," + PROXY_ROLE);
             brokerContainer.withEnv("brokerClientAuthenticationPlugin", AuthenticationToken.class.getName());
@@ -117,8 +122,8 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         ProxyContainer proxyContainer = pulsarCluster.getProxy();
         configureProxy(proxyContainer);
         proxyContainer.withEnv("authenticationEnabled", "true");
-        proxyContainer.withEnv("authenticationProviders",
-                "org.apache.pulsar.broker.authentication.AuthenticationProviderToken");
+        proxyContainer.withEnv(
+                "authenticationProviders", "org.apache.pulsar.broker.authentication.AuthenticationProviderToken");
         proxyContainer.withEnv("authorizationEnabled", "true");
         proxyContainer.withEnv("brokerClientAuthenticationPlugin", AuthenticationToken.class.getName());
         proxyContainer.withEnv("brokerClientAuthenticationParameters", "token:" + proxyAuthToken);
@@ -149,9 +154,12 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         try {
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
-                        Collections.singleton(pulsarCluster.getClusterName())));
+            admin.tenants()
+                    .createTenant(
+                            tenant,
+                            new TenantInfoImpl(
+                                    Collections.singleton(REGULAR_USER_ROLE),
+                                    Collections.singleton(pulsarCluster.getClusterName())));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -167,9 +175,8 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+        Producer<String> producer =
+                client.newProducer(Schema.STRING).topic(topic).create();
 
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -197,8 +204,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         try {
-            clientNoAuth.newProducer(Schema.STRING).topic(topic)
-                    .create();
+            clientNoAuth.newProducer(Schema.STRING).topic(topic).create();
             fail("Should have failed to create producer");
         } catch (PulsarClientException e) {
             // Expected
@@ -219,17 +225,19 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         try {
-            admin.tenants().createTenant(tenant,
-                    new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
-                            Collections.singleton(pulsarCluster.getClusterName())));
+            admin.tenants()
+                    .createTenant(
+                            tenant,
+                            new TenantInfoImpl(
+                                    Collections.singleton(REGULAR_USER_ROLE),
+                                    Collections.singleton(pulsarCluster.getClusterName())));
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
-        admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE,
-                EnumSet.allOf(AuthAction.class));
+        admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
         admin.topics().createPartitionedTopic(topic, 16);
 
@@ -241,10 +249,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         // Force the topics to be created
-        client.newProducer()
-                .topic(topic)
-                .create()
-                .close();
+        client.newProducer().topic(topic).create().close();
 
         admin.topics().getList(namespace);
 
@@ -257,7 +262,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
     @DataProvider(name = "shouldRefreshToken")
     public static Object[][] shouldRefreshToken() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @Test(dataProvider = "shouldRefreshToken")
@@ -272,9 +277,12 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .authentication(AuthenticationFactory.token(superUserAuthToken))
                 .build();
 
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
-                        Collections.singleton(pulsarCluster.getClusterName())));
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        new TenantInfoImpl(
+                                Collections.singleton(REGULAR_USER_ROLE),
+                                Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
@@ -337,9 +345,12 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .authentication(AuthenticationFactory.token(superUserAuthToken))
                 .build();
 
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
-                        Collections.singleton(pulsarCluster.getClusterName())));
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        new TenantInfoImpl(
+                                Collections.singleton(REGULAR_USER_ROLE),
+                                Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
@@ -373,9 +384,9 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         @Cleanup
         Producer<String> producer2 = client.newProducer(Schema.STRING)
-                    .topic(topic)
-                    .sendTimeout(1, TimeUnit.SECONDS)
-                    .create();
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
     }
 
     @Test
@@ -383,9 +394,9 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         try {
             @Cleanup
             PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .authentication(AuthenticationFactory.token("invalid_token"))
-                .build();
+                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                    .authentication(AuthenticationFactory.token("invalid_token"))
+                    .build();
             client.newProducer().topic("test_token_topic" + randomName(4));
         } catch (PulsarClientException.AuthenticationException pae) {
             // expected error

@@ -36,14 +36,10 @@ public class HttpSinkConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @FieldDoc(
-        defaultValue = "http://localhost",
-        help = "The URL of the HTTP server")
+    @FieldDoc(defaultValue = "http://localhost", help = "The URL of the HTTP server")
     private String url = "http://localhost";
 
-    @FieldDoc(
-        defaultValue = "",
-        help = "The list of default headers added to each request")
+    @FieldDoc(defaultValue = "", help = "The list of default headers added to each request")
     private Map<String, String> headers = new HashMap<>();
 
     public static HttpSinkConfig load(String yamlFile) throws IOException {

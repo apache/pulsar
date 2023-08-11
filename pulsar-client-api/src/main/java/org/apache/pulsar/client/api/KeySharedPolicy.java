@@ -113,8 +113,8 @@ public abstract class KeySharedPolicy {
                 for (int j = 0; j < ranges.size(); j++) {
                     Range range2 = ranges.get(j);
                     if (i != j && range1.intersect(range2) != null) {
-                        throw new IllegalArgumentException("Ranges for KeyShared policy with overlap between " + range1
-                                + " and " + range2);
+                        throw new IllegalArgumentException(
+                                "Ranges for KeyShared policy with overlap between " + range1 + " and " + range2);
                     }
                 }
             }

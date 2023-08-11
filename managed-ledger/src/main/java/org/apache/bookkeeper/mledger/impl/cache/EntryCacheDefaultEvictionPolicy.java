@@ -88,8 +88,11 @@ public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy
             evictedSize += evicted.getRight();
         }
 
-        log.info("Completed cache eviction. Removed {} entries from {} caches. ({} Mb)", evictedEntries,
-                cachesToEvict.size(), evictedSize / RangeEntryCacheManagerImpl.MB);
+        log.info(
+                "Completed cache eviction. Removed {} entries from {} caches. ({} Mb)",
+                evictedEntries,
+                cachesToEvict.size(),
+                evictedSize / RangeEntryCacheManagerImpl.MB);
     }
 
     private static final Logger log = LoggerFactory.getLogger(EntryCacheDefaultEvictionPolicy.class);

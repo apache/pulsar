@@ -46,7 +46,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     private String brokerServiceUrl = "http://localhost:8080";
     private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
-    private String webServiceUrl = ""; //leave empty
+    private String webServiceUrl = ""; // leave empty
     private String metadataUrl = "zk:localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
@@ -74,7 +74,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String offloadersDirectory = "./offloaders";
     private Map<String, String> offloaderProperties = new HashMap<>();
 
-    //--- Ledger metrics ---
+    // --- Ledger metrics ---
     private boolean exposeTopicLevelMetricsInPrometheus = false;
     private boolean exposeManagedLedgerMetricsInPrometheus = false;
     private int managedLedgerStatsPeriodSeconds = 60;
@@ -97,25 +97,29 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @NotNull
     public String getBrokerServiceUrl() {
-        if (StringUtils.isEmpty(webServiceUrl)){
+        if (StringUtils.isEmpty(webServiceUrl)) {
             return brokerServiceUrl;
         } else {
             return getWebServiceUrl();
         }
     }
+
     @Config("pulsar.broker-service-url")
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
         return this;
     }
+
     public String getBrokerBinaryServiceUrl() {
         return this.brokerBinaryServiceUrl;
     }
+
     @Config("pulsar.broker-binary-service-url")
     public PulsarConnectorConfig setBrokerBinaryServiceUrl(String brokerBinaryServiceUrl) {
         this.brokerBinaryServiceUrl = brokerBinaryServiceUrl;
         return this;
     }
+
     @Config("pulsar.web-service-url")
     public PulsarConnectorConfig setWebServiceUrl(String webServiceUrl) {
         this.webServiceUrl = webServiceUrl;
@@ -255,10 +259,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public PulsarConnectorConfig setRewriteNamespaceDelimiter(String rewriteNamespaceDelimiter) {
         Matcher m = NamedEntity.NAMED_ENTITY_PATTERN.matcher(rewriteNamespaceDelimiter);
         if (m.matches()) {
-            throw new IllegalArgumentException(
-                    "Can't use " + rewriteNamespaceDelimiter + "as delimiter, "
-                            + "because delimiter must contain characters which name of namespace not allowed"
-            );
+            throw new IllegalArgumentException("Can't use " + rewriteNamespaceDelimiter + "as delimiter, "
+                    + "because delimiter must contain characters which name of namespace not allowed");
         }
         this.rewriteNamespaceDelimiter = rewriteNamespaceDelimiter;
         return this;
@@ -292,7 +294,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Config("pulsar.managed-ledger-offload-max-threads")
     public PulsarConnectorConfig setManagedLedgerOffloadMaxThreads(int managedLedgerOffloadMaxThreads)
-        throws IOException {
+            throws IOException {
         this.managedLedgerOffloadMaxThreads = managedLedgerOffloadMaxThreads;
         return this;
     }
@@ -310,7 +312,6 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public String getOffloadersDirectory() {
         return this.offloadersDirectory;
     }
-
 
     @Config("pulsar.offloaders-directory")
     public PulsarConnectorConfig setOffloadersDirectory(String offloadersDirectory) throws IOException {
@@ -539,14 +540,10 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-       if (StringUtils.isEmpty(webServiceUrl)){
-           return "PulsarConnectorConfig{"
-            + "brokerServiceUrl='" + brokerServiceUrl + '\''
-            + '}';
+        if (StringUtils.isEmpty(webServiceUrl)) {
+            return "PulsarConnectorConfig{" + "brokerServiceUrl='" + brokerServiceUrl + '\'' + '}';
         } else {
-            return "PulsarConnectorConfig{"
-            + "brokerServiceUrl='" + webServiceUrl + '\''
-            + '}';
+            return "PulsarConnectorConfig{" + "brokerServiceUrl='" + webServiceUrl + '\'' + '}';
         }
     }
 }

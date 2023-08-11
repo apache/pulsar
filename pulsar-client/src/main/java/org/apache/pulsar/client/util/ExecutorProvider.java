@@ -43,9 +43,11 @@ public class ExecutorProvider {
     public static class ExtendedThreadFactory extends DefaultThreadFactory {
         @Getter
         private volatile Thread thread;
+
         public ExtendedThreadFactory(String poolName) {
             super(poolName, false);
         }
+
         public ExtendedThreadFactory(String poolName, boolean daemon) {
             super(poolName, daemon);
         }
@@ -53,8 +55,7 @@ public class ExecutorProvider {
         @Override
         public Thread newThread(Runnable r) {
             Thread thread = super.newThread(r);
-            thread.setUncaughtExceptionHandler((t, e) ->
-                    log.error("Thread {} got uncaught Exception", t.getName(), e));
+            thread.setUncaughtExceptionHandler((t, e) -> log.error("Thread {} got uncaught Exception", t.getName(), e));
             this.thread = thread;
             return thread;
         }
@@ -66,8 +67,8 @@ public class ExecutorProvider {
         Objects.requireNonNull(poolName);
         executors = new ArrayList<>(numThreads);
         for (int i = 0; i < numThreads; i++) {
-            ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
-                    poolName, Thread.currentThread().isDaemon());
+            ExtendedThreadFactory threadFactory =
+                    new ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
             ExecutorService executor = createExecutor(threadFactory);
             executors.add(Pair.of(executor, threadFactory));
         }
@@ -76,11 +77,13 @@ public class ExecutorProvider {
     }
 
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-       return Executors.newSingleThreadExecutor(threadFactory);
+        return Executors.newSingleThreadExecutor(threadFactory);
     }
 
     public ExecutorService getExecutor() {
-        return executors.get((currentThread.getAndIncrement() & Integer.MAX_VALUE) % numThreads).getKey();
+        return executors
+                .get((currentThread.getAndIncrement() & Integer.MAX_VALUE) % numThreads)
+                .getKey();
     }
 
     public ExecutorService getExecutor(Object object) {
@@ -103,9 +106,11 @@ public class ExecutorProvider {
             executor.shutdownNow();
             try {
                 if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    log.warn("Failed to terminate executor with pool name {} within timeout. The following are stack"
-                            + " traces of still running threads.\n{}",
-                            poolName, getThreadDump(threadFactory.getThread()));
+                    log.warn(
+                            "Failed to terminate executor with pool name {} within timeout. The following are stack"
+                                    + " traces of still running threads.\n{}",
+                            poolName,
+                            getThreadDump(threadFactory.getThread()));
                 }
             } catch (InterruptedException e) {
                 log.warn("Shutdown of thread pool was interrupted");
@@ -121,11 +126,16 @@ public class ExecutorProvider {
     private String getThreadDump(Thread thread) {
         StringBuilder dump = new StringBuilder();
         dump.append('\n');
-        dump.append(String.format("\"%s\" %s prio=%d tid=%d %s%njava.lang.Thread.State: %s", thread.getName(),
-                (thread.isDaemon() ? "daemon" : ""), thread.getPriority(), thread.getId(),
-                Thread.State.WAITING.equals(thread.getState()) ? "in Object.wait()" : thread.getState().name(),
-                Thread.State.WAITING.equals(thread.getState()) ? "WAITING (on object monitor)"
-                        : thread.getState()));
+        dump.append(String.format(
+                "\"%s\" %s prio=%d tid=%d %s%njava.lang.Thread.State: %s",
+                thread.getName(),
+                (thread.isDaemon() ? "daemon" : ""),
+                thread.getPriority(),
+                thread.getId(),
+                Thread.State.WAITING.equals(thread.getState())
+                        ? "in Object.wait()"
+                        : thread.getState().name(),
+                Thread.State.WAITING.equals(thread.getState()) ? "WAITING (on object monitor)" : thread.getState()));
         for (StackTraceElement stackTraceElement : thread.getStackTrace()) {
             dump.append("\n        at ");
             dump.append(stackTraceElement);

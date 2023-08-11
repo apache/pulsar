@@ -28,10 +28,10 @@ import org.apache.pulsar.io.core.annotations.IOType;
  * and write identical key/value pairs.
  */
 @Connector(
-    name = "cassandra",
-    type = IOType.SINK,
-    help = "The CassandraStringSink is used for moving messages from Pulsar to Cassandra.",
-    configClass = CassandraSinkConfig.class)
+        name = "cassandra",
+        type = IOType.SINK,
+        help = "The CassandraStringSink is used for moving messages from Pulsar to Cassandra.",
+        configClass = CassandraSinkConfig.class)
 public class CassandraStringSink extends CassandraAbstractSink<String, String> {
     @Override
     public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {

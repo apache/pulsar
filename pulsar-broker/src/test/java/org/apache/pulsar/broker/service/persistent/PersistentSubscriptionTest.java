@@ -80,8 +80,8 @@ public class PersistentSubscriptionTest {
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     final String subName = "subscriptionName";
 
-    final TxnID txnID1 = new TxnID(1,1);
-    final TxnID txnID2 = new TxnID(1,2);
+    final TxnID txnID1 = new TxnID(1, 1);
+    final TxnID txnID2 = new TxnID(1, 2);
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
@@ -101,9 +101,9 @@ public class PersistentSubscriptionTest {
                 .useTestPulsarResources()
                 .build();
 
-        NamespaceResources namespaceResources = pulsarTestContext.getPulsarResources().getNamespaceResources();
-        doReturn(Optional.of(new Policies())).when(namespaceResources)
-                .getPoliciesIfCached(any());
+        NamespaceResources namespaceResources =
+                pulsarTestContext.getPulsarResources().getNamespaceResources();
+        doReturn(Optional.of(new Policies())).when(namespaceResources).getPoliciesIfCached(any());
 
         ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
@@ -138,10 +138,12 @@ public class PersistentSubscriptionTest {
         positionsPair.add(new MutablePair<>(new PositionImpl(2, 5), 0));
 
         doAnswer((invocationOnMock) -> {
-            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
-                    .deleteComplete(invocationOnMock.getArguments()[2]);
-            return null;
-        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+                    ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                            .deleteComplete(invocationOnMock.getArguments()[2]);
+                    return null;
+                })
+                .when(cursorMock)
+                .asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
         doReturn(CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
         Awaitility.await().until(() -> {
@@ -160,18 +162,24 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(1, 100));
 
         // Cumulative ack for txn1
-        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions).get();
+        persistentSubscription
+                .transactionCumulativeAcknowledge(txnID1, positions)
+                .get();
 
         positions.clear();
         positions.add(new PositionImpl(2, 1));
 
         // Can not single ack message already acked.
         try {
-            persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
+            persistentSubscription
+                    .transactionIndividualAcknowledge(txnID2, positionsPair)
+                    .get();
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
+            assertEquals(
+                    e.getCause().getMessage(),
+                    "[persistent://prop/use/ns-abc/successTopic][subscriptionName] "
+                            + "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();
@@ -179,13 +187,17 @@ public class PersistentSubscriptionTest {
 
         // Can not cumulative ack message for another txn.
         try {
-            persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions).get();
+            persistentSubscription
+                    .transactionCumulativeAcknowledge(txnID2, positions)
+                    .get();
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionConflictException);
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
-                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 1:100");
+            assertEquals(
+                    e.getCause().getMessage(),
+                    "[persistent://prop/use/ns-abc/successTopic]"
+                            + "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: "
+                            + "2:50 within range of current currentPosition: 1:100");
         }
 
         List<Position> positionList = new ArrayList<>();
@@ -199,7 +211,7 @@ public class PersistentSubscriptionTest {
         // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
         persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
 
-        //Abort txn.
+        // Abort txn.
         persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE, -1);
 
         positions.clear();
@@ -217,10 +229,12 @@ public class PersistentSubscriptionTest {
     @Test
     public void testAcknowledgeUpdateCursorLastActive() throws Exception {
         doAnswer((invocationOnMock) -> {
-            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
-                    .deleteComplete(invocationOnMock.getArguments()[2]);
-            return null;
-        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+                    ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                            .deleteComplete(invocationOnMock.getArguments()[2]);
+                    return null;
+                })
+                .when(cursorMock)
+                .asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
         doCallRealMethod().when(cursorMock).updateLastActive();
         doCallRealMethod().when(cursorMock).getLastActive();
@@ -256,8 +270,8 @@ public class PersistentSubscriptionTest {
                 }
 
                 @Override
-                public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                                   List<MutablePair<PositionImpl, Integer>> positions) {
+                public CompletableFuture<Void> appendIndividualAck(
+                        TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
                     return CompletableFuture.completedFuture(null);
                 }
 

@@ -36,5 +36,4 @@ public class AutoFailoverPolicyFactory {
 
         return new MinAvailablePolicy(policyData);
     }
-
 }

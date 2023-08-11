@@ -34,13 +34,18 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     public final AuthPolicies auth_policies = AuthPolicies.builder().build();
+
     @SuppressWarnings("checkstyle:MemberName")
     public Set<String> replication_clusters = new HashSet<>();
+
     public BundlesData bundles;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = new HashMap<>();
+
     @Deprecated
     public Map<String, DispatchRateImpl> clusterDispatchRate = new HashMap<>();
+
     public Map<String, DispatchRateImpl> topicDispatchRate = new HashMap<>();
     public Map<String, DispatchRateImpl> subscriptionDispatchRate = new HashMap<>();
     public Map<String, DispatchRateImpl> replicatorDispatchRate = new HashMap<>();
@@ -57,46 +62,62 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     public Map<String, Integer> latency_stats_sample_rate = new HashMap<>();
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer message_ttl_in_seconds = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer subscription_expiration_time_minutes = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
+
     public boolean deleted = false;
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
+
     @SuppressWarnings("checkstyle:MemberName")
     public DelayedDeliveryPolicies delayed_delivery_policies = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public InactiveTopicPolicies inactive_topic_policies = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_producers_per_topic = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_consumers_per_topic = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_consumers_per_subscription = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_unacked_messages_per_consumer = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_unacked_messages_per_subscription = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_subscriptions_per_topic = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public Long compaction_threshold = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public long offload_threshold = -1;
+
     @SuppressWarnings("checkstyle:MemberName")
     public long offload_threshold_in_seconds = -1;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
+
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_topics_per_namespace = null;
 
@@ -127,7 +148,8 @@ public class Policies {
     public String resource_group_name = null;
 
     public enum BundleType {
-        LARGEST, HOT;
+        LARGEST,
+        HOT;
     }
 
     @SuppressWarnings("checkstyle:MemberName")
@@ -135,19 +157,37 @@ public class Policies {
 
     @Override
     public int hashCode() {
-        return Objects.hash(auth_policies, replication_clusters,
-                backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
-                topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
-                clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride,
-                autoSubscriptionCreationOverride, persistence,
-                bundles, latency_stats_sample_rate,
-                message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
-                encryption_required, delayed_delivery_policies, inactive_topic_policies,
+        return Objects.hash(
+                auth_policies,
+                replication_clusters,
+                backlog_quota_map,
+                publishMaxMessageRate,
+                clusterDispatchRate,
+                topicDispatchRate,
+                subscriptionDispatchRate,
+                replicatorDispatchRate,
+                clusterSubscribeRate,
+                deduplicationEnabled,
+                autoTopicCreationOverride,
+                autoSubscriptionCreationOverride,
+                persistence,
+                bundles,
+                latency_stats_sample_rate,
+                message_ttl_in_seconds,
+                subscription_expiration_time_minutes,
+                retention_policies,
+                encryption_required,
+                delayed_delivery_policies,
+                inactive_topic_policies,
                 subscription_auth_mode,
                 max_producers_per_topic,
-                max_consumers_per_topic, max_consumers_per_subscription,
-                max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
-                compaction_threshold, offload_threshold, offload_threshold_in_seconds,
+                max_consumers_per_topic,
+                max_consumers_per_subscription,
+                max_unacked_messages_per_consumer,
+                max_unacked_messages_per_subscription,
+                compaction_threshold,
+                offload_threshold,
+                offload_threshold_in_seconds,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
@@ -156,7 +196,8 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name, entryFilters);
+                resource_group_name,
+                entryFilters);
     }
 
     @Override
@@ -175,10 +216,10 @@ public class Policies {
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(autoTopicCreationOverride, other.autoTopicCreationOverride)
                     && Objects.equals(autoSubscriptionCreationOverride, other.autoSubscriptionCreationOverride)
-                    && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
+                    && Objects.equals(persistence, other.persistence)
+                    && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
-                    && Objects.equals(message_ttl_in_seconds,
-                            other.message_ttl_in_seconds)
+                    && Objects.equals(message_ttl_in_seconds, other.message_ttl_in_seconds)
                     && Objects.equals(subscription_expiration_time_minutes, other.subscription_expiration_time_minutes)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
@@ -188,8 +229,8 @@ public class Policies {
                     && Objects.equals(max_producers_per_topic, other.max_producers_per_topic)
                     && Objects.equals(max_consumers_per_topic, other.max_consumers_per_topic)
                     && Objects.equals(max_unacked_messages_per_consumer, other.max_unacked_messages_per_consumer)
-                    && Objects.equals(max_unacked_messages_per_subscription,
-                        other.max_unacked_messages_per_subscription)
+                    && Objects.equals(
+                            max_unacked_messages_per_subscription, other.max_unacked_messages_per_subscription)
                     && Objects.equals(max_consumers_per_subscription, other.max_consumers_per_subscription)
                     && Objects.equals(compaction_threshold, other.compaction_threshold)
                     && offload_threshold == other.offload_threshold
@@ -208,6 +249,4 @@ public class Policies {
 
         return false;
     }
-
-
 }

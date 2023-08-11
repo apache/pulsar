@@ -92,7 +92,6 @@ public interface TableViewBuilder<T> {
      */
     TableViewBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
 
-
     /**
      * Set the subscription name of the {@link TableView}.
      *

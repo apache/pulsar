@@ -151,7 +151,6 @@ public interface Packages {
      *          the namespace you want to get the packages
      * @return all the packages of the given type which in the given namespace
      */
-
     List<String> listPackages(String type, String namespace) throws PulsarAdminException;
     /**
      * List all the packages with the given type in a namespace asynchronously.

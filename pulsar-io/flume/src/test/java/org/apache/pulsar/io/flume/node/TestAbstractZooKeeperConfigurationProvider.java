@@ -55,11 +55,11 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         // start the instance without the admin server!
-        InstanceSpec serverSpec = new InstanceSpec(null, -1, -1, -1, true, -1, -1, -1, Collections.singletonMap("zookeeper.admin.enableServer", "false"));
+        InstanceSpec serverSpec = new InstanceSpec(
+                null, -1, -1, -1, true, -1, -1, -1, Collections.singletonMap("zookeeper.admin.enableServer", "false"));
         zkServer = new TestingServer(serverSpec, true);
-        client = CuratorFrameworkFactory
-                .newClient("localhost:" + zkServer.getPort(),
-                        new ExponentialBackoffRetry(1000, 3));
+        client = CuratorFrameworkFactory.newClient(
+                "localhost:" + zkServer.getPort(), new ExponentialBackoffRetry(1000, 3));
         client.start();
 
         EnsurePath ensurePath = new EnsurePath(AGENT_PATH);
@@ -79,8 +79,8 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
     protected abstract void doTearDown() throws Exception;
 
     protected void addData() throws Exception {
-        Reader in = new InputStreamReader(getClass().getClassLoader()
-                .getResourceAsStream(FLUME_CONF_FILE), Charsets.UTF_8);
+        Reader in =
+                new InputStreamReader(getClass().getClassLoader().getResourceAsStream(FLUME_CONF_FILE), Charsets.UTF_8);
         try {
             String config = IOUtils.toString(in);
             client.setData().forPath(AGENT_PATH, config.getBytes());
@@ -93,9 +93,9 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
         FlumeConfiguration configuration = cp.getFlumeConfiguration();
         Assert.assertNotNull(configuration);
 
-    /*
-     * Test the known errors in the file
-     */
+        /*
+         * Test the known errors in the file
+         */
         List<String> expected = Lists.newArrayList();
         expected.add("host5 CONFIG_ERROR");
         expected.add("host5 INVALID_PROPERTY");
@@ -119,8 +119,7 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
         Collections.sort(actual);
         assertEquals(actual, expected);
 
-        FlumeConfiguration.AgentConfiguration agentConfiguration = configuration
-                .getConfigurationFor("host1");
+        FlumeConfiguration.AgentConfiguration agentConfiguration = configuration.getConfigurationFor("host1");
         Assert.assertNotNull(agentConfiguration);
 
         Set<String> sources = Sets.newHashSet("source1");

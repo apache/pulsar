@@ -44,8 +44,7 @@ public class PackageName {
     private final String completePackageName;
     private final String completeName;
 
-    private static final LoadingCache<String, PackageName> cache =
-        CacheBuilder.newBuilder()
+    private static final LoadingCache<String, PackageName> cache = CacheBuilder.newBuilder()
             .maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES)
             .build(new CacheLoader<String, PackageName>() {
@@ -103,8 +102,7 @@ public class PackageName {
         this.name = partsWithoutVersion.get(2);
         this.version = Strings.isNullOrEmpty(parts.get(1)) ? "latest" : parts.get(1);
         this.completeName = String.format("%s/%s/%s", tenant, namespace, name);
-        this.completePackageName =
-            String.format("%s://%s/%s/%s@%s", type.toString(), tenant, namespace, name, version);
+        this.completePackageName = String.format("%s://%s/%s/%s@%s", type.toString(), tenant, namespace, name, version);
     }
 
     public PackageType getPkgType() {
@@ -151,8 +149,8 @@ public class PackageName {
 
         PackageName another = (PackageName) obj;
         return another.type.equals(this.type)
-            && another.completeName.equals(this.completeName)
-            && another.version.equals(this.version);
+                && another.completeName.equals(this.completeName)
+                && another.version.equals(this.version);
     }
 
     @Override

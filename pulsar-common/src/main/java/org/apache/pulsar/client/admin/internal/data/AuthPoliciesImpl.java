@@ -46,17 +46,16 @@ public final class AuthPoliciesImpl implements AuthPolicies {
         return new AuthPoliciesImplBuilder();
     }
 
-
     public static class AuthPoliciesImplBuilder implements AuthPolicies.Builder {
         private Map<String, Set<AuthAction>> namespaceAuthentication = new TreeMap<>();
-        private Map<String, Map<String, Set<AuthAction>>> topicAuthentication = new TreeMap<>();;
-        private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();;
+        private Map<String, Map<String, Set<AuthAction>>> topicAuthentication = new TreeMap<>();
+        ;
+        private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();
+        ;
 
-        AuthPoliciesImplBuilder() {
-        }
+        AuthPoliciesImplBuilder() {}
 
-        public AuthPoliciesImplBuilder namespaceAuthentication(
-                Map<String, Set<AuthAction>> namespaceAuthentication) {
+        public AuthPoliciesImplBuilder namespaceAuthentication(Map<String, Set<AuthAction>> namespaceAuthentication) {
             this.namespaceAuthentication = namespaceAuthentication;
             return this;
         }
@@ -67,8 +66,7 @@ public final class AuthPoliciesImpl implements AuthPolicies {
             return this;
         }
 
-        public AuthPoliciesImplBuilder subscriptionAuthentication(
-                Map<String, Set<String>> subscriptionAuthentication) {
+        public AuthPoliciesImplBuilder subscriptionAuthentication(Map<String, Set<String>> subscriptionAuthentication) {
             this.subscriptionAuthentication = subscriptionAuthentication;
             return this;
         }

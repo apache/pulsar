@@ -30,26 +30,22 @@ import org.testng.annotations.Test;
 public class LeaderElectionImplTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl", timeOut = 20000)
-    public void validateDeadLock(String provider, Supplier<String> urlSupplier)
-            throws Exception {
+    public void validateDeadLock(String provider, Supplier<String> urlSupplier) throws Exception {
         if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // There are no multiple sessions for the local memory provider
             return;
         }
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
-        @Cleanup
-        CoordinationService cs = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService cs = new CoordinationServiceImpl(store);
 
         @Cleanup
-        LeaderElectionImpl<String> le = (LeaderElectionImpl<String>) cs.getLeaderElection(String.class,
-                path, __ -> {
-                });
+        LeaderElectionImpl<String> le = (LeaderElectionImpl<String>) cs.getLeaderElection(String.class, path, __ -> {});
         final CompletableFuture<Void> blockFuture = new CompletableFuture<>();
         // simulate handleSessionNotification method logic
         le.getSchedulerExecutor().execute(() -> {

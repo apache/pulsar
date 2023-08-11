@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.mock;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,8 +30,6 @@ import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.mock;
 
 @Test(groups = "broker-impl")
 public class ControlledClusterFailoverTest {
@@ -47,10 +46,10 @@ public class ControlledClusterFailoverTest {
         header.put(keyA, valueA);
         header.put(keyB, valueB);
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
-            .defaultServiceUrl(defaultServiceUrl)
-            .urlProvider(urlProvider)
-            .urlProviderHeader(header)
-            .build();
+                .defaultServiceUrl(defaultServiceUrl)
+                .urlProvider(urlProvider)
+                .urlProviderHeader(header)
+                .build();
 
         ControlledClusterFailover controlledClusterFailover = (ControlledClusterFailover) provider;
         Request request = controlledClusterFailover.getRequestBuilder().build();
@@ -81,29 +80,27 @@ public class ControlledClusterFailoverTest {
         controlledConfiguration.setAuthParamsString(authParamsString);
 
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
-            .defaultServiceUrl(defaultServiceUrl)
-            .urlProvider(urlProvider)
-            .checkInterval(interval, TimeUnit.MILLISECONDS)
-            .build();
+                .defaultServiceUrl(defaultServiceUrl)
+                .urlProvider(urlProvider)
+                .checkInterval(interval, TimeUnit.MILLISECONDS)
+                .build();
 
         ControlledClusterFailover controlledClusterFailover = Mockito.spy((ControlledClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
 
         controlledClusterFailover.initialize(pulsarClient);
 
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(defaultServiceUrl, controlledClusterFailover.getServiceUrl()));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(defaultServiceUrl, controlledClusterFailover.getServiceUrl()));
 
-        Mockito.doReturn(controlledConfiguration).when(controlledClusterFailover)
+        Mockito.doReturn(controlledConfiguration)
+                .when(controlledClusterFailover)
                 .fetchControlledConfiguration();
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(backupServiceUrl, controlledClusterFailover.getServiceUrl()));
-        Mockito.verify(pulsarClient, Mockito.atLeastOnce())
-                .updateServiceUrl(backupServiceUrl);
-        Mockito.verify(pulsarClient, Mockito.atLeastOnce())
-                .updateTlsTrustCertsFilePath(tlsTrustCertsFilePath);
-        Mockito.verify(pulsarClient, Mockito.atLeastOnce())
-                .updateAuthentication(Mockito.any(Authentication.class));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(backupServiceUrl, controlledClusterFailover.getServiceUrl()));
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateServiceUrl(backupServiceUrl);
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(Mockito.any(Authentication.class));
 
         // update controlled configuration
         String backupServiceUrlV1 = "pulsar+ssl://localhost:6662";
@@ -116,17 +113,16 @@ public class ControlledClusterFailoverTest {
         controlledConfiguration1.setTlsTrustCertsFilePath(tlsTrustCertsFilePathV1);
         controlledConfiguration1.setAuthPluginClassName(authPluginClassNameV1);
         controlledConfiguration1.setAuthParamsString(authParamsStringV1);
-        Mockito.doReturn(controlledConfiguration1).when(controlledClusterFailover)
+        Mockito.doReturn(controlledConfiguration1)
+                .when(controlledClusterFailover)
                 .fetchControlledConfiguration();
 
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(backupServiceUrlV1, controlledClusterFailover.getServiceUrl()));
+        Awaitility.await()
+                .untilAsserted(
+                        () -> Assert.assertEquals(backupServiceUrlV1, controlledClusterFailover.getServiceUrl()));
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateServiceUrl(backupServiceUrlV1);
-        Mockito.verify(pulsarClient, Mockito.atLeastOnce())
-                .updateTlsTrustCertsFilePath(tlsTrustCertsFilePathV1);
-        Mockito.verify(pulsarClient, Mockito.atLeastOnce())
-                .updateAuthentication(Mockito.any(Authentication.class));
-
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(tlsTrustCertsFilePathV1);
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(Mockito.any(Authentication.class));
     }
 }

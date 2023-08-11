@@ -36,21 +36,16 @@ public class KafkaSourceConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help =
-            "A comma-separated list of host and port pairs that are the addresses of "
-          + "the Kafka brokers that a Kafka client connects to initially bootstrap itself")
+            required = true,
+            defaultValue = "",
+            help = "A comma-separated list of host and port pairs that are the addresses of "
+                    + "the Kafka brokers that a Kafka client connects to initially bootstrap itself")
     private String bootstrapServers;
 
-    @FieldDoc(
-            defaultValue = "",
-            help = "Protocol used to communicate with Kafka brokers.")
+    @FieldDoc(defaultValue = "", help = "Protocol used to communicate with Kafka brokers.")
     private String securityProtocol;
 
-    @FieldDoc(
-            defaultValue = "",
-            help = "SASL mechanism used for Kafka client connections.")
+    @FieldDoc(defaultValue = "", help = "SASL mechanism used for Kafka client connections.")
     private String saslMechanism;
 
     @FieldDoc(
@@ -58,9 +53,7 @@ public class KafkaSourceConfig implements Serializable {
             help = "JAAS login context parameters for SASL connections in the format used by JAAS configuration files.")
     private String saslJaasConfig;
 
-    @FieldDoc(
-            defaultValue = "",
-            help = "The list of protocols enabled for SSL connections.")
+    @FieldDoc(defaultValue = "", help = "The list of protocols enabled for SSL connections.")
     private String sslEnabledProtocols;
 
     @FieldDoc(
@@ -68,82 +61,72 @@ public class KafkaSourceConfig implements Serializable {
             help = "The endpoint identification algorithm to validate server hostname using server certificate.")
     private String sslEndpointIdentificationAlgorithm;
 
-    @FieldDoc(
-            defaultValue = "",
-            help = "The location of the trust store file.")
+    @FieldDoc(defaultValue = "", help = "The location of the trust store file.")
     private String sslTruststoreLocation;
 
-    @FieldDoc(
-            defaultValue = "",
-            help = "The password for the trust store file.")
+    @FieldDoc(defaultValue = "", help = "The password for the trust store file.")
     private String sslTruststorePassword;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help =
-            "A string that uniquely identifies the group of consumer processes to which this consumer belongs.")
+            required = true,
+            defaultValue = "",
+            help = "A string that uniquely identifies the group of consumer processes to which this consumer belongs.")
     private String groupId;
-    @FieldDoc(
-        defaultValue = "1",
-        help =
-            "The minimum amount of data the server should return for a fetch request.")
+
+    @FieldDoc(defaultValue = "1", help = "The minimum amount of data the server should return for a fetch request.")
     private long fetchMinBytes = 1L;
+
     @FieldDoc(
-        defaultValue = "5000",
-        help =
-            "The frequency in milliseconds that the consumer offsets are auto-committed to Kafka "
-          + "if autoCommitEnabled is set to true.")
+            defaultValue = "5000",
+            help = "The frequency in milliseconds that the consumer offsets are auto-committed to Kafka "
+                    + "if autoCommitEnabled is set to true.")
     private long autoCommitIntervalMs = 5000L;
+
     @FieldDoc(
-        defaultValue = "30000",
-        help =
-            "The timeout used to detect failures when using Kafka's group management facilities.")
+            defaultValue = "30000",
+            help = "The timeout used to detect failures when using Kafka's group management facilities.")
     private long sessionTimeoutMs = 30000L;
+
     @FieldDoc(
-        defaultValue = "3000",
-        help =
-            "The interval between heartbeats to the consumer when using Kafka's group management facilities. "
-                + "The value must be lower than session timeout.")
+            defaultValue = "3000",
+            help = "The interval between heartbeats to the consumer when using Kafka's group management facilities. "
+                    + "The value must be lower than session timeout.")
     private long heartbeatIntervalMs = 3000L;
+
     @FieldDoc(
-        defaultValue = "true",
-        help =
-            "If true the consumer's offset will be periodically committed in the background.")
+            defaultValue = "true",
+            help = "If true the consumer's offset will be periodically committed in the background.")
     private boolean autoCommitEnabled = true;
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help =
-            "The Kafka topic that is used for Pulsar moving messages to.")
+
+    @FieldDoc(required = true, defaultValue = "", help = "The Kafka topic that is used for Pulsar moving messages to.")
     private String topic;
+
     @FieldDoc(
-        defaultValue = "org.apache.kafka.common.serialization.StringDeserializer",
-        help =
-            "The deserializer class for Kafka consumer to deserialize keys.")
+            defaultValue = "org.apache.kafka.common.serialization.StringDeserializer",
+            help = "The deserializer class for Kafka consumer to deserialize keys.")
     private String keyDeserializationClass = "org.apache.kafka.common.serialization.StringDeserializer";
+
     @FieldDoc(
-        defaultValue = "org.apache.kafka.common.serialization.ByteArrayDeserializer",
-        help =
-            "The deserializer class for Kafka consumer to deserialize values. You typically shouldn't care this. "
-                + "Since the deserializer will be set by a specific implementation of `KafkaAbstractSource`.")
-    private String valueDeserializationClass = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
-    @FieldDoc(
-            defaultValue = "earliest",
+            defaultValue = "org.apache.kafka.common.serialization.ByteArrayDeserializer",
             help =
-                    "The default offset reset policy.")
+                    "The deserializer class for Kafka consumer to deserialize values. You typically shouldn't care this. "
+                            + "Since the deserializer will be set by a specific implementation of `KafkaAbstractSource`.")
+    private String valueDeserializationClass = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
+
+    @FieldDoc(defaultValue = "earliest", help = "The default offset reset policy.")
     private String autoOffsetReset = "earliest";
+
     @FieldDoc(
-        defaultValue = "",
-        help =
-            "The consumer config properties to be passed to Consumer. Note that other properties specified "
-                + "in the connector config file take precedence over this config.")
+            defaultValue = "",
+            help = "The consumer config properties to be passed to Consumer. Note that other properties specified "
+                    + "in the connector config file take precedence over this config.")
     private Map<String, Object> consumerConfigProperties;
+
     @FieldDoc(
-        defaultValue = "false",
-        help =
-            "If true the Kafka message headers will be copied into Pulsar message properties. Since Pulsar properties "
-                + "is a Map<String, String>, byte array values in the Kafka headers will be base64 encoded. ")
+            defaultValue = "false",
+            help =
+                    "If true the Kafka message headers will be copied into Pulsar message properties. Since Pulsar properties "
+                            + "is a Map<String, String>, byte array values in the Kafka headers will be base64 encoded. ")
     private boolean copyHeadersEnabled = false;
 
     public static KafkaSourceConfig load(String yamlFile) throws IOException {

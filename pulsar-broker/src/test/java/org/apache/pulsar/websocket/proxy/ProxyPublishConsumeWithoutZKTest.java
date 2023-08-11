@@ -59,7 +59,8 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         config.setServiceUrl(pulsar.getSafeWebServiceAddress());
         config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(service)
+        doReturn(new ZKMetadataStore(mockZooKeeper))
+                .when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
@@ -81,8 +82,10 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void socketTest() throws Exception {
 
-        String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
+        String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);

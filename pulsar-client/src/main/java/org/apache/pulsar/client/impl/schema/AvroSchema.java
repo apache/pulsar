@@ -54,8 +54,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
         super(schemaInfo);
         this.pojoClassLoader = pojoClassLoader;
         boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
-        setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader,
-                getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
+        setReader(new MultiVersionAvroReader<>(
+                schema, pojoClassLoader, getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
         setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
     }
 
@@ -84,9 +84,12 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
-        if (schemaDefinition.getSchemaReaderOpt().isPresent() && schemaDefinition.getSchemaWriterOpt().isPresent()) {
-            return new AvroSchema<>(schemaDefinition.getSchemaReaderOpt().get(),
-                    schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+        if (schemaDefinition.getSchemaReaderOpt().isPresent()
+                && schemaDefinition.getSchemaWriterOpt().isPresent()) {
+            return new AvroSchema<>(
+                    schemaDefinition.getSchemaReaderOpt().get(),
+                    schemaDefinition.getSchemaWriterOpt().get(),
+                    parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
         }
         ClassLoader pojoClassLoader = null;
         if (schemaDefinition.getClassLoader() != null) {
@@ -103,15 +106,18 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build());
+        return AvroSchema.of(SchemaDefinition.<T>builder()
+                .withPojo(pojo)
+                .withProperties(properties)
+                .build());
     }
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {
         addLogicalTypeConversions(reflectData, jsr310ConversionEnabled, true);
     }
 
-    public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled,
-                                                 boolean decimalConversionEnabled) {
+    public static void addLogicalTypeConversions(
+            ReflectData reflectData, boolean jsr310ConversionEnabled, boolean decimalConversionEnabled) {
         if (decimalConversionEnabled) {
             reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
         }
@@ -158,9 +164,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
 
         @Override
         public org.apache.avro.Schema getRecommendedSchema() {
-            return LogicalTypes.timestampMillis().addToSchema(
-                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
+            return LogicalTypes.timestampMillis()
+                    .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
         }
     }
-
 }

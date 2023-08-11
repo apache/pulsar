@@ -64,8 +64,7 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private MockZooKeeperSession(String quorum) throws Exception {
         // This constructor is never called
-        super(quorum, 1, event -> {
-        });
+        super(quorum, 1, event -> {});
         assert false;
     }
 
@@ -96,8 +95,13 @@ public class MockZooKeeperSession extends ZooKeeper {
     }
 
     @Override
-    public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
-                       final AsyncCallback.StringCallback cb, final Object ctx) {
+    public void create(
+            final String path,
+            final byte[] data,
+            final List<ACL> acl,
+            CreateMode createMode,
+            final AsyncCallback.StringCallback cb,
+            final Object ctx) {
         try {
             mockZooKeeper.overrideEpheralOwner(getSessionId());
             mockZooKeeper.create(path, data, acl, createMode, cb, ctx);

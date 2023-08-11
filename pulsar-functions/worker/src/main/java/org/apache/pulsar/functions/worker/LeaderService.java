@@ -47,14 +47,15 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
     private static final String WORKER_IDENTIFIER = "id";
 
-    public LeaderService(WorkerService workerService,
-                         PulsarClient pulsarClient,
-                         FunctionAssignmentTailer functionAssignmentTailer,
-                         SchedulerManager schedulerManager,
-                         FunctionRuntimeManager functionRuntimeManager,
-                         FunctionMetaDataManager functionMetaDataManager,
-                         MembershipManager membershipManager,
-                         ErrorNotifier errorNotifier) {
+    public LeaderService(
+            WorkerService workerService,
+            PulsarClient pulsarClient,
+            FunctionAssignmentTailer functionAssignmentTailer,
+            SchedulerManager schedulerManager,
+            FunctionRuntimeManager functionRuntimeManager,
+            FunctionMetaDataManager functionMetaDataManager,
+            MembershipManager membershipManager,
+            ErrorNotifier errorNotifier) {
         this.workerConfig = workerService.getWorkerConfig();
         this.pulsarClient = pulsarClient;
         this.functionAssignmentTailer = functionAssignmentTailer;
@@ -67,9 +68,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 "%s:%s:%d",
                 workerConfig.getWorkerId(),
                 workerConfig.getWorkerHostname(),
-                workerConfig.getTlsEnabled() ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()
-        );
-
+                workerConfig.getTlsEnabled() ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort());
     }
 
     public void start() throws PulsarClientException {
@@ -77,7 +76,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
         // we don't produce any messages into this topic, we only use the `failover` subscription
         // to elect an active consumer as the leader worker. The leader worker will be responsible
         // for scheduling snapshots for FMT and doing task assignment.
-        consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+        consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
                 .topic(workerConfig.getClusterCoordinationTopic())
                 .subscriptionName(COORDINATION_TOPIC_SUBSCRIPTION)
                 .subscriptionType(SubscriptionType.Failover)
@@ -104,14 +104,14 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
                 // attempt to acquire exclusive publishers to both the metadata topic and assignments topic
                 // we should keep trying to acquire exclusive producers as long as we are still the leader
-                Supplier<Boolean> checkIsStillLeader = WorkerUtils.getIsStillLeaderSupplier(membershipManager,
-                        workerConfig.getWorkerId());
+                Supplier<Boolean> checkIsStillLeader =
+                        WorkerUtils.getIsStillLeaderSupplier(membershipManager, workerConfig.getWorkerId());
                 Producer<byte[]> scheduleManagerExclusiveProducer = null;
                 Producer<byte[]> functionMetaDataManagerExclusiveProducer = null;
                 try {
                     scheduleManagerExclusiveProducer = schedulerManager.acquireExclusiveWrite(checkIsStillLeader);
-                    functionMetaDataManagerExclusiveProducer = functionMetaDataManager
-                            .acquireExclusiveWrite(checkIsStillLeader);
+                    functionMetaDataManagerExclusiveProducer =
+                            functionMetaDataManager.acquireExclusiveWrite(checkIsStillLeader);
                 } catch (WorkerUtils.NotLeaderAnymore e) {
                     log.info("Worker {} is not leader anymore. Exiting becoming leader routine.", consumer);
                     if (scheduleManagerExclusiveProducer != null) {

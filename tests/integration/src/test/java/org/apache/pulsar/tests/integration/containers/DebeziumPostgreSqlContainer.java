@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 public class DebeziumPostgreSqlContainer extends ChaosContainer<DebeziumPostgreSqlContainer> {
 
     public static final String NAME = "debezium-postgresql-example";
-    static final Integer[] PORTS = { 5432 };
+    static final Integer[] PORTS = {5432};
 
     private static final String IMAGE_NAME = "debezium/example-postgres:0.10";
 
@@ -43,12 +42,11 @@ public class DebeziumPostgreSqlContainer extends ChaosContainer<DebeziumPostgreS
     protected void configure() {
         super.configure();
         this.withNetworkAliases(NAME)
-            .withExposedPorts(PORTS)
-            .withCreateContainerCmdModifier(createContainerCmd -> {
-                createContainerCmd.withHostName(NAME);
-                createContainerCmd.withName(getContainerName());
-            })
-            .waitingFor(new HostPortWaitStrategy());
+                .withExposedPorts(PORTS)
+                .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(NAME);
+                    createContainerCmd.withName(getContainerName());
+                })
+                .waitingFor(new HostPortWaitStrategy());
     }
-
 }

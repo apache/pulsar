@@ -94,14 +94,23 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.init();
 
-        admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress())
+        admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsar.getWebServiceAddress())
                 .authentication(new AuthenticationToken(
-                        () -> AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.empty()))).build();
+                        () -> AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.empty())))
+                .build();
         String namespaceName = "my-tenant/my-ns";
-        admin.clusters().createCluster("proxy-authorization",
-                ClusterData.builder().serviceUrlTls(brokerUrlTls.toString()).build());
-        admin.tenants().createTenant("my-tenant",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+        admin.clusters()
+                .createCluster(
+                        "proxy-authorization",
+                        ClusterData.builder()
+                                .serviceUrlTls(brokerUrlTls.toString())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-tenant",
+                        new TenantInfoImpl(
+                                Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
 
         // start proxy service
@@ -124,9 +133,8 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
         proxyConfig.setProperties(properties);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(
-                        PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService = Mockito.spy(new ProxyService(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
     }
 
     @AfterClass(alwaysRun = true)
@@ -144,7 +152,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
 
     @DataProvider
     Object[] forwardAuthDataProvider() {
-        return new Object[]{true, false};
+        return new Object[] {true, false};
     }
 
     @Test(dataProvider = "forwardAuthDataProvider")
@@ -159,14 +167,15 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
             return AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.of(calendar.getTime()));
         });
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-                .authentication(authenticationToken));
+        replacePulsarClient(
+                PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).authentication(authenticationToken));
 
         String topic = "persistent://my-tenant/my-ns/my-topic1";
 
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         pulsarClient.getPartitionsForTopic(topic).get();
-        Set<CompletableFuture<ClientCnx>> connections = pulsarClientImpl.getCnxPool().getConnections();
+        Set<CompletableFuture<ClientCnx>> connections =
+                pulsarClientImpl.getCnxPool().getConnections();
 
         Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
             pulsarClient.getPartitionsForTopic(topic).get();

@@ -38,15 +38,23 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 class StartableTestPulsarService extends AbstractTestPulsarService {
     private final Function<BrokerService, BrokerService> brokerServiceCustomizer;
 
-    public StartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                      MetadataStoreExtended localMetadataStore,
-                                      MetadataStoreExtended configurationMetadataStore,
-                                      CompactionServiceFactory compactionServiceFactory,
-                                      BrokerInterceptor brokerInterceptor,
-                                      BookKeeperClientFactory bookKeeperClientFactory,
-                                      Function<BrokerService, BrokerService> brokerServiceCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory);
+    public StartableTestPulsarService(
+            SpyConfig spyConfig,
+            ServiceConfiguration config,
+            MetadataStoreExtended localMetadataStore,
+            MetadataStoreExtended configurationMetadataStore,
+            CompactionServiceFactory compactionServiceFactory,
+            BrokerInterceptor brokerInterceptor,
+            BookKeeperClientFactory bookKeeperClientFactory,
+            Function<BrokerService, BrokerService> brokerServiceCustomizer) {
+        super(
+                spyConfig,
+                config,
+                localMetadataStore,
+                configurationMetadataStore,
+                compactionServiceFactory,
+                brokerInterceptor,
+                bookKeeperClientFactory);
         this.brokerServiceCustomizer = brokerServiceCustomizer;
     }
 

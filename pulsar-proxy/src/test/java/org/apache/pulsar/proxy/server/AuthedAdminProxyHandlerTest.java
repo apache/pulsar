@@ -20,12 +20,9 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
 import java.util.Optional;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -92,16 +89,15 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        proxyConfig.setBrokerClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                              getTlsFileForClient("proxy.cert"), getTlsFileForClient("proxy.key-pk8")));
+        proxyConfig.setBrokerClientAuthenticationParameters(String.format(
+                "tlsCertFile:%s,tlsKeyFile:%s",
+                getTlsFileForClient("proxy.cert"), getTlsFileForClient("proxy.key-pk8")));
         proxyConfig.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         proxyConfig.setAuthenticationProviders(ImmutableSet.of(AuthenticationProviderTls.class.getName()));
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
-        webServer = new WebServer(proxyConfig, new AuthenticationService(
-                                          PulsarConfigurationLoader.convertFrom(proxyConfig)));
+        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper), new ZKMetadataStore(mockZooKeeperGlobal));
+        webServer = new WebServer(
+                proxyConfig, new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)));
         discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, resource));
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
@@ -123,31 +119,36 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
     PulsarAdmin getDirectToBrokerAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
-            .serviceHttpUrl(brokerUrlTls.toString())
-            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-            .allowTlsInsecureConnection(false)
-            .authentication(AuthenticationTls.class.getName(),
-                    ImmutableMap.of("tlsCertFile", getTlsFileForClient(user + ".cert"),
-                                    "tlsKeyFile", getTlsFileForClient(user + ".key-pk8")))
-            .build();
+                .serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .authentication(
+                        AuthenticationTls.class.getName(),
+                        ImmutableMap.of(
+                                "tlsCertFile", getTlsFileForClient(user + ".cert"),
+                                "tlsKeyFile", getTlsFileForClient(user + ".key-pk8")))
+                .build();
     }
 
     PulsarAdmin getAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
-            .serviceHttpUrl("https://localhost:" + webServer.getListenPortHTTPS().get())
-            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-            .allowTlsInsecureConnection(false)
-            .authentication(AuthenticationTls.class.getName(),
-                    ImmutableMap.of("tlsCertFile", getTlsFileForClient(user + ".cert"),
-                                    "tlsKeyFile", getTlsFileForClient(user + ".key-pk8")))
-            .build();
+                .serviceHttpUrl(
+                        "https://localhost:" + webServer.getListenPortHTTPS().get())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(false)
+                .authentication(
+                        AuthenticationTls.class.getName(),
+                        ImmutableMap.of(
+                                "tlsCertFile", getTlsFileForClient(user + ".cert"),
+                                "tlsKeyFile", getTlsFileForClient(user + ".key-pk8")))
+                .build();
     }
 
     @Test
     public void testAuthenticatedProxyAsNonAdmin() throws Exception {
         try (PulsarAdmin brokerAdmin = getDirectToBrokerAdminClient("admin");
-             PulsarAdmin proxyAdmin = getAdminClient("admin");
-             PulsarAdmin user1Admin = getAdminClient("user1")) {
+                PulsarAdmin proxyAdmin = getAdminClient("admin");
+                PulsarAdmin user1Admin = getAdminClient("user1")) {
             try {
                 proxyAdmin.tenants().getTenants();
                 Assert.fail("Shouldn't be able to do superuser operation, since proxy isn't super");
@@ -155,32 +156,46 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
                 // expected
             }
 
-            brokerAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            brokerAdmin
+                    .clusters()
+                    .createCluster(
+                            configClusterName,
+                            ClusterData.builder()
+                                    .serviceUrl(brokerUrl.toString())
+                                    .build());
 
-            brokerAdmin.tenants().createTenant("tenant1",
-                                               new TenantInfoImpl(ImmutableSet.of("user1"),
-                                                              ImmutableSet.of(configClusterName)));
+            brokerAdmin
+                    .tenants()
+                    .createTenant(
+                            "tenant1",
+                            new TenantInfoImpl(ImmutableSet.of("user1"), ImmutableSet.of(configClusterName)));
             brokerAdmin.namespaces().createNamespace("tenant1/ns1");
-            Assert.assertEquals(ImmutableSet.of("tenant1/ns1"), brokerAdmin.namespaces().getNamespaces("tenant1"));
+            Assert.assertEquals(
+                    ImmutableSet.of("tenant1/ns1"), brokerAdmin.namespaces().getNamespaces("tenant1"));
             try {
                 user1Admin.namespaces().getNamespaces("tenant1");
                 Assert.fail("Shouldn't have access to namespace since proxy doesn't");
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
-            brokerAdmin.tenants().updateTenant("tenant1",
-                                               new TenantInfoImpl(ImmutableSet.of("proxy"),
-                                                              ImmutableSet.of(configClusterName)));
+            brokerAdmin
+                    .tenants()
+                    .updateTenant(
+                            "tenant1",
+                            new TenantInfoImpl(ImmutableSet.of("proxy"), ImmutableSet.of(configClusterName)));
             try {
                 user1Admin.namespaces().getNamespaces("tenant1");
                 Assert.fail("Shouldn't have access to namespace since user1 doesn't");
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
-            brokerAdmin.tenants().updateTenant("tenant1",
-                                               new TenantInfoImpl(ImmutableSet.of("user1", "proxy"),
-                                                              ImmutableSet.of(configClusterName)));
-            Assert.assertEquals(ImmutableSet.of("tenant1/ns1"), user1Admin.namespaces().getNamespaces("tenant1"));
+            brokerAdmin
+                    .tenants()
+                    .updateTenant(
+                            "tenant1",
+                            new TenantInfoImpl(ImmutableSet.of("user1", "proxy"), ImmutableSet.of(configClusterName)));
+            Assert.assertEquals(
+                    ImmutableSet.of("tenant1/ns1"), user1Admin.namespaces().getNamespaces("tenant1"));
         }
     }
 
@@ -189,13 +204,13 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         PulsarAdmin user1Admin = getAdminClient("user1");
         PulsarAdmin brokerAdmin = getDirectToBrokerAdminClient("admin");
         StringBuilder longTenant = new StringBuilder("tenant");
-        for (int i = 10 * 1024; i > 0; i = i - 4){
+        for (int i = 10 * 1024; i > 0; i = i - 4) {
             longTenant.append("_abc");
         }
         try {
             brokerAdmin.namespaces().getNamespaces(longTenant.toString());
             Assert.fail("expect error: Tenant not found");
-        } catch (Exception ex){
+        } catch (Exception ex) {
             Assert.assertTrue(ex instanceof PulsarAdminException);
             PulsarAdminException pulsarAdminException = (PulsarAdminException) ex;
             Assert.assertEquals(pulsarAdminException.getStatusCode(), 404);
@@ -203,7 +218,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         try {
             user1Admin.namespaces().getNamespaces(longTenant.toString());
             Assert.fail("expect error: Tenant not found");
-        } catch (Exception ex){
+        } catch (Exception ex) {
             Assert.assertTrue(ex instanceof PulsarAdminException);
             PulsarAdminException pulsarAdminException = (PulsarAdminException) ex;
             Assert.assertEquals(pulsarAdminException.getStatusCode(), 404);

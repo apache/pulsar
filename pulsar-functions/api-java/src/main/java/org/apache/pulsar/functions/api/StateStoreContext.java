@@ -26,5 +26,4 @@ import org.apache.pulsar.common.classification.InterfaceStability.Evolving;
  */
 @Public
 @Evolving
-public interface StateStoreContext {
-}
+public interface StateStoreContext {}

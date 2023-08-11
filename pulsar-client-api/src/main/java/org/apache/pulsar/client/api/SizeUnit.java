@@ -22,7 +22,10 @@ package org.apache.pulsar.client.api;
  * Size unit converter.
  */
 public enum SizeUnit {
-    BYTES(1L), KILO_BYTES(1024L), MEGA_BYTES(1024L * 1024L), GIGA_BYTES(1024L * 1024L * 1024L);
+    BYTES(1L),
+    KILO_BYTES(1024L),
+    MEGA_BYTES(1024L * 1024L),
+    GIGA_BYTES(1024L * 1024L * 1024L);
 
     private final long bytes;
 

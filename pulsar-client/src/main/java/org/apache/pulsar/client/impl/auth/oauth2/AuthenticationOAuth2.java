@@ -76,7 +76,7 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         }
 
         String type = params.getOrDefault(CONFIG_PARAM_TYPE, TYPE_CLIENT_CREDENTIALS);
-        switch(type) {
+        switch (type) {
             case TYPE_CLIENT_CREDENTIALS:
                 this.flow = ClientCredentialsFlow.fromParameters(params);
                 break;
@@ -132,4 +132,3 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         }
     }
 }
-

@@ -48,9 +48,8 @@ public class StateChangeListeners {
      *
      * @return future of a new completion stage
      */
-    public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
-                                                       String serviceUnit,
-                                                       ServiceUnitStateData data) {
+    public <T> CompletableFuture<T> notifyOnCompletion(
+            CompletableFuture<T> future, String serviceUnit, ServiceUnitStateData data) {
         return future.whenComplete((r, ex) -> notify(serviceUnit, data, ex));
     }
 
@@ -59,8 +58,12 @@ public class StateChangeListeners {
             try {
                 listener.handleEvent(serviceUnit, data, t);
             } catch (Throwable ex) {
-                log.error("StateChangeListener: {} exception while handling {} for service unit {}",
-                        listener, data, serviceUnit, ex);
+                log.error(
+                        "StateChangeListener: {} exception while handling {} for service unit {}",
+                        listener,
+                        data,
+                        serviceUnit,
+                        ex);
             }
         });
     }

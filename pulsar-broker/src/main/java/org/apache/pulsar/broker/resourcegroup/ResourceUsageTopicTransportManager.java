@@ -69,7 +69,8 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             final int publishDelayMilliSecs = 10;
             final int sendTimeoutSecs = 10;
 
-            return pulsarClient.newProducer(Schema.BYTEBUFFER)
+            return pulsarClient
+                    .newProducer(Schema.BYTEBUFFER)
                     .topic(SystemTopicNames.RESOURCE_USAGE_TOPIC.toString())
                     .batchingMaxPublishDelay(publishDelayMilliSecs, TimeUnit.MILLISECONDS)
                     .sendTimeout(sendTimeoutSecs, TimeUnit.SECONDS)
@@ -80,11 +81,13 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
 
         public ResourceUsageWriterTask() throws PulsarClientException {
             producer = createProducer();
-            resourceUsagePublishTask = pulsarService.getExecutor().scheduleAtFixedRate(
-                    catchingAndLoggingThrowables(this),
-                    pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
-                    pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
-                    TimeUnit.SECONDS);
+            resourceUsagePublishTask = pulsarService
+                    .getExecutor()
+                    .scheduleAtFixedRate(
+                            catchingAndLoggingThrowables(this),
+                            pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
+                            pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
+                            TimeUnit.SECONDS);
         }
 
         @Override
@@ -123,12 +126,13 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
         private final Reader<byte[]> consumer;
 
         public ResourceUsageReader() throws PulsarClientException {
-            consumer =  pulsarClient.newReader()
+            consumer = pulsarClient
+                    .newReader()
                     .topic(SystemTopicNames.RESOURCE_USAGE_TOPIC.toString())
                     .startMessageId(MessageId.latest)
                     .readerListener(this)
                     .create();
-            }
+        }
 
         @Override
         public void close() throws Exception {
@@ -142,10 +146,14 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             long timeDelta = currentTime - publishTime;
 
             recdUsageInfo.parseFrom(Unpooled.wrappedBuffer(msg.getData()), msg.getData().length);
-            if (timeDelta > TimeUnit.SECONDS.toMillis(
-            2 * pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs())) {
-                LOG.error("Stale resource usage msg from broker {} publish time {} current time{}",
-                recdUsageInfo.getBroker(), publishTime, currentTime);
+            if (timeDelta
+                    > TimeUnit.SECONDS.toMillis(
+                            2 * pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs())) {
+                LOG.error(
+                        "Stale resource usage msg from broker {} publish time {} current time{}",
+                        recdUsageInfo.getBroker(),
+                        publishTime,
+                        currentTime);
                 return;
             }
             try {
@@ -162,7 +170,6 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
                 LOG.error("Resource usage reader: Unknown exception while parsing message", exception);
             }
         }
-
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceUsageTopicTransportManager.class);
@@ -170,10 +177,10 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
     private final PulsarClient pulsarClient;
     private final ResourceUsageWriterTask pTask;
     private final ResourceUsageReader consumer;
-    private final Map<String, ResourceUsagePublisher>
-            publisherMap = new ConcurrentHashMap<String, ResourceUsagePublisher>();
-    private final Map<String, ResourceUsageConsumer>
-            consumerMap = new ConcurrentHashMap<String, ResourceUsageConsumer>();
+    private final Map<String, ResourceUsagePublisher> publisherMap =
+            new ConcurrentHashMap<String, ResourceUsagePublisher>();
+    private final Map<String, ResourceUsageConsumer> consumerMap =
+            new ConcurrentHashMap<String, ResourceUsageConsumer>();
 
     private void createTenantAndNamespace() throws PulsarServerException, PulsarAdminException {
         // Create a public tenant and default namespace
@@ -186,11 +193,14 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
         final String tenant = topicName.getTenant();
         final String namespace = topicName.getNamespace();
 
-        List<String> tenantList =  admin.tenants().getTenants();
+        List<String> tenantList = admin.tenants().getTenants();
         if (!tenantList.contains(tenant)) {
             try {
-                admin.tenants().createTenant(tenant,
-                  new TenantInfoImpl(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+                admin.tenants()
+                        .createTenant(
+                                tenant,
+                                new TenantInfoImpl(
+                                        Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             } catch (PulsarAdminException ex1) {
                 if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
                     LOG.error("Unexpected exception {} when creating tenant {}", ex1, tenant);
@@ -212,7 +222,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
     }
 
     public ResourceUsageTopicTransportManager(PulsarService pulsarService)
-        throws PulsarServerException, PulsarAdminException, PulsarClientException {
+            throws PulsarServerException, PulsarAdminException, PulsarClientException {
         this.pulsarService = pulsarService;
         this.pulsarClient = pulsarService.getClient();
 

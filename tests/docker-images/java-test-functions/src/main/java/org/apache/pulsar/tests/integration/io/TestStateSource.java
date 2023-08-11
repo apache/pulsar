@@ -46,7 +46,5 @@ public class TestStateSource implements Source<String> {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

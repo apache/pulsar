@@ -95,7 +95,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             this.rootPath = new ConnectStringParser(zkConnectString).getChrootPath();
 
             isZkManaged = true;
-            zkc = PulsarZooKeeperClient.newBuilder().connectString(zkConnectString)
+            zkc = PulsarZooKeeperClient.newBuilder()
+                    .connectString(zkConnectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
@@ -142,7 +143,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     protected void receivedSessionEvent(SessionEvent event) {
         if (event == SessionEvent.SessionReestablished) {
             // Recreate the persistent watch on the new session
-            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE,
+            zkc.addWatch(
+                    "/",
+                    this::handleWatchEvent,
+                    AddWatchMode.PERSISTENT_RECURSIVE,
                     (rc, path, ctx) -> {
                         if (rc == Code.OK.intValue()) {
                             super.receivedSessionEvent(event);
@@ -154,13 +158,13 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                             // On the re-connectable client, mark the session as expired to trigger a new reconnect,
                             // and we will have the chance to set the watch again.
                             if (zkc instanceof PulsarZooKeeperClient) {
-                                ((PulsarZooKeeperClient) zkc).process(
-                                        new WatchedEvent(Watcher.Event.EventType.None,
-                                                Watcher.Event.KeeperState.Expired,
-                                                null));
-                             }
+                                ((PulsarZooKeeperClient) zkc)
+                                        .process(new WatchedEvent(
+                                                Watcher.Event.EventType.None, Watcher.Event.KeeperState.Expired, null));
+                            }
                         }
-                    }, null);
+                    },
+                    null);
         } else {
             super.receivedSessionEvent(event);
         }
@@ -169,65 +173,79 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     @Override
     public CompletableFuture<Void> sync(String path) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        zkc.sync(path, new AsyncCallback.VoidCallback() {
-            @Override
-            public void processResult(int rc, String s, Object o) {
-                Code code = Code.get(rc);
-                if (code == Code.OK) {
-                    result.complete(null);
-                } else {
-                    MetadataStoreException e = getException(code, path);
-                    result.completeExceptionally(e);
-                }
-            }
-        }, null);
+        zkc.sync(
+                path,
+                new AsyncCallback.VoidCallback() {
+                    @Override
+                    public void processResult(int rc, String s, Object o) {
+                        Code code = Code.get(rc);
+                        if (code == Code.OK) {
+                            result.complete(null);
+                        } else {
+                            MetadataStoreException e = getException(code, path);
+                            result.completeExceptionally(e);
+                        }
+                    }
+                },
+                null);
         return result;
     }
 
     @Override
     protected void batchOperation(List<MetadataOp> ops) {
         try {
-            zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
-                if (results == null) {
-                    Code code = Code.get(rc);
-                    if (code == Code.CONNECTIONLOSS) {
-                        // There is the chance that we caused a connection reset by sending or requesting a batch
-                        // that passed the max ZK limit. Retry with the individual operations
-                        executor.schedule(() -> {
-                            ops.forEach(o -> batchOperation(Collections.singletonList(o)));
-                        }, 100, TimeUnit.MILLISECONDS);
-                    } else {
-                        MetadataStoreException e = getException(code, path);
-                        ops.forEach(o -> o.getFuture().completeExceptionally(e));
-                    }
-                    return;
-                }
-
-                // Trigger all the futures in the batch
-                execute(() -> {
-                    for (int i = 0; i < ops.size(); i++) {
-                        OpResult opr = results.get(i);
-                        MetadataOp op = ops.get(i);
-                            switch (op.getType()) {
-                                case PUT:
-                                    handlePutResult(op.asPut(), opr);
-                                    break;
-                                case DELETE:
-                                    handleDeleteResult(op.asDelete(), opr);
-                                    break;
-                                case GET:
-                                    handleGetResult(op.asGet(), opr);
-                                    break;
-                                case GET_CHILDREN:
-                                    handleGetChildrenResult(op.asGetChildren(), opr);
-                                    break;
-                                default:
-                                    op.getFuture().completeExceptionally(new MetadataStoreException(
-                                            "Operation type not supported in multi: " + op.getType()));
+            zkc.multi(
+                    ops.stream().map(this::convertOp).collect(Collectors.toList()),
+                    (rc, path, ctx, results) -> {
+                        if (results == null) {
+                            Code code = Code.get(rc);
+                            if (code == Code.CONNECTIONLOSS) {
+                                // There is the chance that we caused a connection reset by sending or requesting a
+                                // batch
+                                // that passed the max ZK limit. Retry with the individual operations
+                                executor.schedule(
+                                        () -> {
+                                            ops.forEach(o -> batchOperation(Collections.singletonList(o)));
+                                        },
+                                        100,
+                                        TimeUnit.MILLISECONDS);
+                            } else {
+                                MetadataStoreException e = getException(code, path);
+                                ops.forEach(o -> o.getFuture().completeExceptionally(e));
                             }
+                            return;
                         }
-                }, () -> ops.stream().map(MetadataOp::getFuture).collect(Collectors.toList()));
-            }, null);
+
+                        // Trigger all the futures in the batch
+                        execute(
+                                () -> {
+                                    for (int i = 0; i < ops.size(); i++) {
+                                        OpResult opr = results.get(i);
+                                        MetadataOp op = ops.get(i);
+                                        switch (op.getType()) {
+                                            case PUT:
+                                                handlePutResult(op.asPut(), opr);
+                                                break;
+                                            case DELETE:
+                                                handleDeleteResult(op.asDelete(), opr);
+                                                break;
+                                            case GET:
+                                                handleGetResult(op.asGet(), opr);
+                                                break;
+                                            case GET_CHILDREN:
+                                                handleGetChildrenResult(op.asGetChildren(), opr);
+                                                break;
+                                            default:
+                                                op.getFuture()
+                                                        .completeExceptionally(new MetadataStoreException(
+                                                                "Operation type not supported in multi: "
+                                                                        + op.getType()));
+                                        }
+                                    }
+                                },
+                                () -> ops.stream().map(MetadataOp::getFuture).collect(Collectors.toList()));
+                    },
+                    null);
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
         }
@@ -316,17 +334,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             case PUT: {
                 OpPut p = op.asPut();
                 CreateMode createMode = getCreateMode(p.getOptions());
-                if (p.getOptExpectedVersion().isPresent() && p.getOptExpectedVersion().get() == -1L) {
+                if (p.getOptExpectedVersion().isPresent()
+                        && p.getOptExpectedVersion().get() == -1L) {
                     // We are assuming a create operation
                     return Op.create(p.getPath(), p.getData(), ZooDefs.Ids.OPEN_ACL_UNSAFE, createMode);
                 } else {
                     // Assuming a set-data
-                    return Op.setData(p.getPath(), p.getData(), p.getOptExpectedVersion().orElse(-1L).intValue());
+                    return Op.setData(
+                            p.getPath(),
+                            p.getData(),
+                            p.getOptExpectedVersion().orElse(-1L).intValue());
                 }
             }
             case DELETE: {
                 OpDelete d = op.asDelete();
-                return Op.delete(d.getPath(), d.getOptExpectedVersion().orElse(-1L).intValue());
+                return Op.delete(
+                        d.getPath(), d.getOptExpectedVersion().orElse(-1L).intValue());
             }
             case GET_CHILDREN: {
                 return Op.getChildren(op.asGetChildren().getPath());
@@ -342,21 +365,26 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
-            zkc.exists(path, null, (rc, path1, ctx, stat) -> {
-                execute(() -> {
-                    Code code = Code.get(rc);
-                    if (code == Code.OK) {
-                        future.complete(true);
-                    } else if (code == Code.NONODE) {
-                        future.complete(false);
-                    } else {
-                        future.completeExceptionally(getException(code, path));
-                    }
-                }, future);
-            }, future);
+            zkc.exists(
+                    path,
+                    null,
+                    (rc, path1, ctx, stat) -> {
+                        execute(
+                                () -> {
+                                    Code code = Code.get(rc);
+                                    if (code == Code.OK) {
+                                        future.complete(true);
+                                    } else if (code == Code.NONODE) {
+                                        future.complete(false);
+                                    } else {
+                                        future.completeExceptionally(getException(code, path));
+                                    }
+                                },
+                                future);
+                    },
+                    future);
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
-
         }
 
         return future;
@@ -368,16 +396,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         CompletableFuture<Void> future = op.getFuture();
 
         try {
-            zkc.delete(op.getPath(), expectedVersion, (rc, path1, ctx) -> {
-                execute(() -> {
-                    Code code = Code.get(rc);
-                    if (code == Code.OK) {
-                        future.complete(null);
-                    } else {
-                        future.completeExceptionally(getException(code, op.getPath()));
-                    }
-                }, future);
-            }, null);
+            zkc.delete(
+                    op.getPath(),
+                    expectedVersion,
+                    (rc, path1, ctx) -> {
+                        execute(
+                                () -> {
+                                    Code code = Code.get(rc);
+                                    if (code == Code.OK) {
+                                        future.complete(null);
+                                    } else {
+                                        future.completeExceptionally(getException(code, op.getPath()));
+                                    }
+                                },
+                                future);
+                    },
+                    null);
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
         }
@@ -392,51 +426,63 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         try {
             if (hasVersion && expectedVersion == -1) {
                 CreateMode createMode = getCreateMode(opPut.getOptions());
-                asyncCreateFullPathOptimistic(zkc, opPut.getPath(), opPut.getData(), createMode,
-                        (rc, path1, ctx, name) -> {
-                            execute(() -> {
-                                Code code = Code.get(rc);
-                                if (code == Code.OK) {
-                                    future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
-                                } else if (code == Code.NODEEXISTS) {
-                                    // We're emulating a request to create node, so the version is invalid
-                                    future.completeExceptionally(getException(Code.BADVERSION, opPut.getPath()));
-                                } else {
-                                    future.completeExceptionally(getException(code, opPut.getPath()));
-                                }
-                            }, future);
+                asyncCreateFullPathOptimistic(
+                        zkc, opPut.getPath(), opPut.getData(), createMode, (rc, path1, ctx, name) -> {
+                            execute(
+                                    () -> {
+                                        Code code = Code.get(rc);
+                                        if (code == Code.OK) {
+                                            future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
+                                        } else if (code == Code.NODEEXISTS) {
+                                            // We're emulating a request to create node, so the version is invalid
+                                            future.completeExceptionally(
+                                                    getException(Code.BADVERSION, opPut.getPath()));
+                                        } else {
+                                            future.completeExceptionally(getException(code, opPut.getPath()));
+                                        }
+                                    },
+                                    future);
                         });
             } else {
-                zkc.setData(opPut.getPath(), opPut.getData(), expectedVersion, (rc, path1, ctx, stat) -> {
-                    execute(() -> {
-                        Code code = Code.get(rc);
-                        if (code == Code.OK) {
-                            future.complete(getStat(path1, stat));
-                        } else if (code == Code.NONODE) {
-                            if (hasVersion) {
-                                // We're emulating here a request to update or create the znode, depending on
-                                // the version
-                                future.completeExceptionally(getException(Code.BADVERSION, opPut.getPath()));
-                            } else {
-                                // The z-node does not exist, let's create it first
-                                put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
-                                                s -> future.complete(s))
-                                        .exceptionally(ex -> {
-                                            if (ex.getCause() instanceof BadVersionException) {
-                                                // The z-node exist now, let's overwrite it
-                                                internalStorePut(opPut);
-                                            } else {
+                zkc.setData(
+                        opPut.getPath(),
+                        opPut.getData(),
+                        expectedVersion,
+                        (rc, path1, ctx, stat) -> {
+                            execute(
+                                    () -> {
+                                        Code code = Code.get(rc);
+                                        if (code == Code.OK) {
+                                            future.complete(getStat(path1, stat));
+                                        } else if (code == Code.NONODE) {
+                                            if (hasVersion) {
+                                                // We're emulating here a request to update or create the znode,
+                                                // depending on
+                                                // the version
                                                 future.completeExceptionally(
-                                                        MetadataStoreException.wrap(ex.getCause()));
+                                                        getException(Code.BADVERSION, opPut.getPath()));
+                                            } else {
+                                                // The z-node does not exist, let's create it first
+                                                put(opPut.getPath(), opPut.getData(), Optional.of(-1L))
+                                                        .thenAccept(s -> future.complete(s))
+                                                        .exceptionally(ex -> {
+                                                            if (ex.getCause() instanceof BadVersionException) {
+                                                                // The z-node exist now, let's overwrite it
+                                                                internalStorePut(opPut);
+                                                            } else {
+                                                                future.completeExceptionally(
+                                                                        MetadataStoreException.wrap(ex.getCause()));
+                                                            }
+                                                            return null;
+                                                        });
                                             }
-                                            return null;
-                                        });
-                            }
-                        } else {
-                            future.completeExceptionally(getException(code, opPut.getPath()));
-                        }
-                    }, future);
-                }, null);
+                                        } else {
+                                            future.completeExceptionally(getException(code, opPut.getPath()));
+                                        }
+                                    },
+                                    future);
+                        },
+                        null);
             }
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
@@ -457,7 +503,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
-        return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime(),
+        return new Stat(
+                path,
+                zkStat.getVersion(),
+                zkStat.getCtime(),
+                zkStat.getMtime(),
                 zkStat.getEphemeralOwner() != -1,
                 zkStat.getEphemeralOwner() == zkc.getSessionId());
     }
@@ -466,14 +516,14 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         KeeperException ex = KeeperException.create(code, path);
 
         switch (code) {
-        case BADVERSION:
-            return new BadVersionException(ex);
-        case NONODE:
-            return new NotFoundException(ex);
-        case NODEEXISTS:
-            return new AlreadyExistsException(ex);
-        default:
-            return new MetadataStoreException(ex);
+            case BADVERSION:
+                return new BadVersionException(ex);
+            case NONODE:
+                return new NotFoundException(ex);
+            case NODEEXISTS:
+                return new AlreadyExistsException(ex);
+            default:
+                return new MetadataStoreException(ex);
         }
     }
 
@@ -492,30 +542,30 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
         NotificationType type;
         switch (event.getType()) {
-        case NodeCreated:
-            type = NotificationType.Created;
-            if (parent != null) {
-                childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
-            }
-            break;
+            case NodeCreated:
+                type = NotificationType.Created;
+                if (parent != null) {
+                    childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
+                }
+                break;
 
-        case NodeDataChanged:
-            type = NotificationType.Modified;
-            break;
+            case NodeDataChanged:
+                type = NotificationType.Modified;
+                break;
 
-        case NodeChildrenChanged:
-            type = NotificationType.ChildrenChanged;
-            break;
+            case NodeChildrenChanged:
+                type = NotificationType.ChildrenChanged;
+                break;
 
-        case NodeDeleted:
-            type = NotificationType.Deleted;
-            if (parent != null) {
-                childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
-            }
-            break;
+            case NodeDeleted:
+                type = NotificationType.Deleted;
+                if (parent != null) {
+                    childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
+                }
+                break;
 
-        default:
-            return;
+            default:
+                return;
         }
 
         receivedNotification(new Notification(type, event.getPath()));
@@ -561,9 +611,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             try (ZooKeeper chrootZk = PulsarZooKeeperClient.newBuilder()
                     .connectString(zkConnectForChrootCreation)
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
-                    .connectRetryPolicy(
-                            new BoundExponentialBackoffRetryPolicy(metadataStoreConfig.getSessionTimeoutMillis(),
-                                    metadataStoreConfig.getSessionTimeoutMillis(), 0))
+                    .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(
+                            metadataStoreConfig.getSessionTimeoutMillis(),
+                            metadataStoreConfig.getSessionTimeoutMillis(),
+                            0))
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
                     createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);
@@ -576,27 +627,36 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         return CompletableFuture.completedFuture(null);
     }
 
-    private static void asyncCreateFullPathOptimistic(final ZooKeeper zk, final String originalPath, final byte[] data,
-                                                      final CreateMode createMode,
-                                                      final AsyncCallback.StringCallback callback) {
-        zk.create(originalPath, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, createMode, (rc, path, ctx, name) -> {
-            if (rc != Code.NONODE.intValue()) {
-                callback.processResult(rc, path, ctx, name);
-            } else {
-                String parent = (new File(originalPath)).getParent().replace("\\", "/");
+    private static void asyncCreateFullPathOptimistic(
+            final ZooKeeper zk,
+            final String originalPath,
+            final byte[] data,
+            final CreateMode createMode,
+            final AsyncCallback.StringCallback callback) {
+        zk.create(
+                originalPath,
+                data,
+                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                createMode,
+                (rc, path, ctx, name) -> {
+                    if (rc != Code.NONODE.intValue()) {
+                        callback.processResult(rc, path, ctx, name);
+                    } else {
+                        String parent = (new File(originalPath)).getParent().replace("\\", "/");
 
-                // Create parent nodes as "CONTAINER" so that ZK will automatically delete them when they're empty
-                asyncCreateFullPathOptimistic(zk, parent, new byte[0], CreateMode.CONTAINER,
-                        (rc1, path1, ctx1, name1) -> {
-                            if (rc1 != Code.OK.intValue() && rc1 != Code.NODEEXISTS.intValue()) {
-                                callback.processResult(rc1, path1, ctx1, name1);
-                            } else {
-                                asyncCreateFullPathOptimistic(zk, originalPath, data,
-                                        createMode, callback);
-                            }
-                        });
-            }
-        }, null);
+                        // Create parent nodes as "CONTAINER" so that ZK will automatically delete them when they're
+                        // empty
+                        asyncCreateFullPathOptimistic(
+                                zk, parent, new byte[0], CreateMode.CONTAINER, (rc1, path1, ctx1, name1) -> {
+                                    if (rc1 != Code.OK.intValue() && rc1 != Code.NODEEXISTS.intValue()) {
+                                        callback.processResult(rc1, path1, ctx1, name1);
+                                    } else {
+                                        asyncCreateFullPathOptimistic(zk, originalPath, data, createMode, callback);
+                                    }
+                                });
+                    }
+                },
+                null);
     }
 
     private static void createFullPathOptimistic(ZooKeeper zkc, String path, byte[] data, CreateMode createMode)
@@ -626,8 +686,9 @@ class ZkMetadataStoreProvider implements MetadataStoreProvider {
     }
 
     @Override
-    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
-                                boolean enableSessionWatcher) throws MetadataStoreException {
+    public MetadataStore create(
+            String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+            throws MetadataStoreException {
         if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
             metadataURL = metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
         }

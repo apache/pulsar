@@ -36,5 +36,4 @@ public interface PulsarRowDecoder {
      * @return
      */
     Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf);
-
 }

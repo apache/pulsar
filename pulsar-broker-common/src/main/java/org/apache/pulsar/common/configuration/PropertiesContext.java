@@ -29,5 +29,4 @@ public @interface PropertiesContext {
      * @return list of fields
      */
     PropertyContext[] properties();
-
 }

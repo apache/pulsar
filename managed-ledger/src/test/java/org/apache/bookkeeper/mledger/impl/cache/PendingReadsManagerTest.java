@@ -18,32 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -54,17 +28,39 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.AssertJUnit.assertNotSame;
 import static org.testng.AssertJUnit.assertSame;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 @Slf4j
-public class PendingReadsManagerTest  {
+public class PendingReadsManagerTest {
 
     static final Object CTX = "foo";
     static final Object CTX2 = "far";
     static final long ledgerId = 123414L;
     ExecutorService orderedExecutor;
 
-    PendingReadsManagerTest() {
-    }
+    PendingReadsManagerTest() {}
 
     @BeforeClass(alwaysRun = true)
     void before() {
@@ -78,7 +74,6 @@ public class PendingReadsManagerTest  {
             orderedExecutor = null;
         }
     }
-
 
     RangeEntryCacheImpl rangeEntryCache;
     PendingReadsManager pendingReadsManager;
@@ -97,20 +92,21 @@ public class PendingReadsManagerTest  {
         when(rangeEntryCache.getPendingReadsLimiter()).thenReturn(inflighReadsLimiter);
         pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                log.info("rangeEntryCache asyncReadEntry0 {}", invocationOnMock);
-                ReadHandle rh = invocationOnMock.getArgument(0);
-                long startEntry = invocationOnMock.getArgument(1);
-                long endEntry = invocationOnMock.getArgument(2);
-                boolean shouldCacheEntry = invocationOnMock.getArgument(3);
-                AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(4);
-                Object ctx = invocationOnMock.getArgument(5);
-                pendingReadsManager.readEntries(lh, startEntry, endEntry, shouldCacheEntry, callback, ctx);
-                return null;
-            }
-        }).when(rangeEntryCache).asyncReadEntry0(any(), anyLong(), anyLong(),
-                anyBoolean(), any(), any());
+                    @Override
+                    public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                        log.info("rangeEntryCache asyncReadEntry0 {}", invocationOnMock);
+                        ReadHandle rh = invocationOnMock.getArgument(0);
+                        long startEntry = invocationOnMock.getArgument(1);
+                        long endEntry = invocationOnMock.getArgument(2);
+                        boolean shouldCacheEntry = invocationOnMock.getArgument(3);
+                        AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(4);
+                        Object ctx = invocationOnMock.getArgument(5);
+                        pendingReadsManager.readEntries(lh, startEntry, endEntry, shouldCacheEntry, callback, ctx);
+                        return null;
+                    }
+                })
+                .when(rangeEntryCache)
+                .asyncReadEntry0(any(), anyLong(), anyLong(), anyBoolean(), any(), any());
 
         lh = mock(ReadHandle.class);
         ml = mock(ManagedLedgerImpl.class);
@@ -118,10 +114,9 @@ public class PendingReadsManagerTest  {
         when(rangeEntryCache.getManagedLedger()).thenReturn(ml);
     }
 
-
     @Data
     private static class CapturingReadEntriesCallback extends CompletableFuture<Void>
-            implements AsyncCallbacks.ReadEntriesCallback  {
+            implements AsyncCallbacks.ReadEntriesCallback {
         List<Position> entries;
         Object ctx;
         Throwable error;
@@ -141,7 +136,6 @@ public class PendingReadsManagerTest  {
             this.error = exception;
             this.completeExceptionally(exception);
         }
-
     }
 
     private static List<EntryImpl> buildList(long start, long end) {
@@ -153,7 +147,6 @@ public class PendingReadsManagerTest  {
         }
         return result;
     }
-
 
     private void verifyRange(List<Position> entries, long firstEntry, long endEntry) {
         int pos = 0;
@@ -176,7 +169,7 @@ public class PendingReadsManagerTest  {
 
         @Override
         public String toString() {
-            return "PreparedReadFromStorage("+firstEntry+","+endEntry+","+shouldCacheEntry+")";
+            return "PreparedReadFromStorage(" + firstEntry + "," + endEntry + "," + shouldCacheEntry + ")";
         }
 
         public void storageReadCompleted() {
@@ -184,16 +177,23 @@ public class PendingReadsManagerTest  {
         }
     }
 
-    private PreparedReadFromStorage prepareReadFromStorage(ReadHandle lh, RangeEntryCacheImpl rangeEntryCache,
-                                                                      long firstEntry, long endEntry, boolean shouldCacheEntry) {
+    private PreparedReadFromStorage prepareReadFromStorage(
+            ReadHandle lh,
+            RangeEntryCacheImpl rangeEntryCache,
+            long firstEntry,
+            long endEntry,
+            boolean shouldCacheEntry) {
         PreparedReadFromStorage read = new PreparedReadFromStorage(firstEntry, endEntry, shouldCacheEntry);
         log.info("prepareReadFromStorage from {} to {} shouldCacheEntry {}", firstEntry, endEntry, shouldCacheEntry);
-        when(rangeEntryCache.readFromStorage(eq(lh), eq(firstEntry), eq(endEntry), eq(shouldCacheEntry))).thenAnswer(
-                (invocationOnMock -> {
-                    log.info("readFromStorage from {} to {} shouldCacheEntry {}", firstEntry, endEntry, shouldCacheEntry);
+        when(rangeEntryCache.readFromStorage(eq(lh), eq(firstEntry), eq(endEntry), eq(shouldCacheEntry)))
+                .thenAnswer((invocationOnMock -> {
+                    log.info(
+                            "readFromStorage from {} to {} shouldCacheEntry {}",
+                            firstEntry,
+                            endEntry,
+                            shouldCacheEntry);
                     return read;
-                })
-        );
+                }));
         return read;
     }
 
@@ -204,8 +204,8 @@ public class PendingReadsManagerTest  {
         long endEntry = 199;
         boolean shouldCacheEntry = false;
 
-        PreparedReadFromStorage read1
-                = prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+        PreparedReadFromStorage read1 =
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
 
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
         pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
@@ -221,7 +221,6 @@ public class PendingReadsManagerTest  {
         verifyRange(callback.entries, firstEntry, endEntry);
     }
 
-
     @Test
     public void simpleConcurrentReadPerfectMatch() throws Exception {
 
@@ -229,7 +228,8 @@ public class PendingReadsManagerTest  {
         long endEntry = 199;
         boolean shouldCacheEntry = false;
 
-        PreparedReadFromStorage read1 = prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+        PreparedReadFromStorage read1 =
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
@@ -252,12 +252,14 @@ public class PendingReadsManagerTest  {
         verifyRange(callback2.entries, firstEntry, endEntry);
 
         int pos = 0;
-        for (long entry = firstEntry; entry <= endEntry; entry++) {;
+        for (long entry = firstEntry; entry <= endEntry; entry++) {
+            ;
             assertNotSame(callback.entries.get(pos), callback2.entries.get(pos));
-            assertEquals(callback.entries.get(pos).getEntryId(), callback2.entries.get(pos).getEntryId());
+            assertEquals(
+                    callback.entries.get(pos).getEntryId(),
+                    callback2.entries.get(pos).getEntryId());
             pos++;
         }
-
     }
 
     @Test
@@ -271,15 +273,16 @@ public class PendingReadsManagerTest  {
 
         boolean shouldCacheEntry = false;
 
-        PreparedReadFromStorage read1 = prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
+        PreparedReadFromStorage read1 =
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, shouldCacheEntry);
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
         pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
 
-
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(
+                lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
 
         // complete the read from BK
         // only one read completes 2 callbacks
@@ -295,15 +298,17 @@ public class PendingReadsManagerTest  {
         verifyRange(callback2.entries, firstEntrySecondRead, endEntrySecondRead);
 
         int pos = 0;
-        for (long entry = firstEntry; entry <= endEntry; entry++) {;
+        for (long entry = firstEntry; entry <= endEntry; entry++) {
+            ;
             if (entry >= firstEntrySecondRead && entry <= endEntrySecondRead) {
                 int posInSecondList = (int) (pos - (firstEntrySecondRead - firstEntry));
                 assertNotSame(callback.entries.get(pos), callback2.entries.get(posInSecondList));
-                assertEquals(callback.entries.get(pos).getEntryId(), callback2.entries.get(posInSecondList).getEntryId());
+                assertEquals(
+                        callback.entries.get(pos).getEntryId(),
+                        callback2.entries.get(posInSecondList).getEntryId());
             }
             pos++;
         }
-
     }
 
     @Test
@@ -328,7 +333,8 @@ public class PendingReadsManagerTest  {
         pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(
+                lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -343,7 +349,6 @@ public class PendingReadsManagerTest  {
 
         verifyRange(callback.entries, firstEntry, endEntry);
         verifyRange(callback2.entries, firstEntrySecondRead, endEntrySecondRead);
-
     }
 
     @Test
@@ -368,7 +373,8 @@ public class PendingReadsManagerTest  {
         pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(
+                lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -383,7 +389,6 @@ public class PendingReadsManagerTest  {
 
         verifyRange(callback.entries, firstEntry, endEntry);
         verifyRange(callback2.entries, firstEntrySecondRead, endEntrySecondRead);
-
     }
 
     @Test
@@ -411,7 +416,8 @@ public class PendingReadsManagerTest  {
         pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(
+                lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -427,9 +433,7 @@ public class PendingReadsManagerTest  {
 
         verifyRange(callback.entries, firstEntry, endEntry);
         verifyRange(callback2.entries, firstEntrySecondRead, endEntrySecondRead);
-
     }
-
 
     @Test
     public void simpleConcurrentReadNoMatch() throws Exception {
@@ -452,7 +456,8 @@ public class PendingReadsManagerTest  {
         pendingReadsManager.readEntries(lh, firstEntry, endEntry, shouldCacheEntry, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
+        pendingReadsManager.readEntries(
+                lh, firstEntrySecondRead, endEntrySecondRead, shouldCacheEntry, callback2, CTX2);
 
         read1.storageReadCompleted();
         callback.get();
@@ -465,7 +470,5 @@ public class PendingReadsManagerTest  {
 
         verifyRange(callback.entries, firstEntry, endEntry);
         verifyRange(callback2.entries, firstEntrySecondRead, endEntrySecondRead);
-
     }
-
 }

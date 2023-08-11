@@ -75,15 +75,16 @@ public class NarUnpackerTest {
         AtomicInteger extractCounter = new AtomicInteger();
         for (int i = 0; i < threads; i++) {
             new Thread(() -> {
-                try {
-                    NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
-                } catch (Exception e) {
-                    log.error("Unpacking failed", e);
-                    exceptionCounter.incrementAndGet();
-                } finally {
-                    countDownLatch.countDown();
-                }
-            }).start();
+                        try {
+                            NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
+                        } catch (Exception e) {
+                            log.error("Unpacking failed", e);
+                            exceptionCounter.incrementAndGet();
+                        } finally {
+                            countDownLatch.countDown();
+                        }
+                    })
+                    .start();
         }
         assertTrue(countDownLatch.await(30, TimeUnit.SECONDS));
         assertEquals(exceptionCounter.get(), 0);
@@ -118,34 +119,36 @@ public class NarUnpackerTest {
         AtomicInteger extractCounter = new AtomicInteger();
         for (int i = 0; i < processes; i++) {
             new Thread(() -> {
-                try {
-                    // fork a new process with the same classpath
-                    Process process = new ProcessBuilder()
-                            .command(javaExePath,
-                                    "-Xmx64m",
-                                    "-cp",
-                                    System.getProperty("java.class.path"),
-                                    // use NarUnpackerWorker as the main class
-                                    NarUnpackerWorker.class.getName(),
-                                    // pass arguments to use for testing
-                                    sampleZipFile.getAbsolutePath(),
-                                    extractDirectory.getAbsolutePath())
-                            .start();
-                    String output = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
-                    int retval = process.waitFor();
-                    log.info("Process retval {} output {}", retval, output);
-                    if (retval == 101) {
-                        extractCounter.incrementAndGet();
-                    } else if (retval != 100) {
-                        exceptionCounter.incrementAndGet();
-                    }
-                } catch (Exception e) {
-                    log.error("Unpacking in a separate process failed", e);
-                    exceptionCounter.incrementAndGet();
-                } finally {
-                    countDownLatch.countDown();
-                }
-            }).start();
+                        try {
+                            // fork a new process with the same classpath
+                            Process process = new ProcessBuilder()
+                                    .command(
+                                            javaExePath,
+                                            "-Xmx64m",
+                                            "-cp",
+                                            System.getProperty("java.class.path"),
+                                            // use NarUnpackerWorker as the main class
+                                            NarUnpackerWorker.class.getName(),
+                                            // pass arguments to use for testing
+                                            sampleZipFile.getAbsolutePath(),
+                                            extractDirectory.getAbsolutePath())
+                                    .start();
+                            String output = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
+                            int retval = process.waitFor();
+                            log.info("Process retval {} output {}", retval, output);
+                            if (retval == 101) {
+                                extractCounter.incrementAndGet();
+                            } else if (retval != 100) {
+                                exceptionCounter.incrementAndGet();
+                            }
+                        } catch (Exception e) {
+                            log.error("Unpacking in a separate process failed", e);
+                            exceptionCounter.incrementAndGet();
+                        } finally {
+                            countDownLatch.countDown();
+                        }
+                    })
+                    .start();
         }
         assertTrue(countDownLatch.await(30, TimeUnit.SECONDS));
         assertEquals(exceptionCounter.get(), 0);

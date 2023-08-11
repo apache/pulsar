@@ -44,14 +44,20 @@ public class MultiVersionAvroReader<T> extends AbstractMultiVersionAvroBaseReade
     protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            LOG.info("Load schema reader for version({}), schema is : {}, schemaInfo: {}",
+            LOG.info(
+                    "Load schema reader for version({}), schema is : {}, schemaInfo: {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    schemaInfo.getSchemaDefinition(), schemaInfo.toString());
+                    schemaInfo.getSchemaDefinition(),
+                    schemaInfo.toString());
             boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
-            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()),
-                    readerSchema, pojoClassLoader, jsr310ConversionEnabled);
+            return new AvroReader<>(
+                    parseAvroSchema(schemaInfo.getSchemaDefinition()),
+                    readerSchema,
+                    pojoClassLoader,
+                    jsr310ConversionEnabled);
         } else {
-            LOG.warn("No schema found for version({}), use latest schema : {}",
+            LOG.warn(
+                    "No schema found for version({}), use latest schema : {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                     this.readerSchema);
             return providerSchemaReader;

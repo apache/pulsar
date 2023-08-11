@@ -51,17 +51,28 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     // Track whether we have seen all messages with fixed delay so far.
     private boolean messagesHaveFixedDelay = true;
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis,
-                                   boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                   long fixedDelayDetectionLookahead) {
-        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
+    InMemoryDelayedDeliveryTracker(
+            PersistentDispatcherMultipleConsumers dispatcher,
+            Timer timer,
+            long tickTimeMillis,
+            boolean isDelayedDeliveryDeliverAtTimeStrict,
+            long fixedDelayDetectionLookahead) {
+        this(
+                dispatcher,
+                timer,
+                tickTimeMillis,
+                Clock.systemUTC(),
+                isDelayedDeliveryDeliverAtTimeStrict,
                 fixedDelayDetectionLookahead);
     }
 
-    public InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
-                                   long tickTimeMillis, Clock clock,
-                                   boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                   long fixedDelayDetectionLookahead) {
+    public InMemoryDelayedDeliveryTracker(
+            PersistentDispatcherMultipleConsumers dispatcher,
+            Timer timer,
+            long tickTimeMillis,
+            Clock clock,
+            boolean isDelayedDeliveryDeliverAtTimeStrict,
+            long fixedDelayDetectionLookahead) {
         super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
     }
@@ -74,7 +85,11 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
+            log.debug(
+                    "[{}] Add message {}:{} -- Delivery in {} ms ",
+                    dispatcher.getName(),
+                    ledgerId,
+                    entryId,
                     deliverAt - clock.millis());
         }
 

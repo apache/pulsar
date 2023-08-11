@@ -37,8 +37,7 @@ import org.apache.pulsar.io.influxdb.v2.InfluxDBSinkConfig;
         name = "influxdb",
         type = IOType.SINK,
         help = "The InfluxDBGenericRecordSink is used for moving messages from Pulsar to InfluxDB.",
-        configClass = InfluxDBSinkConfig.class
-)
+        configClass = InfluxDBSinkConfig.class)
 @Slf4j
 public class InfluxDBGenericRecordSink implements Sink<GenericRecord> {
     protected Sink<GenericRecord> sink;
@@ -55,11 +54,11 @@ public class InfluxDBGenericRecordSink implements Sink<GenericRecord> {
                 configV1.validate();
                 sink = new org.apache.pulsar.io.influxdb.v1.InfluxDBGenericRecordSink();
             } catch (Exception e1) {
-                throw new Exception("For InfluxDB V2: \n" + e.toString() + "\n"
-                + "For InfluxDB V1: \n" + e1.toString());
+                throw new Exception(
+                        "For InfluxDB V2: \n" + e.toString() + "\n" + "For InfluxDB V1: \n" + e1.toString());
             }
         }
-       sink.open(map, sinkContext);
+        sink.open(map, sinkContext);
     }
 
     @Override

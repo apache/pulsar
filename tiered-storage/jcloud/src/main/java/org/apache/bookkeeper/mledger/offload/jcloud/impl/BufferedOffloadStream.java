@@ -76,7 +76,7 @@ public class BufferedOffloadStream extends InputStream {
             offset++;
             return blockHead.read();
         }
-        //if current exists, use current first
+        // if current exists, use current first
         if (currentEntry != null) {
             if (currentEntry.readableBytes() > 0) {
                 offset += 1;
@@ -93,7 +93,6 @@ public class BufferedOffloadStream extends InputStream {
             return BLOCK_END_PADDING[(offset++ - validDataOffset) % BLOCK_END_PADDING.length];
         }
 
-
         if (entryBuffer.isEmpty()) {
             validDataOffset = offset;
             return read();
@@ -101,11 +100,10 @@ public class BufferedOffloadStream extends InputStream {
 
         Entry headEntry = entryBuffer.remove(0);
 
-        //create new block when a ledger end
+        // create new block when a ledger end
         if (headEntry.getLedgerId() != this.ledgerId) {
-            throw new RuntimeException(
-                    String.format("there should not be multi ledger in a block %s %s", headEntry.getLedgerId(),
-                            this.ledgerId));
+            throw new RuntimeException(String.format(
+                    "there should not be multi ledger in a block %s %s", headEntry.getLedgerId(), this.ledgerId));
         }
 
         final int entryLength = headEntry.getLength();
@@ -118,7 +116,6 @@ public class BufferedOffloadStream extends InputStream {
         headEntry.release();
         currentEntry = entryBuf;
         return read();
-
     }
 
     @Override
@@ -127,9 +124,8 @@ public class BufferedOffloadStream extends InputStream {
     }
 
     public static int calculateBlockSize(int streamingBlockSize, int entryCount, int entrySize) {
-        int validDataSize = (entryCount * ENTRY_HEADER_SIZE
-                + entrySize
-                + StreamingDataBlockHeaderImpl.getDataStartOffset());
+        int validDataSize =
+                (entryCount * ENTRY_HEADER_SIZE + entrySize + StreamingDataBlockHeaderImpl.getDataStartOffset());
         return Math.max(streamingBlockSize, validDataSize);
     }
 }

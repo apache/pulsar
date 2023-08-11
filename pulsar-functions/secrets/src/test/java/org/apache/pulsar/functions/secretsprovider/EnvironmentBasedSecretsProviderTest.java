@@ -32,5 +32,4 @@ public class EnvironmentBasedSecretsProviderTest {
             assertEquals(provider.provideSecret("mySecretName", "Ignored"), "SecretValue");
         });
     }
-
 }

@@ -31,106 +31,105 @@ import org.apache.distributedlog.exceptions.EndOfStreamException;
  */
 public class DLInputStream extends InputStream {
 
-  private LogRecordWithInputStream currentLogRecord = null;
-  private final DistributedLogManager dlm;
-  private LogReader reader;
-  private boolean eos = false;
+    private LogRecordWithInputStream currentLogRecord = null;
+    private final DistributedLogManager dlm;
+    private LogReader reader;
+    private boolean eos = false;
 
-  // Cache the input stream for a log record.
-  private static class LogRecordWithInputStream {
-    private final InputStream payloadStream;
+    // Cache the input stream for a log record.
+    private static class LogRecordWithInputStream {
+        private final InputStream payloadStream;
 
-    LogRecordWithInputStream(LogRecordWithDLSN logRecord) {
-      this.payloadStream = logRecord.getPayLoadInputStream();
-    }
-
-    InputStream getPayLoadInputStream() {
-      return payloadStream;
-    }
-
-  }
-
-  /**
-   * Construct DistributedLog input stream.
-   *
-   * @param dlm the Distributed Log Manager to access the stream
-   */
-  public DLInputStream(DistributedLogManager dlm) throws IOException {
-    this.dlm = dlm;
-    reader = dlm.getInputStream(DLSN.InitialDLSN);
-  }
-
-  /**
-   * Get input stream representing next entry in the
-   * ledger.
-   *
-   * @return input stream, or null if no more entries
-   */
-  private LogRecordWithInputStream nextLogRecord() throws IOException {
-    try {
-      return nextLogRecord(reader);
-    } catch (EndOfStreamException e) {
-      eos = true;
-      return null;
-    }
-  }
-
-  private static LogRecordWithInputStream nextLogRecord(LogReader reader) throws IOException {
-    LogRecordWithDLSN record = reader.readNext(false);
-
-    if (null != record) {
-      return new LogRecordWithInputStream(record);
-    } else {
-      record = reader.readNext(false);
-      if (null != record) {
-        return new LogRecordWithInputStream(record);
-      } else {
-        return null;
-      }
-    }
-  }
-
-  @Override
-  public int read() throws IOException {
-    byte[] b = new byte[1];
-    if (read(b, 0, 1) != 1) {
-      return -1;
-    } else {
-      return b[0];
-    }
-  }
-
-  @Override
-  public int read(byte[] b, int off, int len) throws IOException {
-    if (eos) {
-      return -1;
-    }
-
-    int read = 0;
-    if (currentLogRecord == null) {
-      currentLogRecord = nextLogRecord();
-      if (currentLogRecord == null) {
-        return read;
-      }
-    }
-
-    while (read < len) {
-      int thisread = currentLogRecord.getPayLoadInputStream().read(b, off + read, len - read);
-      if (thisread == -1) {
-        currentLogRecord = nextLogRecord();
-        if (currentLogRecord == null) {
-          return read;
+        LogRecordWithInputStream(LogRecordWithDLSN logRecord) {
+            this.payloadStream = logRecord.getPayLoadInputStream();
         }
-      } else {
-        read += thisread;
-      }
-    }
-    return read;
-  }
 
-  @Override
-  public void close() throws IOException {
-    reader.close();
-    dlm.close();
-  }
+        InputStream getPayLoadInputStream() {
+            return payloadStream;
+        }
+    }
+
+    /**
+     * Construct DistributedLog input stream.
+     *
+     * @param dlm the Distributed Log Manager to access the stream
+     */
+    public DLInputStream(DistributedLogManager dlm) throws IOException {
+        this.dlm = dlm;
+        reader = dlm.getInputStream(DLSN.InitialDLSN);
+    }
+
+    /**
+     * Get input stream representing next entry in the
+     * ledger.
+     *
+     * @return input stream, or null if no more entries
+     */
+    private LogRecordWithInputStream nextLogRecord() throws IOException {
+        try {
+            return nextLogRecord(reader);
+        } catch (EndOfStreamException e) {
+            eos = true;
+            return null;
+        }
+    }
+
+    private static LogRecordWithInputStream nextLogRecord(LogReader reader) throws IOException {
+        LogRecordWithDLSN record = reader.readNext(false);
+
+        if (null != record) {
+            return new LogRecordWithInputStream(record);
+        } else {
+            record = reader.readNext(false);
+            if (null != record) {
+                return new LogRecordWithInputStream(record);
+            } else {
+                return null;
+            }
+        }
+    }
+
+    @Override
+    public int read() throws IOException {
+        byte[] b = new byte[1];
+        if (read(b, 0, 1) != 1) {
+            return -1;
+        } else {
+            return b[0];
+        }
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        if (eos) {
+            return -1;
+        }
+
+        int read = 0;
+        if (currentLogRecord == null) {
+            currentLogRecord = nextLogRecord();
+            if (currentLogRecord == null) {
+                return read;
+            }
+        }
+
+        while (read < len) {
+            int thisread = currentLogRecord.getPayLoadInputStream().read(b, off + read, len - read);
+            if (thisread == -1) {
+                currentLogRecord = nextLogRecord();
+                if (currentLogRecord == null) {
+                    return read;
+                }
+            } else {
+                read += thisread;
+            }
+        }
+        return read;
+    }
+
+    @Override
+    public void close() throws IOException {
+        reader.close();
+        dlm.close();
+    }
 }

@@ -42,5 +42,4 @@ public class ProtocolHandlerDefinition {
      * The class name for the protocol handler.
      */
     private String handlerClass;
-
 }

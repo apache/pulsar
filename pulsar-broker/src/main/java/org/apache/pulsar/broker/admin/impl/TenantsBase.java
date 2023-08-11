@@ -58,8 +58,11 @@ public class TenantsBase extends PulsarWebResource {
 
     @GET
     @ApiOperation(value = "Get the list of existing tenants.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "Tenant doesn't exist")})
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 404, message = "Tenant doesn't exist")
+            })
     public void getTenants(@Suspended final AsyncResponse asyncResponse) {
         final String clientAppId = clientAppId();
         validateSuperUserAccessAsync()
@@ -69,7 +72,8 @@ public class TenantsBase extends PulsarWebResource {
                     List<String> deepCopy = new ArrayList<>(tenants);
                     deepCopy.sort(null);
                     asyncResponse.resume(deepCopy);
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     log.error("[{}] Failed to get tenants list", clientAppId, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -79,9 +83,13 @@ public class TenantsBase extends PulsarWebResource {
     @GET
     @Path("/{tenant}")
     @ApiOperation(value = "Get the admin configuration for a given tenant.", response = TenantInfo.class)
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "Tenant does not exist")})
-    public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 404, message = "Tenant does not exist")
+            })
+    public void getTenantAdmin(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
         final String clientAppId = clientAppId();
         validateSuperUserAccessAsync()
@@ -103,12 +111,16 @@ public class TenantsBase extends PulsarWebResource {
     @PUT
     @Path("/{tenant}")
     @ApiOperation(value = "Create a new tenant.", notes = "This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 409, message = "Tenant already exists"),
-            @ApiResponse(code = 412, message = "Tenant name is not valid"),
-            @ApiResponse(code = 412, message = "Clusters can not be empty"),
-            @ApiResponse(code = 412, message = "Clusters do not exist")})
-    public void createTenant(@Suspended final AsyncResponse asyncResponse,
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 409, message = "Tenant already exists"),
+                @ApiResponse(code = 412, message = "Tenant name is not valid"),
+                @ApiResponse(code = 412, message = "Clusters can not be empty"),
+                @ApiResponse(code = 412, message = "Clusters do not exist")
+            })
+    public void createTenant(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl tenantInfo) {
         final String clientAppId = clientAppId();
@@ -153,14 +165,19 @@ public class TenantsBase extends PulsarWebResource {
 
     @POST
     @Path("/{tenant}")
-    @ApiOperation(value = "Update the admins for a tenant.",
+    @ApiOperation(
+            value = "Update the admins for a tenant.",
             notes = "This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 409, message = "Tenant already exists"),
-            @ApiResponse(code = 412, message = "Clusters can not be empty"),
-            @ApiResponse(code = 412, message = "Clusters do not exist")})
-    public void updateTenant(@Suspended final AsyncResponse asyncResponse,
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 404, message = "Tenant does not exist"),
+                @ApiResponse(code = 409, message = "Tenant already exists"),
+                @ApiResponse(code = 412, message = "Clusters can not be empty"),
+                @ApiResponse(code = 412, message = "Clusters do not exist")
+            })
+    public void updateTenant(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         final String clientAppId = clientAppId();
@@ -180,7 +197,8 @@ public class TenantsBase extends PulsarWebResource {
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully updated tenant info {}", clientAppId, tenant);
                     asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> {
+                })
+                .exceptionally(ex -> {
                     log.warn("[{}] Failed to update tenant {}", clientAppId, tenant, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -190,11 +208,15 @@ public class TenantsBase extends PulsarWebResource {
     @DELETE
     @Path("/{tenant}")
     @ApiOperation(value = "Delete a tenant and all namespaces and topics under it.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of tenants"),
-            @ApiResponse(code = 409, message = "The tenant still has active namespaces")})
-    public void deleteTenant(@Suspended final AsyncResponse asyncResponse,
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+                @ApiResponse(code = 404, message = "Tenant does not exist"),
+                @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of tenants"),
+                @ApiResponse(code = 409, message = "The tenant still has active namespaces")
+            })
+    public void deleteTenant(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
             @QueryParam("force") @DefaultValue("false") boolean force) {
         final String clientAppId = clientAppId();
@@ -222,7 +244,8 @@ public class TenantsBase extends PulsarWebResource {
     }
 
     protected CompletableFuture<Void> internalDeleteTenantAsync(String tenant) {
-        return tenantResources().tenantExistsAsync(tenant)
+        return tenantResources()
+                .tenantExistsAsync(tenant)
                 .thenAccept(exists -> {
                     if (!exists) {
                         throw new RestException(Status.NOT_FOUND, "Tenant doesn't exist");
@@ -230,14 +253,18 @@ public class TenantsBase extends PulsarWebResource {
                 })
                 .thenCompose(__ -> hasActiveNamespace(tenant))
                 .thenCompose(__ -> tenantResources().deleteTenantAsync(tenant))
-                .thenCompose(__ -> pulsar().getPulsarResources().getTopicResources().clearTenantPersistence(tenant))
-                .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources().deleteTenantAsync(tenant))
-                .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources()
-                            .getPartitionedTopicResources().clearPartitionedTopicTenantAsync(tenant))
-                .thenCompose(__ -> pulsar().getPulsarResources().getLocalPolicies()
-                            .deleteLocalPoliciesTenantAsync(tenant))
-                .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources()
-                            .deleteBundleDataTenantAsync(tenant));
+                .thenCompose(
+                        __ -> pulsar().getPulsarResources().getTopicResources().clearTenantPersistence(tenant))
+                .thenCompose(__ ->
+                        pulsar().getPulsarResources().getNamespaceResources().deleteTenantAsync(tenant))
+                .thenCompose(__ -> pulsar().getPulsarResources()
+                        .getNamespaceResources()
+                        .getPartitionedTopicResources()
+                        .clearPartitionedTopicTenantAsync(tenant))
+                .thenCompose(
+                        __ -> pulsar().getPulsarResources().getLocalPolicies().deleteLocalPoliciesTenantAsync(tenant))
+                .thenCompose(__ ->
+                        pulsar().getPulsarResources().getNamespaceResources().deleteBundleDataTenantAsync(tenant));
     }
 
     protected CompletableFuture<Void> internalDeleteTenantAsyncForcefully(String tenant) {
@@ -245,7 +272,8 @@ public class TenantsBase extends PulsarWebResource {
             return FutureUtil.failedFuture(
                     new RestException(Status.METHOD_NOT_ALLOWED, "Broker doesn't allow forced deletion of tenants"));
         }
-        return tenantResources().getListOfNamespacesAsync(tenant)
+        return tenantResources()
+                .getListOfNamespacesAsync(tenant)
                 .thenApply(namespaces -> {
                     final List<CompletableFuture<Void>> futures = new ArrayList<>();
                     try {
@@ -265,8 +293,11 @@ public class TenantsBase extends PulsarWebResource {
 
     private CompletableFuture<Void> validateClustersAsync(TenantInfo info) {
         // empty cluster shouldn't be allowed
-        if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c))
-                .collect(Collectors.toSet()).isEmpty()
+        if (info == null
+                || info.getAllowedClusters().stream()
+                        .filter(c -> !StringUtils.isBlank(c))
+                        .collect(Collectors.toSet())
+                        .isEmpty()
                 || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
             log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty"));

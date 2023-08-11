@@ -41,5 +41,4 @@ public interface PendingAckReplyCallBack {
      * Pending ack replay failed callback for pending ack store.
      */
     void replayFailed(Throwable t);
-
 }

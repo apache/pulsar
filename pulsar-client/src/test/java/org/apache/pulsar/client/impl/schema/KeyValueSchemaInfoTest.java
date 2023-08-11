@@ -24,7 +24,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +55,6 @@ public class KeyValueSchemaInfoTest {
             put("foo2", "foo-value2");
             put("foo3", "foo-value3");
         }
-
     };
 
     private static final Map<String, String> BAR_PROPERTIES = new HashMap() {
@@ -68,18 +66,14 @@ public class KeyValueSchemaInfoTest {
             put("bar2", "bar-value2");
             put("bar3", "bar-value3");
         }
-
     };
 
-    public static final Schema<Foo> FOO_SCHEMA =
-        Schema.AVRO(SchemaDefinition.<Foo>builder()
+    public static final Schema<Foo> FOO_SCHEMA = Schema.AVRO(SchemaDefinition.<Foo>builder()
             .withAlwaysAllowNull(false)
             .withPojo(Foo.class)
             .withProperties(FOO_PROPERTIES)
-            .build()
-        );
-    public static final Schema<Bar> BAR_SCHEMA =
-        Schema.JSON(SchemaDefinition.<Bar>builder()
+            .build());
+    public static final Schema<Bar> BAR_SCHEMA = Schema.JSON(SchemaDefinition.<Bar>builder()
             .withAlwaysAllowNull(true)
             .withPojo(Bar.class)
             .withProperties(BAR_PROPERTIES)
@@ -87,37 +81,30 @@ public class KeyValueSchemaInfoTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testDecodeNonKeyValueSchemaInfo() {
-        DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(
-            FOO_SCHEMA.getSchemaInfo()
-        );
+        DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(FOO_SCHEMA.getSchemaInfo());
     }
 
     @DataProvider(name = "encodingTypes")
     public Object[][] encodingTypes() {
         return new Object[][] {
-            { KeyValueEncodingType.INLINE },
-            { KeyValueEncodingType.SEPARATED },
+            {KeyValueEncodingType.INLINE}, {KeyValueEncodingType.SEPARATED},
         };
     }
 
     @Test(dataProvider = "encodingTypes")
     public void encodeDecodeKeyValueSchemaInfo(KeyValueEncodingType encodingType) {
-        Schema<KeyValue<Foo, Bar>> kvSchema = Schema.KeyValue(
-            FOO_SCHEMA,
-            BAR_SCHEMA,
-            encodingType
-        );
+        Schema<KeyValue<Foo, Bar>> kvSchema = Schema.KeyValue(FOO_SCHEMA, BAR_SCHEMA, encodingType);
         SchemaInfo kvSchemaInfo = kvSchema.getSchemaInfo();
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(kvSchemaInfo),
-            encodingType);
+                encodingType);
 
-        SchemaInfo encodedSchemaInfo =
-                DefaultImplementation.getDefaultImplementation().encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
+        SchemaInfo encodedSchemaInfo = DefaultImplementation.getDefaultImplementation()
+                .encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
         assertEquals(encodedSchemaInfo, kvSchemaInfo);
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(encodedSchemaInfo),
-            encodingType);
+                encodingType);
 
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(kvSchemaInfo);
@@ -129,34 +116,27 @@ public class KeyValueSchemaInfoTest {
     @Test(dataProvider = "encodingTypes")
     public void encodeDecodeNestedKeyValueSchemaInfo(KeyValueEncodingType encodingType) {
         Schema<KeyValue<String, Bar>> nestedSchema =
-            Schema.KeyValue(Schema.STRING, BAR_SCHEMA, KeyValueEncodingType.INLINE);
-        Schema<KeyValue<Foo, KeyValue<String, Bar>>> kvSchema = Schema.KeyValue(
-            FOO_SCHEMA,
-            nestedSchema,
-            encodingType
-        );
+                Schema.KeyValue(Schema.STRING, BAR_SCHEMA, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<Foo, KeyValue<String, Bar>>> kvSchema = Schema.KeyValue(FOO_SCHEMA, nestedSchema, encodingType);
         SchemaInfo kvSchemaInfo = kvSchema.getSchemaInfo();
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(kvSchemaInfo),
-            encodingType);
-
-        SchemaInfo encodedSchemaInfo =
-                DefaultImplementation.getDefaultImplementation().encodeKeyValueSchemaInfo(
-                FOO_SCHEMA,
-                nestedSchema,
                 encodingType);
+
+        SchemaInfo encodedSchemaInfo = DefaultImplementation.getDefaultImplementation()
+                .encodeKeyValueSchemaInfo(FOO_SCHEMA, nestedSchema, encodingType);
         assertEquals(encodedSchemaInfo, kvSchemaInfo);
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(encodedSchemaInfo),
-            encodingType);
+                encodingType);
 
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(kvSchemaInfo);
 
         assertEquals(schemaInfoKeyValue.getKey(), FOO_SCHEMA.getSchemaInfo());
         assertEquals(schemaInfoKeyValue.getValue().getType(), SchemaType.KEY_VALUE);
-        KeyValue<SchemaInfo, SchemaInfo> nestedSchemaInfoKeyValue =
-                DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
+        KeyValue<SchemaInfo, SchemaInfo> nestedSchemaInfoKeyValue = DefaultImplementation.getDefaultImplementation()
+                .decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
 
         assertEquals(nestedSchemaInfoKeyValue.getKey(), Schema.STRING.getSchemaInfo());
         assertEquals(nestedSchemaInfoKeyValue.getValue(), BAR_SCHEMA.getSchemaInfo());
@@ -164,46 +144,35 @@ public class KeyValueSchemaInfoTest {
 
     @Test
     public void testKeyValueSchemaInfoBackwardCompatibility() {
-        Schema<KeyValue<Foo, Bar>> kvSchema = Schema.KeyValue(
-            FOO_SCHEMA,
-            BAR_SCHEMA,
-            KeyValueEncodingType.SEPARATED
-        );
+        Schema<KeyValue<Foo, Bar>> kvSchema = Schema.KeyValue(FOO_SCHEMA, BAR_SCHEMA, KeyValueEncodingType.SEPARATED);
 
         SchemaInfo oldSchemaInfo = SchemaInfoImpl.builder()
-            .name("")
-            .type(SchemaType.KEY_VALUE)
-            .schema(kvSchema.getSchemaInfo().getSchema())
-            .properties(Collections.emptyMap()).build();
+                .name("")
+                .type(SchemaType.KEY_VALUE)
+                .schema(kvSchema.getSchemaInfo().getSchema())
+                .properties(Collections.emptyMap())
+                .build();
 
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(oldSchemaInfo),
-            KeyValueEncodingType.INLINE);
+                KeyValueEncodingType.INLINE);
 
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(oldSchemaInfo);
         // verify the key schema
         SchemaInfo keySchemaInfo = schemaInfoKeyValue.getKey();
-        assertEquals(
-            SchemaType.BYTES, keySchemaInfo.getType()
-        );
+        assertEquals(SchemaType.BYTES, keySchemaInfo.getType());
         assertArrayEquals(
-            "Expected schema = " + FOO_SCHEMA.getSchemaInfo().getSchemaDefinition()
-                + " but found " + keySchemaInfo.getSchemaDefinition(),
-            FOO_SCHEMA.getSchemaInfo().getSchema(),
-            keySchemaInfo.getSchema()
-        );
+                "Expected schema = " + FOO_SCHEMA.getSchemaInfo().getSchemaDefinition() + " but found "
+                        + keySchemaInfo.getSchemaDefinition(),
+                FOO_SCHEMA.getSchemaInfo().getSchema(),
+                keySchemaInfo.getSchema());
         assertFalse(FOO_SCHEMA.getSchemaInfo().getProperties().isEmpty());
         assertTrue(keySchemaInfo.getProperties().isEmpty());
         // verify the value schema
         SchemaInfo valueSchemaInfo = schemaInfoKeyValue.getValue();
-        assertEquals(
-            SchemaType.BYTES, valueSchemaInfo.getType()
-        );
-        assertArrayEquals(
-            BAR_SCHEMA.getSchemaInfo().getSchema(),
-            valueSchemaInfo.getSchema()
-        );
+        assertEquals(SchemaType.BYTES, valueSchemaInfo.getType());
+        assertArrayEquals(BAR_SCHEMA.getSchemaInfo().getSchema(), valueSchemaInfo.getSchema());
         assertFalse(BAR_SCHEMA.getSchemaInfo().getProperties().isEmpty());
         assertTrue(valueSchemaInfo.getProperties().isEmpty());
     }
@@ -211,16 +180,14 @@ public class KeyValueSchemaInfoTest {
     @Test
     public void testKeyValueSchemaInfoToString() throws Exception {
         String havePrimitiveType = DefaultImplementation.getDefaultImplementation()
-                .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo
-                        .decodeKeyValueSchemaInfo(Schema.KeyValue(Schema.AVRO(Foo.class), Schema.STRING)
-                                .getSchemaInfo()));
+                .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo.decodeKeyValueSchemaInfo(
+                        Schema.KeyValue(Schema.AVRO(Foo.class), Schema.STRING).getSchemaInfo()));
         JSONSchemaTest.assertJSONEqual(havePrimitiveType, KEY_VALUE_SCHEMA_INFO_INCLUDE_PRIMITIVE);
 
         String notHavePrimitiveType = DefaultImplementation.getDefaultImplementation()
-                .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo
-                        .decodeKeyValueSchemaInfo(Schema.KeyValue(Schema.AVRO(Foo.class),
-                                Schema.AVRO(Foo.class)).getSchemaInfo()));
+                .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo.decodeKeyValueSchemaInfo(
+                        Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class))
+                                .getSchemaInfo()));
         JSONSchemaTest.assertJSONEqual(notHavePrimitiveType, KEY_VALUE_SCHEMA_INFO_NOT_INCLUDE_PRIMITIVE);
     }
-
 }

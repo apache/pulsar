@@ -39,8 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractSource<V> extends PushSource<V> {
 
-    private static final Logger log = LoggerFactory
-            .getLogger(AbstractSource.class);
+    private static final Logger log = LoggerFactory.getLogger(AbstractSource.class);
 
     protected Thread thread = null;
 
@@ -58,7 +57,6 @@ public abstract class AbstractSource<V> extends PushSource<V> {
         flumeConnector.startConnector(flumeConfig);
 
         this.start();
-
     }
 
     public abstract V extractValue(String message);
@@ -127,5 +125,4 @@ public abstract class AbstractSource<V> extends PushSource<V> {
             return record;
         }
     }
-
 }

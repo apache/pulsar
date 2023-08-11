@@ -22,6 +22,4 @@ package org.apache.pulsar.client.admin;
  * @deprecated in favor of {@link Sinks}
  */
 @Deprecated
-public interface Sink extends Sinks {
-
-}
+public interface Sink extends Sinks {}

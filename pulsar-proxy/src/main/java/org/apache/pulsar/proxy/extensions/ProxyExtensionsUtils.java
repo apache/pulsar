@@ -53,7 +53,7 @@ class ProxyExtensionsUtils {
         try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(new File(narPath))
                 .extractionDirectory(narExtractionDirectory)
-                .build();) {
+                .build(); ) {
             return getProxyExtensionDefinition(ncl);
         }
     }
@@ -61,9 +61,7 @@ class ProxyExtensionsUtils {
     private static ProxyExtensionDefinition getProxyExtensionDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PROXY_EXTENSION_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(
-            configStr, ProxyExtensionDefinition.class
-        );
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, ProxyExtensionDefinition.class);
     }
 
     /**
@@ -73,8 +71,8 @@ class ProxyExtensionsUtils {
      * @return a collection of extensions
      * @throws IOException when fail to load the available extensions from the provided directory.
      */
-    public static ExtensionsDefinitions searchForExtensions(String extensionsDirectory,
-                                                            String narExtractionDirectory) throws IOException {
+    public static ExtensionsDefinitions searchForExtensions(String extensionsDirectory, String narExtractionDirectory)
+            throws IOException {
         Path path = Paths.get(extensionsDirectory).toAbsolutePath();
         log.info("Searching for extensions in {}", path);
 
@@ -87,8 +85,8 @@ class ProxyExtensionsUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    ProxyExtensionDefinition phDef =
-                        ProxyExtensionsUtils.getProxyExtensionDefinition(archive.toString(), narExtractionDirectory);
+                    ProxyExtensionDefinition phDef = ProxyExtensionsUtils.getProxyExtensionDefinition(
+                            archive.toString(), narExtractionDirectory);
                     log.info("Found extension from {} : {}", archive, phDef);
 
                     checkArgument(StringUtils.isNotBlank(phDef.getName()));
@@ -100,10 +98,13 @@ class ProxyExtensionsUtils {
 
                     extensions.extensions().put(phDef.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load connector from {}."
-                        + " It is OK however if you want to use this extension,"
-                        + " please make sure you put the correct extension NAR"
-                        + " package in the extensions directory.", archive, t);
+                    log.warn(
+                            "Failed to load connector from {}."
+                                    + " It is OK however if you want to use this extension,"
+                                    + " please make sure you put the correct extension NAR"
+                                    + " package in the extensions directory.",
+                            archive,
+                            t);
                 }
             }
         }
@@ -117,8 +118,8 @@ class ProxyExtensionsUtils {
      * @param metadata the extension definition.
      * @return
      */
-    static ProxyExtensionWithClassLoader load(ProxyExtensionMetadata metadata,
-                                              String narExtractionDirectory) throws IOException {
+    static ProxyExtensionWithClassLoader load(ProxyExtensionMetadata metadata, String narExtractionDirectory)
+            throws IOException {
         final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
@@ -128,16 +129,15 @@ class ProxyExtensionsUtils {
 
         ProxyExtensionDefinition phDef = getProxyExtensionDefinition(ncl);
         if (StringUtils.isBlank(phDef.getExtensionClass())) {
-            throw new IOException("extension `" + phDef.getName() + "` does NOT provide a protocol"
-                + " handler implementation");
+            throw new IOException(
+                    "extension `" + phDef.getName() + "` does NOT provide a protocol" + " handler implementation");
         }
 
         try {
             Class extensionClass = ncl.loadClass(phDef.getExtensionClass());
             Object extension = extensionClass.newInstance();
             if (!(extension instanceof ProxyExtension)) {
-                throw new IOException("Class " + phDef.getExtensionClass()
-                    + " does not implement extension interface");
+                throw new IOException("Class " + phDef.getExtensionClass() + " does not implement extension interface");
             }
             ProxyExtension ph = (ProxyExtension) extension;
             return new ProxyExtensionWithClassLoader(ph, ncl);
@@ -147,8 +147,7 @@ class ProxyExtensionsUtils {
         }
     }
 
-    private static void rethrowIOException(Throwable cause)
-            throws IOException {
+    private static void rethrowIOException(Throwable cause) throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;
         } else if (cause instanceof RuntimeException) {
@@ -159,5 +158,4 @@ class ProxyExtensionsUtils {
             throw new IOException(cause.getMessage(), cause);
         }
     }
-
 }

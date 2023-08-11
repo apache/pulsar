@@ -59,8 +59,7 @@ public class SimpleBrokerStartTest {
         config.setAdvertisedAddress("localhost");
         boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
         if (hasNicSpeeds) {
-            @Cleanup
-            PulsarService pulsarService = new PulsarService(config);
+            @Cleanup PulsarService pulsarService = new PulsarService(config);
             pulsarService.start();
         }
     }
@@ -87,8 +86,7 @@ public class SimpleBrokerStartTest {
         config.setAdvertisedAddress("localhost");
         boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
         if (!hasNicSpeeds) {
-            @Cleanup
-            PulsarService pulsarService = new PulsarService(config);
+            @Cleanup PulsarService pulsarService = new PulsarService(config);
             try {
                 pulsarService.start();
                 fail("unexpected behaviour");
@@ -97,7 +95,6 @@ public class SimpleBrokerStartTest {
             }
         }
     }
-
 
     @Test
     public void testCGroupMetrics() {
@@ -121,5 +118,4 @@ public class SimpleBrokerStartTest {
             Assert.assertTrue(cpuUsageForCGroup > 0);
         }
     }
-
 }

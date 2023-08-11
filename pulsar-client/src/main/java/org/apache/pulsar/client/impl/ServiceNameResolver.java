@@ -61,5 +61,4 @@ public interface ServiceNameResolver {
      * @param serviceUrl service url
      */
     void updateServiceUrl(String serviceUrl) throws InvalidServiceURL;
-
 }

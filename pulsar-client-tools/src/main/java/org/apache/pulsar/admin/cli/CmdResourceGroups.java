@@ -46,30 +46,34 @@ public class CmdResourceGroups extends CmdBase {
             print(getAdmin().resourcegroups().getResourceGroup(name));
         }
     }
+
     @Parameters(commandDescription = "Creates a new resourcegroup")
     private class Create extends CliCommand {
         @Parameter(description = "resourcegroup-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--msg-publish-rate",
-                "-mp" }, description = "message-publish-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+        @Parameter(
+                names = {"--msg-publish-rate", "-mp"},
+                description = "message-publish-rate " + "(default -1 will be overwrite if not passed)",
+                required = false)
         private Integer publishRateInMsgs;
 
-        @Parameter(names = { "--byte-publish-rate",
-                "-bp" }, description = "byte-publish-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+        @Parameter(
+                names = {"--byte-publish-rate", "-bp"},
+                description = "byte-publish-rate " + "(default -1 will be overwrite if not passed)",
+                required = false)
         private Long publishRateInBytes;
 
-
-        @Parameter(names = { "--msg-dispatch-rate",
-                "-md" }, description = "message-dispatch-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+        @Parameter(
+                names = {"--msg-dispatch-rate", "-md"},
+                description = "message-dispatch-rate " + "(default -1 will be overwrite if not passed)",
+                required = false)
         private Integer dispatchRateInMsgs;
 
-        @Parameter(names = { "--byte-dispatch-rate",
-                "-bd" }, description = "byte-dispatch-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+        @Parameter(
+                names = {"--byte-dispatch-rate", "-bd"},
+                description = "byte-dispatch-rate " + "(default -1 will be overwrite if not passed)",
+                required = false)
         private Long dispatchRateInBytes;
 
         @Override
@@ -90,21 +94,28 @@ public class CmdResourceGroups extends CmdBase {
         @Parameter(description = "resourcegroup-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--msg-publish-rate",
-                "-mp" }, description = "message-publish-rate ", required = false)
+        @Parameter(
+                names = {"--msg-publish-rate", "-mp"},
+                description = "message-publish-rate ",
+                required = false)
         private Integer publishRateInMsgs;
 
-        @Parameter(names = { "--byte-publish-rate",
-                "-bp" }, description = "byte-publish-rate ", required = false)
+        @Parameter(
+                names = {"--byte-publish-rate", "-bp"},
+                description = "byte-publish-rate ",
+                required = false)
         private Long publishRateInBytes;
 
-
-        @Parameter(names = { "--msg-dispatch-rate",
-                "-md" }, description = "message-dispatch-rate ", required = false)
+        @Parameter(
+                names = {"--msg-dispatch-rate", "-md"},
+                description = "message-dispatch-rate ",
+                required = false)
         private Integer dispatchRateInMsgs;
 
-        @Parameter(names = { "--byte-dispatch-rate",
-                "-bd" }, description = "byte-dispatch-rate ", required = false)
+        @Parameter(
+                names = {"--byte-dispatch-rate", "-bd"},
+                description = "byte-dispatch-rate ",
+                required = false)
         private Long dispatchRateInBytes;
 
         @Override
@@ -133,7 +144,6 @@ public class CmdResourceGroups extends CmdBase {
         }
     }
 
-
     public CmdResourceGroups(Supplier<PulsarAdmin> admin) {
         super("resourcegroups", admin);
         jcommander.addCommand("list", new CmdResourceGroups.List());
@@ -142,6 +152,4 @@ public class CmdResourceGroups extends CmdBase {
         jcommander.addCommand("update", new CmdResourceGroups.Update());
         jcommander.addCommand("delete", new CmdResourceGroups.Delete());
     }
-
-
 }

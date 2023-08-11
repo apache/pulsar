@@ -67,7 +67,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @DataProvider
     public Object[][] subType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Key_Shared } };
+        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
     }
 
     @Test(dataProvider = "subType")
@@ -84,7 +84,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         List<Consumer<?>> consumerList = new ArrayList<>();
         // create 3 consumers
         for (int i = 0; i < 3; i++) {
-            ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer()
+            ConsumerBuilder<byte[]> builder = pulsarClient
+                    .newConsumer()
                     .topic(topic)
                     .subscriptionName("sub-1")
                     .subscriptionType(subscriptionType)
@@ -112,7 +113,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             consumerList.add(builder.subscribe());
         }
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
@@ -123,15 +125,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < totalMsg; i++) {
             byte[] msg = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
-            producer.newMessage().key("key-" + (i % 3)).value(msg)
-                    .sendAsync().thenAccept(pubMessages::add);
+            producer.newMessage().key("key-" + (i % 3)).value(msg).sendAsync().thenAccept(pubMessages::add);
         }
 
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
         Awaitility.await()
                 .pollDelay(5, TimeUnit.SECONDS)
-                .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
+                .until(() -> (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
 
         // All consumers can acknowledge messages as they continue to receive messages.
         canAcknowledgement.set(true);
@@ -148,11 +148,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Awaitility.await()
                 .atMost(30, TimeUnit.SECONDS)
                 .pollDelay(5, TimeUnit.SECONDS)
-                .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
+                .until(() -> (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
 
-        //Determine if all messages have been received.
-        //If the dispatcher is stuck, we can not receive enough messages.
+        // Determine if all messages have been received.
+        // If the dispatcher is stuck, we can not receive enough messages.
         Assert.assertEquals(pubMessages.size(), totalMsg);
         Assert.assertEquals(pubMessages.size(), recMessages.size());
         Assert.assertTrue(recMessages.containsAll(pubMessages));

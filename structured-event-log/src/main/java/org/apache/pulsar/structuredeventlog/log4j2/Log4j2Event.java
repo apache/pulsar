@@ -159,7 +159,9 @@ class Log4j2Event implements Event {
         }
         if (startTime != null) {
             event.with("startTimestamp", startTime.toString());
-            event.with("durationMs", String.valueOf(Duration.between(startTime, clock.instant()).toMillis()));
+            event.with(
+                    "durationMs",
+                    String.valueOf(Duration.between(startTime, clock.instant()).toMillis()));
         }
         switch (level) {
             case ERROR:

@@ -104,5 +104,4 @@ public interface Transaction {
      * @return {@link State} the state of the transaction.
      */
     State getState();
-
 }

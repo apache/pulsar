@@ -50,16 +50,15 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
 
     @Override
     protected int numberOfAdditionalBrokers() {
-        return BROKER_COUNT -1;
+        return BROKER_COUNT - 1;
     }
 
     @Override
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        ClientBuilder clientBuilder =
-                PulsarClient.builder()
-                        .serviceUrl(url)
-                        .connectionMaxIdleSeconds(60)
-                        .statsInterval(intervalInSecs, TimeUnit.SECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(url)
+                .connectionMaxIdleSeconds(60)
+                .statsInterval(intervalInSecs, TimeUnit.SECONDS);
         customizeNewPulsarClientBuilder(clientBuilder);
         return createNewPulsarClient(clientBuilder);
     }
@@ -73,19 +72,18 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
         // Wait for every request has been response.
         Field field = ConnectionPool.class.getDeclaredField("pool");
         field.setAccessible(true);
-        ConcurrentHashMap<InetSocketAddress,ConcurrentMap<Integer,
-                CompletableFuture<ClientCnx>>> pool =
-                (ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer,
-                        CompletableFuture<ClientCnx>>>) field.get(pulsarClient.getCnxPool());
+        ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool =
+                (ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>>)
+                        field.get(pulsarClient.getCnxPool());
         final List<CompletableFuture<ClientCnx>> clientCnxWrapList =
                 pool.values().stream().flatMap(c -> c.values().stream()).collect(Collectors.toList());
         Awaitility.waitAtMost(Duration.ofSeconds(5)).until(() -> {
-            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : clientCnxWrapList){
-                if (!clientCnxWrapFuture.isDone()){
+            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : clientCnxWrapList) {
+                if (!clientCnxWrapFuture.isDone()) {
                     continue;
                 }
                 ClientCnx clientCnx = clientCnxWrapFuture.getNow(null);
-                if (clientCnx == null){
+                if (clientCnx == null) {
                     continue;
                 }
                 if (clientCnx.getPendingRequests().size() > 0) {
@@ -108,7 +106,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
      * If can't create it in a short time, use direct implements {@link #connectionToEveryBroker}
      * Why provide this method: prevents instability on one side
      */
-    protected void connectionToEveryBrokerWithUnloadBundle(PulsarClientImpl pulsarClient){
+    protected void connectionToEveryBrokerWithUnloadBundle(PulsarClientImpl pulsarClient) {
         try {
             Awaitility.waitAtMost(Duration.ofSeconds(2)).until(() -> {
                 int afterSubscribe_trans = pulsarClient.getCnxPool().getPoolSize();
@@ -121,7 +119,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
                 }
                 return false;
             });
-        } catch (Exception e){
+        } catch (Exception e) {
             connectionToEveryBroker(pulsarClient);
         }
     }
@@ -130,21 +128,20 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
      * Create connections directly to all brokers
      * Why provide this method: prevents instability on one side
      */
-    protected void connectionToEveryBroker(PulsarClientImpl pulsarClient){
-        for (PulsarService pulsarService : super.getAllBrokers()){
+    protected void connectionToEveryBroker(PulsarClientImpl pulsarClient) {
+        for (PulsarService pulsarService : super.getAllBrokers()) {
             String url = pulsarService.getBrokerServiceUrl();
-            if (url.contains("//")){
+            if (url.contains("//")) {
                 url = url.split("//")[1];
             }
             String host = url;
             int port = 6650;
-            if (url.contains(":")){
+            if (url.contains(":")) {
                 String[] hostAndPort = url.split(":");
                 host = hostAndPort[0];
                 port = Integer.valueOf(hostAndPort[1]);
             }
-            pulsarClient.getCnxPool()
-                    .getConnection(new InetSocketAddress(host, port));
+            pulsarClient.getCnxPool().getConnection(new InetSocketAddress(host, port));
         }
     }
 
@@ -185,19 +182,24 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
     /**
      * Ensure transaction works
      */
-    protected void ensureTransactionWorks(PulsarClientImpl pulsarClient, Producer producer,
-                                          Consumer consumer)
+    protected void ensureTransactionWorks(PulsarClientImpl pulsarClient, Producer producer, Consumer consumer)
             throws PulsarClientException, ExecutionException, InterruptedException {
         String messageContent_before = UUID.randomUUID().toString();
         String messageContent_tx = UUID.randomUUID().toString();
 
-        Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
         // assert producer/consumer work OK
         producer.send(messageContent_before.getBytes(StandardCharsets.UTF_8));
         Message message = (Message) consumer.receiveAsync().get();
         Assert.assertEquals(new String(message.getData(), StandardCharsets.UTF_8), messageContent_before);
-        producer.newMessage(transaction).value(messageContent_tx.getBytes(StandardCharsets.UTF_8)).sendAsync().get();
+        producer.newMessage(transaction)
+                .value(messageContent_tx.getBytes(StandardCharsets.UTF_8))
+                .sendAsync()
+                .get();
         consumer.acknowledgeAsync(message.getMessageId(), transaction);
         transaction.commit().get();
         Message message_tx = (Message) consumer.receiveAsync().get();

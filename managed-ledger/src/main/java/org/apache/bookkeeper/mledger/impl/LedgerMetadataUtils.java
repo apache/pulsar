@@ -83,14 +83,13 @@ public final class LedgerMetadataUtils {
      * @param compactedToMessageId last mesasgeId.
      * @return an immutable map which describes the compacted ledger
      */
-    public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic,
-                                                                      byte[] compactedToMessageId) {
+    public static Map<String, byte[]> buildMetadataForCompactedLedger(
+            String compactedTopic, byte[] compactedToMessageId) {
         return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER,
                 METADATA_PROPERTY_COMPACTEDTOPIC, compactedTopic.getBytes(StandardCharsets.UTF_8),
-                METADATA_PROPERTY_COMPACTEDTO, compactedToMessageId
-        );
+                METADATA_PROPERTY_COMPACTEDTO, compactedToMessageId);
     }
 
     /**
@@ -103,8 +102,7 @@ public final class LedgerMetadataUtils {
         return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_SCHEMA,
-                METADATA_PROPERTY_SCHEMAID, schemaId.getBytes(StandardCharsets.UTF_8)
-        );
+                METADATA_PROPERTY_SCHEMAID, schemaId.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -115,15 +113,14 @@ public final class LedgerMetadataUtils {
      * @param cursorName name of the cursor
      * @return an immutable map which describes the schema
      */
-    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey,
-                                                                         String topicName, String cursorName) {
+    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(
+            String bucketKey, String topicName, String cursorName) {
         return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET,
                 METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY, bucketKey.getBytes(StandardCharsets.UTF_8),
                 METADATA_PROPERTY_DELAYED_INDEX_TOPIC, topicName.getBytes(StandardCharsets.UTF_8),
-                METADATA_PROPERTY_DELAYED_INDEX_CURSOR, cursorName.getBytes(StandardCharsets.UTF_8)
-        );
+                METADATA_PROPERTY_DELAYED_INDEX_CURSOR, cursorName.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -139,12 +136,11 @@ public final class LedgerMetadataUtils {
      *          placement policy configuration encode error
      */
     static Map<String, byte[]> buildMetadataForPlacementPolicyConfig(
-        Class<? extends EnsemblePlacementPolicy> className, Map<String, Object> properties)
-        throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
+            Class<? extends EnsemblePlacementPolicy> className, Map<String, Object> properties)
+            throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
         EnsemblePlacementPolicyConfig config = new EnsemblePlacementPolicyConfig(className, properties);
         return Map.of(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, config.encode());
     }
 
     private LedgerMetadataUtils() {}
-
 }

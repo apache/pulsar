@@ -20,6 +20,10 @@ package org.apache.pulsar.metadata.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -31,10 +35,6 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 public class MetadataStoreFactoryImplTest {
 
@@ -43,8 +43,8 @@ public class MetadataStoreFactoryImplTest {
     @BeforeClass
     public void setMetadataStoreProperty() {
         originalProperty = System.getProperties().get(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
-        System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
-                MyMetadataStoreProvider.class.getName());
+        System.setProperty(
+                MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY, MyMetadataStoreProvider.class.getName());
     }
 
     @AfterClass
@@ -54,16 +54,13 @@ public class MetadataStoreFactoryImplTest {
         }
     }
 
-
     @Test
-    public void testCreate() throws Exception{
+    public void testCreate() throws Exception {
         @Cleanup
         MetadataStore instance = MetadataStoreFactoryImpl.create(
-                "custom://localhost",
-                MetadataStoreConfig.builder().build());
+                "custom://localhost", MetadataStoreConfig.builder().build());
         assertTrue(instance instanceof MyMetadataStore);
     }
-
 
     @Test
     public void testRemoveIdentifierFromMetadataURL() {
@@ -71,7 +68,9 @@ public class MetadataStoreFactoryImplTest {
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("rocksdb:/data/dir"), "/data/dir");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("etcd:host:port"), "host:port");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("memory:name"), "name");
-        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("http://unknown/url/scheme"), "http://unknown/url/scheme");
+        assertEquals(
+                MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("http://unknown/url/scheme"),
+                "http://unknown/url/scheme");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("custom:suffix"), "suffix");
     }
 
@@ -83,8 +82,9 @@ public class MetadataStoreFactoryImplTest {
         }
 
         @Override
-        public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
-                                    boolean enableSessionWatcher) throws MetadataStoreException {
+        public MetadataStore create(
+                String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+                throws MetadataStoreException {
             return new MyMetadataStore();
         }
     }
@@ -115,11 +115,9 @@ public class MetadataStoreFactoryImplTest {
         }
 
         @Override
-        protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                                   EnumSet<CreateOption> options) {
+        protected CompletableFuture<Stat> storePut(
+                String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options) {
             return null;
         }
     }
-
-
 }

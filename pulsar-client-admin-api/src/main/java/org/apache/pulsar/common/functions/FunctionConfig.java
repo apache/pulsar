@@ -72,6 +72,7 @@ public class FunctionConfig {
      * A generalized way of specifying inputs.
      */
     private Map<String, ConsumerConfig> inputSpecs;
+
     private String inputTypeClassName;
 
     private String output;
@@ -84,6 +85,7 @@ public class FunctionConfig {
      * implementation.
      */
     private String outputSchemaType;
+
     private String outputTypeClassName;
 
     private String outputSerdeClassName;
@@ -108,6 +110,7 @@ public class FunctionConfig {
     // Deprecated since, see https://github.com/apache/pulsar/issues/15560
     @Deprecated
     private Boolean autoAck;
+
     private Integer maxMessageRetries;
     private String deadLetterTopic;
     private String subName;

@@ -33,5 +33,4 @@ import org.apache.pulsar.broker.admin.impl.SourcesBase;
 /**
  * @deprecated in favor of {@link Sources}
  */
-public class Source extends SourcesBase {
-}
+public class Source extends SourcesBase {}

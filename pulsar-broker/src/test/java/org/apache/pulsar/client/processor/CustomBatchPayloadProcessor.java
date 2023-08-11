@@ -21,9 +21,9 @@ package org.apache.pulsar.client.processor;
 import io.netty.buffer.ByteBuf;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Schema;
@@ -33,8 +33,12 @@ import org.apache.pulsar.client.impl.MessagePayloadUtils;
 public class CustomBatchPayloadProcessor implements MessagePayloadProcessor {
 
     @Override
-    public <T> void process(MessagePayload payload, MessagePayloadContext context, Schema<T> schema,
-                            Consumer<Message<T>> messageConsumer) throws Exception {
+    public <T> void process(
+            MessagePayload payload,
+            MessagePayloadContext context,
+            Schema<T> schema,
+            Consumer<Message<T>> messageConsumer)
+            throws Exception {
         final String value = context.getProperty(CustomBatchFormat.KEY);
         if (value == null || !value.equals(CustomBatchFormat.VALUE)) {
             DEFAULT.process(payload, context, schema, messageConsumer);
@@ -48,8 +52,7 @@ public class CustomBatchPayloadProcessor implements MessagePayloadProcessor {
                 final MessagePayload singlePayload =
                         MessagePayloadFactory.DEFAULT.wrap(CustomBatchFormat.readMessage(buf));
                 try {
-                    messageConsumer.accept(
-                            context.getMessageAt(i, numMessages, singlePayload, false, schema));
+                    messageConsumer.accept(context.getMessageAt(i, numMessages, singlePayload, false, schema));
                 } finally {
                     singlePayload.release();
                 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -60,10 +59,16 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
 
     private final SchemaWriter<T> writer;
 
-    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, ClassLoader classLoader,
-                                boolean alwaysAllowNull, Map<String, String> properties,
-                                boolean supportSchemaVersioning, boolean jsr310ConversionEnabled,
-                                SchemaReader<T> reader, SchemaWriter<T> writer) {
+    public SchemaDefinitionImpl(
+            Class<T> pojo,
+            String jsonDef,
+            ClassLoader classLoader,
+            boolean alwaysAllowNull,
+            Map<String, String> properties,
+            boolean supportSchemaVersioning,
+            boolean jsr310ConversionEnabled,
+            SchemaReader<T> reader,
+            SchemaWriter<T> writer) {
         this.alwaysAllowNull = alwaysAllowNull;
         this.properties = properties;
         this.jsonDef = jsonDef;
@@ -136,5 +141,4 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
     public Map<String, String> getProperties() {
         return Collections.unmodifiableMap(properties);
     }
-
 }

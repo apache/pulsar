@@ -43,10 +43,19 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
     private int numMessages;
     private boolean jsonWithEnvelope;
     private PulsarClient client;
-    
-    public PulsarIODebeziumSourceRunner(PulsarCluster cluster, String functionRuntimeType, String converterClassName,
-            String tenant, String ns, String sourceName, String outputTopic, int numMessages, boolean jsonWithEnvelope,
-            String consumeTopicName, PulsarClient client) {
+
+    public PulsarIODebeziumSourceRunner(
+            PulsarCluster cluster,
+            String functionRuntimeType,
+            String converterClassName,
+            String tenant,
+            String ns,
+            String sourceName,
+            String outputTopic,
+            int numMessages,
+            boolean jsonWithEnvelope,
+            String consumeTopicName,
+            PulsarClient client) {
         super(cluster, functionRuntimeType);
         this.converterClassName = converterClassName;
         this.tenant = tenant;
@@ -60,8 +69,8 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public <T extends GenericContainer> void testSource(SourceTester<T> sourceTester)  throws Exception {
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public <T extends GenericContainer> void testSource(SourceTester<T> sourceTester) throws Exception {
         try {
             internalTestSource(sourceTester);
         } finally {
@@ -69,8 +78,7 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
         }
     }
 
-    private <T extends GenericContainer> void internalTestSource
-            (SourceTester<T> sourceTester) throws Exception {
+    private <T extends GenericContainer> void internalTestSource(SourceTester<T> sourceTester) throws Exception {
         // prepare the testing environment for source
         prepareSource(sourceTester);
 
@@ -84,8 +92,8 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
         Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
 
         // wait for source to process messages
-        Failsafe.with(statusRetryPolicy).run(() ->
-                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+        Failsafe.with(statusRetryPolicy)
+                .run(() -> waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         @Cleanup
         Consumer<?> consumer = client.newConsumer(getSchema(jsonWithEnvelope))
@@ -97,7 +105,8 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
         log.info("[debezium mysql test] create consumer finish. converterName: {}", converterClassName);
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, sourceTester.getNumEntriesExpectAfterStart(), null, converterClassName);
+        sourceTester.validateSourceResult(
+                consumer, sourceTester.getNumEntriesExpectAfterStart(), null, converterClassName);
 
         final int numEntriesToInsert = sourceTester.getNumEntriesToInsert();
         Preconditions.checkArgument(numEntriesToInsert >= 1);
@@ -120,7 +129,7 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer,  numEntriesToInsert, SourceTester.DELETE, converterClassName);
+        sourceTester.validateSourceResult(consumer, numEntriesToInsert, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);

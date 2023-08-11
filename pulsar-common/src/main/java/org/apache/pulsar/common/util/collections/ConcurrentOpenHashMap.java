@@ -130,8 +130,14 @@ public class ConcurrentOpenHashMap<K, V> {
         }
 
         public ConcurrentOpenHashMap<K, V> build() {
-            return new ConcurrentOpenHashMap<>(expectedItems, concurrencyLevel,
-                    mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
+            return new ConcurrentOpenHashMap<>(
+                    expectedItems,
+                    concurrencyLevel,
+                    mapFillFactor,
+                    mapIdleFactor,
+                    autoShrink,
+                    expandFactor,
+                    shrinkFactor);
         }
     }
 
@@ -147,13 +153,24 @@ public class ConcurrentOpenHashMap<K, V> {
 
     @Deprecated
     public ConcurrentOpenHashMap(int expectedItems, int concurrencyLevel) {
-        this(expectedItems, concurrencyLevel, DefaultMapFillFactor, DefaultMapIdleFactor,
-                DefaultAutoShrink, DefaultExpandFactor, DefaultShrinkFactor);
+        this(
+                expectedItems,
+                concurrencyLevel,
+                DefaultMapFillFactor,
+                DefaultMapIdleFactor,
+                DefaultAutoShrink,
+                DefaultExpandFactor,
+                DefaultShrinkFactor);
     }
 
-    public ConcurrentOpenHashMap(int expectedItems, int concurrencyLevel,
-                                 float mapFillFactor, float mapIdleFactor,
-                                 boolean autoShrink, float expandFactor, float shrinkFactor) {
+    public ConcurrentOpenHashMap(
+            int expectedItems,
+            int concurrencyLevel,
+            float mapFillFactor,
+            float mapIdleFactor,
+            boolean autoShrink,
+            float expandFactor,
+            float shrinkFactor) {
         checkArgument(expectedItems > 0);
         checkArgument(concurrencyLevel > 0);
         checkArgument(expectedItems >= concurrencyLevel);
@@ -169,8 +186,8 @@ public class ConcurrentOpenHashMap<K, V> {
         this.sections = (Section<K, V>[]) new Section[numSections];
 
         for (int i = 0; i < numSections; i++) {
-            sections[i] = new Section<>(perSectionCapacity, mapFillFactor, mapIdleFactor,
-                    autoShrink, expandFactor, shrinkFactor);
+            sections[i] = new Section<>(
+                    perSectionCapacity, mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
         }
     }
 
@@ -313,8 +330,13 @@ public class ConcurrentOpenHashMap<K, V> {
         private final float shrinkFactor;
         private final boolean autoShrink;
 
-        Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
-                float expandFactor, float shrinkFactor) {
+        Section(
+                int capacity,
+                float mapFillFactor,
+                float mapIdleFactor,
+                boolean autoShrink,
+                float expandFactor,
+                float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
             this.table = new Object[2 * this.capacity];

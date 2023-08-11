@@ -55,7 +55,9 @@ public class ConsumerId implements Comparable<ConsumerId> {
 
     @Override
     public int compareTo(ConsumerId o) {
-        return ComparisonChain.start().compare(this.topic, o.topic).compare(this.subscription, o.subscription).result();
+        return ComparisonChain.start()
+                .compare(this.topic, o.topic)
+                .compare(this.subscription, o.subscription)
+                .result();
     }
-
 }

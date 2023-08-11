@@ -86,7 +86,6 @@ public class GrowablePriorityLongPairQueue {
         }
 
         SIZE_UPDATER.incrementAndGet(this);
-
     }
 
     public synchronized void forEach(LongPairConsumer processor) {
@@ -241,7 +240,6 @@ public class GrowablePriorityLongPairQueue {
         }
 
         this.size = 0;
-
     }
 
     public int size() {
@@ -374,7 +372,5 @@ public class GrowablePriorityLongPairQueue {
         public String toString() {
             return "LongPair [first=" + first + ", second=" + second + "]";
         }
-
     }
-
 }

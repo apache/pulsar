@@ -44,10 +44,12 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * @param bookkeeperProvider bookkeeper provider
      * @throws Exception
      */
-    void initialize(ServiceConfiguration conf,
-                    MetadataStoreExtended metadataStore,
-                    BookKeeperClientFactory bookkeeperProvider,
-                    EventLoopGroup eventLoopGroup) throws Exception;
+    void initialize(
+            ServiceConfiguration conf,
+            MetadataStoreExtended metadataStore,
+            BookKeeperClientFactory bookkeeperProvider,
+            EventLoopGroup eventLoopGroup)
+            throws Exception;
 
     /**
      * Return the factory to create {@link ManagedLedgerFactory}.
@@ -84,15 +86,17 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * @param bkProvider bookkeeper client provider
      * @return the initialized managed ledger storage.
      */
-    static ManagedLedgerStorage create(ServiceConfiguration conf,
-                                       MetadataStoreExtended metadataStore,
-                                       BookKeeperClientFactory bkProvider,
-                                       EventLoopGroup eventLoopGroup) throws Exception {
-        ManagedLedgerStorage storage =
-                Reflections.createInstance(conf.getManagedLedgerStorageClassName(), ManagedLedgerStorage.class,
-                        Thread.currentThread().getContextClassLoader());
+    static ManagedLedgerStorage create(
+            ServiceConfiguration conf,
+            MetadataStoreExtended metadataStore,
+            BookKeeperClientFactory bkProvider,
+            EventLoopGroup eventLoopGroup)
+            throws Exception {
+        ManagedLedgerStorage storage = Reflections.createInstance(
+                conf.getManagedLedgerStorageClassName(),
+                ManagedLedgerStorage.class,
+                Thread.currentThread().getContextClassLoader());
         storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
         return storage;
     }
-
 }

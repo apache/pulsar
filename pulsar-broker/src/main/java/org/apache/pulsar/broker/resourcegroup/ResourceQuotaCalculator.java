@@ -35,9 +35,12 @@ public interface ResourceQuotaCalculator {
      *
      * @return true if the usage must be reported; false if it can be suppressed
      */
-    boolean needToReportLocalUsage(long currentBytesUsed, long lastReportedBytes,
-                                          long currentMessagesUsed, long lastReportedMessages,
-                                          long lastReportTimeMSecsSinceEpoch);
+    boolean needToReportLocalUsage(
+            long currentBytesUsed,
+            long lastReportedBytes,
+            long currentMessagesUsed,
+            long lastReportedMessages,
+            long lastReportTimeMSecsSinceEpoch);
 
     /*
      * Compute the local quota based on configured values and actual global usage.

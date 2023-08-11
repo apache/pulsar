@@ -41,7 +41,6 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
 
     private final Logger log = LoggerFactory.getLogger(LoggingBrokerInterceptor.class);
 
-
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
         log.info("onPulsarCommand");
@@ -72,11 +71,9 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
         log.info("close");
     }
 
-
     @Override
     public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
-        log.info("beforeSendMessage: "
-                + ("producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG"));
+        log.info("beforeSendMessage: " + ("producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG"));
     }
 
     @Override
@@ -95,14 +92,19 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId, long entryId,
-                                Topic.PublishContext publishContext) {
+    public void messageProduced(
+            ServerCnx cnx,
+            Producer producer,
+            long startTimeNs,
+            long ledgerId,
+            long entryId,
+            Topic.PublishContext publishContext) {
         log.info("messageProduced");
     }
 
     @Override
-    public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId, long entryId,
-                                  ByteBuf headersAndPayload) {
+    public void messageDispatched(
+            ServerCnx cnx, Consumer consumer, long ledgerId, long entryId, ByteBuf headersAndPayload) {
         log.info("messageDispatched");
     }
 

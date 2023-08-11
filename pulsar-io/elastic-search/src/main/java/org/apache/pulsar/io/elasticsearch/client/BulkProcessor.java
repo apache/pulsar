@@ -42,6 +42,7 @@ public interface BulkProcessor extends Closeable {
         private String error;
         private String index;
         private String documentId;
+
         public boolean isError() {
             return error != null;
         }
@@ -49,8 +50,8 @@ public interface BulkProcessor extends Closeable {
 
     interface Listener {
 
-        void afterBulk(long executionId, List<BulkOperationRequest> bulkOperationList,
-                       List<BulkOperationResult> results);
+        void afterBulk(
+                long executionId, List<BulkOperationRequest> bulkOperationList, List<BulkOperationResult> results);
 
         void afterBulk(long executionId, List<BulkOperationRequest> bulkOperationList, Throwable throwable);
     }
@@ -73,7 +74,6 @@ public interface BulkProcessor extends Closeable {
         private String index;
         private String documentId;
     }
-
 
     void appendIndexRequest(BulkIndexRequest request) throws IOException;
 

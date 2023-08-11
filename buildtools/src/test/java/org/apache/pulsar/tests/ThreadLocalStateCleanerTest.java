@@ -66,7 +66,6 @@ public class ThreadLocalStateCleanerTest {
         }
     }
 
-
     @Test
     public void testThreadLocalStateCleanupInCurrentAndOtherThread() throws InterruptedException, ExecutionException {
         magicNumberThreadLocal.set(44);

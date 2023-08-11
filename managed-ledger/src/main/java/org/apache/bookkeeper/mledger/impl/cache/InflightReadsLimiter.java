@@ -27,14 +27,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class InflightReadsLimiter {
 
-    private static final Gauge PULSAR_ML_READS_BUFFER_SIZE = Gauge
-            .build()
+    private static final Gauge PULSAR_ML_READS_BUFFER_SIZE = Gauge.build()
             .name("pulsar_ml_reads_inflight_bytes")
             .help("Estimated number of bytes retained by data read from storage or cache")
             .register();
 
-    private static final Gauge PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE = Gauge
-            .build()
+    private static final Gauge PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE = Gauge.build()
             .name("pulsar_ml_reads_available_inflight_bytes")
             .help("Available space for inflight data read from storage or cache")
             .register();
@@ -94,8 +92,7 @@ public class InflightReadsLimiter {
                         return new Handle(0, false, 1, current.creationTime);
                     }
                     if (remainingBytes == 0) {
-                        return new Handle(current.acquiredPermits, false, current.trials + 1,
-                                current.creationTime);
+                        return new Handle(current.acquiredPermits, false, current.trials + 1, current.creationTime);
                     }
                     long needed = permits - current.acquiredPermits;
                     if (remainingBytes >= needed) {
@@ -104,8 +101,8 @@ public class InflightReadsLimiter {
                     } else {
                         long possible = remainingBytes;
                         remainingBytes = 0;
-                        return new Handle(current.acquiredPermits + possible, false,
-                                current.trials + 1, current.creationTime);
+                        return new Handle(
+                                current.acquiredPermits + possible, false, current.trials + 1, current.creationTime);
                     }
                 }
             } finally {
@@ -132,6 +129,4 @@ public class InflightReadsLimiter {
     public boolean isDisabled() {
         return maxReadsInFlightSize <= 0;
     }
-
-
 }

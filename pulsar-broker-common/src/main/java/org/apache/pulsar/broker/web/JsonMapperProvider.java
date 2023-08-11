@@ -29,11 +29,9 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 public class JsonMapperProvider implements ContextResolver<ObjectMapper> {
     private final ObjectMapper mapper = ObjectMapperFactory.create();
 
-    public JsonMapperProvider(){
+    public JsonMapperProvider() {}
 
-    }
-
-    public JsonMapperProvider(DeserializationProblemHandler handler){
+    public JsonMapperProvider(DeserializationProblemHandler handler) {
         mapper.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         mapper.addHandler(handler);
     }

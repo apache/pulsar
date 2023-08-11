@@ -44,9 +44,9 @@ public interface BrokerFilter {
      * @return Filtered broker list.
      */
     @Deprecated
-    default Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                 ServiceUnitId serviceUnit,
-                                                 LoadManagerContext context) throws BrokerFilterException {
+    default Map<String, BrokerLookupData> filter(
+            Map<String, BrokerLookupData> brokers, ServiceUnitId serviceUnit, LoadManagerContext context)
+            throws BrokerFilterException {
         return filterAsync(brokers, serviceUnit, context).join();
     }
 
@@ -58,8 +58,6 @@ public interface BrokerFilter {
      * @param context The load manager context.
      * @return Filtered broker list.
      */
-    CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
-                                                                 ServiceUnitId serviceUnit,
-                                                                 LoadManagerContext context);
-
+    CompletableFuture<Map<String, BrokerLookupData>> filterAsync(
+            Map<String, BrokerLookupData> brokers, ServiceUnitId serviceUnit, LoadManagerContext context);
 }

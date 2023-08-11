@@ -30,10 +30,10 @@ import org.apache.pulsar.io.core.annotations.IOType;
  * A Simple class for mysql binlog sync to pulsar.
  */
 @Connector(
-    name = "canal",
-    type = IOType.SOURCE,
-    help = "The CanalByteSource is used for syncing mysql binlog to Pulsar.",
-    configClass = CanalSourceConfig.class)
+        name = "canal",
+        type = IOType.SOURCE,
+        help = "The CanalByteSource is used for syncing mysql binlog to Pulsar.",
+        configClass = CanalSourceConfig.class)
 public class CanalByteSource extends CanalAbstractSource<byte[]> {
 
     @Override
@@ -46,5 +46,4 @@ public class CanalByteSource extends CanalAbstractSource<byte[]> {
         String messages = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
         return messages.getBytes();
     }
-
 }

@@ -18,16 +18,6 @@
  */
 package org.apache.pulsar.proxy.extensions;
 
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.apache.pulsar.proxy.server.ProxyService;
-import org.testng.annotations.Test;
-
-import java.net.InetSocketAddress;
-import java.util.Map;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
@@ -38,6 +28,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
+import java.net.InetSocketAddress;
+import java.util.Map;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
+import org.apache.pulsar.proxy.server.ProxyService;
+import org.testng.annotations.Test;
 
 /**
  * Unit test {@link ProxyExtensionWithClassLoader}.
@@ -121,7 +119,6 @@ public class ProxyExtensionWithClassLoaderTest {
         assertTrue(wrapper.accept(protocol));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
 
-
         ProxyConfiguration conf = new ProxyConfiguration();
         expectThrows(Exception.class, () -> wrapper.initialize(conf));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
@@ -129,7 +126,6 @@ public class ProxyExtensionWithClassLoaderTest {
         ProxyService service = mock(ProxyService.class);
         wrapper.start(service);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-
 
         assertNull(wrapper.newChannelInitializers());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);

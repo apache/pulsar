@@ -50,7 +50,8 @@ public class PulsarMetadataStateStoreImplTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
+        this.store = MetadataStoreFactory.create(
+                "memory:local", MetadataStoreConfig.builder().build());
         this.countersCache = store.getMetadataCache(Long.class);
         this.stateContext = new PulsarMetadataStateStoreImpl(store, "/prefix", TENANT, NS, NAME);
     }
@@ -83,7 +84,9 @@ public class PulsarMetadataStateStoreImplTest {
     @Test
     public void testDelete() throws Exception {
         stateContext.put("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8)));
-        assertEquals("test-value".getBytes(UTF_8), store.get(PREFIX_PATH + "test-key").join().get().getValue());
+        assertEquals(
+                "test-value".getBytes(UTF_8),
+                store.get(PREFIX_PATH + "test-key").join().get().getValue());
         stateContext.delete("test-key");
         assertFalse(store.get(PREFIX_PATH + "test-key").join().isPresent());
     }
@@ -102,5 +105,4 @@ public class PulsarMetadataStateStoreImplTest {
         assertTrue(result != null);
         assertEquals(result.get(), null);
     }
-
 }

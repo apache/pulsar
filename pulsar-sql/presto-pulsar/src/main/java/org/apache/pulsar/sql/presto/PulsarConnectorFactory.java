@@ -55,13 +55,10 @@ public class PulsarConnectorFactory implements ConnectorFactory {
         }
         try {
             // A plugin is not required to use Guice; it is just very convenient
-            Bootstrap app = new Bootstrap(
-                    new JsonModule(),
-                    new PulsarConnectorModule(connectorId, context.getTypeManager())
-            );
+            Bootstrap app =
+                    new Bootstrap(new JsonModule(), new PulsarConnectorModule(connectorId, context.getTypeManager()));
 
-            Injector injector = app
-                    .strictConfig()
+            Injector injector = app.strictConfig()
                     .doNotInitializeLogging()
                     .setRequiredConfigurationProperties(config)
                     .initialize();

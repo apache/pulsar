@@ -49,10 +49,14 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
-                .serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.clusters()
+                .createCluster(
+                        CLUSTER_NAME,
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(TENANT, new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);
     }
 
@@ -70,20 +74,22 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         int operationTimes = 5000;
         CountDownLatch countDownLatch = new CountDownLatch(operationTimes);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
                 .topic(persistentTopic)
                 .subscriptionName(subName)
                 .subscribe();
 
         new Thread(() -> {
-            for (int i = 0; i < operationTimes; i++) {
-                executorService.submit(() -> {
-                    consumer.getLastMessageIdAsync().whenComplete((ignore, exception) -> {
-                        countDownLatch.countDown();
-                    });
-                });
-            }
-        }).start();
+                    for (int i = 0; i < operationTimes; i++) {
+                        executorService.submit(() -> {
+                            consumer.getLastMessageIdAsync().whenComplete((ignore, exception) -> {
+                                countDownLatch.countDown();
+                            });
+                        });
+                    }
+                })
+                .start();
 
         for (int i = 0; i < operationTimes; i++) {
             ClientCnx cnx = ((ConsumerImpl<?>) consumer).getClientCnx();
@@ -99,7 +105,6 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             countDownLatch.await();
             return true;
         });
-
     }
 
     @Test
@@ -107,18 +112,26 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         final String expectedVersion = String.format("Pulsar-Java-v%s", PulsarVersion.getVersion());
         final String topic = "persistent://" + NAMESPACE + "/testClientVersion";
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .subscriptionName("my-sub")
                 .topic(topic)
                 .subscribe();
 
-        Assert.assertEquals(admin.topics().getStats(topic).getPublishers().get(0).getClientVersion(), expectedVersion);
-        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get("my-sub").getConsumers().get(0)
-                .getClientVersion(), expectedVersion);
+        Assert.assertEquals(
+                admin.topics().getStats(topic).getPublishers().get(0).getClientVersion(), expectedVersion);
+        Assert.assertEquals(
+                admin.topics()
+                        .getStats(topic)
+                        .getSubscriptions()
+                        .get("my-sub")
+                        .getConsumers()
+                        .get(0)
+                        .getClientVersion(),
+                expectedVersion);
 
         producer.close();
         consumer.close();

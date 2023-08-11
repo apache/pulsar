@@ -26,6 +26,4 @@ package org.apache.pulsar.io.kinesis;
  */
 @Deprecated
 public class STSAssumeRoleProviderPlugin extends org.apache.pulsar.io.aws.STSAssumeRoleProviderPlugin
-        implements AwsCredentialProviderPlugin {
-}
-
+        implements AwsCredentialProviderPlugin {}

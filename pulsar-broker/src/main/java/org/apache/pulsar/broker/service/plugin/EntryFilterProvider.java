@@ -49,10 +49,13 @@ public class EntryFilterProvider implements AutoCloseable {
     static final String ENTRY_FILTER_DEFINITION_FILE = "entry_filter";
 
     private final ServiceConfiguration serviceConfiguration;
+
     @VisibleForTesting
     protected Map<String, EntryFilterMetaData> definitions;
+
     @VisibleForTesting
     protected Map<String, NarClassLoader> cachedClassLoaders;
+
     @VisibleForTesting
     protected List<EntryFilter> brokerEntryFilters;
 
@@ -90,8 +93,7 @@ public class EntryFilterProvider implements AutoCloseable {
         return entryFilterList;
     }
 
-    public List<EntryFilter> loadEntryFiltersForPolicy(EntryFilters policy)
-            throws IOException {
+    public List<EntryFilter> loadEntryFiltersForPolicy(EntryFilters policy) throws IOException {
         final String names = policy.getEntryFilterNames();
         if (StringUtils.isBlank(names)) {
             return Collections.emptyList();
@@ -100,8 +102,7 @@ public class EntryFilterProvider implements AutoCloseable {
         return loadEntryFilters(entryFilterList);
     }
 
-    private List<EntryFilter> loadEntryFilters(Collection<String> entryFilterNames)
-            throws IOException {
+    private List<EntryFilter> loadEntryFilters(Collection<String> entryFilterNames) throws IOException {
         ImmutableMap.Builder<String, EntryFilter> builder = ImmutableMap.builder();
         for (String filterName : entryFilterNames) {
             EntryFilterMetaData metaData = definitions.get(filterName);
@@ -124,7 +125,6 @@ public class EntryFilterProvider implements AutoCloseable {
         final String entryFiltersDirectory = serviceConfiguration.getEntryFiltersDirectory();
         Path path = Paths.get(entryFiltersDirectory).toAbsolutePath();
         log.info("Searching for entry filters in {}", path);
-
 
         if (!path.toFile().exists()) {
             log.info("Pulsar entry filters directory not found");
@@ -151,10 +151,13 @@ public class EntryFilterProvider implements AutoCloseable {
 
                     entryFilterDefinitions.put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load entry filters from {}."
-                            + " It is OK however if you want to use this entry filters,"
-                            + " please make sure you put the correct entry filter NAR"
-                            + " package in the entry filter directory.", archive, t);
+                    log.warn(
+                            "Failed to load entry filters from {}."
+                                    + " It is OK however if you want to use this entry filters,"
+                                    + " please make sure you put the correct entry filter NAR"
+                                    + " package in the entry filter directory.",
+                            archive,
+                            t);
                 }
             }
         }
@@ -172,17 +175,14 @@ public class EntryFilterProvider implements AutoCloseable {
             configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml");
         }
 
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(
-                configStr, EntryFilterDefinition.class
-        );
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, EntryFilterDefinition.class);
     }
 
-    protected EntryFilter load(EntryFilterMetaData metadata)
-            throws IOException {
+    protected EntryFilter load(EntryFilterMetaData metadata) throws IOException {
         final EntryFilterDefinition def = metadata.getDefinition();
         if (StringUtils.isBlank(def.getEntryFilterClass())) {
-            throw new RuntimeException("Entry filter `" + def.getName() + "` does NOT provide a entry"
-                    + " filters implementation");
+            throw new RuntimeException(
+                    "Entry filter `" + def.getName() + "` does NOT provide a entry" + " filters implementation");
         }
         try {
             final NarClassLoader ncl = getNarClassLoader(metadata.getArchivePath());
@@ -193,8 +193,8 @@ public class EntryFilterProvider implements AutoCloseable {
             Class entryFilterClass = ncl.loadClass(def.getEntryFilterClass());
             Object filter = entryFilterClass.getDeclaredConstructor().newInstance();
             if (!(filter instanceof EntryFilter)) {
-                throw new IOException("Class " + def.getEntryFilterClass()
-                        + " does not implement entry filter interface");
+                throw new IOException(
+                        "Class " + def.getEntryFilterClass() + " does not implement entry filter interface");
             }
             EntryFilter pi = (EntryFilter) filter;
             return new EntryFilterWithClassLoader(pi, ncl);
@@ -213,19 +213,18 @@ public class EntryFilterProvider implements AutoCloseable {
 
     private NarClassLoader loadNarClassLoader(Path archivePath) {
         final String absolutePath = classLoaderKey(archivePath);
-        return cachedClassLoaders
-                .computeIfAbsent(absolutePath, narFilePath -> {
-                    try {
-                        final File narFile = archivePath.toAbsolutePath().toFile();
-                        return NarClassLoaderBuilder.builder()
-                                .narFile(narFile)
-                                .parentClassLoader(EntryFilter.class.getClassLoader())
-                                .extractionDirectory(serviceConfiguration.getNarExtractionDirectory())
-                                .build();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+        return cachedClassLoaders.computeIfAbsent(absolutePath, narFilePath -> {
+            try {
+                final File narFile = archivePath.toAbsolutePath().toFile();
+                return NarClassLoaderBuilder.builder()
+                        .narFile(narFile)
+                        .parentClassLoader(EntryFilter.class.getClassLoader())
+                        .extractionDirectory(serviceConfiguration.getNarExtractionDirectory())
+                        .build();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private static String classLoaderKey(Path archivePath) {

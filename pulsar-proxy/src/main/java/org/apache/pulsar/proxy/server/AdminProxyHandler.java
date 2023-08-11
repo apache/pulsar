@@ -68,20 +68,19 @@ class AdminProxyHandler extends ProxyServlet {
     public static final String INIT_PARAM_REQUEST_BUFFER_SIZE = "requestBufferSize";
 
     private static final Set<String> functionRoutes = new HashSet<>(Arrays.asList(
-        "/admin/v3/function",
-        "/admin/v2/function",
-        "/admin/function",
-        "/admin/v3/source",
-        "/admin/v2/source",
-        "/admin/source",
-        "/admin/v3/sink",
-        "/admin/v2/sink",
-        "/admin/sink",
-        "/admin/v2/worker",
-        "/admin/v2/worker-stats",
-        "/admin/worker",
-        "/admin/worker-stats"
-    ));
+            "/admin/v3/function",
+            "/admin/v2/function",
+            "/admin/function",
+            "/admin/v3/source",
+            "/admin/v2/source",
+            "/admin/source",
+            "/admin/v3/sink",
+            "/admin/v2/sink",
+            "/admin/sink",
+            "/admin/v2/worker",
+            "/admin/v2/worker-stats",
+            "/admin/worker",
+            "/admin/worker-stats"));
 
     private final ProxyConfiguration config;
     private final BrokerDiscoveryProvider discoveryProvider;
@@ -91,9 +90,10 @@ class AdminProxyHandler extends ProxyServlet {
     AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
         this.config = config;
         this.discoveryProvider = discoveryProvider;
-        this.brokerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getBrokerWebServiceURLTLS()
-                : config.getBrokerWebServiceURL();
-        this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
+        this.brokerWebServiceUrl =
+                config.isTlsEnabledWithBroker() ? config.getBrokerWebServiceURLTLS() : config.getBrokerWebServiceURL();
+        this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker()
+                ? config.getFunctionWorkerWebServiceURLTLS()
                 : config.getFunctionWorkerWebServiceURL();
 
         super.setTimeout(config.getHttpProxyTimeout());
@@ -148,7 +148,7 @@ class AdminProxyHandler extends ProxyServlet {
         }
 
         value = config.getInitParameter("responseBufferSize");
-        if (value != null){
+        if (value != null) {
             client.setResponseBufferSize(Integer.parseInt(value));
         }
 
@@ -169,7 +169,6 @@ class AdminProxyHandler extends ProxyServlet {
         }
     }
 
-
     // This class allows the request body to be replayed, the default implementation
     // does not
     protected class ReplayableProxyContentProvider extends ProxyInputStreamContentProvider {
@@ -179,20 +178,23 @@ class AdminProxyHandler extends ProxyServlet {
         private final ByteArrayOutputStream bodyBuffer;
         private final long httpInputMaxReplayBufferSize;
 
-        protected ReplayableProxyContentProvider(HttpServletRequest request, HttpServletResponse response,
-                                                 Request proxyRequest, InputStream input,
-                                                 int httpInputMaxReplayBufferSize) {
+        protected ReplayableProxyContentProvider(
+                HttpServletRequest request,
+                HttpServletResponse response,
+                Request proxyRequest,
+                InputStream input,
+                int httpInputMaxReplayBufferSize) {
             super(request, response, proxyRequest, input);
-            bodyBuffer = new ByteArrayOutputStream(
-                    Math.min(Math.max(request.getContentLength(), MIN_REPLAY_BODY_BUFFER_SIZE),
-                            httpInputMaxReplayBufferSize));
+            bodyBuffer = new ByteArrayOutputStream(Math.min(
+                    Math.max(request.getContentLength(), MIN_REPLAY_BODY_BUFFER_SIZE), httpInputMaxReplayBufferSize));
             this.httpInputMaxReplayBufferSize = httpInputMaxReplayBufferSize;
         }
 
         @Override
         public Iterator<ByteBuffer> iterator() {
             if (bodyBufferAvailable) {
-                return Collections.singleton(ByteBuffer.wrap(bodyBuffer.toByteArray())).iterator();
+                return Collections.singleton(ByteBuffer.wrap(bodyBuffer.toByteArray()))
+                        .iterator();
             } else {
                 bodyBufferAvailable = true;
                 return super.iterator();
@@ -239,24 +241,20 @@ class AdminProxyHandler extends ProxyServlet {
 
             return newRequest;
         }
-
     }
 
     @Override
-    protected ContentProvider proxyRequestContent(HttpServletRequest request,
-                                                  HttpServletResponse response, Request proxyRequest)
-            throws IOException {
-        return new ReplayableProxyContentProvider(request, response, proxyRequest, request.getInputStream(),
-                config.getHttpInputMaxReplayBufferSize());
+    protected ContentProvider proxyRequestContent(
+            HttpServletRequest request, HttpServletResponse response, Request proxyRequest) throws IOException {
+        return new ReplayableProxyContentProvider(
+                request, response, proxyRequest, request.getInputStream(), config.getHttpInputMaxReplayBufferSize());
     }
 
     @Override
     protected HttpClient newHttpClient() {
         try {
             Authentication auth = AuthenticationFactory.create(
-                config.getBrokerClientAuthenticationPlugin(),
-                config.getBrokerClientAuthenticationParameters()
-            );
+                    config.getBrokerClientAuthenticationPlugin(), config.getBrokerClientAuthenticationParameters());
 
             Objects.requireNonNull(auth, "No supported auth found for proxy");
 
@@ -264,8 +262,8 @@ class AdminProxyHandler extends ProxyServlet {
 
             if (config.isTlsEnabledWithBroker()) {
                 try {
-                    X509Certificate[] trustCertificates = SecurityUtility
-                        .loadCertificatesFromPemFile(config.getBrokerClientTrustCertsFilePath());
+                    X509Certificate[] trustCertificates =
+                            SecurityUtility.loadCertificatesFromPemFile(config.getBrokerClientTrustCertsFilePath());
 
                     SSLContext sslCtx;
                     AuthenticationDataProvider authData = auth.getAuthData();
@@ -275,14 +273,12 @@ class AdminProxyHandler extends ProxyServlet {
                                 trustCertificates,
                                 authData.getTlsCertificates(),
                                 authData.getTlsPrivateKey(),
-                                config.getBrokerClientSslProvider()
-                        );
+                                config.getBrokerClientSslProvider());
                     } else {
                         sslCtx = SecurityUtility.createSslContext(
                                 config.isTlsAllowInsecureConnection(),
                                 trustCertificates,
-                                config.getBrokerClientSslProvider()
-                        );
+                                config.getBrokerClientSslProvider());
                     }
 
                     SslContextFactory contextFactory = new SslContextFactory.Client();
@@ -335,12 +331,19 @@ class AdminProxyHandler extends ProxyServlet {
                 }
 
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
+                    LOG.debug(
+                            "[{}:{}] Selected active broker is {}",
+                            request.getRemoteAddr(),
+                            request.getRemotePort(),
                             url);
                 }
             } catch (Exception e) {
-                LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),
-                        request.getRemotePort(), e.getMessage(), e);
+                LOG.warn(
+                        "[{}:{}] Failed to get next active broker {}",
+                        request.getRemoteAddr(),
+                        request.getRemotePort(),
+                        e.getMessage(),
+                        e);
                 return null;
             }
         } else {

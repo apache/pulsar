@@ -38,8 +38,7 @@ public final class TestHelper {
 
     public static final long BATCH_TIME = 500L;
 
-    private TestHelper() {
-    }
+    private TestHelper() {}
 
     public static File getFile(Class<?> clazz, String fileName) {
         ClassLoader classLoader = clazz.getClassLoader();
@@ -84,5 +83,4 @@ public final class TestHelper {
     public static void putBatchTime(Map<String, Object> configMap, long batchTime) {
         configMap.put("batchTimeMs", batchTime);
     }
-
 }

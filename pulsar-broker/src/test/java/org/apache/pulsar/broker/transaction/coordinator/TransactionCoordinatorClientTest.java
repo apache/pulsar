@@ -61,7 +61,8 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     }
 
     @Test
-    public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {
+    public void testClientStart()
+            throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {
         try {
             transactionCoordinatorClient.start();
             Assert.fail("should failed here because the transaction metas store already started!");
@@ -83,28 +84,30 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     @Test
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
-        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, List.of("persistent://public/default/testCommitAndAbort"));
+        transactionCoordinatorClient.addPublishPartitionToTxn(
+                txnID, List.of("persistent://public/default/testCommitAndAbort"));
         transactionCoordinatorClient.commit(txnID);
         try {
             transactionCoordinatorClient.abort(txnID);
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
         } catch (TransactionCoordinatorClientException ignore) {
-           // Ok here
+            // Ok here
         }
     }
 
     @Test
     public void testTransactionCoordinatorExceptionUnwrap() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        completableFuture.completeExceptionally(new TransactionCoordinatorClientException
-                .InvalidTxnStatusException("test"));
+        completableFuture.completeExceptionally(
+                new TransactionCoordinatorClientException.InvalidTxnStatusException("test"));
         try {
             completableFuture.get();
             Assert.fail();
         } catch (InterruptedException | ExecutionException exception) {
             Assert.assertTrue(exception instanceof ExecutionException);
-            Assert.assertTrue(TransactionCoordinatorClientException.unwrap(exception)
-                    instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            Assert.assertTrue(
+                    TransactionCoordinatorClientException.unwrap(exception)
+                            instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
         }
     }
 }

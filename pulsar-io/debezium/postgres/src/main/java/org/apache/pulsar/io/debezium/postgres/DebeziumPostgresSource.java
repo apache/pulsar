@@ -22,7 +22,6 @@ import java.util.Map;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.io.debezium.DebeziumSource;
 
-
 /**
  * A pulsar source that runs debezium postgres source.
  */

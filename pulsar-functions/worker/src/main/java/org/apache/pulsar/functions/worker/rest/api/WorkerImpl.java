@@ -130,16 +130,23 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
     private void throwIfNotSuperUser(AuthenticationParameters authParams, String action) {
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             try {
-                if (authParams.getClientRole() == null || !worker().getAuthorizationService().isSuperUser(authParams)
-                        .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS)) {
-                    log.error("Client with role [{}] and originalPrincipal [{}] is not authorized to {}",
-                            authParams.getClientRole(), authParams.getOriginalPrincipal(), action);
+                if (authParams.getClientRole() == null
+                        || !worker().getAuthorizationService()
+                                .isSuperUser(authParams)
+                                .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS)) {
+                    log.error(
+                            "Client with role [{}] and originalPrincipal [{}] is not authorized to {}",
+                            authParams.getClientRole(),
+                            authParams.getOriginalPrincipal(),
+                            action);
                     throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
                 }
             } catch (ExecutionException | TimeoutException | InterruptedException e) {
-                log.warn("Time-out {} sec while checking the role {} originalPrincipal {} is a super user role ",
+                log.warn(
+                        "Time-out {} sec while checking the role {} originalPrincipal {} is a super user role ",
                         worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(),
-                        authParams.getClientRole(), authParams.getOriginalPrincipal());
+                        authParams.getClientRole(),
+                        authParams.getOriginalPrincipal());
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
@@ -163,8 +170,8 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         throwIfNotSuperUser(authParams, "get function stats");
 
-        Map<String, FunctionRuntimeInfo> functionRuntimes = worker().getFunctionRuntimeManager()
-                .getFunctionRuntimeInfos();
+        Map<String, FunctionRuntimeInfo> functionRuntimes =
+                worker().getFunctionRuntimeManager().getFunctionRuntimeInfos();
 
         List<WorkerFunctionInstanceStats> metricsList = new ArrayList<>(functionRuntimes.size());
 
@@ -173,23 +180,25 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
 
             if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
-                Function.FunctionDetails functionDetails =
-                        functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+                Function.FunctionDetails functionDetails = functionRuntimeInfo
+                        .getFunctionInstance()
+                        .getFunctionMetaData()
+                        .getFunctionDetails();
                 int parallelism = functionDetails.getParallelism();
                 for (int i = 0; i < parallelism; ++i) {
                     FunctionInstanceStatsImpl functionInstanceStats =
                             WorkerUtils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo, i);
                     WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
                     workerFunctionInstanceStats.setName(FunctionCommon.getFullyQualifiedInstanceId(
-                            functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName(), i
-                    ));
+                            functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName(), i));
                     workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
                     metricsList.add(workerFunctionInstanceStats);
                 }
             } else {
-                FunctionInstanceStatsImpl functionInstanceStats =
-                        WorkerUtils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo,
-                                functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                FunctionInstanceStatsImpl functionInstanceStats = WorkerUtils.getFunctionInstanceStats(
+                        fullyQualifiedInstanceName,
+                        functionRuntimeInfo,
+                        functionRuntimeInfo.getFunctionInstance().getInstanceId());
                 WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
                 workerFunctionInstanceStats.setName(fullyQualifiedInstanceName);
                 workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
@@ -228,15 +237,21 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             if (workerInfo == null) {
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, "Leader cannot be determined");
             }
-            URI redirect =
-                    UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            URI redirect = UriBuilder.fromUri(uri)
+                    .host(workerInfo.getWorkerHostname())
+                    .port(workerInfo.getPort())
+                    .build();
+            throw new WebApplicationException(
+                    Response.temporaryRedirect(redirect).build());
         }
     }
 
     @Override
-    public void drain(final URI uri, final String inWorkerId, final AuthenticationParameters authParams,
-                      boolean calledOnLeaderUri) {
+    public void drain(
+            final URI uri,
+            final String inWorkerId,
+            final AuthenticationParameters authParams,
+            boolean calledOnLeaderUri) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -245,10 +260,16 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         final String workerId = (inWorkerId == null || inWorkerId.isEmpty()) ? actualWorkerId : inWorkerId;
 
         if (log.isDebugEnabled()) {
-            log.debug("drain called with URI={}, inWorkerId={}, workerId={}, clientRole={}, originalPrincipal={}, "
+            log.debug(
+                    "drain called with URI={}, inWorkerId={}, workerId={}, clientRole={}, originalPrincipal={}, "
                             + "calledOnLeaderUri={}, on actual worker-id={}",
-                    uri, inWorkerId, workerId, authParams.getClientRole(), authParams.getOriginalPrincipal(),
-                    calledOnLeaderUri, actualWorkerId);
+                    uri,
+                    inWorkerId,
+                    workerId,
+                    authParams.getClientRole(),
+                    authParams.getOriginalPrincipal(),
+                    calledOnLeaderUri,
+                    actualWorkerId);
         }
 
         throwIfNotSuperUser(authParams, "drain worker");
@@ -275,14 +296,17 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         } else {
             URI redirect = buildRedirectUriForDrainRelatedOp(uri, workerId);
             log.info("Not leader; redirect URI={}", redirect);
-            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            throw new WebApplicationException(
+                    Response.temporaryRedirect(redirect).build());
         }
     }
 
     @Override
-    public LongRunningProcessStatus getDrainStatus(final URI uri, final String inWorkerId,
-                                                   final AuthenticationParameters authParams,
-                                                   boolean calledOnLeaderUri) {
+    public LongRunningProcessStatus getDrainStatus(
+            final URI uri,
+            final String inWorkerId,
+            final AuthenticationParameters authParams,
+            boolean calledOnLeaderUri) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -291,10 +315,16 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         final String workerId = (inWorkerId == null || inWorkerId.isEmpty()) ? actualWorkerId : inWorkerId;
 
         if (log.isDebugEnabled()) {
-            log.debug("getDrainStatus called with uri={}, inWorkerId={}, workerId={}, clientRole={}, "
+            log.debug(
+                    "getDrainStatus called with uri={}, inWorkerId={}, workerId={}, clientRole={}, "
                             + "originalPrincipal={}, calledOnLeaderUri={}, on actual workerId={}",
-                    uri, inWorkerId, workerId, authParams.getClientRole(), authParams.getOriginalPrincipal(),
-                    calledOnLeaderUri, actualWorkerId);
+                    uri,
+                    inWorkerId,
+                    workerId,
+                    authParams.getClientRole(),
+                    authParams.getOriginalPrincipal(),
+                    calledOnLeaderUri,
+                    actualWorkerId);
         }
 
         throwIfNotSuperUser(authParams, "get drain status of worker");
@@ -309,7 +339,8 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         } else {
             URI redirect = buildRedirectUriForDrainRelatedOp(uri, workerId);
             log.info("Not leader; redirect URI={}", redirect);
-            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            throw new WebApplicationException(
+                    Response.temporaryRedirect(redirect).build());
         }
     }
 

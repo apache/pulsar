@@ -37,6 +37,5 @@ public class WordCountWindowFunction implements WindowFunction<String, Void> {
             Arrays.asList(input.getValue().split("\\.")).forEach(word -> context.incrCounter(word, 1));
         }
         return null;
-
     }
 }

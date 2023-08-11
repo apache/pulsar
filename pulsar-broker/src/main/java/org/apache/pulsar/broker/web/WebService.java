@@ -81,9 +81,8 @@ public class WebService implements AutoCloseable {
     private static final DynamicSkipUnknownPropertyHandler sharedUnknownPropertyHandler =
             new DynamicSkipUnknownPropertyHandler();
 
-    public void updateHttpRequestsFailOnUnknownPropertiesEnabled(boolean httpRequestsFailOnUnknownPropertiesEnabled){
-        sharedUnknownPropertyHandler
-                .setSkipUnknownProperty(!httpRequestsFailOnUnknownPropertiesEnabled);
+    public void updateHttpRequestsFailOnUnknownPropertiesEnabled(boolean httpRequestsFailOnUnknownPropertiesEnabled) {
+        sharedUnknownPropertyHandler.setSkipUnknownProperty(!httpRequestsFailOnUnknownPropertiesEnabled);
     }
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
@@ -91,9 +90,7 @@ public class WebService implements AutoCloseable {
         this.pulsar = pulsar;
         ServiceConfiguration config = pulsar.getConfiguration();
         this.webServiceExecutor = new WebExecutorThreadPool(
-                config.getNumHttpServerThreads(),
-                "pulsar-web",
-                config.getHttpServerThreadPoolQueueSize());
+                config.getNumHttpServerThreads(), "pulsar-web", config.getHttpServerThreadPoolQueueSize());
         this.executorStats = WebExecutorStats.getStats(webServiceExecutor);
         this.server = new Server(webServiceExecutor);
         if (config.getMaxHttpServerConnections() > 0) {
@@ -130,8 +127,7 @@ public class WebService implements AutoCloseable {
                             config.isTlsRequireTrustedClientCertOnConnect(),
                             config.getWebServiceTlsCiphers(),
                             config.getWebServiceTlsProtocols(),
-                            config.getTlsCertRefreshCheckDurationSec()
-                    );
+                            config.getTlsCertRefreshCheckDurationSec());
                 } else {
                     sslCtxFactory = JettySslContextFactory.createServerSslContext(
                             config.getWebServiceTlsProvider(),
@@ -164,8 +160,12 @@ public class WebService implements AutoCloseable {
         sharedUnknownPropertyHandler.setSkipUnknownProperty(!config.isHttpRequestsFailOnUnknownPropertiesEnabled());
     }
 
-    public void addRestResources(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                 boolean useSharedJsonMapperProvider, String... javaPackages) {
+    public void addRestResources(
+            String basePath,
+            boolean requiresAuthentication,
+            Map<String, Object> attributeMap,
+            boolean useSharedJsonMapperProvider,
+            String... javaPackages) {
         ResourceConfig config = new ResourceConfig();
         for (String javaPackage : javaPackages) {
             config.packages(false, javaPackage);
@@ -173,8 +173,12 @@ public class WebService implements AutoCloseable {
         addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
 
-    public void addRestResource(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                boolean useSharedJsonMapperProvider, Class<?>... resourceClasses) {
+    public void addRestResource(
+            String basePath,
+            boolean requiresAuthentication,
+            Map<String, Object> attributeMap,
+            boolean useSharedJsonMapperProvider,
+            Class<?>... resourceClasses) {
         ResourceConfig config = new ResourceConfig();
         for (Class<?> resourceClass : resourceClasses) {
             config.register(resourceClass);
@@ -182,9 +186,13 @@ public class WebService implements AutoCloseable {
         addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
 
-    private void addResourceServlet(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                    ResourceConfig config, boolean useSharedJsonMapperProvider) {
-        if (useSharedJsonMapperProvider){
+    private void addResourceServlet(
+            String basePath,
+            boolean requiresAuthentication,
+            Map<String, Object> attributeMap,
+            ResourceConfig config,
+            boolean useSharedJsonMapperProvider) {
+        if (useSharedJsonMapperProvider) {
             JsonMapperProvider jsonMapperProvider = new JsonMapperProvider(sharedUnknownPropertyHandler);
             config.register(jsonMapperProvider);
             config.register(UnrecognizedPropertyExceptionMapper.class);
@@ -200,6 +208,7 @@ public class WebService implements AutoCloseable {
     private static class FilterInitializer {
         private final List<FilterHolder> filterHolders = new ArrayList<>();
         private final FilterHolder authenticationFilterHolder;
+
         FilterInitializer(PulsarService pulsarService) {
             ServiceConfiguration config = pulsarService.getConfiguration();
             if (config.getMaxConcurrentHttpRequests() > 0) {
@@ -209,8 +218,7 @@ public class WebService implements AutoCloseable {
             }
 
             if (config.isHttpRequestsLimitEnabled()) {
-                filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                filterHolders.add(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
             }
 
             boolean brokerInterceptorEnabled =
@@ -236,9 +244,7 @@ public class WebService implements AutoCloseable {
             }
 
             if (config.getHttpMaxRequestSize() > 0) {
-                filterHolders.add(new FilterHolder(
-                        new MaxRequestSizeFilter(
-                                config.getHttpMaxRequestSize())));
+                filterHolders.add(new FilterHolder(new MaxRequestSizeFilter(config.getHttpMaxRequestSize())));
             }
 
             if (brokerInterceptorEnabled) {
@@ -249,16 +255,17 @@ public class WebService implements AutoCloseable {
         public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {
             for (FilterHolder filterHolder : filterHolders) {
                 if (requiresAuthentication || filterHolder != authenticationFilterHolder) {
-                    context.addFilter(filterHolder,
-                            MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+                    context.addFilter(filterHolder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
                 }
             }
         }
-
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
-                           Map<String, Object> attributeMap) {
+    public void addServlet(
+            String path,
+            ServletHolder servletHolder,
+            boolean requiresAuthentication,
+            Map<String, Object> attributeMap) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         // Notice: each context path should be unique, but there's nothing here to verify that
         context.setContextPath(path);
@@ -292,7 +299,7 @@ public class WebService implements AutoCloseable {
             contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
             HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+            handlerCollection.setHandlers(new Handler[] {contexts, new DefaultHandler(), requestLogHandler});
 
             // Metrics handler
             StatisticsHandler stats = new StatisticsHandler();
@@ -316,7 +323,9 @@ public class WebService implements AutoCloseable {
             }
 
             if (httpsConnector != null) {
-                log.info("HTTPS Service started at https://{}:{}", httpsConnector.getHost(),
+                log.info(
+                        "HTTPS Service started at https://{}:{}",
+                        httpsConnector.getHost(),
                         httpsConnector.getLocalPort());
                 pulsar.getConfiguration().setWebServicePortTls(Optional.of(httpsConnector.getLocalPort()));
             } else {

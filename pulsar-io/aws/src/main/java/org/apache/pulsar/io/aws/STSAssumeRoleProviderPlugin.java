@@ -36,9 +36,8 @@ public class STSAssumeRoleProviderPlugin implements AwsCredentialProviderPlugin 
 
     @Override
     public void init(String param) {
-        Map<String, String> credentialMap = new Gson().fromJson(param,
-                new TypeToken<Map<String, String>>() {
-                }.getType());
+        Map<String, String> credentialMap =
+                new Gson().fromJson(param, new TypeToken<Map<String, String>>() {}.getType());
 
         roleArn = credentialMap.get(ASSUME_ROLE_ARN);
         roleSessionName = credentialMap.get(ASSUME_ROLE_SESSION_NAME);
@@ -52,12 +51,14 @@ public class STSAssumeRoleProviderPlugin implements AwsCredentialProviderPlugin 
     @Override
     public software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getV2CredentialsProvider() {
         StsClient client = StsClient.create();
-        return StsAssumeRoleCredentialsProvider.builder().stsClient(client).refreshRequest((req) -> {
-            req.roleArn(roleArn).roleSessionName(roleSessionName).build();
-        }).build();
+        return StsAssumeRoleCredentialsProvider.builder()
+                .stsClient(client)
+                .refreshRequest((req) -> {
+                    req.roleArn(roleArn).roleSessionName(roleSessionName).build();
+                })
+                .build();
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
 }

@@ -66,7 +66,8 @@ import org.testng.annotations.Test;
 public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
+            .clusterName("ClusterMetadataTearDownTest-"
+                    + UUID.randomUUID().toString().substring(0, 8))
             .numProxies(0)
             .numFunctionWorkers(0)
             .enablePrestoWorker(false)
@@ -96,18 +97,22 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         pulsarCluster.start();
         metadataServiceUri = "zk+null://" + pulsarCluster.getZKConnString() + "/ledgers";
 
-        localMetadataStore = MetadataStoreFactory.create(pulsarCluster.getZKConnString(),
-                MetadataStoreConfig.builder().build());
-        configStore = MetadataStoreFactory.create(pulsarCluster.getCSConnString(),
-                MetadataStoreConfig.builder().build());
+        localMetadataStore = MetadataStoreFactory.create(
+                pulsarCluster.getZKConnString(), MetadataStoreConfig.builder().build());
+        configStore = MetadataStoreFactory.create(
+                pulsarCluster.getCSConnString(), MetadataStoreConfig.builder().build());
 
         driver = MetadataDrivers.getBookieDriver(URI.create(metadataServiceUri));
-        driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri),
-                NullStatsLogger.INSTANCE);
+        driver.initialize(
+                new ServerConfiguration().setMetadataServiceUri(metadataServiceUri), NullStatsLogger.INSTANCE);
         ledgerManager = driver.getLedgerManagerFactory().newLedgerManager();
 
-        client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
-        admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+        admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
     }
 
     @Override
@@ -144,16 +149,19 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         final String tenant = "my-tenant";
         final String namespace = tenant + "/my-ns";
 
-        admin.tenants().createTenant(tenant,
-                new TenantInfoImpl(new HashSet<>(), Collections.singleton(pulsarCluster.getClusterName())));
+        admin.tenants()
+                .createTenant(
+                        tenant,
+                        new TenantInfoImpl(new HashSet<>(), Collections.singleton(pulsarCluster.getClusterName())));
         admin.namespaces().createNamespace(namespace);
 
-        String[] topics = { "topic-1", "topic-2", namespace + "/topic-1" };
+        String[] topics = {"topic-1", "topic-2", namespace + "/topic-1"};
         for (String topic : topics) {
-            try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+            try (Producer<String> producer =
+                    client.newProducer(Schema.STRING).topic(topic).create()) {
                 producer.send("msg");
             }
-            String[] subscriptions = { "sub-1", "sub-2" };
+            String[] subscriptions = {"sub-1", "sub-2"};
             for (String subscription : subscriptions) {
                 try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
                         .topic(topic)
@@ -171,7 +179,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
         // TODO: the schema ledgers of a partitioned topic cannot be deleted completely now,
         //   so we create producers/consumers without schema here
-        try (Producer<byte[]> producer = client.newProducer().topic(partitionedTopic).create()) {
+        try (Producer<byte[]> producer =
+                client.newProducer().topic(partitionedTopic).create()) {
             producer.send("msg".getBytes());
             try (Consumer<byte[]> consumer = client.newConsumer()
                     .topic(partitionedTopic)
@@ -186,14 +195,22 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         pulsarCluster.getBrokers().forEach(ChaosContainer::stop);
 
         assertTrue(getNumOfLedgers() > 0);
-        log.info("Before delete, cluster name: {}, num of ledgers: {}", pulsarCluster.getClusterName(), getNumOfLedgers());
+        log.info(
+                "Before delete, cluster name: {}, num of ledgers: {}",
+                pulsarCluster.getClusterName(),
+                getNumOfLedgers());
 
-        String[] args = { "-zk", pulsarCluster.getZKConnString(),
-                "-cs", pulsarCluster.getCSConnString(),
-                "-c", pulsarCluster.getClusterName(),
-                "--bookkeeper-metadata-service-uri", metadataServiceUri };
+        String[] args = {
+            "-zk",
+            pulsarCluster.getZKConnString(),
+            "-cs",
+            pulsarCluster.getCSConnString(),
+            "-c",
+            pulsarCluster.getClusterName(),
+            "--bookkeeper-metadata-service-uri",
+            metadataServiceUri
+        };
         PulsarClusterMetadataTeardown.main(args);
-
 
         // 1. Check Bookie for number of ledgers
         assertEquals(getNumOfLedgers(), 0);
@@ -204,7 +221,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         for (String node : PulsarClusterMetadataTeardown.localZkNodes) {
             assertFalse(localNodes.contains(node));
         }
-        List<String> clusterNodes = configStore.getChildren( "/admin/clusters").join();
+        List<String> clusterNodes = configStore.getChildren("/admin/clusters").join();
         assertFalse(clusterNodes.contains(pulsarCluster.getClusterName()));
 
         // Try delete again, should not fail
@@ -216,10 +233,15 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         final CountDownLatch processDone = new CountDownLatch(1);
         final AtomicLong numOfLedgers = new AtomicLong(0L);
 
-        ledgerManager.asyncProcessLedgers((ledgerId, cb) -> numOfLedgers.incrementAndGet(), (rc, path, ctx) -> {
-            returnCode.set(rc);
-            processDone.countDown();
-        }, null, BKException.Code.OK, BKException.Code.ReadException);
+        ledgerManager.asyncProcessLedgers(
+                (ledgerId, cb) -> numOfLedgers.incrementAndGet(),
+                (rc, path, ctx) -> {
+                    returnCode.set(rc);
+                    processDone.countDown();
+                },
+                null,
+                BKException.Code.OK,
+                BKException.Code.ReadException);
 
         try {
             processDone.await(5, TimeUnit.SECONDS); // a timeout which is long enough
@@ -228,5 +250,4 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         }
         return numOfLedgers.get();
     }
-
 }

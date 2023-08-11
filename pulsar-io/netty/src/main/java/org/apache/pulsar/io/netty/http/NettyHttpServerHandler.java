@@ -81,7 +81,8 @@ public class NettyHttpServerHandler extends SimpleChannelInboundHandler<Object> 
 
             ByteBuf content = httpContent.content();
             if (content.isReadable()) {
-                nettySource.consume(new NettyHttpRecord(Optional.ofNullable(""),
+                nettySource.consume(new NettyHttpRecord(
+                        Optional.ofNullable(""),
                         content.toString(CharsetUtil.UTF_8).getBytes(CharsetUtil.UTF_8)));
             }
 
@@ -109,7 +110,8 @@ public class NettyHttpServerHandler extends SimpleChannelInboundHandler<Object> 
 
         if (keepAlive) {
             // Add 'Content-Length' header only for a keep-alive connection.
-            response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
+            response.headers()
+                    .setInt(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
             // Add keep alive header as per:
             // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);

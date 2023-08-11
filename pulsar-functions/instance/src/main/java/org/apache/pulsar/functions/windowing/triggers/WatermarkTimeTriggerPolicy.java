@@ -39,9 +39,11 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
     private volatile long nextWindowEndTs;
     private boolean started;
 
-    public WatermarkTimeTriggerPolicy(long slidingIntervalMs, TriggerHandler handler,
-                                      EvictionPolicy<T, ?> evictionPolicy, WindowManager<T>
-                                              windowManager) {
+    public WatermarkTimeTriggerPolicy(
+            long slidingIntervalMs,
+            TriggerHandler handler,
+            EvictionPolicy<T, ?> evictionPolicy,
+            WindowManager<T> windowManager) {
         this.slidingIntervalMs = slidingIntervalMs;
         this.handler = handler;
         this.evictionPolicy = evictionPolicy;
@@ -100,8 +102,7 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
                 }
                 if (ts == Long.MAX_VALUE) {
                     if (log.isDebugEnabled()) {
-                        log.debug("No events to process between {} and watermark ts {}",
-                                windowEndTs, watermarkTs);
+                        log.debug("No events to process between {} and watermark ts {}", windowEndTs, watermarkTs);
                     }
                     break;
                 }
@@ -141,7 +142,7 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
 
     @Override
     public String toString() {
-        return "WatermarkTimeTriggerPolicy{" + "slidingIntervalMs=" + slidingIntervalMs
-                + ", nextWindowEndTs=" + nextWindowEndTs + ", started=" + started + '}';
+        return "WatermarkTimeTriggerPolicy{" + "slidingIntervalMs=" + slidingIntervalMs + ", nextWindowEndTs="
+                + nextWindowEndTs + ", started=" + started + '}';
     }
 }

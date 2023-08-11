@@ -45,8 +45,8 @@ public abstract class ElasticSearchTestBase {
     public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
 
-    public static final String OPENSEARCH = Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE"))
-            .orElse("opensearchproject/opensearch:1.2.4");
+    public static final String OPENSEARCH =
+            Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE")).orElse("opensearchproject/opensearch:1.2.4");
 
     protected final String elasticImageName;
 
@@ -57,7 +57,8 @@ public abstract class ElasticSearchTestBase {
     protected ElasticsearchContainer createElasticsearchContainer() {
         ElasticsearchContainer elasticsearchContainer;
         if (elasticImageName.equals(OPENSEARCH)) {
-            DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH).asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
+            DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH)
+                    .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
             elasticsearchContainer = new ElasticsearchContainer(dockerImageName)
                     .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms128m -Xmx256m")
                     .withEnv("bootstrap.memory_lock", "true")
@@ -92,20 +93,18 @@ public abstract class ElasticSearchTestBase {
 
     protected String createAuthToken(ElasticSearchClient client, String username, String pwd) throws IOException {
         if (elasticImageName.equals(ELASTICSEARCH_8)) {
-            final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient)
-                    client.getRestClient();
+            final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient) client.getRestClient();
             ElasticsearchClient lowLevelClient = restClient.getClient();
-            final GetTokenResponse response = lowLevelClient.security()
-                    .getToken(
-                            new GetTokenRequest.Builder()
-                                    .grantType(AccessTokenGrantType.Password)
-                                    .username(username)
-                                    .password(pwd)
-                                    .build());
+            final GetTokenResponse response = lowLevelClient
+                    .security()
+                    .getToken(new GetTokenRequest.Builder()
+                            .grantType(AccessTokenGrantType.Password)
+                            .username(username)
+                            .password(pwd)
+                            .build());
             return response.accessToken();
         } else {
-            final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient)
-                    client.getRestClient();
+            final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient) client.getRestClient();
             final Request post = new Request("POST", "/_security/oauth2/token");
             post.setJsonEntity("{\"grant_type\":\"client_credentials\"}");
             final Response response = restClient.getClient().getLowLevelClient().performRequest(post);
@@ -113,26 +112,25 @@ public abstract class ElasticSearchTestBase {
             final Map map = new ObjectMapper().readValue(response.getEntity().getContent(), Map.class);
             return (String) map.get("access_token");
         }
-
     }
 
-    protected String createApiKey(ElasticSearchClient client) throws IOException  {
+    protected String createApiKey(ElasticSearchClient client) throws IOException {
         if (elasticImageName.equals(ELASTICSEARCH_8)) {
-            final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient)
-                    client.getRestClient();
+            final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient) client.getRestClient();
             ElasticsearchClient lowLevelClient = restClient.getClient();
 
-            final CreateApiKeyResponse response = lowLevelClient.security().createApiKey(new CreateApiKeyRequest.Builder().name("api-key").build());
+            final CreateApiKeyResponse response = lowLevelClient
+                    .security()
+                    .createApiKey(
+                            new CreateApiKeyRequest.Builder().name("api-key").build());
             return response.encoded();
         } else {
-            final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient)
-                    client.getRestClient();
+            final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient) client.getRestClient();
             final Request post = new Request("POST", "/_security/api_key");
             post.setJsonEntity("{\"name\":\"api-key\"}");
             final Response response = restClient.getClient().getLowLevelClient().performRequest(post);
             final Map map = new ObjectMapper().readValue(response.getEntity().getContent(), Map.class);
             return (String) map.get("encoded");
         }
-
     }
 }

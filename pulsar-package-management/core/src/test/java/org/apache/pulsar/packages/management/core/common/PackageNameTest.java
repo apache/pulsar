@@ -26,7 +26,7 @@ public class PackageNameTest {
 
     @DataProvider(name = "packageNames")
     public static Object[][] packageNamesProvider() {
-        return new Object[][]{
+        return new Object[][] {
             {"function", "f-tenant", "f-ns", "f-name", "f-version"},
             {"sink", "s-tenant", "s-ns", "s-name", "s-version"},
             {"source", "s-tenant", "s-ns", "s-name", "s-version"},
@@ -60,7 +60,6 @@ public class PackageNameTest {
         Assert.assertEquals(packageName2.getName(), name);
         Assert.assertEquals(packageName2.getVersion(), version);
         Assert.assertEquals(packageName2.toString(), type + "://" + tenant + "/" + ns + "/" + name + "@" + version);
-
     }
 
     @Test
@@ -71,7 +70,6 @@ public class PackageNameTest {
         } catch (Exception e) {
             Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
         }
-
 
         // invalid package type
         try {

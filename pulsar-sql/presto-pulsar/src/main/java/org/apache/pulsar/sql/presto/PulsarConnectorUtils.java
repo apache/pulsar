@@ -51,9 +51,7 @@ public class PulsarConnectorUtils {
      * @param classLoader class loader to load the class.
      * @return the instance
      */
-    public static <T> T createInstance(String userClassName,
-                                       Class<T> xface,
-                                       ClassLoader classLoader) {
+    public static <T> T createInstance(String userClassName, Class<T> xface, ClassLoader classLoader) {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
@@ -86,7 +84,6 @@ public class PulsarConnectorUtils {
         return properties;
     }
 
-
     public static String rewriteNamespaceDelimiterIfNeeded(String namespace, PulsarConnectorConfig config) {
         return config.getNamespaceDelimiterRewriteEnable()
                 ? namespace.replace("/", config.getRewriteNamespaceDelimiter())
@@ -98,5 +95,4 @@ public class PulsarConnectorUtils {
                 ? namespace.replace(config.getRewriteNamespaceDelimiter(), "/")
                 : namespace;
     }
-
 }

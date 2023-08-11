@@ -84,10 +84,12 @@ public class SSLContextValidatorEngine {
                 case NEED_WRAP:
                     handshakeResult = sslEngine.wrap(EMPTY_BUF, netBuffer);
                     switch (handshakeResult.getStatus()) {
-                        case OK: break;
+                        case OK:
+                            break;
                         case BUFFER_OVERFLOW:
                             netBuffer.compact();
-                            netBuffer = ensureCapacity(netBuffer, sslEngine.getSession().getPacketBufferSize());
+                            netBuffer = ensureCapacity(
+                                    netBuffer, sslEngine.getSession().getPacketBufferSize());
                             netBuffer.flip();
                             break;
                         case BUFFER_UNDERFLOW:
@@ -105,12 +107,15 @@ public class SSLContextValidatorEngine {
                     peerEngine.netBuffer.compact();
                     handshakeStatus = handshakeResult.getHandshakeStatus();
                     switch (handshakeResult.getStatus()) {
-                        case OK: break;
+                        case OK:
+                            break;
                         case BUFFER_OVERFLOW:
-                            appBuffer = ensureCapacity(appBuffer, sslEngine.getSession().getApplicationBufferSize());
+                            appBuffer = ensureCapacity(
+                                    appBuffer, sslEngine.getSession().getApplicationBufferSize());
                             break;
                         case BUFFER_UNDERFLOW:
-                            netBuffer = ensureCapacity(netBuffer, sslEngine.getSession().getPacketBufferSize());
+                            netBuffer = ensureCapacity(
+                                    netBuffer, sslEngine.getSession().getPacketBufferSize());
                             break;
                         case CLOSED:
                         default:

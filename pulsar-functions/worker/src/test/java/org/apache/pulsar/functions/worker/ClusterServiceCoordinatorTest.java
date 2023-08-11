@@ -48,14 +48,13 @@ public class ClusterServiceCoordinatorTest {
     public void setup() throws Exception {
 
         this.mockExecutor = mock(ScheduledExecutorService.class);
-        this.mockExecutorController = new MockExecutorController()
-                .controlScheduleAtFixedRate(mockExecutor, 10);
+        this.mockExecutorController = new MockExecutorController().controlScheduleAtFixedRate(mockExecutor, 10);
 
         this.leaderService = mock(LeaderService.class);
         this.checkIsStillLeader = () -> leaderService.isLeader();
-        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader, mockExecutor);
+        this.coordinator =
+                new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader, mockExecutor);
     }
-
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
@@ -73,7 +72,7 @@ public class ClusterServiceCoordinatorTest {
 
         coordinator.start();
         verify(mockExecutor, times(1))
-            .scheduleAtFixedRate(any(Runnable.class), eq(interval), eq(interval), eq(TimeUnit.MILLISECONDS));
+                .scheduleAtFixedRate(any(Runnable.class), eq(interval), eq(interval), eq(TimeUnit.MILLISECONDS));
 
         // when task is executed, it is the leader
         when(leaderService.isLeader()).thenReturn(true);
@@ -90,5 +89,4 @@ public class ClusterServiceCoordinatorTest {
         verify(leaderService, times(2)).isLeader();
         verify(mockTask, times(1)).run();
     }
-
 }

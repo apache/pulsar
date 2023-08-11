@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 
-
 /**
  * A reader to read entries of a given transaction from transaction buffer.
  */

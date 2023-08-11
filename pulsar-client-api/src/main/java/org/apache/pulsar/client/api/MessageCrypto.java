@@ -46,7 +46,6 @@ public interface MessageCrypto<MetadataT, BuilderT> {
      */
     void addPublicKeyCipher(Set<String> keyNames, CryptoKeyReader keyReader) throws CryptoException;
 
-
     /*
      * Remove a key <p> Remove the key identified by the keyName from the list of keys.<p>
      *
@@ -77,9 +76,13 @@ public interface MessageCrypto<MetadataT, BuilderT> {
      *
      * @throws PulsarClientException if the encryption fails
      */
-    void encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
-                       Supplier<BuilderT> messageMetadataBuilderSupplier,
-                 ByteBuffer payload, ByteBuffer outBuffer) throws PulsarClientException;
+    void encrypt(
+            Set<String> encKeys,
+            CryptoKeyReader keyReader,
+            Supplier<BuilderT> messageMetadataBuilderSupplier,
+            ByteBuffer payload,
+            ByteBuffer outBuffer)
+            throws PulsarClientException;
 
     /*
      * Decrypt the payload using the data key. Keys used to encrypt data key can be retrieved from msgMetadata
@@ -92,6 +95,9 @@ public interface MessageCrypto<MetadataT, BuilderT> {
      *
      * @return true if success, false otherwise
      */
-    boolean decrypt(Supplier<MetadataT> messageMetadataSupplier, ByteBuffer payload,
-                 ByteBuffer outBuffer, CryptoKeyReader keyReader);
+    boolean decrypt(
+            Supplier<MetadataT> messageMetadataSupplier,
+            ByteBuffer payload,
+            ByteBuffer outBuffer,
+            CryptoKeyReader keyReader);
 }

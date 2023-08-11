@@ -30,7 +30,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.protocol.ProtocolHandler;
 import org.apache.pulsar.broker.service.BrokerService;
 
-
 public class EchoProtocolHandler implements ProtocolHandler {
 
     private ServiceConfiguration conf;
@@ -55,8 +54,8 @@ public class EchoProtocolHandler implements ProtocolHandler {
     @Override
     public String getProtocolDataToAdvertise() {
         try {
-            return InetAddress.getLocalHost().getCanonicalHostName()
-                    + ":" + conf.getProperties().getProperty("echoServerPort");
+            return InetAddress.getLocalHost().getCanonicalHostName() + ":"
+                    + conf.getProperties().getProperty("echoServerPort");
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
@@ -72,8 +71,7 @@ public class EchoProtocolHandler implements ProtocolHandler {
     public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
         // Although this protocol handler does not need the BrokerService instance,
         // we should verify that `start` was called in the right order
-        Objects.requireNonNull(brokerService,
-                "start(BrokerService) has not been called before newChannelInitializers");
+        Objects.requireNonNull(brokerService, "start(BrokerService) has not been called before newChannelInitializers");
         InetSocketAddress address = getEchoAddress();
         ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<>() {
             @Override
@@ -91,7 +89,5 @@ public class EchoProtocolHandler implements ProtocolHandler {
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
 }

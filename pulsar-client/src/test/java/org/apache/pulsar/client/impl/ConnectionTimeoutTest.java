@@ -63,10 +63,13 @@ public class ConnectionTimeoutTest {
             String blackholeBroker =
                     "pulsar://" + serverSocket.getInetAddress().getHostAddress() + ":" + serverSocket.getLocalPort();
 
-            try (PulsarClient clientLow = PulsarClient.builder().serviceUrl(blackholeBroker)
+            try (PulsarClient clientLow = PulsarClient.builder()
+                    .serviceUrl(blackholeBroker)
                     .connectionTimeout(1, TimeUnit.MILLISECONDS)
-                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build()) {
-                CompletableFuture<?> lowFuture = clientLow.newProducer().topic("foo").createAsync();
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                    .build()) {
+                CompletableFuture<?> lowFuture =
+                        clientLow.newProducer().topic("foo").createAsync();
                 try {
                     lowFuture.get(10, TimeUnit.SECONDS);
                     Assert.fail("Shouldn't be able to connect to anything");

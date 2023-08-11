@@ -37,7 +37,7 @@ public class PulsarTransactionCoordinatorMetadataSetupTest {
             Class argumentsClass =
                     Class.forName("org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup$Arguments");
 
-            PulsarTransactionCoordinatorMetadataSetup.main(new String[]{"-cs", "cs", "-c", "c", "-g"});
+            PulsarTransactionCoordinatorMetadataSetup.main(new String[] {"-cs", "cs", "-c", "c", "-g"});
 
             String message = baoStream.toString();
 

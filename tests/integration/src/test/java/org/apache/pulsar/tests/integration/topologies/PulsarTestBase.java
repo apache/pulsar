@@ -42,10 +42,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
 
     @DataProvider(name = "TopicDomain")
     public Object[][] topicDomain() {
-        return new Object[][] {
-                {"persistent"},
-                {"non-persistent"}
-        };
+        return new Object[][] {{"persistent"}, {"non-persistent"}};
     }
 
     public static String randomName() {
@@ -87,18 +84,15 @@ public abstract class PulsarTestBase extends TestRetrySupport {
 
         int numMessages = 10;
 
-        try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
-            .build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
 
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("my-sub")
-                .subscribe()) {
-
-                try (Producer<String> producer = client.newProducer(Schema.STRING)
                     .topic(topicName)
-                    .create()) {
+                    .subscriptionName("my-sub")
+                    .subscribe()) {
+
+                try (Producer<String> producer =
+                        client.newProducer(Schema.STRING).topic(topicName).create()) {
 
                     for (int i = 0; i < numMessages; i++) {
                         producer.send("smoke-message-" + i);
@@ -117,20 +111,18 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         String topicName = generateTopicName("test-batch-publish-consume", isPersistent);
 
         final int numMessages = 10000;
-        try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
-            .build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
 
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .receiverQueueSize(10000)
-                .subscriptionName("my-sub")
-                .subscribe()) {
+                    .topic(topicName)
+                    .receiverQueueSize(10000)
+                    .subscriptionName("my-sub")
+                    .subscribe()) {
 
                 try (Producer<String> producer = client.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .blockIfQueueFull(true)
-                    .create()) {
+                        .topic(topicName)
+                        .blockIfQueueFull(true)
+                        .create()) {
 
                     List<CompletableFuture<MessageId>> futures = new ArrayList<>();
                     for (int i = 0; i < numMessages; i++) {
@@ -151,9 +143,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
     protected void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
         String topicName = generateTopicName("test-batch-index-ack-disabled", true);
         final int numMessages = 100;
-        try (PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
 
             try (Consumer<Integer> consumer = client.newConsumer(Schema.INT32)
                     .topic(topicName)
@@ -162,7 +152,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
                     .subscriptionType(SubscriptionType.Shared)
                     .enableBatchIndexAcknowledgment(false)
                     .ackTimeout(1, TimeUnit.SECONDS)
-                    .subscribe();) {
+                    .subscribe(); ) {
 
                 try (Producer<Integer> producer = client.newProducer(Schema.INT32)
                         .topic(topicName)
@@ -190,7 +180,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
-    protected ObjectMapper jsonMapper () {
+    protected ObjectMapper jsonMapper() {
         return ObjectMapperFactory.getMapper().getObjectMapper();
     }
 }

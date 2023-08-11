@@ -147,5 +147,4 @@ public class ConfigUtilsTest {
         boolean actual = ConfigUtils.getConfigValueAsBoolean(config, "prop1", false);
         assertTrue(actual);
     }
-
 }

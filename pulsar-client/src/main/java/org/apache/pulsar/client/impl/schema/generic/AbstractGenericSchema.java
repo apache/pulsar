@@ -39,8 +39,7 @@ abstract class AbstractGenericSchema extends AbstractStructSchema<GenericRecord>
     // allows decoding the messages using the schema associated with the messages.
     protected final boolean useProvidedSchemaAsReaderSchema;
 
-    protected AbstractGenericSchema(SchemaInfo schemaInfo,
-                                    boolean useProvidedSchemaAsReaderSchema) {
+    protected AbstractGenericSchema(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo);
         this.useProvidedSchemaAsReaderSchema = useProvidedSchemaAsReaderSchema;
     }
@@ -49,6 +48,4 @@ abstract class AbstractGenericSchema extends AbstractStructSchema<GenericRecord>
     public List<Field> getFields() {
         return fields;
     }
-
-
 }

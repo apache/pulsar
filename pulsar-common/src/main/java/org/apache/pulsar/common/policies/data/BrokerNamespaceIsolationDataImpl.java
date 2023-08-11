@@ -28,43 +28,27 @@ import lombok.NoArgsConstructor;
 /**
  * The namespace isolation data for a given broker.
  */
-@ApiModel(
-        value = "BrokerNamespaceIsolationData",
-        description = "The namespace isolation data for a given broker"
-)
+@ApiModel(value = "BrokerNamespaceIsolationData", description = "The namespace isolation data for a given broker")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public final class BrokerNamespaceIsolationDataImpl implements BrokerNamespaceIsolationData {
 
-    @ApiModelProperty(
-            name = "brokerName",
-            value = "The broker name",
-            example = "broker1:8080"
-    )
+    @ApiModelProperty(name = "brokerName", value = "The broker name", example = "broker1:8080")
     private String brokerName;
-    @ApiModelProperty(
-            name = "policyName",
-            value = "Policy name",
-            example = "my-policy"
-    )
+
+    @ApiModelProperty(name = "policyName", value = "Policy name", example = "my-policy")
     private String policyName;
-    @ApiModelProperty(
-            name = "isPrimary",
-            value = "Is Primary broker",
-            example = "true/false"
-    )
+
+    @ApiModelProperty(name = "isPrimary", value = "Is Primary broker", example = "true/false")
     private boolean isPrimary;
-    @ApiModelProperty(
-            name = "namespaceRegex",
-            value = "The namespace-isolation policies attached to this broker"
-    )
-    private List<String> namespaceRegex; //isolated namespace regex
+
+    @ApiModelProperty(name = "namespaceRegex", value = "The namespace-isolation policies attached to this broker")
+    private List<String> namespaceRegex; // isolated namespace regex
 
     public static BrokerNamespaceIsolationDataImplBuilder builder() {
         return new BrokerNamespaceIsolationDataImplBuilder();
     }
-
 
     public static class BrokerNamespaceIsolationDataImplBuilder implements BrokerNamespaceIsolationData.Builder {
         private String brokerName;

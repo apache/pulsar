@@ -72,17 +72,12 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         }
 
         StorageClientSettings settings = StorageClientSettings.newBuilder()
-            .serviceUri(stateStorageServiceUrl)
-            .enableServerSideRouting(true)
-            .clientName("function-" + tableNs)
-            // configure a maximum 2 minutes jitter backoff for accessing table service
-            .backoffPolicy(Jitter.of(
-                Type.EXPONENTIAL,
-                100,
-                2000,
-                60
-            ))
-            .build();
+                .serviceUri(stateStorageServiceUrl)
+                .enableServerSideRouting(true)
+                .clientName("function-" + tableNs)
+                // configure a maximum 2 minutes jitter backoff for accessing table service
+                .backoffPolicy(Jitter.of(Type.EXPONENTIAL, 100, 2000, 60))
+                .build();
 
         StorageClient storageClient = StorageClientBuilder.newBuilder()
                 .withSettings(settings)
@@ -93,20 +88,20 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         return storageClient;
     }
 
-    private void createStateTable(String stateStorageServiceUrl,
-                                  String tenant,
-                                  String namespace,
-                                  String name) throws Exception {
+    private void createStateTable(String stateStorageServiceUrl, String tenant, String namespace, String name)
+            throws Exception {
         final String tableNs = FunctionCommon.getStateNamespace(tenant, namespace);
         final String tableName = name;
         try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
-             StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
-             ClientResources.create().scheduler())){
+                StorageClientSettings.newBuilder()
+                        .serviceUri(stateStorageServiceUrl)
+                        .build(),
+                ClientResources.create().scheduler())) {
             StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
-                .setInitialNumRanges(4)
-                .setMinNumRanges(4)
-                .setStorageType(StorageType.TABLE)
-                .build();
+                    .setInitialNumRanges(4)
+                    .setMinNumRanges(4)
+                    .setStorageType(StorageType.TABLE)
+                    .build();
             Stopwatch elapsedWatch = Stopwatch.createStarted();
 
             Exception lastException = null;
@@ -116,9 +111,11 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     return;
                 } catch (NamespaceNotFoundException nnfe) {
                     try {
-                        result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                                .setDefaultStreamConf(streamConf)
-                                .build()));
+                        result(storageAdminClient.createNamespace(
+                                tableNs,
+                                NamespaceConfiguration.newBuilder()
+                                        .setDefaultStreamConf(streamConf)
+                                        .build()));
                     } catch (Exception e) {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again
                         // to make sure the table is created.
@@ -150,14 +147,14 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                 }
             }
             throw new IOException(
-                    String.format("Failed to setup / verify state table for function %s/%s/%s within timeout", tenant,
-                            name, name), lastException);
+                    String.format(
+                            "Failed to setup / verify state table for function %s/%s/%s within timeout",
+                            tenant, name, name),
+                    lastException);
         }
     }
 
-    private Table<ByteBuf, ByteBuf> openStateTable(String tenant,
-                                                   String namespace,
-                                                   String name) throws Exception {
+    private Table<ByteBuf, ByteBuf> openStateTable(String tenant, String namespace, String name) throws Exception {
         StorageClient client = getStorageClient(tenant, namespace);
 
         log.info("Opening state table for function {}/{}/{}", tenant, namespace, name);
@@ -171,12 +168,16 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                 log.warn(
                         "Encountered internal server on opening state table '{}/{}/{}', "
                                 + " re-attempt in 100 milliseconds : {}",
-                        tenant, namespace, name, ise.getMessage());
+                        tenant,
+                        namespace,
+                        name,
+                        ise.getMessage());
                 TimeUnit.MILLISECONDS.sleep(100);
             } catch (TimeoutException e) {
                 throw new RuntimeException(
                         "Failed to open state table for function " + tenant + "/" + namespace + "/" + name
-                                + " within timeout period", e);
+                                + " within timeout period",
+                        e);
             }
         }
         throw new IOException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name);
@@ -192,12 +193,10 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
 
     @Override
     public void close() {
-        clients.forEach((name, client) -> client.closeAsync()
-            .exceptionally(cause -> {
-                log.warn("Failed to close state storage client", cause);
-                return null;
-            })
-        );
+        clients.forEach((name, client) -> client.closeAsync().exceptionally(cause -> {
+            log.warn("Failed to close state storage client", cause);
+            return null;
+        }));
         clients.clear();
     }
 }

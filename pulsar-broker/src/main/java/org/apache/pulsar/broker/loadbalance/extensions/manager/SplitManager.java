@@ -36,7 +36,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 @Slf4j
 public class SplitManager implements StateChangeListener {
 
-
     private final Map<String, CompletableFuture<Void>> inFlightSplitRequests;
 
     private final SplitCounter counter;
@@ -59,16 +58,20 @@ public class SplitManager implements StateChangeListener {
         });
     }
 
-    public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
-                                             String bundle,
-                                             SplitDecision decision,
-                                             long timeout,
-                                             TimeUnit timeoutUnit) {
+    public CompletableFuture<Void> waitAsync(
+            CompletableFuture<Void> eventPubFuture,
+            String bundle,
+            SplitDecision decision,
+            long timeout,
+            TimeUnit timeoutUnit) {
         return eventPubFuture
                 .thenCompose(__ -> inFlightSplitRequests.computeIfAbsent(bundle, ignore -> {
-                    log.info("Published the bundle split event for bundle:{}. "
+                    log.info(
+                            "Published the bundle split event for bundle:{}. "
                                     + "Waiting the split event to complete. Timeout: {} {}",
-                            bundle, timeout, timeoutUnit);
+                            bundle,
+                            timeout,
+                            timeoutUnit);
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
                         if (ex != null) {

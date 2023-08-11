@@ -58,10 +58,10 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1)
-            .setWriteQuorumSize(1)
-            .setAckQuorumSize(1)
-            .setMetadataAckQuorumSize(1)
-            .setMetadataAckQuorumSize(1);
+                .setWriteQuorumSize(1)
+                .setAckQuorumSize(1)
+                .setMetadataAckQuorumSize(1)
+                .setMetadataAckQuorumSize(1);
         ManagedLedger ledger = factory.open("test-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("test-c1" + testName);
 
@@ -78,6 +78,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
             Assert.assertEquals(("entry" + i).getBytes(StandardCharsets.UTF_8), entry.getData());
         }
     }
+
     @Test(timeOut = 60000)
     public void testChangeZKPath2() throws Exception {
         ClientConfiguration configuration = new ClientConfiguration();
@@ -90,8 +91,8 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
 
         @Cleanup("shutdown")
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, configuration,
-                managedLedgerFactoryConfig);
+        ManagedLedgerFactory factory =
+                new ManagedLedgerFactoryImpl(metadataStore, configuration, managedLedgerFactoryConfig);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1)

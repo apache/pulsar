@@ -63,50 +63,49 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                         // We've not moved onto 63-bit ledgers yet.
                         return generateShortLedgerId();
                     }
-                }).thenAccept(ledgerId ->
-                genericCallback.operationComplete(BKException.Code.OK, ledgerId)
-        ).exceptionally(ex -> {
-            log.error("Error generating ledger id: {}", ex.getMessage());
-            genericCallback.operationComplete(BKException.Code.MetaStoreException, -1L);
-            return null;
-        });
-
+                })
+                .thenAccept(ledgerId -> genericCallback.operationComplete(BKException.Code.OK, ledgerId))
+                .exceptionally(ex -> {
+                    log.error("Error generating ledger id: {}", ex.getMessage());
+                    genericCallback.operationComplete(BKException.Code.MetaStoreException, -1L);
+                    return null;
+                });
     }
 
     private CompletableFuture<Long> generateShortLedgerId() {
         // Make sure the short-id gen path exists as a persistent node
-        return store.exists(shortIdGenPath)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        // Proceed
-                        return internalGenerateShortLedgerId();
+        return store.exists(shortIdGenPath).thenCompose(exists -> {
+            if (exists) {
+                // Proceed
+                return internalGenerateShortLedgerId();
+            } else {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                store.put(shortIdGenPath, new byte[0], Optional.of(-1L)).whenComplete((stat, throwable) -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+                    if (cause == null || cause instanceof MetadataStoreException.BadVersionException) {
+                        // creat shortIdGenPath success or it already created by others.
+                        future.complete(null);
                     } else {
-                        CompletableFuture<Void> future = new CompletableFuture<>();
-                        store.put(shortIdGenPath, new byte[0], Optional.of(-1L))
-                                .whenComplete((stat, throwable) -> {
-                                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
-                                    if (cause == null
-                                            || cause instanceof MetadataStoreException.BadVersionException) {
-                                        // creat shortIdGenPath success or it already created by others.
-                                        future.complete(null);
-                                    } else {
-                                        future.completeExceptionally(throwable);
-                                    }
-                                });
-                        return future.thenCompose(__ -> internalGenerateShortLedgerId());
+                        future.completeExceptionally(throwable);
                     }
                 });
+                return future.thenCompose(__ -> internalGenerateShortLedgerId());
+            }
+        });
     }
 
     private CompletableFuture<Long> internalGenerateShortLedgerId() {
         final String ledgerPrefix = this.shortIdGenPath + "/" + SHORT_ID_PREFIX;
 
-        return store.put(ledgerPrefix, new byte[0], Optional.of(-1L),
-                EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
+        return store.put(
+                        ledgerPrefix,
+                        new byte[0],
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenCompose(stat -> {
                     // delete the znode for id generation
-                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
-                            exceptionally(ex -> {
+                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty())
+                            .exceptionally(ex -> {
                                 log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
                             });
@@ -134,13 +133,15 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         final String ledgerPrefix = this.ledgerIdGenPath + "/" + hobPrefix;
 
         return store.getChildren(ledgerIdGenPath).thenCompose(highOrderDirectories -> {
-            Optional<Long> largest = highOrderDirectories.stream().map((t) -> {
-                try {
-                    return Long.parseLong(t.replace(hobPrefix, ""));
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-            }).filter((t) -> t != null)
+            Optional<Long> largest = highOrderDirectories.stream()
+                    .map((t) -> {
+                        try {
+                            return Long.parseLong(t.replace(hobPrefix, ""));
+                        } catch (NumberFormatException e) {
+                            return null;
+                        }
+                    })
+                    .filter((t) -> t != null)
                     .reduce(Math::max);
 
             // If we didn't get any valid IDs from the directory...
@@ -152,33 +153,32 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
             // Found the largest.
             // Get the low-order bits.
             final Long highBits = largest.get();
-            return generateLongLedgerIdLowBits(ledgerPrefix, highBits)
-                    .thenApply(ledgerId -> {
-                        // Perform garbage collection on HOB- directories.
-                        // Keeping 3 should be plenty to prevent races
-                        if (highOrderDirectories.size() > 3) {
-                            Object[] highOrderDirs = highOrderDirectories.stream()
-                                    .map((t) -> {
-                                        try {
-                                            return Long.parseLong(t.replace(hobPrefix, ""));
-                                        } catch (NumberFormatException e) {
-                                            return null;
-                                        }
-                                    })
-                                    .filter((t) -> t != null)
-                                    .sorted()
-                                    .toArray();
-
-                            for (int i = 0; i < highOrderDirs.length - 3; i++) {
-                                String path = ledgerPrefix + formatHalfId(((Long) highOrderDirs[i]).intValue());
-                                if (log.isDebugEnabled()) {
-                                    log.debug("DELETING HIGH ORDER DIR: {}", path);
+            return generateLongLedgerIdLowBits(ledgerPrefix, highBits).thenApply(ledgerId -> {
+                // Perform garbage collection on HOB- directories.
+                // Keeping 3 should be plenty to prevent races
+                if (highOrderDirectories.size() > 3) {
+                    Object[] highOrderDirs = highOrderDirectories.stream()
+                            .map((t) -> {
+                                try {
+                                    return Long.parseLong(t.replace(hobPrefix, ""));
+                                } catch (NumberFormatException e) {
+                                    return null;
                                 }
-                                store.delete(path, Optional.of(0L));
-                            }
+                            })
+                            .filter((t) -> t != null)
+                            .sorted()
+                            .toArray();
+
+                    for (int i = 0; i < highOrderDirs.length - 3; i++) {
+                        String path = ledgerPrefix + formatHalfId(((Long) highOrderDirs[i]).intValue());
+                        if (log.isDebugEnabled()) {
+                            log.debug("DELETING HIGH ORDER DIR: {}", path);
                         }
-                        return ledgerId;
-                    });
+                        store.delete(path, Optional.of(0L));
+                    }
+                }
+                return ledgerId;
+            });
         });
     }
 
@@ -206,11 +206,10 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                         future.completeExceptionally(ex);
                     } else {
                         // We just created a new HOB directory, try again
-                        generateLongLedgerId().thenAccept(future::complete)
-                                .exceptionally(e -> {
-                                    future.completeExceptionally(e);
-                                    return null;
-                                });
+                        generateLongLedgerId().thenAccept(future::complete).exceptionally(e -> {
+                            future.completeExceptionally(e);
+                            return null;
+                        });
                     }
                 });
 
@@ -219,25 +218,27 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
 
     private CompletableFuture<Long> generateLongLedgerIdLowBits(final String ledgerPrefix, long highBits) {
         String highPath = ledgerPrefix + formatHalfId((int) highBits);
-        return generateLedgerIdImpl(createLedgerPrefix(highPath, null))
-                .thenCompose(result -> {
-                    if (result >= 0L && result < 2147483647L) {
-                        return CompletableFuture.completedFuture((highBits << 32) | result);
-                    } else {
-                        // Lower bits are full. Need to expand and create another HOB node.
-                        Long newHighBits = highBits + 1;
-                        return createHOBPathAndGenerateId(ledgerPrefix, newHighBits.intValue());
-                    }
-                });
+        return generateLedgerIdImpl(createLedgerPrefix(highPath, null)).thenCompose(result -> {
+            if (result >= 0L && result < 2147483647L) {
+                return CompletableFuture.completedFuture((highBits << 32) | result);
+            } else {
+                // Lower bits are full. Need to expand and create another HOB node.
+                Long newHighBits = highBits + 1;
+                return createHOBPathAndGenerateId(ledgerPrefix, newHighBits.intValue());
+            }
+        });
     }
 
     public CompletableFuture<Long> generateLedgerIdImpl(final String prefix) {
-        return store
-                .put(prefix, new byte[0], Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
+        return store.put(
+                        prefix,
+                        new byte[0],
+                        Optional.of(-1L),
+                        EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenCompose(stat -> {
                     // delete the znode for id generation
-                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
-                            exceptionally(ex -> {
+                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty())
+                            .exceptionally(ex -> {
                                 log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
                             });
@@ -253,9 +254,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
 
     /**
      * Checks the existence of the long ledger id gen path. Existence indicates we have switched from the legacy
@@ -288,8 +287,8 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         return ledgerIdGenPath + "/" + "ID-";
     }
 
-    //If the config rootPath when use zk metadata store, it will append rootPath as the prefix of the path.
-    //So when we get the path from the stat, we should truncate the rootPath.
+    // If the config rootPath when use zk metadata store, it will append rootPath as the prefix of the path.
+    // So when we get the path from the stat, we should truncate the rootPath.
     private String handleTheDeletePath(String path) {
         if (store instanceof ZKMetadataStore) {
             String rootPath = ((ZKMetadataStore) store).getRootPath();

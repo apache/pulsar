@@ -19,10 +19,9 @@
 package org.apache.pulsar.sql.presto.decoder;
 
 import java.math.BigDecimal;
-import lombok.Data;
-
 import java.util.List;
 import java.util.Map;
+import lombok.Data;
 
 public class DecoderTestMessage {
 
@@ -38,17 +37,25 @@ public class DecoderTestMessage {
     public double doubleField;
     public boolean booleanField;
     public long longField;
+
     @org.apache.avro.reflect.AvroSchema("{ \"type\": \"long\", \"logicalType\": \"timestamp-millis\" }")
     public long timestampField;
+
     @org.apache.avro.reflect.AvroSchema("{ \"type\": \"int\", \"logicalType\": \"time-millis\" }")
     public int timeField;
+
     @org.apache.avro.reflect.AvroSchema("{ \"type\": \"int\", \"logicalType\": \"date\" }")
     public int dateField;
+
     public TestRow rowField;
     public TestEnum enumField;
-    @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
+
+    @org.apache.avro.reflect.AvroSchema(
+            "{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
     public BigDecimal decimalField;
-    @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 30, \"scale\": 2 }")
+
+    @org.apache.avro.reflect.AvroSchema(
+            "{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 30, \"scale\": 2 }")
     public BigDecimal longDecimalField;
 
     public List<String> arrayField;
@@ -61,7 +68,6 @@ public class DecoderTestMessage {
         public NestedRow nestedRow;
     }
 
-
     public static class NestedRow {
         public String stringField;
         public long longField;
@@ -72,7 +78,7 @@ public class DecoderTestMessage {
         public List<NestedRow> arrayField;
         public Map<String, NestedRow> mapField;
         public NestedRow nestedRow;
-        public Map<String,List<Long>> structedField;
+        public Map<String, List<Long>> structedField;
     }
 
     /**
@@ -91,5 +97,4 @@ public class DecoderTestMessage {
         private Boolean field2;
         private CyclicFoo foo;
     }
-
 }

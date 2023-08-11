@@ -36,5 +36,4 @@ public class ListTopicsOptions {
      * Set to true to get topics including system topic, otherwise not.
      */
     private final boolean includeSystemTopic;
-
 }

@@ -27,5 +27,4 @@ public class AggregatedProducerStats {
     public double msgThroughputIn;
 
     public double averageMsgSize;
-
 }

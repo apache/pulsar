@@ -39,7 +39,7 @@ class PrimitiveSchemaDataValidator implements SchemaDataValidator {
         byte[] data = schemaData.getData();
         if (null != data && data.length > 0) {
             throw new InvalidSchemaDataException("Invalid schema definition data for primitive schemas :"
-                + "length of schema data should be zero, but " + data.length + " bytes is found");
+                    + "length of schema data should be zero, but " + data.length + " bytes is found");
         }
     }
 }

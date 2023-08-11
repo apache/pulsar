@@ -101,7 +101,8 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
                 // see PIP-85
                 if (record.getMessage().isPresent()
                         && record.getMessage().get().getReaderSchema().isPresent()) {
-                    schema = (Schema<T>) record.getMessage().get().getReaderSchema().get();
+                    schema = (Schema<T>)
+                            record.getMessage().get().getReaderSchema().get();
                 } else {
                     schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
                 }
@@ -111,8 +112,8 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
 
         if (record instanceof KVRecord) {
             KVRecord kvRecord = (KVRecord) record;
-            return KeyValueSchemaImpl.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
-                    kvRecord.getKeyValueEncodingType());
+            return KeyValueSchemaImpl.of(
+                    kvRecord.getKeySchema(), kvRecord.getValueSchema(), kvRecord.getKeyValueEncodingType());
         }
 
         return null;

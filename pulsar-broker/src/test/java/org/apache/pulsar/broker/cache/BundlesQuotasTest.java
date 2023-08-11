@@ -44,7 +44,8 @@ public class BundlesQuotasTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create(
+                "memory:local", MetadataStoreConfig.builder().build());
 
         PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
@@ -76,9 +77,8 @@ public class BundlesQuotasTest {
     @Test
     public void testGetSetBundleQuota() throws Exception {
         BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
-        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-2"),
-                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
-                bundleFactory);
+        NamespaceBundle testBundle = new NamespaceBundle(
+                NamespaceName.get("pulsar/test/ns-2"), Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
         ResourceQuota quota2 = new ResourceQuota();
         quota2.setMsgRateIn(10);
         quota2.setMsgRateOut(20);

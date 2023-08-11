@@ -42,7 +42,6 @@ import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 import org.apache.zookeeper.KeeperException;
 
-
 /**
  * Packages management storage implementation with bookkeeper.
  */
@@ -61,18 +60,19 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
     @Override
     public void initialize() {
         DistributedLogConfiguration conf = new DistributedLogConfiguration()
-            .setImmediateFlushEnabled(true)
-            .setOutputBufferSize(0)
-            .setWriteQuorumSize(configuration.getPackagesReplicas())
-            .setEnsembleSize(configuration.getPackagesReplicas())
-            .setAckQuorumSize(configuration.getPackagesReplicas())
-            .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE);
+                .setImmediateFlushEnabled(true)
+                .setOutputBufferSize(0)
+                .setWriteQuorumSize(configuration.getPackagesReplicas())
+                .setEnsembleSize(configuration.getPackagesReplicas())
+                .setAckQuorumSize(configuration.getPackagesReplicas())
+                .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE);
         if (!Strings.isNullOrEmpty(configuration.getBookkeeperClientAuthenticationPlugin())) {
-            conf.setProperty("bkc.clientAuthProviderFactoryClass",
-                configuration.getBookkeeperClientAuthenticationPlugin());
+            conf.setProperty(
+                    "bkc.clientAuthProviderFactoryClass", configuration.getBookkeeperClientAuthenticationPlugin());
             if (!Strings.isNullOrEmpty(configuration.getBookkeeperClientAuthenticationParametersName())) {
-                conf.setProperty("bkc." + configuration.getBookkeeperClientAuthenticationParametersName(),
-                    configuration.getBookkeeperClientAuthenticationParameters());
+                conf.setProperty(
+                        "bkc." + configuration.getBookkeeperClientAuthenticationParametersName(),
+                        configuration.getBookkeeperClientAuthenticationParameters());
             }
         }
         // Map arbitrary bookkeeper client configuration into DLog Config. Note that this only configures the
@@ -84,7 +84,10 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
                 });
         try {
             this.namespace = NamespaceBuilder.newBuilder()
-                .conf(conf).clientId(NS_CLIENT_ID).uri(initializeDlogNamespace()).build();
+                    .conf(conf)
+                    .clientId(NS_CLIENT_ID)
+                    .uri(initializeDlogNamespace())
+                    .build();
         } catch (IOException e) {
             throw new RuntimeException("Initialize distributed log for packages management service failed.", e);
         }
@@ -138,64 +141,76 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
     @Override
     public CompletableFuture<Void> writeAsync(String path, InputStream inputStream) {
         return openLogManagerAsync(path)
-            .thenCompose(DLOutputStream::openWriterAsync)
-            .thenCompose(dlOutputStream -> dlOutputStream.writeAsync(inputStream))
-            .thenCompose(DLOutputStream::closeAsync);
+                .thenCompose(DLOutputStream::openWriterAsync)
+                .thenCompose(dlOutputStream -> dlOutputStream.writeAsync(inputStream))
+                .thenCompose(DLOutputStream::closeAsync);
     }
 
     @Override
     public CompletableFuture<Void> readAsync(String path, OutputStream outputStream) {
         return openLogManagerAsync(path)
-            .thenCompose(DLInputStream::openReaderAsync)
-            .thenCompose(dlInputStream -> dlInputStream.readAsync(outputStream))
-            .thenCompose(DLInputStream::closeAsync);
+                .thenCompose(DLInputStream::openReaderAsync)
+                .thenCompose(dlInputStream -> dlInputStream.readAsync(outputStream))
+                .thenCompose(DLInputStream::closeAsync);
     }
 
     @Override
     public CompletableFuture<Void> deleteAsync(String path) {
-        return namespace.getNamespaceDriver().getLogMetadataStore().getLogLocation(path)
-            .thenCompose(uri -> uri.map(value -> namespace.getNamespaceDriver()
-                .getLogStreamMetadataStore(NamespaceDriver.Role.WRITER).deleteLog(value, path))
-                .orElse(null));
+        return namespace
+                .getNamespaceDriver()
+                .getLogMetadataStore()
+                .getLogLocation(path)
+                .thenCompose(uri -> uri.map(value -> namespace
+                                .getNamespaceDriver()
+                                .getLogStreamMetadataStore(NamespaceDriver.Role.WRITER)
+                                .deleteLog(value, path))
+                        .orElse(null));
     }
-
 
     @Override
     public CompletableFuture<List<String>> listAsync(String path) {
-        return namespace.getNamespaceDriver().getLogMetadataStore().getLogs(path)
-            .thenApply(logs -> {
-                ArrayList<String> packages = new ArrayList<>();
-                logs.forEachRemaining(packages::add);
-                return packages;
-            });
+        return namespace
+                .getNamespaceDriver()
+                .getLogMetadataStore()
+                .getLogs(path)
+                .thenApply(logs -> {
+                    ArrayList<String> packages = new ArrayList<>();
+                    logs.forEachRemaining(packages::add);
+                    return packages;
+                });
     }
 
     @Override
     public CompletableFuture<Boolean> existAsync(String path) {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
-        namespace.getNamespaceDriver().getLogMetadataStore().getLogLocation(path)
-            .whenComplete((uriOptional, throwable) -> {
-                if (throwable != null) {
-                    result.complete(false);
-                    return;
-                }
+        namespace
+                .getNamespaceDriver()
+                .getLogMetadataStore()
+                .getLogLocation(path)
+                .whenComplete((uriOptional, throwable) -> {
+                    if (throwable != null) {
+                        result.complete(false);
+                        return;
+                    }
 
-                if (uriOptional.isPresent()) {
-                    namespace.getNamespaceDriver()
-                        .getLogStreamMetadataStore(NamespaceDriver.Role.WRITER)
-                        .logExists(uriOptional.get(), path)
-                        .whenComplete((ignore, e) -> {
-                            if (e != null) {
-                                result.complete(false);
-                            } else {
-                                result.complete(true);
-                            }
-                        });
-                } else {
-                    result.complete(false);
-                }
-            });
-        return result;    }
+                    if (uriOptional.isPresent()) {
+                        namespace
+                                .getNamespaceDriver()
+                                .getLogStreamMetadataStore(NamespaceDriver.Role.WRITER)
+                                .logExists(uriOptional.get(), path)
+                                .whenComplete((ignore, e) -> {
+                                    if (e != null) {
+                                        result.complete(false);
+                                    } else {
+                                        result.complete(true);
+                                    }
+                                });
+                    } else {
+                        result.complete(false);
+                    }
+                });
+        return result;
+    }
 
     @Override
     public CompletableFuture<Void> closeAsync() {

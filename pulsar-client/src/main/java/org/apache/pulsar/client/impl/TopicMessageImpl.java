@@ -36,9 +36,7 @@ public class TopicMessageImpl<T> implements Message<T> {
     // consumer if this message is received by that consumer
     final ConsumerImpl receivedByconsumer;
 
-    TopicMessageImpl(String topicPartitionName,
-                     Message<T> msg,
-                     ConsumerImpl receivedByConsumer) {
+    TopicMessageImpl(String topicPartitionName, Message<T> msg, ConsumerImpl receivedByConsumer) {
         this.topicPartitionName = topicPartitionName;
         this.receivedByconsumer = receivedByConsumer;
 
@@ -220,5 +218,4 @@ public class TopicMessageImpl<T> implements Message<T> {
     public Optional<Long> getIndex() {
         return msg.getIndex();
     }
-
 }

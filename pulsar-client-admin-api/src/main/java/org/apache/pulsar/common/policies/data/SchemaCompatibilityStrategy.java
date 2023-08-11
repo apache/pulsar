@@ -70,7 +70,6 @@ public enum SchemaCompatibilityStrategy {
      */
     FULL_TRANSITIVE;
 
-
     public static boolean isUndefined(SchemaCompatibilityStrategy strategy) {
         return strategy == null || strategy == SchemaCompatibilityStrategy.UNDEFINED;
     }

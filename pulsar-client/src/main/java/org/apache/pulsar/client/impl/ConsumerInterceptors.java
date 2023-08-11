@@ -68,8 +68,11 @@ public class ConsumerInterceptors<T> implements Closeable {
                 interceptorMessage = interceptors.get(i).beforeConsume(consumer, interceptorMessage);
             } catch (Throwable e) {
                 if (consumer != null) {
-                    log.warn("Error executing interceptor beforeConsume callback topic: {} consumerName: {}",
-                            consumer.getTopic(), consumer.getConsumerName(), e);
+                    log.warn(
+                            "Error executing interceptor beforeConsume callback topic: {} consumerName: {}",
+                            consumer.getTopic(),
+                            consumer.getConsumerName(),
+                            e);
                 } else {
                     log.warn("Error executing interceptor beforeConsume callback", e);
                 }
@@ -188,5 +191,4 @@ public class ConsumerInterceptors<T> implements Closeable {
             }
         }
     }
-
 }

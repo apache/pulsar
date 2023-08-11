@@ -49,13 +49,13 @@ import org.testng.collections.Sets;
 public class InterceptFilterOutTest {
 
     private static final String[] shouldBeFilterOutContentTypes = new String[] {
-            "multipart/form-data",
-            "Multipart/form-data",
-            "multipart/form-data; boundary=------",
-            "multipart/Form-data; boundary=------",
-            "application/octet-stream",
-            "application/Octet-stream",
-            "application/octet-stream; xxx"
+        "multipart/form-data",
+        "Multipart/form-data",
+        "multipart/form-data; boundary=------",
+        "multipart/Form-data; boundary=------",
+        "application/octet-stream",
+        "application/Octet-stream",
+        "application/octet-stream; xxx"
     };
 
     @Test
@@ -70,7 +70,9 @@ public class InterceptFilterOutTest {
         Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
         HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
         Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080"))
+                .when(request)
+                .getRequestURL();
 
         // "application/json" should be intercepted
         Mockito.doReturn("application/json").when(request).getContentType();
@@ -93,7 +95,7 @@ public class InterceptFilterOutTest {
         ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
         Mockito.doReturn(Sets.newHashSet("interceptor")).when(conf).getBrokerInterceptors();
         Mockito.doReturn(conf).when(pulsarService).getConfig();
-        //init filter
+        // init filter
         ProcessHandlerFilter filter = new ProcessHandlerFilter(pulsarService.getBrokerInterceptor());
 
         HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
@@ -102,7 +104,9 @@ public class InterceptFilterOutTest {
         Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
         HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
         Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080"))
+                .when(request)
+                .getRequestURL();
         // "application/json" should be intercepted
         Mockito.doReturn("application/json").when(request).getContentType();
 
@@ -128,7 +132,9 @@ public class InterceptFilterOutTest {
         Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
         HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
         Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080"))
+                .when(request)
+                .getRequestURL();
 
         // "application/json" should be intercepted
         Mockito.doReturn("application/json").when(request).getContentType();
@@ -146,7 +152,7 @@ public class InterceptFilterOutTest {
 
         public MockRequestWrapper(HttpServletRequest request) {
             super(request);
-            this.body = new byte[]{0, 1, 2, 3, 4, 5};
+            this.body = new byte[] {0, 1, 2, 3, 4, 5};
         }
 
         private final byte[] body;
@@ -166,9 +172,7 @@ public class InterceptFilterOutTest {
                 }
 
                 @Override
-                public void setReadListener(ReadListener readListener) {
-
-                }
+                public void setReadListener(ReadListener readListener) {}
 
                 public int read() {
                     return byteArrayInputStream.read();

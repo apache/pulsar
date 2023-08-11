@@ -52,5 +52,4 @@ public abstract class PulsarExceptionBase extends Exception {
     protected PulsarExceptionBase(String message, Throwable cause) {
         super(message, cause);
     }
-
 }

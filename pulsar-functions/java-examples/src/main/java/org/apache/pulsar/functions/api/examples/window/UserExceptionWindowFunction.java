@@ -23,7 +23,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
 
-
 /**
  * This Function simulates a pulsar function encountering runtime errors.
  */
@@ -33,4 +32,3 @@ public class UserExceptionWindowFunction implements WindowFunction<String, Strin
         throw new RuntimeException("This wont work");
     }
 }
-

@@ -19,12 +19,10 @@
 package org.apache.pulsar.compaction;
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,13 +64,21 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         conf.setManagedLedgerMaxEntriesPerLedger(2);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-tenant",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-tenant", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-tenant/my-ns", Collections.singleton("test"));
 
-        compactionScheduler = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
+        compactionScheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                .setNameFormat("compaction-%d")
+                .setDaemon(true)
+                .build());
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
         compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
@@ -108,43 +114,33 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .create();
+        Producer<Integer> producer =
+                pulsarClient.newProducer(Schema.INT32).topic(topic).create();
 
         compact(topic);
 
-        log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info(" ---- X 1: {}", mapper.writeValueAsString(admin.topics().getInternalStats(topic, false)));
 
         int round = 1;
 
         for (String key : allKeys) {
-            producer.newMessage()
-                    .key(key)
-                    .value(round)
-                    .send();
+            producer.newMessage().key(key).value(round).send();
         }
 
-        log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info(" ---- X 2: {}", mapper.writeValueAsString(admin.topics().getInternalStats(topic, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compactor.compact(topic).join();
 
-        log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info(" ---- X 3: {}", mapper.writeValueAsString(admin.topics().getInternalStats(topic, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         round = 2;
 
         for (String key : allKeys) {
-            producer.newMessage()
-                    .key(key)
-                    .value(round)
-                    .send();
+            producer.newMessage().key(key).value(round).send();
         }
 
         compact(topic);
@@ -153,22 +149,18 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         // Now explicitly remove the expiring keys
         for (String key : keysToExpire) {
-            producer.newMessage()
-                    .key(key)
-                    .send();
+            producer.newMessage().key(key).send();
         }
 
         compact(topic);
 
-        log.info(" ---- X 4: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info(" ---- X 4: {}", mapper.writeValueAsString(admin.topics().getInternalStats(topic, false)));
 
         validateMessages(pulsarClient, true, topic, round, keys);
 
         // In the raw topic there should be no messages
         validateMessages(pulsarClient, false, topic, round, Collections.emptySet());
     }
-
 
     /**
      * When a topic is created, if the compaction threshold are set, the data should be retained in the compacted view,
@@ -193,9 +185,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().setCompactionThreshold(namespace, 10);
 
-        Awaitility.await().untilAsserted(() ->
-                testCompactionCursorRetention(topic)
-        );
+        Awaitility.await().untilAsserted(() -> testCompactionCursorRetention(topic));
     }
 
     @Test
@@ -207,9 +197,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().setCompactionThreshold(topic, 10);
 
-        Awaitility.await().untilAsserted(() ->
-                testCompactionCursorRetention(topic)
-        );
+        Awaitility.await().untilAsserted(() -> testCompactionCursorRetention(topic));
     }
 
     private void testCompactionCursorRetention(String topic) throws Exception {
@@ -223,36 +211,30 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .create();
+        Producer<Integer> producer =
+                pulsarClient.newProducer(Schema.INT32).topic(topic).create();
 
-        log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info(" ---- X 1: {}", mapper.writeValueAsString(admin.topics().getInternalStats(topic, false)));
 
         int round = 1;
 
         for (String key : allKeys) {
-            producer.newMessage()
-                    .key(key)
-                    .value(round)
-                    .send();
+            producer.newMessage().key(key).value(round).send();
         }
 
-        log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info(" ---- X 2: {}", mapper.writeValueAsString(admin.topics().getInternalStats(topic, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compact(topic);
 
-        log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info(" ---- X 3: {}", mapper.writeValueAsString(admin.topics().getInternalStats(topic, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
     }
 
-    private void validateMessages(PulsarClient client, boolean readCompacted, String topic, int round, Set<String> expectedKeys)
+    private void validateMessages(
+            PulsarClient client, boolean readCompacted, String topic, int round, Set<String> expectedKeys)
             throws Exception {
         @Cleanup
         Reader<Integer> reader = client.newReader(Schema.INT32)

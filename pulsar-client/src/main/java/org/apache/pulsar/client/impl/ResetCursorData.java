@@ -62,9 +62,8 @@ public class ResetCursorData {
             this.ledgerId = -1;
             this.entryId = -1;
         } else {
-            throw new IllegalArgumentException(
-                    String.format("Invalid value %s for the position. Allowed values are [latest, earliest]",
-                            position));
+            throw new IllegalArgumentException(String.format(
+                    "Invalid value %s for the position. Allowed values are [latest, earliest]", position));
         }
     }
 
@@ -78,5 +77,4 @@ public class ResetCursorData {
             throw new IllegalArgumentException("Not supported operation on partitioned-topic");
         }
     }
-
 }

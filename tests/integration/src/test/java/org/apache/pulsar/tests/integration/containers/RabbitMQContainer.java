@@ -22,7 +22,7 @@ import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 public class RabbitMQContainer extends ChaosContainer<RabbitMQContainer> {
     public static final String NAME = "RabbitMQ";
-    public static final Integer[] PORTS = { 5672 };
+    public static final Integer[] PORTS = {5672};
     private static final String IMAGE_NAME = "rabbitmq:3.8-management";
 
     private String networkAlias;

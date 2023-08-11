@@ -35,16 +35,21 @@ public class RestExceptionTest {
         RestException re = new RestException(Status.TEMPORARY_REDIRECT, "test rest exception");
         RestException testException = new RestException(re);
 
-        assertEquals(Status.TEMPORARY_REDIRECT.getStatusCode(), testException.getResponse().getStatus());
+        assertEquals(
+                Status.TEMPORARY_REDIRECT.getStatusCode(),
+                testException.getResponse().getStatus());
         assertEquals(re.getResponse().getEntity(), testException.getResponse().getEntity());
     }
 
     @Test
     public void testWebApplicationException() {
-        WebApplicationException wae = new WebApplicationException("test web application exception", Status.TEMPORARY_REDIRECT);
+        WebApplicationException wae =
+                new WebApplicationException("test web application exception", Status.TEMPORARY_REDIRECT);
         RestException testException = new RestException(wae);
 
-        assertEquals(Status.TEMPORARY_REDIRECT.getStatusCode(), testException.getResponse().getStatus());
+        assertEquals(
+                Status.TEMPORARY_REDIRECT.getStatusCode(),
+                testException.getResponse().getStatus());
         assertEquals(wae.getResponse().getEntity(), testException.getResponse().getEntity());
     }
 
@@ -53,9 +58,10 @@ public class RestExceptionTest {
         Exception otherException = new Exception("test other exception");
         RestException testException = new RestException(otherException);
 
-        assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), testException.getResponse().getStatus());
-        ErrorData errorData = (ErrorData)testException.getResponse().getEntity();
+        assertEquals(
+                Status.INTERNAL_SERVER_ERROR.getStatusCode(),
+                testException.getResponse().getStatus());
+        ErrorData errorData = (ErrorData) testException.getResponse().getEntity();
         assertEquals(RestException.getExceptionData(otherException), errorData.reason);
     }
-
 }

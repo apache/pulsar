@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.collect.Lists;
-import java.util.Arrays;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.testng.annotations.Test;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.testng.annotations.Test;
 
 public class SpecifiedPositionsBundleSplitAlgorithmTest {
 
@@ -42,10 +42,12 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
         doReturn(1L).when(mockNamespaceBundle).getLowerEndpoint();
         doReturn(1000L).when(mockNamespaceBundle).getUpperEndpoint();
         doReturn(CompletableFuture.completedFuture(List.of()))
-                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
-        List<Long> splitPositions =
-                algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle,
-                        Arrays.asList(1L, 2L))).join();
+                .when(mockNamespaceService)
+                .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+        List<Long> splitPositions = algorithm
+                .getSplitBoundary(
+                        new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, Arrays.asList(1L, 2L)))
+                .join();
         assertEquals(splitPositions, Arrays.asList(2L));
     }
 
@@ -55,9 +57,12 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(Lists.newArrayList("a")))
-                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
-        assertNull(algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle,
-                Arrays.asList(1L, 2L))).join());
+                .when(mockNamespaceService)
+                .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+        assertNull(algorithm
+                .getSplitBoundary(
+                        new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, Arrays.asList(1L, 2L)))
+                .join());
     }
 
     @Test
@@ -66,16 +71,19 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         try {
-            assertNull(algorithm.getSplitBoundary(
-                    new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join());
+            assertNull(algorithm
+                    .getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null))
+                    .join());
             fail("Should fail since split boundaries is null");
         } catch (IllegalArgumentException e) {
             // ignore
         }
 
         try {
-            assertNull(algorithm.getSplitBoundary(
-                    new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, new ArrayList<>())).join());
+            assertNull(algorithm
+                    .getSplitBoundary(
+                            new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, new ArrayList<>()))
+                    .join());
             fail("Should fail since split boundaries is empty");
         } catch (IllegalArgumentException e) {
             // ignore
@@ -97,8 +105,9 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
                 .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
 
         List<Long> positions = Arrays.asList(-1L, 0L, 1L, 100L, 200L, 500L, 800L, 1000L, 1100L);
-        List<Long> splitPositions = algorithm.getSplitBoundary(
-                new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, positions)).join();
+        List<Long> splitPositions = algorithm
+                .getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, positions))
+                .join();
 
         assertEquals(splitPositions.size(), 4);
         assertTrue(splitPositions.contains(100L));

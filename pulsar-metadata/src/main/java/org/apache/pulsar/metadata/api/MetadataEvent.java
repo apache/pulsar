@@ -42,8 +42,15 @@ public class MetadataEvent {
     private String sourceCluster;
     private NotificationType type;
     private int version;
-    public MetadataEvent(String path, byte[] value, HashSet<CreateOption> options, Long expectedVersion,
-            long lastUpdatedTimestamp, String sourceCluster, NotificationType type) {
+
+    public MetadataEvent(
+            String path,
+            byte[] value,
+            HashSet<CreateOption> options,
+            Long expectedVersion,
+            long lastUpdatedTimestamp,
+            String sourceCluster,
+            NotificationType type) {
         super();
         this.path = path;
         this.value = value;
@@ -53,5 +60,4 @@ public class MetadataEvent {
         this.sourceCluster = sourceCluster;
         this.type = type;
     }
-
 }

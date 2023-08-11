@@ -70,7 +70,7 @@ public class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
         return sinkRecord.getRecordSequence();
     }
 
-     @Override
+    @Override
     public Map<String, String> getProperties() {
         return sinkRecord.getProperties();
     }

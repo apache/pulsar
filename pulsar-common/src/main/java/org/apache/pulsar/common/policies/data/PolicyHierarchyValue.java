@@ -40,8 +40,7 @@ public class PolicyHierarchyValue<T> {
 
     private volatile T value;
 
-    public PolicyHierarchyValue() {
-    }
+    public PolicyHierarchyValue() {}
 
     public void updateBrokerValue(T brokerValue) {
         this.brokerValue = brokerValue;

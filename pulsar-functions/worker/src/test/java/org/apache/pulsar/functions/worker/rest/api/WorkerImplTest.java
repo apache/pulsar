@@ -48,22 +48,42 @@ public class WorkerImplTest {
     @DataProvider(name = "authParamsForNonSuperusers")
     public Object[][] partitionedTopicProvider() {
         return new Object[][] {
-                { AuthenticationParameters.builder().build() }, // all fields null should fail
-                { AuthenticationParameters.builder().clientRole("user").build() }, // Not superuser, no proxy
-                { AuthenticationParameters.builder()
-                        .clientRole("proxySuperuser").build() }, // Proxy role needs original principal
-                { AuthenticationParameters.builder()
-                        .clientRole("proxyNotSuperuser").build() }, // Proxy role needs original principal
-                { AuthenticationParameters.builder().clientRole("proxyNotSuperuser")
-                        .originalPrincipal("superuser").build() }, // Proxy is not superuser
-                { AuthenticationParameters.builder().clientRole("proxyNotSuperuser")
-                        .originalPrincipal("user").build() }, // Neither proxy nor original principal is superuser
-                { AuthenticationParameters.builder().clientRole("proxySuperuser")
-                        .originalPrincipal("user").build() }, // Original principal is not superuser
-                { AuthenticationParameters.builder().clientRole("user")
-                        .originalPrincipal("superuser").build() }, // User is not a proxyRole
-                { AuthenticationParameters.builder().clientRole("superuser2")
-                        .originalPrincipal("superuser").build() }, // Both are superusers, but client is not a proxyRole
+            {AuthenticationParameters.builder().build()}, // all fields null should fail
+            {AuthenticationParameters.builder().clientRole("user").build()}, // Not superuser, no proxy
+            {AuthenticationParameters.builder().clientRole("proxySuperuser").build()
+            }, // Proxy role needs original principal
+            {AuthenticationParameters.builder().clientRole("proxyNotSuperuser").build()
+            }, // Proxy role needs original principal
+            {
+                AuthenticationParameters.builder()
+                        .clientRole("proxyNotSuperuser")
+                        .originalPrincipal("superuser")
+                        .build()
+            }, // Proxy is not superuser
+            {
+                AuthenticationParameters.builder()
+                        .clientRole("proxyNotSuperuser")
+                        .originalPrincipal("user")
+                        .build()
+            }, // Neither proxy nor original principal is superuser
+            {
+                AuthenticationParameters.builder()
+                        .clientRole("proxySuperuser")
+                        .originalPrincipal("user")
+                        .build()
+            }, // Original principal is not superuser
+            {
+                AuthenticationParameters.builder()
+                        .clientRole("user")
+                        .originalPrincipal("superuser")
+                        .build()
+            }, // User is not a proxyRole
+            {
+                AuthenticationParameters.builder()
+                        .clientRole("superuser2")
+                        .originalPrincipal("superuser")
+                        .build()
+            }, // Both are superusers, but client is not a proxyRole
         };
     }
 
@@ -81,8 +101,8 @@ public class WorkerImplTest {
         superUserRoles.add("proxySuperuser");
         config.setSuperUserRoles(superUserRoles);
         config.setProxyRoles(proxyRoles);
-        AuthorizationService authorizationService = new AuthorizationService(
-                PulsarConfigurationLoader.convertFrom(config), mock(PulsarResources.class));
+        AuthorizationService authorizationService =
+                new AuthorizationService(PulsarConfigurationLoader.convertFrom(config), mock(PulsarResources.class));
         PulsarWorkerService pulsarWorkerService = mock(PulsarWorkerService.class);
         when(pulsarWorkerService.getWorkerConfig()).thenReturn(config);
         when(pulsarWorkerService.getAuthorizationService()).thenReturn(authorizationService);

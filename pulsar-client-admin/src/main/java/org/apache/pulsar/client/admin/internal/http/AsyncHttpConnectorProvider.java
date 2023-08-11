@@ -46,10 +46,9 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
         return connector;
     }
 
-
-    public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
-            int autoCertRefreshTimeSeconds) {
-        return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
-                conf);
+    public AsyncHttpConnector getConnector(
+            int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs, int autoCertRefreshTimeSeconds) {
+        return new AsyncHttpConnector(
+                connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds, conf);
     }
 }

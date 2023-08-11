@@ -61,9 +61,7 @@ class ProtocolHandlerUtils {
     private static ProtocolHandlerDefinition getProtocolHandlerDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(
-            configStr, ProtocolHandlerDefinition.class
-        );
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, ProtocolHandlerDefinition.class);
     }
 
     /**
@@ -73,8 +71,8 @@ class ProtocolHandlerUtils {
      * @return a collection of protocol handlers
      * @throws IOException when fail to load the available protocol handlers from the provided directory.
      */
-    public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory,
-                                                               String narExtractionDirectory) throws IOException {
+    public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory, String narExtractionDirectory)
+            throws IOException {
         Path path = Paths.get(handlersDirectory).toAbsolutePath();
         log.info("Searching for protocol handlers in {}", path);
 
@@ -87,8 +85,8 @@ class ProtocolHandlerUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    ProtocolHandlerDefinition phDef =
-                        ProtocolHandlerUtils.getProtocolHandlerDefinition(archive.toString(), narExtractionDirectory);
+                    ProtocolHandlerDefinition phDef = ProtocolHandlerUtils.getProtocolHandlerDefinition(
+                            archive.toString(), narExtractionDirectory);
                     log.info("Found protocol handler from {} : {}", archive, phDef);
 
                     checkArgument(StringUtils.isNotBlank(phDef.getName()));
@@ -100,10 +98,13 @@ class ProtocolHandlerUtils {
 
                     handlers.handlers().put(phDef.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load connector from {}."
-                        + " It is OK however if you want to use this protocol handler,"
-                        + " please make sure you put the correct protocol handler NAR"
-                        + " package in the handlers directory.", archive, t);
+                    log.warn(
+                            "Failed to load connector from {}."
+                                    + " It is OK however if you want to use this protocol handler,"
+                                    + " please make sure you put the correct protocol handler NAR"
+                                    + " package in the handlers directory.",
+                            archive,
+                            t);
                 }
             }
         }
@@ -117,8 +118,8 @@ class ProtocolHandlerUtils {
      * @param metadata the protocol handler definition.
      * @return
      */
-    static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata,
-                                               String narExtractionDirectory) throws IOException {
+    static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata, String narExtractionDirectory)
+            throws IOException {
         final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
@@ -129,15 +130,15 @@ class ProtocolHandlerUtils {
         ProtocolHandlerDefinition phDef = getProtocolHandlerDefinition(ncl);
         if (StringUtils.isBlank(phDef.getHandlerClass())) {
             throw new IOException("Protocol handler `" + phDef.getName() + "` does NOT provide a protocol"
-                + " handler implementation");
+                    + " handler implementation");
         }
 
         try {
             Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
             Object handler = handlerClass.getDeclaredConstructor().newInstance();
             if (!(handler instanceof ProtocolHandler)) {
-                throw new IOException("Class " + phDef.getHandlerClass()
-                    + " does not implement protocol handler interface");
+                throw new IOException(
+                        "Class " + phDef.getHandlerClass() + " does not implement protocol handler interface");
             }
             ProtocolHandler ph = (ProtocolHandler) handler;
             return new ProtocolHandlerWithClassLoader(ph, ncl);
@@ -147,8 +148,7 @@ class ProtocolHandlerUtils {
         }
     }
 
-    private static void rethrowIOException(Throwable cause)
-            throws IOException {
+    private static void rethrowIOException(Throwable cause) throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;
         } else if (cause instanceof RuntimeException) {
@@ -159,5 +159,4 @@ class ProtocolHandlerUtils {
             throw new IOException(cause.getMessage(), cause);
         }
     }
-
 }

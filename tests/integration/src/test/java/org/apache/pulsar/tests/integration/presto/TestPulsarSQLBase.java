@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.presto;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import com.google.common.base.Stopwatch;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -46,18 +45,19 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 
-
 /**
  * Pulsar SQL test base.
  */
 @Slf4j
 public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
-    protected void pulsarSQLBasicTest(TopicName topic,
-                                      boolean isBatch,
-                                      boolean useNsOffloadPolices,
-                                      Schema<?> schema,
-                                      CompressionType compressionType) throws Exception {
+    protected void pulsarSQLBasicTest(
+            TopicName topic,
+            boolean isBatch,
+            boolean useNsOffloadPolices,
+            Schema<?> schema,
+            CompressionType compressionType)
+            throws Exception {
         log.info("Pulsar SQL basic test. topic: {}", topic);
 
         waitPulsarSQLReady();
@@ -76,16 +76,16 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     @DataProvider(name = "batchingAndCompression")
     public static Object[][] batchingAndCompression() {
         return new Object[][] {
-                { true, CompressionType.ZLIB },
-                { true, CompressionType.ZSTD },
-                { true, CompressionType.SNAPPY },
-                { true, CompressionType.LZ4 },
-                { true, CompressionType.NONE },
-                { false, CompressionType.ZLIB },
-                { false, CompressionType.ZSTD },
-                { false, CompressionType.SNAPPY },
-                { false, CompressionType.LZ4 },
-                { false, CompressionType.NONE },
+            {true, CompressionType.ZLIB},
+            {true, CompressionType.ZSTD},
+            {true, CompressionType.SNAPPY},
+            {true, CompressionType.LZ4},
+            {true, CompressionType.NONE},
+            {false, CompressionType.ZLIB},
+            {false, CompressionType.ZSTD},
+            {false, CompressionType.SNAPPY},
+            {false, CompressionType.LZ4},
+            {false, CompressionType.NONE},
         };
     }
 
@@ -131,11 +131,13 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         }
     }
 
-    protected int prepareData(TopicName topicName,
-                              boolean isBatch,
-                              boolean useNsOffloadPolices,
-                              Schema<?> schema,
-                              CompressionType compressionType) throws Exception {
+    protected int prepareData(
+            TopicName topicName,
+            boolean isBatch,
+            boolean useNsOffloadPolices,
+            Schema<?> schema,
+            CompressionType compressionType)
+            throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
 
@@ -144,20 +146,16 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         assertThat(result.getExitCode()).isEqualTo(0);
         assertThat(result.getStdout()).contains(topicName.getNamespace());
 
-        pulsarCluster.getBroker(0)
-                .execCmd(
-                        "/bin/bash",
-                        "-c", "bin/pulsar-admin namespaces unload " + topicName.getNamespace());
+        pulsarCluster
+                .getBroker(0)
+                .execCmd("/bin/bash", "-c", "bin/pulsar-admin namespaces unload " + topicName.getNamespace());
 
-        Awaitility.await().untilAsserted(
-                () -> {
-                    ContainerExecResult r = execQuery(
-                            String.format("show tables in pulsar.\"%s\";", topicName.getNamespace()));
-                    assertThat(r.getExitCode()).isEqualTo(0);
-                    // the show tables query return lowercase table names, so ignore case
-                    assertThat(r.getStdout()).containsIgnoringCase(topicName.getLocalName());
-                }
-        );
+        Awaitility.await().untilAsserted(() -> {
+            ContainerExecResult r = execQuery(String.format("show tables in pulsar.\"%s\";", topicName.getNamespace()));
+            assertThat(r.getExitCode()).isEqualTo(0);
+            // the show tables query return lowercase table names, so ignore case
+            assertThat(r.getStdout()).containsIgnoringCase(topicName.getLocalName());
+        });
     }
 
     protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) throws Exception {
@@ -183,8 +181,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                 .pollInterval(Duration.ofSeconds(3))
                 // retry up to 15 seconds from first attempt
                 .atMost(Duration.ofSeconds(15))
-                .untilAsserted(
-                () -> {
+                .untilAsserted(() -> {
                     ContainerExecResult containerExecResult = execQuery(queryAllDataSql);
                     assertThat(containerExecResult.getExitCode()).isEqualTo(0);
                     log.info("select sql query output \n{}", containerExecResult.getStdout());
@@ -192,12 +189,11 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                     assertThat(split.length).isEqualTo(messageNum);
                     String[] contentArr = containerExecResult.getStdout().split("\n|,");
                     validateContent(messageNum, contentArr, schema);
-                }
-        );
+                });
 
         // test predicate pushdown
-        String query = String.format("select * from pulsar" +
-                ".\"%s\".\"%s\" order by __publish_time__", namespace, topic);
+        String query =
+                String.format("select * from pulsar" + ".\"%s\".\"%s\" order by __publish_time__", namespace, topic);
         log.info("Executing query: {}", query);
         ResultSet res = connection.createStatement().executeQuery(query);
 
@@ -210,8 +206,9 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
         assertThat(timestamps.size()).isGreaterThan(messageNum - 2);
 
-        query = String.format("select * from pulsar" +
-                ".\"%s\".\"%s\" where __publish_time__ > timestamp '%s' order by __publish_time__",
+        query = String.format(
+                "select * from pulsar"
+                        + ".\"%s\".\"%s\" where __publish_time__ > timestamp '%s' order by __publish_time__",
                 namespace, topic, timestamps.get(timestamps.size() / 2));
         log.info("Executing query: {}", query);
         res = connection.createStatement().executeQuery(query);
@@ -233,8 +230,10 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
         // Try with a predicate that has a earlier time than any entry
         // Should return all rows
-        query = String.format("select * from pulsar.\"%s\".\"%s\" where "
-                + "__publish_time__ > from_unixtime(%s) order by __publish_time__", namespace, topic, 0);
+        query = String.format(
+                "select * from pulsar.\"%s\".\"%s\" where "
+                        + "__publish_time__ > from_unixtime(%s) order by __publish_time__",
+                namespace, topic, 0);
         log.info("Executing query: {}", query);
         res = connection.createStatement().executeQuery(query);
 
@@ -250,8 +249,10 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         // Try with a predicate that has a latter time than any entry
         // Should return no rows
 
-        query = String.format("select * from pulsar.\"%s\".\"%s\" where "
-                + "__publish_time__ > from_unixtime(%s) order by __publish_time__", namespace, topic, 99999999999L);
+        query = String.format(
+                "select * from pulsar.\"%s\".\"%s\" where "
+                        + "__publish_time__ > from_unixtime(%s) order by __publish_time__",
+                namespace, topic, 99999999999L);
         log.info("Executing query: {}", query);
         res = connection.createStatement().executeQuery(query);
 
@@ -284,22 +285,27 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             }
         }
 
-        containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                .execCmd("/bin/bash", "-c",
+        containerExecResult = pulsarCluster
+                .getPrestoWorkerContainer()
+                .execCmd(
+                        "/bin/bash",
+                        "-c",
                         PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql" + extraCredentialsString + "--execute " + "'"
                                 + query + "'");
 
         Stopwatch sw = Stopwatch.createStarted();
         while (containerExecResult.getExitCode() != 0 && sw.elapsed(TimeUnit.SECONDS) < 120) {
             TimeUnit.MILLISECONDS.sleep(500);
-            containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                    .execCmd("/bin/bash", "-c",
+            containerExecResult = pulsarCluster
+                    .getPrestoWorkerContainer()
+                    .execCmd(
+                            "/bin/bash",
+                            "-c",
                             PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql" + extraCredentialsString + "--execute " + "'"
                                     + query + "'");
         }
 
         return containerExecResult;
-
     }
 
     private static void printCurrent(ResultSet rs) throws SQLException {
@@ -311,7 +317,6 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             System.out.print(columnValue + " " + rsmd.getColumnName(i));
         }
         System.out.println("");
-
     }
 
     protected int selectCount(String namespace, String tableName) throws SQLException {
@@ -321,5 +326,4 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         res.next();
         return res.getInt("_col0");
     }
-
 }

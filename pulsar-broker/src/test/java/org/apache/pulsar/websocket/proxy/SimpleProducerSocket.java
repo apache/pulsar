@@ -107,5 +107,4 @@ public class SimpleProducerSocket {
     }
 
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerSocket.class);
-
 }

@@ -101,44 +101,43 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final String name;
     private boolean sendInProgress = false;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
-            TOTAL_AVAILABLE_PERMITS_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
-                    "totalAvailablePermits");
+            TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+                    PersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     protected volatile int totalAvailablePermits = 0;
     protected volatile int readBatchSize;
     protected final Backoff readFailureBackoff;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
-            TOTAL_UNACKED_MESSAGES_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
-                    "totalUnackedMessages");
+            TOTAL_UNACKED_MESSAGES_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+                    PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
     protected volatile int totalUnackedMessages = 0;
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
-            BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
-                    "blockedDispatcherOnUnackedMsgs");
+            BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+                    PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
 
     protected enum ReadType {
-        Normal, Replay
+        Normal,
+        Replay
     }
 
-    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
-            Subscription subscription) {
+    public PersistentDispatcherMultipleConsumers(
+            PersistentTopic topic, ManagedCursor cursor, Subscription subscription) {
         this(topic, cursor, subscription, true);
     }
 
-    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, Subscription subscription,
-            boolean allowOutOfOrderDelivery) {
+    public PersistentDispatcherMultipleConsumers(
+            PersistentTopic topic, ManagedCursor cursor, Subscription subscription, boolean allowOutOfOrderDelivery) {
         super(subscription, topic.getBrokerService().pulsar().getConfiguration());
         this.cursor = cursor;
         this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
-        this.dispatchMessagesThread = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
+        this.dispatchMessagesThread =
+                topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
         this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery);
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
@@ -149,7 +148,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.readFailureBackoff = new Backoff(
                 topic.getBrokerService().pulsar().getConfiguration().getDispatcherReadFailureBackoffInitialTimeInMs(),
                 TimeUnit.MILLISECONDS,
-                1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+                1,
+                TimeUnit.MINUTES,
+                0,
+                TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -183,7 +185,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         consumerList.add(consumer);
         if (consumerList.size() > 1
-                && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
+                && consumer.getPriorityLevel()
+                        < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
             consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         }
         consumerSet.add(consumer);
@@ -202,7 +205,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
             consumerList.remove(consumer);
-            log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
+            log.info(
+                    "Removed consumer {} with pending {} acks",
+                    consumer,
+                    consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 cancelPendingRead();
 
@@ -222,8 +228,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
-                                    + "New dispatcher permit count is {}", name, consumer.getAvailablePermits(),
+                    log.debug(
+                            "[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
+                                    + "New dispatcher permit count is {}",
+                            name,
+                            consumer.getAvailablePermits(),
                             totalAvailablePermits);
                 }
                 readMoreEntries();
@@ -251,9 +260,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         totalAvailablePermits += additionalNumberOfMessages;
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {} "
-                            + "after adding {} permits", name, consumer,
-                    totalAvailablePermits, additionalNumberOfMessages);
+            log.debug(
+                    "[{}-{}] Trigger new read after receiving flow control message with permits {} "
+                            + "after adding {} permits",
+                    name,
+                    consumer,
+                    totalAvailablePermits,
+                    additionalNumberOfMessages);
         }
         readMoreEntries();
     }
@@ -293,18 +306,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             if (!messagesToReplayNow.isEmpty()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
+                    log.debug(
+                            "[{}] Schedule replay of {} messages for {} consumers",
+                            name,
+                            messagesToReplayNow.size(),
                             consumerList.size());
                 }
 
                 havePendingReplayRead = true;
                 minReplayedPosition = messagesToReplayNow.first();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayNow) : asyncReplayEntries(messagesToReplayNow);
+                        ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                        : asyncReplayEntries(messagesToReplayNow);
                 // clear already acked positions from replay bucket
 
-                deletedMessages.forEach(position -> redeliveryMessages.remove(((PositionImpl) position).getLedgerId(),
-                        ((PositionImpl) position).getEntryId()));
+                deletedMessages.forEach(position -> redeliveryMessages.remove(
+                        ((PositionImpl) position).getLedgerId(), ((PositionImpl) position).getEntryId()));
                 // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
                 // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
@@ -313,12 +330,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                            totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
+                    log.debug(
+                            "[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}",
+                            name,
+                            totalUnackedMessages,
+                            topic.getMaxUnackedMessagesOnSubscription());
                 }
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
+                    log.debug(
+                            "[{}] Schedule read of {} messages for {} consumers",
+                            name,
+                            messagesToRead,
                             consumerList.size());
                 }
                 havePendingRead = true;
@@ -338,11 +361,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
                                 .containsMessage(position.getLedgerId(), position.getEntryId());
                     }
-                    cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                            topic.getMaxReadPosition(), skipCondition);
+                    cursor.asyncReadEntriesWithSkipOrWait(
+                            messagesToRead,
+                            bytesToRead,
+                            this,
+                            ReadType.Normal,
+                            topic.getMaxReadPosition(),
+                            skipCondition);
                 } else {
-                    cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                            topic.getMaxReadPosition());
+                    cursor.asyncReadEntriesOrWait(
+                            messagesToRead, bytesToRead, this, ReadType.Normal, topic.getMaxReadPosition());
                 }
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
@@ -360,12 +388,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
             }
-            topic.getBrokerService().executor().schedule(
-                    () -> {
-                        isRescheduleReadInProgress.set(false);
-                        readMoreEntries();
-                        },
-                    MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+            topic.getBrokerService()
+                    .executor()
+                    .schedule(
+                            () -> {
+                                isRescheduleReadInProgress.set(false);
+                                readMoreEntries();
+                            },
+                            MESSAGE_RATE_BACKOFF_MS,
+                            TimeUnit.MILLISECONDS);
         }
     }
 
@@ -378,9 +409,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // if turn on precise dispatcher flow control, adjust the record to read
         if (c != null && c.isPreciseDispatcherFlowControl()) {
             int avgMessagesPerEntry = Math.max(1, c.getAvgMessagesPerEntry());
-            messagesToRead = Math.min(
-                    (int) Math.ceil(currentTotalAvailablePermits * 1.0 / avgMessagesPerEntry),
-                    readBatchSize);
+            messagesToRead =
+                    Math.min((int) Math.ceil(currentTotalAvailablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
         }
 
         if (!isConsumerWritable()) {
@@ -396,11 +426,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
             if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
+                DispatchRateLimiter brokerRateLimiter =
+                        topic.getBrokerDispatchRateLimiter().get();
                 if (reachDispatchRateLimit(brokerRateLimiter)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
-                                brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
+                        log.debug(
+                                "[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}",
+                                name,
+                                brokerRateLimiter.getDispatchRateOnMsg(),
+                                brokerRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
                     return Pair.of(-1, -1L);
@@ -413,11 +447,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
 
             if (topic.getDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
+                DispatchRateLimiter topicRateLimiter =
+                        topic.getDispatchRateLimiter().get();
                 if (reachDispatchRateLimit(topicRateLimiter)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
-                                topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
+                        log.debug(
+                                "[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}",
+                                name,
+                                topicRateLimiter.getDispatchRateOnMsg(),
+                                topicRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
                     return Pair.of(-1, -1L);
@@ -432,8 +470,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (dispatchRateLimiter.isPresent()) {
                 if (reachDispatchRateLimit(dispatchRateLimiter.get())) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
-                                name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
+                        log.debug(
+                                "[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
+                                name,
+                                dispatchRateLimiter.get().getDispatchRateOnMsg(),
                                 dispatchRateLimiter.get().getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
@@ -613,8 +653,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return sendInProgress;
     }
 
-    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
-                                                                 boolean needAcquireSendInProgress) {
+    protected final synchronized boolean sendMessagesToConsumers(
+            ReadType readType, List<Entry> entries, boolean needAcquireSendInProgress) {
         if (needAcquireSendInProgress) {
             acquireSendInProgress();
         }
@@ -645,8 +685,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int remainingMessages = 0;
         boolean hasChunk = false;
         for (int i = 0; i < metadataArray.length; i++) {
-            final MessageMetadata metadata = Commands.peekAndCopyMessageMetadata(
-                    entries.get(i).getDataBuffer(), subscription.toString(), -1);
+            final MessageMetadata metadata =
+                    Commands.peekAndCopyMessageMetadata(entries.get(i).getDataBuffer(), subscription.toString(), -1);
             if (metadata != null) {
                 remainingMessages += metadata.getNumMessagesInBatch();
                 if (!hasChunk && metadata.hasUuid()) {
@@ -691,13 +731,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 availablePermits = Math.min(availablePermits, remainUnAckedMessages);
             }
             if (log.isDebugEnabled() && !c.isWritable()) {
-                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
-                                + "availablePermits are {}", topic.getName(), name,
-                        c, c.getAvailablePermits());
+                log.debug(
+                        "[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
+                                + "availablePermits are {}",
+                        topic.getName(),
+                        name,
+                        c,
+                        c.getAvailablePermits());
             }
 
-            int messagesForC = Math.min(Math.min(remainingMessages, availablePermits),
-                    serviceConfig.getDispatcherMaxRoundRobinBatchSize());
+            int messagesForC = Math.min(
+                    Math.min(remainingMessages, availablePermits), serviceConfig.getDispatcherMaxRoundRobinBatchSize());
             messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
             int end = Math.min(start + messagesForC, entries.size());
@@ -714,23 +758,38 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-            totalEntries += filterEntriesForConsumer(metadataArray, start,
-                    entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                    readType == ReadType.Replay, c);
+            totalEntries += filterEntriesForConsumer(
+                    metadataArray,
+                    start,
+                    entriesForThisConsumer,
+                    batchSizes,
+                    sendMessageInfo,
+                    batchIndexesAcks,
+                    cursor,
+                    readType == ReadType.Replay,
+                    c);
 
-            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
+            c.sendMessages(
+                    entriesForThisConsumer,
+                    batchSizes,
+                    batchIndexesAcks,
+                    sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(),
+                    redeliveryTracker);
 
             int msgSent = sendMessageInfo.getTotalMessages();
             remainingMessages -= msgSent;
             start += messagesForC;
             entriesToDispatch -= messagesForC;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
+                log.debug(
+                        "[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
                                 + "PersistentDispatcherMultipleConsumers",
-                        name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
+                        name,
+                        msgSent,
+                        batchIndexesAcks.getTotalAckedIndexCount());
             }
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
@@ -740,7 +799,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         if (entriesToDispatch > 0) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
+                log.debug(
+                        "[{}] No consumers found with available permits, storing {} positions for later replay",
+                        name,
                         entries.size() - start);
             }
             entries.subList(start, entries.size()).forEach(entry -> {
@@ -752,9 +813,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return true;
     }
 
-    private boolean sendChunkedMessagesToConsumers(ReadType readType,
-                                                   List<Entry> entries,
-                                                   MessageMetadata[] metadataArray) {
+    private boolean sendChunkedMessagesToConsumers(
+            ReadType readType, List<Entry> entries, MessageMetadata[] metadataArray) {
         final List<EntryAndMetadata> originalEntryAndMetadataList = new ArrayList<>(metadataArray.length);
         for (int i = 0; i < metadataArray.length; i++) {
             originalEntryAndMetadataList.add(EntryAndMetadata.create(entries.get(i), metadataArray[i]));
@@ -771,8 +831,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             final List<EntryAndMetadata> entryAndMetadataList = current.getValue();
             final int messagesForC = Math.min(consumer.getAvailablePermits(), entryAndMetadataList.size());
             if (log.isDebugEnabled()) {
-                log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer.consumerName(), messagesForC, readType);
+                log.debug(
+                        "[{}] select consumer {} with messages num {}, read type is {}",
+                        name,
+                        consumer.consumerName(),
+                        messagesForC,
+                        readType);
             }
             if (messagesForC < entryAndMetadataList.size()) {
                 for (int i = messagesForC; i < entryAndMetadataList.size(); i++) {
@@ -786,26 +850,38 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 continue;
             }
             if (readType == ReadType.Replay) {
-                entryAndMetadataList.stream().limit(messagesForC)
+                entryAndMetadataList.stream()
+                        .limit(messagesForC)
                         .forEach(e -> redeliveryMessages.remove(e.getLedgerId(), e.getEntryId()));
             }
             final SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             final EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
             final EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
 
-            totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
-                    batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
-            consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
-                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
-                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
-            ).addListener(future -> {
-                if (future.isDone() && numConsumers.decrementAndGet() == 0) {
-                    readMoreEntries();
-                }
-            });
+            totalEntries += filterEntriesForConsumer(
+                    entryAndMetadataList,
+                    batchSizes,
+                    sendMessageInfo,
+                    batchIndexesAcks,
+                    cursor,
+                    readType == ReadType.Replay,
+                    consumer);
+            consumer.sendMessages(
+                            entryAndMetadataList,
+                            batchSizes,
+                            batchIndexesAcks,
+                            sendMessageInfo.getTotalMessages(),
+                            sendMessageInfo.getTotalBytes(),
+                            sendMessageInfo.getTotalChunkedMessages(),
+                            getRedeliveryTracker())
+                    .addListener(future -> {
+                        if (future.isDone() && numConsumers.decrementAndGet() == 0) {
+                            readMoreEntries();
+                        }
+                    });
 
-            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(
+                    this, -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
@@ -831,16 +907,30 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
             waitTimeMillis = 1;
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Error reading transaction entries : {}, Read Type {} - Retrying to read in {} seconds",
-                        name, exception.getMessage(), readType, waitTimeMillis / 1000.0);
+                log.debug(
+                        "[{}] Error reading transaction entries : {}, Read Type {} - Retrying to read in {} seconds",
+                        name,
+                        exception.getMessage(),
+                        readType,
+                        waitTimeMillis / 1000.0);
             }
         } else if (!(exception instanceof TooManyRequestsException)) {
-            log.error("[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds", name,
-                    cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
+            log.error(
+                    "[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds",
+                    name,
+                    cursor.getReadPosition(),
+                    exception.getMessage(),
+                    readType,
+                    waitTimeMillis / 1000.0);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds", name,
-                        cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
+                log.debug(
+                        "[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds",
+                        name,
+                        cursor.getReadPosition(),
+                        exception.getMessage(),
+                        readType,
+                        waitTimeMillis / 1000.0);
             }
         }
 
@@ -861,28 +951,37 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
-        topic.getBrokerService().executor().schedule(() -> {
-            synchronized (PersistentDispatcherMultipleConsumers.this) {
-                // If it's a replay read we need to retry even if there's already
-                // another scheduled read, otherwise we'd be stuck until
-                // more messages are published.
-                if (!havePendingRead || readType == ReadType.Replay) {
-                    log.info("[{}] Retrying read operation", name);
-                    readMoreEntries();
-                } else {
-                    log.info("[{}] Skipping read retry: havePendingRead {}", name, havePendingRead, exception);
-                }
-            }
-        }, waitTimeMillis, TimeUnit.MILLISECONDS);
-
+        topic.getBrokerService()
+                .executor()
+                .schedule(
+                        () -> {
+                            synchronized (PersistentDispatcherMultipleConsumers.this) {
+                                // If it's a replay read we need to retry even if there's already
+                                // another scheduled read, otherwise we'd be stuck until
+                                // more messages are published.
+                                if (!havePendingRead || readType == ReadType.Replay) {
+                                    log.info("[{}] Retrying read operation", name);
+                                    readMoreEntries();
+                                } else {
+                                    log.info(
+                                            "[{}] Skipping read retry: havePendingRead {}",
+                                            name,
+                                            havePendingRead,
+                                            exception);
+                                }
+                            }
+                        },
+                        waitTimeMillis,
+                        TimeUnit.MILLISECONDS);
     }
 
     private boolean needTrimAckedMessages() {
         if (lastIndividualDeletedRangeFromCursorRecovery == null) {
             return false;
         } else {
-            return lastIndividualDeletedRangeFromCursorRecovery.upperEndpoint()
-                    .compareTo((PositionImpl) cursor.getReadPosition()) > 0;
+            return lastIndividualDeletedRangeFromCursorRecovery.upperEndpoint().compareTo((PositionImpl)
+                            cursor.getReadPosition())
+                    > 0;
         }
     }
 
@@ -937,8 +1036,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
         });
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer,
-                    redeliveryMessages);
+            log.debug(
+                    "[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, redeliveryMessages);
         }
         readMoreEntries();
     }
@@ -962,20 +1061,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public void addUnAckedMessages(int numberOfMessages) {
         int maxUnackedMessages = topic.getMaxUnackedMessagesOnSubscription();
         // don't block dispatching if maxUnackedMessages = 0
-        if (maxUnackedMessages <= 0 && blockedDispatcherOnUnackedMsgs == TRUE
+        if (maxUnackedMessages <= 0
+                && blockedDispatcherOnUnackedMsgs == TRUE
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
             log.info("[{}] Dispatcher is unblocked, since maxUnackedMessagesPerSubscription=0", name);
             readMoreEntriesAsync();
         }
 
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
-        if (unAckedMessages >= maxUnackedMessages && maxUnackedMessages > 0
+        if (unAckedMessages >= maxUnackedMessages
+                && maxUnackedMessages > 0
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
             // block dispatcher if it reaches maxUnAckMsg limit
-            log.debug("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
-                    unAckedMessages, maxUnackedMessages);
-        } else if (topic.getBrokerService().isBrokerDispatchingBlocked()
-                && blockedDispatcherOnUnackedMsgs == TRUE) {
+            log.debug(
+                    "[{}] Dispatcher is blocked due to unackMessages {} reached to max {}",
+                    name,
+                    unAckedMessages,
+                    maxUnackedMessages);
+        } else if (topic.getBrokerService().isBrokerDispatchingBlocked() && blockedDispatcherOnUnackedMsgs == TRUE) {
             // unblock dispatcher: if dispatcher is blocked due to broker-unackMsg limit and if it ack back enough
             // messages
             if (totalUnackedMessages < (topic.getBrokerService().maxUnackedMsgsPerDispatcher / 2)) {
@@ -1034,8 +1137,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public boolean initializeDispatchRateLimiterIfNeeded() {
-        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter.isDispatchRateEnabled(
-                topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
+        if (!dispatchRateLimiter.isPresent()
+                && DispatchRateLimiter.isDispatchRateEnabled(
+                        topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
             this.dispatchRateLimiter =
                     Optional.of(new DispatchRateLimiter(topic, getSubscriptionName(), Type.SUBSCRIPTION));
             return true;
@@ -1058,8 +1162,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
 
                 // Initialize the tracker the first time we need to use it
-                delayedDeliveryTracker = Optional
-                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                delayedDeliveryTracker = Optional.of(topic.getBrokerService()
+                        .getDelayedDeliveryTrackerFactory()
+                        .newTracker(this));
             }
 
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
@@ -1085,12 +1190,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
-        return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
+        return delayedDeliveryTracker.isPresent()
+                && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
     }
 
     @Override
     public long getNumberOfDelayedMessages() {
-        return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
+        return delayedDeliveryTracker
+                .map(DelayedDeliveryTracker::getNumberOfDelayedMessages)
+                .orElse(0L);
     }
 
     @Override
@@ -1104,8 +1212,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else {
             DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
                     topic.getBrokerService().getDelayedDeliveryTrackerFactory();
-            if (delayedDeliveryTrackerFactory instanceof BucketDelayedDeliveryTrackerFactory
-                    bucketDelayedDeliveryTrackerFactory) {
+            if (delayedDeliveryTrackerFactory
+                    instanceof BucketDelayedDeliveryTrackerFactory bucketDelayedDeliveryTrackerFactory) {
                 return bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor);
             }
             return CompletableFuture.completedFuture(null);
@@ -1144,7 +1252,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     private boolean checkIfMessageIsUnacked(long ledgerId, long entryId) {
         Position markDeletePosition = cursor.getMarkDeletedPosition();
-        return (markDeletePosition == null || ledgerId > markDeletePosition.getLedgerId()
+        return (markDeletePosition == null
+                || ledgerId > markDeletePosition.getLedgerId()
                 || (ledgerId == markDeletePosition.getLedgerId() && entryId > markDeletePosition.getEntryId()));
     }
 
@@ -1154,7 +1263,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return false;
         }
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
-        if (totalAvailablePermits > 0 && !havePendingReplayRead && !havePendingRead
+        if (totalAvailablePermits > 0
+                && !havePendingReplayRead
+                && !havePendingRead
                 && cursor.getNumberOfEntriesInBacklog(false) > 0) {
             log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
             readMoreEntries();
@@ -1167,9 +1278,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return topic;
     }
 
-
     public long getDelayedTrackerMemoryUsage() {
-        return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
+        return delayedDeliveryTracker
+                .map(DelayedDeliveryTracker::getBufferMemoryUsage)
+                .orElse(0L);
     }
 
     public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {

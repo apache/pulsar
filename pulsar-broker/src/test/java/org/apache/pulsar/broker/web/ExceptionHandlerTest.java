@@ -57,5 +57,4 @@ public class ExceptionHandlerTest {
         handler.handle(response2, new InterceptException(PRECONDITION_FAILED_412, restriction));
         Mockito.verify(httpChannel).sendResponse(Mockito.any(), Mockito.any(), Mockito.anyBoolean());
     }
-
 }

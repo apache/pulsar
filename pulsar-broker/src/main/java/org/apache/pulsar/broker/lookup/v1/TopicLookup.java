@@ -57,12 +57,14 @@ public class TopicLookup extends TopicLookupBase {
     @GET
     @Path("{topic-domain}/{property}/{cluster}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiResponses(value = { @ApiResponse(code = 307,
-            message = "Current broker doesn't serve the namespace of this topic") })
+    @ApiResponses(
+            value = {@ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic")})
     public void lookupTopicAsync(
             @Suspended AsyncResponse asyncResponse,
-            @PathParam("topic-domain") String topicDomain, @PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("topic-domain") String topicDomain,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("listenerName") String listenerName,
@@ -85,11 +87,17 @@ public class TopicLookup extends TopicLookupBase {
     @GET
     @Path("{topic-domain}/{property}/{cluster}/{namespace}/{topic}/bundle")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 405, message = "Invalid topic domain type") })
-    public String getNamespaceBundle(@PathParam("topic-domain") String topicDomain,
-            @PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic) {
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 405, message = "Invalid topic domain type")
+            })
+    public String getNamespaceBundle(
+            @PathParam("topic-domain") String topicDomain,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
         TopicName topicName = getTopicName(topicDomain, property, cluster, namespace, encodedTopic);
         return internalGetNamespaceBundle(topicName);
     }

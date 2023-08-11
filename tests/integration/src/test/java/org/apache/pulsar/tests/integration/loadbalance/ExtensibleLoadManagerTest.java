@@ -58,7 +58,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-
 /**
  * Integration tests for Pulsar ExtensibleLoadManagerImpl.
  */
@@ -73,7 +72,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     private final String clusterName = "MultiLoadManagerTest-" + UUID.randomUUID();
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName(clusterName)
-            .numBrokers(NUM_BROKERS).build();
+            .numBrokers(NUM_BROKERS)
+            .build();
     private PulsarCluster pulsarCluster = null;
     private List<String> brokerUrls = null;
     private String hosts;
@@ -83,9 +83,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     public void setup() throws Exception {
         incrementSetupNumber();
         Map<String, String> brokerEnvs = new HashMap<>();
-        brokerEnvs.put("loadManagerClassName",
-                "org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl");
-        brokerEnvs.put("loadBalancerLoadSheddingStrategy",
+        brokerEnvs.put(
+                "loadManagerClassName", "org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl");
+        brokerEnvs.put(
+                "loadBalancerLoadSheddingStrategy",
                 "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
@@ -100,8 +101,9 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         // all brokers alive
         assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), NUM_BROKERS);
 
-        admin.tenants().createTenant(DEFAULT_TENANT,
-                new TenantInfoImpl(new HashSet<>(), Set.of(pulsarCluster.getClusterName())));
+        admin.tenants()
+                .createTenant(
+                        DEFAULT_TENANT, new TenantInfoImpl(new HashSet<>(), Set.of(pulsarCluster.getClusterName())));
         admin.namespaces().createNamespace(DEFAULT_NAMESPACE, 100);
     }
 
@@ -146,7 +148,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         CountDownLatch latch = new CountDownLatch(admins.size());
         List<Map<String, String>> result = new CopyOnWriteArrayList<>();
-        for(var admin : admins) {
+        for (var admin : admins) {
             executor.execute(() -> {
                 try {
                     result.add(admin.lookups().lookupPartitionedTopic(topicName));
@@ -204,7 +206,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         log.info("The topic: {} owned by {}", topicName, broker);
         BundlesData bundles = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
         int numBundles = bundles.getNumBundles();
-        var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
+        var bundleRanges =
+                bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
         String firstBundle = bundleRanges.get(0) + "_" + bundleRanges.get(1);
         admin.namespaces().splitNamespaceBundle(DEFAULT_NAMESPACE, firstBundle, true, null);
         BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
@@ -277,13 +280,18 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             String namespace = antiAffinityEnabledNameSpace + "-" + i;
             admin.namespaces().createNamespace(namespace, 10);
             admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
-            admin.clusters().createFailureDomain(clusterName, namespaceAntiAffinityGroup, FailureDomain.builder()
-                    .brokers(Set.of(activeBrokers.get(i))).build());
+            admin.clusters()
+                    .createFailureDomain(
+                            clusterName,
+                            namespaceAntiAffinityGroup,
+                            FailureDomain.builder()
+                                    .brokers(Set.of(activeBrokers.get(i)))
+                                    .build());
         }
 
         Set<String> result = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
-            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i +"/topic";
+            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i + "/topic";
             admin.topics().createPartitionedTopic(topic, numPartition);
 
             Map<String, String> topicToBroker = admin.lookups().lookupPartitionedTopic(topic);
@@ -313,16 +321,19 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertEquals(activeBrokers.size(), NUM_BROKERS);
 
         admin.namespaces().createNamespace(isolationEnabledNameSpace);
-        admin.clusters().createNamespaceIsolationPolicy(clusterName, namespaceIsolationPolicyName, NamespaceIsolationData
-                .builder()
-                .namespaces(List.of(isolationEnabledNameSpace))
-                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                        .policyType(AutoFailoverPolicyType.min_available)
-                        .parameters(parameters1)
-                        .build())
-                .primary(List.of(getHostName(0)))
-                .secondary(List.of(getHostName(1)))
-                .build());
+        admin.clusters()
+                .createNamespaceIsolationPolicy(
+                        clusterName,
+                        namespaceIsolationPolicyName,
+                        NamespaceIsolationData.builder()
+                                .namespaces(List.of(isolationEnabledNameSpace))
+                                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                                        .policyType(AutoFailoverPolicyType.min_available)
+                                        .parameters(parameters1)
+                                        .build())
+                                .primary(List.of(getHostName(0)))
+                                .secondary(List.of(getHostName(1)))
+                                .build());
         final String topic = "persistent://" + isolationEnabledNameSpace + "/topic";
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -352,8 +363,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             fail();
         } catch (Exception ex) {
             log.error("Failed to lookup topic: ", ex);
-            assertThat(ex.getMessage()).containsAnyOf("Failed to look up a broker",
-                    "Failed to select the new owner broker for bundle");
+            assertThat(ex.getMessage())
+                    .containsAnyOf("Failed to look up a broker", "Failed to select the new owner broker for bundle");
         }
     }
 
@@ -369,7 +380,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         String pattern = "pulsar://.*-(\\d+):\\d+";
         Pattern compiledPattern = Pattern.compile(pattern);
         Matcher matcher = compiledPattern.matcher(broker);
-        if (!matcher.find()){
+        if (!matcher.find()) {
             throw new IllegalArgumentException("Failed to extract broker index");
         }
         return Integer.parseInt(matcher.group(1));

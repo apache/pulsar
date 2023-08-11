@@ -35,7 +35,8 @@ public class FloatSchema extends AbstractSchema<Float> {
         SCHEMA_INFO = SchemaInfoImpl.builder()
                 .name("Float")
                 .type(SchemaType.FLOAT)
-                .schema(new byte[0]).build();
+                .schema(new byte[0])
+                .build();
         INSTANCE = new FloatSchema();
     }
 
@@ -63,12 +64,7 @@ public class FloatSchema extends AbstractSchema<Float> {
             return null;
         } else {
             long bits = Float.floatToRawIntBits(message);
-            return new byte[] {
-                (byte) (bits >>> 24),
-                (byte) (bits >>> 16),
-                (byte) (bits >>> 8),
-                (byte) bits
-            };
+            return new byte[] {(byte) (bits >>> 24), (byte) (bits >>> 16), (byte) (bits >>> 8), (byte) bits};
         }
     }
 

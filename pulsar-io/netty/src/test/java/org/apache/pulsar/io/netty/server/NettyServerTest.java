@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.io.netty.server;
 
-import org.apache.pulsar.io.netty.NettySource;
-import org.apache.pulsar.io.netty.NettySourceConfig;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertNotNull;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.testng.Assert.assertNotNull;
+import org.apache.pulsar.io.netty.NettySource;
+import org.apache.pulsar.io.netty.NettySourceConfig;
+import org.testng.annotations.Test;
 
 /**
  * Tests for Netty Tcp or Udp Server
@@ -168,5 +166,4 @@ public class NettyServerTest {
                 .setNettySource(new NettySource())
                 .build();
     }
-
 }

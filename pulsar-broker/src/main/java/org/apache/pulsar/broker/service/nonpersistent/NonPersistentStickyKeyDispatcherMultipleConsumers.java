@@ -49,8 +49,8 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     private final StickyKeyConsumerSelector selector;
     private final KeySharedMode keySharedMode;
 
-    public NonPersistentStickyKeyDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription,
-                                                             KeySharedMeta ksm) {
+    public NonPersistentStickyKeyDispatcherMultipleConsumers(
+            NonPersistentTopic topic, Subscription subscription, KeySharedMeta ksm) {
         super(topic, subscription);
         this.keySharedMode = ksm.getKeySharedMode();
         switch (this.keySharedMode) {
@@ -72,8 +72,8 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     }
 
     @VisibleForTesting
-    NonPersistentStickyKeyDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription,
-                                                             StickyKeyConsumerSelector selector) {
+    NonPersistentStickyKeyDispatcherMultipleConsumers(
+            NonPersistentTopic topic, Subscription subscription, StickyKeyConsumerSelector selector) {
         super(topic, subscription);
         if (selector instanceof HashRangeExclusiveStickyKeyConsumerSelector) {
             keySharedMode = KeySharedMode.STICKY;
@@ -93,8 +93,8 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
-        return super.addConsumer(consumer).thenCompose(__ ->
-                selector.addConsumer(consumer).handle((value, ex) -> {
+        return super.addConsumer(consumer)
+                .thenCompose(__ -> selector.addConsumer(consumer).handle((value, ex) -> {
                     if (ex != null) {
                         synchronized (NonPersistentStickyKeyDispatcherMultipleConsumers.this) {
                             consumerSet.removeAll(consumer);
@@ -158,8 +158,13 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null, false, consumer);
 
             if (consumer.getAvailablePermits() > 0 && consumer.isWritable()) {
-                consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                consumer.sendMessages(
+                        entriesForConsumer,
+                        batchSizes,
+                        null,
+                        sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(),
+                        sendMessageInfo.getTotalChunkedMessages(),
                         getRedeliveryTracker());
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
             } else {

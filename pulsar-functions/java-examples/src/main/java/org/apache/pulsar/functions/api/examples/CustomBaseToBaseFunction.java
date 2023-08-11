@@ -31,4 +31,3 @@ public class CustomBaseToBaseFunction implements Function<CustomBaseObject, Cust
         return new CustomBaseObject(input.getBaseValue() + 100);
     }
 }
-

@@ -39,14 +39,14 @@ public class BookieResources extends BaseResources<BookiesRackConfiguration> {
         return getAsync(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
     }
 
-    public CompletableFuture<Void> update(Function<Optional<BookiesRackConfiguration>,
-            BookiesRackConfiguration> modifyFunction) {
-        return getCache().readModifyUpdateOrCreate(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                modifyFunction).thenApply(__ -> null);
+    public CompletableFuture<Void> update(
+            Function<Optional<BookiesRackConfiguration>, BookiesRackConfiguration> modifyFunction) {
+        return getCache()
+                .readModifyUpdateOrCreate(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, modifyFunction)
+                .thenApply(__ -> null);
     }
 
     public CompletableFuture<Set<String>> listAvailableBookiesAsync() {
-        return getChildrenAsync(AVAILABLE_BOOKIES_ROOT)
-                .thenApply(list -> new HashSet<>(list));
+        return getChildrenAsync(AVAILABLE_BOOKIES_ROOT).thenApply(list -> new HashSet<>(list));
     }
 }

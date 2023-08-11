@@ -38,19 +38,17 @@ public class RetryAnalyzer extends RetryAnalyzerCount {
     // Don't retry test classes that are changed in the current changeset in CI
     private static final Pattern TEST_FILE_PATTERN = Pattern.compile("^.*src/test/java/(.*)\\.java$");
     private static final Set<String> CHANGED_TEST_CLASSES = Optional.ofNullable(System.getenv("CHANGED_TESTS"))
-            .map(changedTestsCsv ->
-                    Collections.unmodifiableSet(Arrays.stream(StringUtils.split(changedTestsCsv))
-                            .map(path -> {
-                                Matcher matcher = TEST_FILE_PATTERN.matcher(path);
-                                if (matcher.matches()) {
-                                    return matcher.group(1)
-                                            .replace('/', '.');
-                                } else {
-                                    return null;
-                                }
-                            })
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toSet())))
+            .map(changedTestsCsv -> Collections.unmodifiableSet(Arrays.stream(StringUtils.split(changedTestsCsv))
+                    .map(path -> {
+                        Matcher matcher = TEST_FILE_PATTERN.matcher(path);
+                        if (matcher.matches()) {
+                            return matcher.group(1).replace('/', '.');
+                        } else {
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet())))
             .orElse(Collections.emptySet());
 
     public RetryAnalyzer() {

@@ -18,19 +18,16 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
+import static org.testng.Assert.fail;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
-import static org.testng.Assert.fail;
-
 
 public class PerformanceBaseArgumentsTest {
 
@@ -49,8 +46,7 @@ public class PerformanceBaseArgumentsTest {
         args.fillArgumentsFromProperties();
         Assert.assertTrue(called.get());
         Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
-        Assert.assertEquals(args.authPluginClassName,
-                "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
+        Assert.assertEquals(args.authPluginClassName, "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
         Assert.assertEquals(args.authParams, "myparams");
         Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
         Assert.assertTrue(args.tlsAllowInsecureConnection);
@@ -77,14 +73,20 @@ public class PerformanceBaseArgumentsTest {
         }
         try {
             Properties props = new Properties();
-            
-            Map<String, String> configs = Map.of("brokerServiceUrl","https://my-pulsar:8443/",
-            "authPlugin","org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
-            "authParams", "myparams",
-            "tlsTrustCertsFilePath", "./path",
-                    "tlsAllowInsecureConnection","true",
-            "tlsEnableHostnameVerification", "true"
-            );
+
+            Map<String, String> configs = Map.of(
+                    "brokerServiceUrl",
+                    "https://my-pulsar:8443/",
+                    "authPlugin",
+                    "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+                    "authParams",
+                    "myparams",
+                    "tlsTrustCertsFilePath",
+                    "./path",
+                    "tlsAllowInsecureConnection",
+                    "true",
+                    "tlsEnableHostnameVerification",
+                    "true");
             props.putAll(configs);
             FileOutputStream out = new FileOutputStream(tempConfigFile);
             props.store(out, "properties file");
@@ -94,13 +96,12 @@ public class PerformanceBaseArgumentsTest {
             args.fillArgumentsFromProperties();
             Assert.assertTrue(called.get());
             Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
-            Assert.assertEquals(args.authPluginClassName,
-                    "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
+            Assert.assertEquals(args.authPluginClassName, "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
             Assert.assertEquals(args.authParams, "myparams");
             Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
             Assert.assertTrue(args.tlsAllowInsecureConnection);
             Assert.assertTrue(args.tlsHostnameVerificationEnable);
-            
+
         } catch (IOException e) {
             e.printStackTrace();
             fail("Error while updating/reading config file");
@@ -128,15 +129,23 @@ public class PerformanceBaseArgumentsTest {
         try {
             Properties props = new Properties();
 
-            Map<String, String> configs = Map.of("brokerServiceUrl","https://my-pulsar:8443/",
-                    "authPlugin","org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
-                    "authParams", "myparams",
-                    "tlsTrustCertsFilePath", "./path",
-                    "tlsAllowInsecureConnection","true",
-                    "tlsEnableHostnameVerification", "true",
-                    "proxyServiceURL", "https://my-proxy-pulsar:4443/",
-                    "proxyProtocol", "TEST"
-            );
+            Map<String, String> configs = Map.of(
+                    "brokerServiceUrl",
+                    "https://my-pulsar:8443/",
+                    "authPlugin",
+                    "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+                    "authParams",
+                    "myparams",
+                    "tlsTrustCertsFilePath",
+                    "./path",
+                    "tlsAllowInsecureConnection",
+                    "true",
+                    "tlsEnableHostnameVerification",
+                    "true",
+                    "proxyServiceURL",
+                    "https://my-proxy-pulsar:4443/",
+                    "proxyProtocol",
+                    "TEST");
             props.putAll(configs);
             FileOutputStream out = new FileOutputStream(tempConfigFile);
             props.store(out, "properties file");

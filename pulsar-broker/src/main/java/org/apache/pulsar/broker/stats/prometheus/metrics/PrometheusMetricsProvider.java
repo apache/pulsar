@@ -53,6 +53,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
      * These acts a registry of the metrics defined in this provider.
      */
     public final ConcurrentMap<String, LongAdderCounter> counters = new ConcurrentSkipListMap<>();
+
     public final ConcurrentMap<String, SimpleGauge<? extends Number>> gauges = new ConcurrentSkipListMap<>();
     public final ConcurrentMap<String, DataSketchesOpStatsLogger> opStats = new ConcurrentSkipListMap<>();
 
@@ -90,15 +91,17 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
     @Override
     public void start(Configuration conf) {
-        executor = Executors.newSingleThreadScheduledExecutor(
-                new ExecutorProvider.ExtendedThreadFactory("metrics"));
+        executor = Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("metrics"));
 
-        int latencyRolloverSeconds = conf.getInt(PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
-                DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);
+        int latencyRolloverSeconds = conf.getInt(
+                PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS, DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);
         cluster = conf.getString(CLUSTER_NAME, DEFAULT_CLUSTER_NAME);
 
-        executor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::rotateLatencyCollection),
-                1, latencyRolloverSeconds, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(
+                catchingAndLoggingThrowables(this::rotateLatencyCollection),
+                1,
+                latencyRolloverSeconds,
+                TimeUnit.SECONDS);
     }
 
     @Override
@@ -115,8 +118,8 @@ public class PrometheusMetricsProvider implements StatsProvider {
     public void writeAllMetrics(Writer writer) throws IOException {
         gauges.forEach((name, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, name, cluster, gauge));
         counters.forEach((name, counter) -> PrometheusTextFormatUtil.writeCounter(writer, name, cluster, counter));
-        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster,
-                opStatLogger));
+        opStats.forEach(
+                (name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster, opStatLogger));
     }
 
     @Override

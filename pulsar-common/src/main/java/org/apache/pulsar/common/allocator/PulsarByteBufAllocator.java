@@ -59,13 +59,13 @@ public class PulsarByteBufAllocator {
     @VisibleForTesting
     static ByteBufAllocator createByteBufAllocator() {
         final boolean isPooled = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_POOLED, "true"));
-        final boolean isExitOnOutOfMemory = "true".equalsIgnoreCase(
-                System.getProperty(PULSAR_ALLOCATOR_EXIT_ON_OOM, "false"));
-        final OutOfMemoryPolicy outOfMemoryPolicy = OutOfMemoryPolicy.valueOf(
-                System.getProperty(PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY, "FallbackToHeap"));
+        final boolean isExitOnOutOfMemory =
+                "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_EXIT_ON_OOM, "false"));
+        final OutOfMemoryPolicy outOfMemoryPolicy =
+                OutOfMemoryPolicy.valueOf(System.getProperty(PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY, "FallbackToHeap"));
 
-        final LeakDetectionPolicy leakDetectionPolicy = LeakDetectionPolicy
-                .valueOf(System.getProperty(PULSAR_ALLOCATOR_LEAK_DETECTION, "Disabled"));
+        final LeakDetectionPolicy leakDetectionPolicy =
+                LeakDetectionPolicy.valueOf(System.getProperty(PULSAR_ALLOCATOR_LEAK_DETECTION, "Disabled"));
         if (log.isDebugEnabled()) {
             log.debug("Is Pooled: {} -- Exit on OOM: {}", isPooled, isExitOnOutOfMemory);
         }
@@ -96,6 +96,5 @@ public class PulsarByteBufAllocator {
         }
         builder.outOfMemoryPolicy(outOfMemoryPolicy);
         return builder.build();
-
     }
 }

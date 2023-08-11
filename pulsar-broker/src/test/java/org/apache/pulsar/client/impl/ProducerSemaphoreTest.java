@@ -24,7 +24,12 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
@@ -39,12 +44,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 @Test(groups = "broker-impl")
 public class ProducerSemaphoreTest extends ProducerConsumerBase {
@@ -67,7 +66,8 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         final int pendingQueueSize = 100;
 
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic("testProducerSemaphoreAcquire")
                 .maxPendingMessages(pendingQueueSize)
                 .enableBatching(true)
@@ -97,12 +97,14 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void testProducerSemaphoreAcquireAndRelease() throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testProducerSemaphoreAcquireAndRelease()
+            throws PulsarClientException, ExecutionException, InterruptedException {
 
         final int pendingQueueSize = 100;
 
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic("testProducerSemaphoreAcquire")
                 .maxPendingMessages(pendingQueueSize)
                 .enableBatching(false)
@@ -113,7 +115,9 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < messages; i++) {
-                futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
+                futures.add(producer.newMessage()
+                        .value(("Semaphore-test-" + i).getBytes())
+                        .sendAsync());
             }
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages);
             Assert.assertFalse(producer.isErrorStat());
@@ -129,12 +133,12 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < messages / 2; i++) {
-                MessageMetadata metadata = new MessageMetadata()
-                        .setNumMessagesInBatch(10);
-                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                MessageMetadata metadata = new MessageMetadata().setNumMessagesInBatch(10);
+                MessageImpl<byte[]> msg =
+                        MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 futures.add(producer.sendAsync(msg));
             }
-            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages/2);
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages / 2);
             Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
@@ -152,7 +156,9 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < messages / 2; i++) {
-                futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
+                futures.add(producer.newMessage()
+                        .value(("Semaphore-test-" + i).getBytes())
+                        .sendAsync());
             }
 
             // Here must ensure that the Semaphore a acquired 5
@@ -160,7 +166,6 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
-
         }
         FutureUtil.waitForAll(futures).get();
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
@@ -177,7 +182,8 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         final int pendingQueueSize = 10;
 
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
                 .topic("testProducerSemaphoreAcquire")
                 .maxPendingMessages(pendingQueueSize)
                 .enableBatching(false)
@@ -193,24 +199,23 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
-                MessageMetadata metadata = new MessageMetadata()
-                        .setNumMessagesInBatch(10);
+                MessageMetadata metadata = new MessageMetadata().setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                MessageImpl<byte[]> msg =
+                        MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 futures.add(producer.sendAsync(msg));
             }
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
             Assert.assertFalse(producer.isErrorStat());
             try {
-                MessageMetadata metadata = new MessageMetadata()
-                        .setNumMessagesInBatch(10);
+                MessageMetadata metadata = new MessageMetadata().setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                MessageImpl<byte[]> msg =
+                        MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 producer.sendAsync(msg).get();
                 Assert.fail("Shouldn't be able to send message");
             } catch (ExecutionException ee) {
-                Assert.assertEquals(ee.getCause().getClass(),
-                                    PulsarClientException.ProducerQueueIsFullError.class);
+                Assert.assertEquals(ee.getCause().getClass(), PulsarClientException.ProducerQueueIsFullError.class);
                 Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
                 Assert.assertFalse(producer.isErrorStat());
             }
@@ -226,19 +231,22 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
-                futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
+                futures.add(producer.newMessage()
+                        .value(("Semaphore-test-" + i).getBytes())
+                        .sendAsync());
             }
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
             Assert.assertFalse(producer.isErrorStat());
 
             try {
-                producer.newMessage().value(("Semaphore-test-Q-full").getBytes()).sendAsync().get();
+                producer.newMessage()
+                        .value(("Semaphore-test-Q-full").getBytes())
+                        .sendAsync()
+                        .get();
             } catch (ExecutionException ee) {
-                Assert.assertEquals(ee.getCause().getClass(),
-                                    PulsarClientException.ProducerQueueIsFullError.class);
+                Assert.assertEquals(ee.getCause().getClass(), PulsarClientException.ProducerQueueIsFullError.class);
                 Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
                 Assert.assertFalse(producer.isErrorStat());
-
             }
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
@@ -252,24 +260,26 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
     public void testBatchMessageSendTimeoutProducerSemaphoreRelease() throws Exception {
         final int pendingQueueSize = 10;
         @Cleanup
-        ProducerImpl<byte[]> producer =
-                (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                        .topic("testProducerSemaphoreRelease")
-                        .sendTimeout(5, TimeUnit.SECONDS)
-                        .maxPendingMessages(pendingQueueSize)
-                        .enableBatching(true)
-                        .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
-                        .batchingMaxBytes(12)
-                        .create();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic("testProducerSemaphoreRelease")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
+                .batchingMaxBytes(12)
+                .create();
         this.stopBroker();
         try {
             ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
-            Mockito.doThrow(new PulsarClientException.CryptoException("crypto error")).when(spyProducer)
-                    .encryptMessage(any(),any());
+            Mockito.doThrow(new PulsarClientException.CryptoException("crypto error"))
+                    .when(spyProducer)
+                    .encryptMessage(any(), any());
 
             Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
             batchMessageContainerField.setAccessible(true);
-            BatchMessageContainerImpl batchMessageContainer = (BatchMessageContainerImpl) batchMessageContainerField.get(spyProducer);
+            BatchMessageContainerImpl batchMessageContainer =
+                    (BatchMessageContainerImpl) batchMessageContainerField.get(spyProducer);
             batchMessageContainer.setProducer(spyProducer);
             spyProducer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
 
@@ -283,23 +293,25 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
     public void testBatchMessageOOMProducerSemaphoreRelease() throws Exception {
         final int pendingQueueSize = 10;
         @Cleanup
-        ProducerImpl<byte[]> producer =
-                (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                        .topic("testProducerSemaphoreRelease")
-                        .sendTimeout(5, TimeUnit.SECONDS)
-                        .maxPendingMessages(pendingQueueSize)
-                        .enableBatching(true)
-                        .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
-                        .batchingMaxBytes(12)
-                        .create();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic("testProducerSemaphoreRelease")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
+                .batchingMaxBytes(12)
+                .create();
         this.stopBroker();
 
         try {
             ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
             final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
             doAnswer((ignore) -> {
-                throw new OutOfMemoryError("semaphore-test");
-            }).when(mockAllocator).buffer(anyInt());
+                        throw new OutOfMemoryError("semaphore-test");
+                    })
+                    .when(mockAllocator)
+                    .buffer(anyInt());
 
             final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
             Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");

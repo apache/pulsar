@@ -78,10 +78,13 @@ public class MaxMessageSizeTest {
 
             String url = "http://127.0.0.1:" + pulsar.getListenPortHTTP().get();
             admin = PulsarAdmin.builder().serviceHttpUrl(url).build();
-            admin.clusters().createCluster("max_message_test", ClusterData.builder().serviceUrl(url).build());
+            admin.clusters()
+                    .createCluster(
+                            "max_message_test",
+                            ClusterData.builder().serviceUrl(url).build());
             admin.tenants()
-                    .createTenant("test",
-                            new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("max_message_test")));
+                    .createTenant(
+                            "test", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("max_message_test")));
             admin.namespaces().createNamespace("test/message", Sets.newHashSet("max_message_test"));
         } catch (Exception e) {
             e.printStackTrace();
@@ -102,10 +105,15 @@ public class MaxMessageSizeTest {
     public void testMaxMessageSetting() throws PulsarClientException {
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         String topicName = "persistent://test/message/topic1";
-        Producer<byte[]> producer = client.newProducer().topic(topicName).sendTimeout(60, TimeUnit.SECONDS).create();
-        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topicName)
+                .sendTimeout(60, TimeUnit.SECONDS)
+                .create();
+        Consumer<byte[]> consumer =
+                client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();
 
         // less than 5MB message
 
@@ -144,10 +152,13 @@ public class MaxMessageSizeTest {
 
         // 2MB metadata and 8 MB payload
         try {
-            producer.newMessage().keyBytes(new byte[2 * 1024 * 1024]).value(newNormalMsg).send();
+            producer.newMessage()
+                    .keyBytes(new byte[2 * 1024 * 1024])
+                    .value(newNormalMsg)
+                    .send();
             Assert.fail("Shouldn't send out this message");
         } catch (PulsarClientException e) {
-            //no-op
+            // no-op
         }
 
         // equals 10MB message
@@ -167,15 +178,18 @@ public class MaxMessageSizeTest {
     @Test
     public void testNonBatchingMaxMessageSize() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         String topicName = "persistent://test/message/testNonBatchingMaxMessageSize";
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
-                .sendTimeout(30, TimeUnit.SECONDS).create();
+                .sendTimeout(30, TimeUnit.SECONDS)
+                .create();
         @Cleanup
-        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();
+        Consumer<byte[]> consumer =
+                client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();
 
         byte[] data = new byte[8 * 1024 * 1024];
         try {
@@ -187,7 +201,10 @@ public class MaxMessageSizeTest {
 
         // 1MB metadata and 8 MB payload
         try {
-            producer.newMessage().property("P", new String(new byte[1024 * 1024])).value(data).send();
+            producer.newMessage()
+                    .property("P", new String(new byte[1024 * 1024]))
+                    .value(data)
+                    .send();
         } catch (PulsarClientException e) {
             Assert.fail("Shouldn't have exception at here", e);
         }
@@ -195,33 +212,39 @@ public class MaxMessageSizeTest {
 
         // 2MB metadata and 8 MB payload, should fail.
         try {
-            producer.newMessage().property("P", new String(new byte[2 * 1024 * 1024])).value(data).send();
+            producer.newMessage()
+                    .property("P", new String(new byte[2 * 1024 * 1024]))
+                    .value(data)
+                    .send();
             Assert.fail("Shouldn't send out this message");
         } catch (PulsarClientException e) {
-            //no-op
+            // no-op
         }
     }
 
     @Test
     public void testChunkingMaxMessageSize() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        PulsarClient client =
+                PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         String topicName = "persistent://test/message/testChunkingMaxMessageSize";
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .enableChunking(true)
-                .sendTimeout(30, TimeUnit.SECONDS).create();
+                .sendTimeout(30, TimeUnit.SECONDS)
+                .create();
         @Cleanup
-        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();
+        Consumer<byte[]> consumer =
+                client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();
 
         // 12 MB metadata, should fail
         try {
             producer.newMessage().orderingKey(new byte[12 * 1024 * 1024]).send();
             Assert.fail("Shouldn't send out this message");
         } catch (PulsarClientException e) {
-            //no-op
+            // no-op
         }
 
         // 12 MB payload, there should be 2 chunks
@@ -237,7 +260,10 @@ public class MaxMessageSizeTest {
 
         // 5MB metadata and 12 MB payload, there should be 3 chunks
         try {
-            producer.newMessage().property("P", new String(new byte[5 * 1024 * 1024])).value(data).send();
+            producer.newMessage()
+                    .property("P", new String(new byte[5 * 1024 * 1024]))
+                    .value(data)
+                    .send();
         } catch (PulsarClientException e) {
             Assert.fail("Shouldn't have exception at here", e);
         }

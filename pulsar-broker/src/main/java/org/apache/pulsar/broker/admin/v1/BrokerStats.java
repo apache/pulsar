@@ -39,15 +39,23 @@ public class BrokerStats extends BrokerStatsBase {
 
     @GET
     @Path("/broker-resource-availability/{property}/{cluster}/{namespace}")
-    @ApiOperation(value = "Broker availability report", notes = "This API gives the current broker availability in "
-            + "percent, each resource percentage usage is calculated and then"
-            + "sum of all of the resource usage percent is called broker-resource-availability"
-            + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM",
-            response = ResourceUnit.class, responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Load-manager doesn't support operation") })
-    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("property") String property,
-         @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+    @ApiOperation(
+            value = "Broker availability report",
+            notes = "This API gives the current broker availability in "
+                    + "percent, each resource percentage usage is calculated and then"
+                    + "sum of all of the resource usage percent is called broker-resource-availability"
+                    + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM",
+            response = ResourceUnit.class,
+            responseContainer = "Map")
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 403, message = "Don't have admin permission"),
+                @ApiResponse(code = 409, message = "Load-manager doesn't support operation")
+            })
+    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         return internalBrokerResourceAvailability(namespaceName);
     }

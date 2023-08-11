@@ -35,7 +35,6 @@ import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.MDC;
 
-
 /**
  * A Simple abstract class for mysql binlog sync to pulsar.
  */
@@ -59,21 +58,25 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         canalSourceConfig = CanalSourceConfig.load(config);
         if (canalSourceConfig.getCluster()) {
-            connector = CanalConnectors.newClusterConnector(canalSourceConfig.getZkServers(),
-                    canalSourceConfig.getDestination(), canalSourceConfig.getUsername(),
+            connector = CanalConnectors.newClusterConnector(
+                    canalSourceConfig.getZkServers(),
+                    canalSourceConfig.getDestination(),
+                    canalSourceConfig.getUsername(),
                     canalSourceConfig.getPassword());
             log.info("Start canal connect in cluster mode, canal cluster info {}", canalSourceConfig.getZkServers());
         } else {
             connector = CanalConnectors.newSingleConnector(
                     new InetSocketAddress(canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort()),
-                    canalSourceConfig.getDestination(), canalSourceConfig.getUsername(),
+                    canalSourceConfig.getDestination(),
+                    canalSourceConfig.getUsername(),
                     canalSourceConfig.getPassword());
-            log.info("Start canal connect in standalone mode, canal server info {}:{}",
-                    canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort());
+            log.info(
+                    "Start canal connect in standalone mode, canal server info {}:{}",
+                    canalSourceConfig.getSingleHostname(),
+                    canalSourceConfig.getSinglePort());
         }
         log.info("canal source destination {}", canalSourceConfig.getDestination());
         this.start();
-
     }
 
     protected void start() {
@@ -175,6 +178,5 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
             log.info("CanalRecord ack id is {}", this.id);
             connector.ack(this.id);
         }
-
     }
 }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.auth;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 
@@ -27,16 +26,16 @@ public class SameThreadOrderedSafeExecutor extends OrderedExecutor {
 
     public SameThreadOrderedSafeExecutor() {
         super(
-            "same-thread-executor",
-            1,
-            new DefaultThreadFactory("test"),
-            NullStatsLogger.INSTANCE,
-            false,
-            false,
-            100000,
-            -1,
-            false,
-            false /* thread scoped metrics*/);
+                "same-thread-executor",
+                1,
+                new DefaultThreadFactory("test"),
+                NullStatsLogger.INSTANCE,
+                false,
+                false,
+                100000,
+                -1,
+                false,
+                false /* thread scoped metrics*/);
     }
 
     @Override
@@ -53,5 +52,4 @@ public class SameThreadOrderedSafeExecutor extends OrderedExecutor {
     public void executeOrdered(long orderingKey, Runnable r) {
         r.run();
     }
-
 }

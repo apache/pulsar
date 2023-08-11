@@ -31,10 +31,7 @@ public class FloatSchemaTest {
         float data = (float) 12345678.1234;
         long longData = Float.floatToRawIntBits(data);
         byte[] expected = new byte[] {
-                (byte) (longData >>> 24),
-                (byte) (longData >>> 16),
-                (byte) (longData >>> 8),
-                ((Long)longData).byteValue()
+            (byte) (longData >>> 24), (byte) (longData >>> 16), (byte) (longData >>> 8), ((Long) longData).byteValue()
         };
         Assert.assertEquals(expected, schema.encode(data));
     }
@@ -48,7 +45,6 @@ public class FloatSchemaTest {
         byteBuf.writeBytes(schema.encode(dbl));
         Assert.assertEquals(dbl, schema.decode(bytes));
         Assert.assertEquals(dbl, schema.decode(byteBuf));
-
     }
 
     @Test
@@ -60,5 +56,3 @@ public class FloatSchemaTest {
         Assert.assertNull(FloatSchema.of().decode(byteBuf));
     }
 }
-
-

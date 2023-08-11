@@ -43,9 +43,6 @@ public interface BrokerNamespaceIsolationData {
     }
 
     static Builder builder() {
-        return ReflectionUtils.newBuilder(
-                "org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl");
+        return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl");
     }
-
-
 }

@@ -61,8 +61,8 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     private static final int FALSE = 0;
     private static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER =
-            AtomicIntegerFieldUpdater
-                    .newUpdater(NonPersistentSubscription.class, "isFenced");
+            AtomicIntegerFieldUpdater.newUpdater(NonPersistentSubscription.class, "isFenced");
+
     @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
@@ -70,15 +70,18 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     private KeySharedMode keySharedMode = null;
 
-    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName,
-                                     Map<String, String> properties) {
+    public NonPersistentSubscription(
+            NonPersistentTopic topic, String subscriptionName, Map<String, String> properties) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
-        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        this.fullName = MoreObjects.toStringHelper(this)
+                .add("topic", topicName)
+                .add("name", subName)
+                .toString();
         IS_FENCED_UPDATER.set(this, FALSE);
-        this.subscriptionProperties = properties != null
-                ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
+        this.subscriptionProperties =
+                properties != null ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
     }
 
     @Override
@@ -112,51 +115,55 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
             Dispatcher previousDispatcher = null;
 
             switch (consumer.subType()) {
-            case Exclusive:
-                if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
-                }
-                break;
-            case Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
-                }
-                break;
-            case Failover:
-                int partitionIndex = TopicName.getPartitionIndex(topicName);
-                if (partitionIndex < 0) {
-                    // For non partition topics, assume index 0 to pick a predictable consumer
-                    partitionIndex = 0;
-                }
+                case Exclusive:
+                    if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
+                        previousDispatcher = dispatcher;
+                        dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
+                    }
+                    break;
+                case Shared:
+                    if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
+                        previousDispatcher = dispatcher;
+                        dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
+                    }
+                    break;
+                case Failover:
+                    int partitionIndex = TopicName.getPartitionIndex(topicName);
+                    if (partitionIndex < 0) {
+                        // For non partition topics, assume index 0 to pick a predictable consumer
+                        partitionIndex = 0;
+                    }
 
-                if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
-                            topic, this);
-                }
-                break;
-            case Key_Shared:
-                KeySharedMeta ksm = consumer.getKeySharedMeta();
-                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
-                        || !((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
-                                .hasSameKeySharedPolicy(ksm)) {
-                    previousDispatcher = dispatcher;
-                    this.dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, ksm);
-                }
-                break;
-            default:
-                return FutureUtil.failedFuture(new ServerMetadataException("Unsupported subscription type"));
+                    if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
+                        previousDispatcher = dispatcher;
+                        dispatcher = new NonPersistentDispatcherSingleActiveConsumer(
+                                SubType.Failover, partitionIndex, topic, this);
+                    }
+                    break;
+                case Key_Shared:
+                    KeySharedMeta ksm = consumer.getKeySharedMeta();
+                    if (dispatcher == null
+                            || dispatcher.getType() != SubType.Key_Shared
+                            || !((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                                    .hasSameKeySharedPolicy(ksm)) {
+                        previousDispatcher = dispatcher;
+                        this.dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, ksm);
+                    }
+                    break;
+                default:
+                    return FutureUtil.failedFuture(new ServerMetadataException("Unsupported subscription type"));
             }
 
             if (previousDispatcher != null) {
-                previousDispatcher.close().thenRun(() -> {
-                    log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
-                }).exceptionally(ex -> {
-                    log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
-                    return null;
-                });
+                previousDispatcher
+                        .close()
+                        .thenRun(() -> {
+                            log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
+                        })
+                        .exceptionally(ex -> {
+                            log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
+                            return null;
+                        });
             }
         } else {
             if (consumer.subType() != dispatcher.getType()) {
@@ -185,7 +192,11 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         // decrement usage is triggered only for valid consumer close
         topic.decrementUsageCount();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
+            log.debug(
+                    "[{}] [{}] [{}] Removed consumer -- count: {}",
+                    topic.getName(),
+                    subName,
+                    consumer.consumerName(),
                     topic.currentUsageCount());
         }
     }
@@ -223,14 +234,14 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         }
 
         switch (type) {
-        case Exclusive:
-            return "Exclusive";
-        case Failover:
-            return "Failover";
-        case Shared:
-            return "Shared";
-        case Key_Shared:
-            return "Key_Shared";
+            case Exclusive:
+                return "Exclusive";
+            case Failover:
+                return "Failover";
+            case Shared:
+                return "Shared";
+            case Key_Shared:
+                return "Key_Shared";
         }
 
         return "Null";
@@ -289,17 +300,19 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenCompose(v -> close())
+        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
+                .thenCompose(v -> close())
                 .thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
-                }).exceptionally(exception -> {
+                })
+                .exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
-                    log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
-                            exception);
+                    log.error(
+                            "[{}][{}] Error disconnecting consumers from subscription", topicName, subName, exception);
                     disconnectFuture.completeExceptionally(exception);
                     return null;
                 });
@@ -343,45 +356,54 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect().thenRun(() -> {
-                closeSubscriptionFuture.complete(null);
-            }).exceptionally(ex -> {
-                log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);
-                closeSubscriptionFuture.completeExceptionally(ex);
-                return null;
-            });
+            this.disconnect()
+                    .thenRun(() -> {
+                        closeSubscriptionFuture.complete(null);
+                    })
+                    .exceptionally(ex -> {
+                        log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);
+                        closeSubscriptionFuture.completeExceptionally(ex);
+                        return null;
+                    });
         } else {
-            this.close().thenRun(() -> {
-                closeSubscriptionFuture.complete(null);
-            }).exceptionally(exception -> {
-                log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
-                closeSubscriptionFuture.completeExceptionally(exception);
-                return null;
-            });
+            this.close()
+                    .thenRun(() -> {
+                        closeSubscriptionFuture.complete(null);
+                    })
+                    .exceptionally(exception -> {
+                        log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
+                        closeSubscriptionFuture.completeExceptionally(exception);
+                        return null;
+                    });
         }
 
         // cursor close handles pending delete (ack) operations
-        closeSubscriptionFuture.thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
-            synchronized (this) {
-                (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
-                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
-                    deleteFuture.complete(null);
-                }).exceptionally(ex -> {
-                    IS_FENCED_UPDATER.set(this, FALSE);
-                    if (dispatcher != null) {
-                        dispatcher.reset();
+        closeSubscriptionFuture
+                .thenCompose(v -> topic.unsubscribe(subName))
+                .thenAccept(v -> {
+                    synchronized (this) {
+                        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
+                                .thenRun(() -> {
+                                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
+                                    deleteFuture.complete(null);
+                                })
+                                .exceptionally(ex -> {
+                                    IS_FENCED_UPDATER.set(this, FALSE);
+                                    if (dispatcher != null) {
+                                        dispatcher.reset();
+                                    }
+                                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
+                                    deleteFuture.completeExceptionally(ex);
+                                    return null;
+                                });
                     }
-                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
-                    deleteFuture.completeExceptionally(ex);
+                })
+                .exceptionally(exception -> {
+                    IS_FENCED_UPDATER.set(this, FALSE);
+                    log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+                    deleteFuture.completeExceptionally(exception);
                     return null;
                 });
-            }
-        }).exceptionally(exception -> {
-            IS_FENCED_UPDATER.set(this, FALSE);
-            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
-            deleteFuture.completeExceptionally(exception);
-            return null;
-        });
 
         return deleteFuture;
     }
@@ -422,14 +444,14 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
-        throw new UnsupportedOperationException("Expire message by timestamp is not supported for"
-                + " non-persistent topic.");
+        throw new UnsupportedOperationException(
+                "Expire message by timestamp is not supported for" + " non-persistent topic.");
     }
 
     @Override
     public boolean expireMessages(Position position) {
-        throw new UnsupportedOperationException("Expire message by position is not supported for"
-                + " non-persistent topic.");
+        throw new UnsupportedOperationException(
+                "Expire message by position is not supported for" + " non-persistent topic.");
     }
 
     public NonPersistentSubscriptionStatsImpl getStats() {
@@ -469,7 +491,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-     // No-op
+        // No-op
     }
 
     @Override
@@ -523,11 +545,10 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     @Override
     public CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties) {
         if (subscriptionProperties == null || subscriptionProperties.isEmpty()) {
-          this.subscriptionProperties = Collections.emptyMap();
+            this.subscriptionProperties = Collections.emptyMap();
         } else {
-           this.subscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
+            this.subscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
         }
         return CompletableFuture.completedFuture(null);
     }
-
 }

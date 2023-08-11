@@ -32,8 +32,9 @@ public abstract class PerformanceTopicListArguments extends PerformanceBaseArgum
     @Parameter(description = "persistent://prop/ns/my-topic", required = true)
     public List<String> topics;
 
-    @Parameter(names = { "-t", "--num-topics", "--num-topic" }, description = "Number of topics.  Must match"
-            + "the given number of topic arguments.",
+    @Parameter(
+            names = {"-t", "--num-topics", "--num-topic"},
+            description = "Number of topics.  Must match" + "the given number of topic arguments.",
             validateWith = PositiveNumberParameterValidator.class)
     public int numTopics = 1;
 
@@ -42,8 +43,10 @@ public abstract class PerformanceTopicListArguments extends PerformanceBaseArgum
         super.validate();
         for (String arg : topics) {
             if (arg.startsWith("-")) {
-                String errMsg = String.format("invalid option: '%s', to use a topic with the name '%s', "
-                        + "please use a fully qualified topic name", arg, arg);
+                String errMsg = String.format(
+                        "invalid option: '%s', to use a topic with the name '%s', "
+                                + "please use a fully qualified topic name",
+                        arg, arg);
                 throw new Exception(errMsg);
             }
         }
@@ -58,8 +61,8 @@ public abstract class PerformanceTopicListArguments extends PerformanceBaseArgum
                 }
                 topics = defaultTopics;
             } else {
-                String errMsg = String.format("the number of topic names (%d) must be equal to --num-topics (%d)",
-                        topics.size(), numTopics);
+                String errMsg = String.format(
+                        "the number of topic names (%d) must be equal to --num-topics (%d)", topics.size(), numTopics);
                 throw new Exception(errMsg);
             }
         }

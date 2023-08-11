@@ -44,8 +44,8 @@ class StringSchemaDataValidator implements SchemaDataValidator {
             // python send 'null' string as schema data
             String schemaDataStr = new String(data, UTF_8);
             if (!PY_NONE_SCHEMA_INFO.equals(schemaDataStr)) {
-                throw new InvalidSchemaDataException("Invalid schema definition data for string schema : '"
-                    + schemaDataStr + "'");
+                throw new InvalidSchemaDataException(
+                        "Invalid schema definition data for string schema : '" + schemaDataStr + "'");
             }
         }
     }

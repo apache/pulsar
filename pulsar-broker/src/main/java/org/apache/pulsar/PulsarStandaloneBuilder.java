@@ -114,5 +114,4 @@ public final class PulsarStandaloneBuilder {
         pulsarStandalone.getConfig().setRunningStandalone(true);
         return pulsarStandalone;
     }
-
 }

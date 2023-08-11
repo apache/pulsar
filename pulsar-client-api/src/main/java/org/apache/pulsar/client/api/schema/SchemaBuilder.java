@@ -38,5 +38,4 @@ public interface SchemaBuilder {
     static RecordSchemaBuilder record(String name) {
         return DefaultImplementation.getDefaultImplementation().newRecordSchemaBuilder(name);
     }
-
 }

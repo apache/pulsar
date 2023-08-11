@@ -68,8 +68,7 @@ public class WRRPlacementStrategy implements PlacementStrategy {
         if (totalAvailability <= 0) {
             // todo: this means all the brokers are overloaded and we can't assign this namespace to any broker
             // for now, pick anyone and return that one, because when we don't have ranking we put O for each broker
-            return finalCandidates.get(0L)
-                    .stream()
+            return finalCandidates.get(0L).stream()
                     .skip(rand.nextInt(finalCandidates.size()))
                     .findFirst()
                     .orElse(null);
@@ -81,7 +80,9 @@ public class WRRPlacementStrategy implements PlacementStrategy {
             weightRangeSoFar += candidateOwner.getKey();
             if (weightedSelector < weightRangeSoFar) {
                 selectedRU = candidateOwner.getValue();
-                log.debug(" Weighted Round Robin Selected RU - [{}]", candidateOwner.getValue().getResourceId());
+                log.debug(
+                        " Weighted Round Robin Selected RU - [{}]",
+                        candidateOwner.getValue().getResourceId());
                 break;
             }
         }

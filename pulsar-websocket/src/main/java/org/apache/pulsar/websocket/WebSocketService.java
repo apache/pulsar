@@ -84,30 +84,26 @@ public class WebSocketService implements Closeable {
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
         this.config = config;
-        this.executor = Executors
-                .newScheduledThreadPool(config.getWebSocketNumServiceThreads(),
-                        new DefaultThreadFactory("pulsar-websocket"));
+        this.executor = Executors.newScheduledThreadPool(
+                config.getWebSocketNumServiceThreads(), new DefaultThreadFactory("pulsar-websocket"));
         this.localCluster = localCluster;
-        this.topicProducerMap =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashSet<ProducerHandler>>newBuilder()
-                        .build();
-        this.topicConsumerMap =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashSet<ConsumerHandler>>newBuilder()
-                        .build();
-        this.topicReaderMap =
-                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ReaderHandler>>newBuilder()
-                        .build();
+        this.topicProducerMap = ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ProducerHandler>>newBuilder()
+                .build();
+        this.topicConsumerMap = ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ConsumerHandler>>newBuilder()
+                .build();
+        this.topicReaderMap = ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ReaderHandler>>newBuilder()
+                .build();
         this.proxyStats = new ProxyStats(this);
     }
 
-    public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+    public void start()
+            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
+                    DeploymentException {
 
         if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
-                configMetadataStore = createConfigMetadataStore(config.getConfigurationMetadataStoreUrl(),
+                configMetadataStore = createConfigMetadataStore(
+                        config.getConfigurationMetadataStoreUrl(),
                         (int) config.getMetadataStoreSessionTimeoutMillis(),
                         config.isMetadataStoreAllowReadOnlyOperations());
             } catch (MetadataStoreException e) {
@@ -131,7 +127,8 @@ public class WebSocketService implements Closeable {
         if (StringUtils.isNotBlank(cryptoFactoryClassName)) {
             try {
                 CryptoKeyReaderFactory factoryInstance = (CryptoKeyReaderFactory) Class.forName(cryptoFactoryClassName)
-                        .getDeclaredConstructor().newInstance();
+                        .getDeclaredConstructor()
+                        .newInstance();
                 cryptoKeyReader = Optional.ofNullable(factoryInstance.create());
             } catch (Exception e) {
                 log.info("Failed to initialize crypto-key reader", e);
@@ -142,9 +139,8 @@ public class WebSocketService implements Closeable {
         log.info("Pulsar WebSocket Service started");
     }
 
-    public MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs, boolean
-            isAllowReadOnlyOperations)
-            throws MetadataStoreException {
+    public MetadataStoreExtended createConfigMetadataStore(
+            String serverUrls, int sessionTimeoutMs, boolean isAllowReadOnlyOperations) throws MetadataStoreException {
         return PulsarResources.createConfigMetadataStore(serverUrls, sessionTimeoutMs, isAllowReadOnlyOperations);
     }
 
@@ -213,8 +209,8 @@ public class WebSocketService implements Closeable {
 
         if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
                 && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
-            clientBuilder.authentication(config.getBrokerClientAuthenticationPlugin(),
-                    config.getBrokerClientAuthenticationParameters());
+            clientBuilder.authentication(
+                    config.getBrokerClientAuthenticationPlugin(), config.getBrokerClientAuthenticationParameters());
         }
 
         if (config.isBrokerClientTlsEnabled()) {
@@ -251,11 +247,12 @@ public class WebSocketService implements Closeable {
 
     private ClusterData retrieveClusterData() throws PulsarServerException {
         if (pulsarResources == null) {
-            throw new PulsarServerException(
-                "Failed to retrieve Cluster data due to empty ConfigurationStoreServers");
+            throw new PulsarServerException("Failed to retrieve Cluster data due to empty ConfigurationStoreServers");
         }
         try {
-            return localCluster = pulsarResources.getClusterResources().getCluster(config.getClusterName())
+            return localCluster = pulsarResources
+                    .getClusterResources()
+                    .getCluster(config.getClusterName())
                     .orElseThrow(() -> new NotFoundException("Cluster " + config.getClusterName()));
         } catch (Exception e) {
             throw new PulsarServerException(e);
@@ -286,8 +283,9 @@ public class WebSocketService implements Closeable {
 
     public boolean addProducer(ProducerHandler producer) {
         return topicProducerMap
-                .computeIfAbsent(producer.getProducer().getTopic(),
-                        topic -> ConcurrentOpenHashSet.<ProducerHandler>newBuilder().build())
+                .computeIfAbsent(
+                        producer.getProducer().getTopic(), topic -> ConcurrentOpenHashSet.<ProducerHandler>newBuilder()
+                                .build())
                 .add(producer);
     }
 
@@ -305,8 +303,9 @@ public class WebSocketService implements Closeable {
 
     public boolean addConsumer(ConsumerHandler consumer) {
         return topicConsumerMap
-                .computeIfAbsent(consumer.getConsumer().getTopic(), topic ->
-                        ConcurrentOpenHashSet.<ConsumerHandler>newBuilder().build())
+                .computeIfAbsent(
+                        consumer.getConsumer().getTopic(), topic -> ConcurrentOpenHashSet.<ConsumerHandler>newBuilder()
+                                .build())
                 .add(consumer);
     }
 
@@ -323,8 +322,10 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addReader(ReaderHandler reader) {
-        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic ->
-                ConcurrentOpenHashSet.<ReaderHandler>newBuilder().build())
+        return topicReaderMap
+                .computeIfAbsent(
+                        reader.getConsumer().getTopic(), topic -> ConcurrentOpenHashSet.<ReaderHandler>newBuilder()
+                                .build())
                 .add(reader);
     }
 

@@ -47,7 +47,7 @@ public class DataURLStreamHandler extends URLStreamHandler {
         private URI uri;
 
         private static final Pattern pattern = Pattern.compile(
-              "(?<mimeType>[^;,]+)?(;(?<charset>charset=[^;,]+))?(;(?<base64>base64))?,(?<data>.+)", Pattern.DOTALL);
+                "(?<mimeType>[^;,]+)?(;(?<charset>charset=[^;,]+))?(;(?<base64>base64))?,(?<data>.+)", Pattern.DOTALL);
 
         protected DataURLConnection(URL url) {
             super(url);
@@ -126,5 +126,4 @@ public class DataURLStreamHandler extends URLStreamHandler {
     protected URLConnection openConnection(URL u) throws IOException {
         return new DataURLConnection(u);
     }
-
 }

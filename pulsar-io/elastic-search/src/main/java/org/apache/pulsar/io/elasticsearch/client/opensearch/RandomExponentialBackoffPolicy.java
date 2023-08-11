@@ -29,8 +29,8 @@ public class RandomExponentialBackoffPolicy extends BackoffPolicy {
     private final long start;
     private final int numberOfElements;
 
-    public RandomExponentialBackoffPolicy(RandomExponentialRetry randomExponentialRetry,
-                                          long start, int numberOfElements) {
+    public RandomExponentialBackoffPolicy(
+            RandomExponentialRetry randomExponentialRetry, long start, int numberOfElements) {
         this.randomExponentialRetry = randomExponentialRetry;
         assert start >= 0;
         assert numberOfElements >= -1;
@@ -60,8 +60,8 @@ public class RandomExponentialBackoffPolicy extends BackoffPolicy {
             if (!this.hasNext()) {
                 throw new NoSuchElementException("Only up to " + this.numberOfElements + " elements");
             } else {
-                long result = RandomExponentialBackoffPolicy.this.randomExponentialRetry
-                        .randomWaitInMs(this.currentlyConsumed, start);
+                long result = RandomExponentialBackoffPolicy.this.randomExponentialRetry.randomWaitInMs(
+                        this.currentlyConsumed, start);
                 ++this.currentlyConsumed;
                 return TimeValue.timeValueMillis(result);
             }

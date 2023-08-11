@@ -104,39 +104,38 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         File jaasFile = new File(kerberosWorkDir, "jaas.conf");
         try (FileWriter writer = new FileWriter(jaasFile)) {
             writer.write("\n"
-                + "PulsarBroker {\n"
-                + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
-                + "  useKeyTab=true\n"
-                + "  keyTab=\"" + keytabServer.getAbsolutePath() + "\n"
-                + "  storeKey=true\n"
-                + "  useTicketCache=false\n" // won't test useTicketCache=true on JUnit tests
-                + "  principal=\"" + principalServer + "\";\n"
-                + "};\n"
-                + "\n"
-                + "\n"
-                + "\n"
-                + "PulsarClient {\n"
-                + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
-                + "  useKeyTab=true\n"
-                + "  keyTab=\"" + keytabClient.getAbsolutePath() + "\n"
-                + "  storeKey=true\n"
-                + "  useTicketCache=false\n"
-                + "  principal=\"" + principalClient + "\";\n"
-                + "};\n"
-            );
+                    + "PulsarBroker {\n"
+                    + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
+                    + "  useKeyTab=true\n"
+                    + "  keyTab=\"" + keytabServer.getAbsolutePath() + "\n"
+                    + "  storeKey=true\n"
+                    + "  useTicketCache=false\n" // won't test useTicketCache=true on JUnit tests
+                    + "  principal=\"" + principalServer + "\";\n"
+                    + "};\n"
+                    + "\n"
+                    + "\n"
+                    + "\n"
+                    + "PulsarClient {\n"
+                    + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
+                    + "  useKeyTab=true\n"
+                    + "  keyTab=\"" + keytabClient.getAbsolutePath() + "\n"
+                    + "  storeKey=true\n"
+                    + "  useTicketCache=false\n"
+                    + "  principal=\"" + principalClient + "\";\n"
+                    + "};\n");
         }
 
         File krb5file = new File(kerberosWorkDir, "krb5.conf");
         try (FileWriter writer = new FileWriter(krb5file)) {
             String conf = "[libdefaults]\n"
-                + " default_realm = " + kdc.getRealm() + "\n"
-                + " udp_preference_limit = 1\n" // force use TCP
-                + "\n"
-                + "\n"
-                + "[realms]\n"
-                + " " + kdc.getRealm() + "  = {\n"
-                + "  kdc = " + kdc.getHost() + ":" + kdc.getPort() + "\n"
-                + " }";
+                    + " default_realm = " + kdc.getRealm() + "\n"
+                    + " udp_preference_limit = 1\n" // force use TCP
+                    + "\n"
+                    + "\n"
+                    + "[realms]\n"
+                    + " " + kdc.getRealm() + "  = {\n"
+                    + "  kdc = " + kdc.getHost() + ":" + kdc.getPort() + "\n"
+                    + " }";
             writer.write(conf);
             log.info("krb5.conf:\n" + conf);
         }
@@ -192,9 +191,9 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         lookupUrl = new URI(pulsar.getWebServiceAddress());
 
         replacePulsarClient(PulsarClient.builder()
-            .serviceUrl(lookupUrl.toString())
-            .statsInterval(0, TimeUnit.SECONDS)
-            .authentication(authSasl));
+                .serviceUrl(lookupUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
         Map<String, String> clientSaslConfig = new HashMap<>();
@@ -202,9 +201,9 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
         admin = PulsarAdmin.builder()
-            .serviceHttpUrl(brokerUrl.toString())
-            .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
-            .build();
+                .serviceHttpUrl(brokerUrl.toString())
+                .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
+                .build();
         log.info("-- {} --, end.", methodName);
 
         super.producerBaseSetup();
@@ -223,14 +222,16 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     public void testProducerAndConsumerPassed() throws Exception {
         log.info("-- {} -- start", methodName);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-            .topic("persistent://my-property/my-ns/my-topic")
-            .subscriptionName("my-subscriber-name")
-            .subscribe();
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-            .topic("persistent://my-property/my-ns/my-topic")
-            .enableBatching(false);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient
+                .newProducer()
+                .topic("persistent://my-property/my-ns/my-topic")
+                .enableBatching(false);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
@@ -262,9 +263,10 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         String hostName = "localhost";
 
         // prepare client and server side resource
-        AuthenticationDataProvider dataProvider =  authSasl.getAuthData(hostName);
+        AuthenticationDataProvider dataProvider = authSasl.getAuthData(hostName);
         AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
-                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+                .getAuthenticationService()
+                .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
         AuthenticationState authState = saslServer.newAuthState(null, null, null);
 
         // auth between server and client.
@@ -304,16 +306,18 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @Test
     public void testSaslOnlyAuthFirstStage() throws Exception {
         AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
-                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+                .getAuthenticationService()
+                .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
 
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
         doReturn("Init").when(servletRequest).getHeader("State");
         // 10 clients only do one-stage verification, resulting in 10 auth info remaining in memory
         for (int i = 0; i < 10; i++) {
-            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthenticationDataProvider dataProvider = authSasl.getAuthData("localhost");
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes()))
+                    .when(servletRequest)
+                    .getHeader("SASL-Token");
             doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
@@ -326,10 +330,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         saslServer.initialize(conf);
         // Add more auth info into memory
         for (int i = 0; i < 10; i++) {
-            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthenticationDataProvider dataProvider = authSasl.getAuthData("localhost");
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes()))
+                    .when(servletRequest)
+                    .getHeader("SASL-Token");
             doReturn(String.valueOf(10 + i)).when(servletRequest).getHeader("SASL-Server-ID");
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
@@ -350,7 +355,8 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @Test
     public void testMaxInflightContext() throws Exception {
         AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
-                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+                .getAuthenticationService()
+                .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
         doReturn("Init").when(servletRequest).getHeader("State");
         conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
@@ -358,18 +364,18 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         saslServer.initialize(conf);
         // add 10 inflight sasl context
         for (int i = 0; i < 10; i++) {
-            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthenticationDataProvider dataProvider = authSasl.getAuthData("localhost");
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes()))
+                    .when(servletRequest)
+                    .getHeader("SASL-Token");
             doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
         Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
         field.setAccessible(true);
         Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
-        //only 1 context was left in the memory
+        // only 1 context was left in the memory
         assertEquals(cache.asMap().size(), 1);
     }
-
 }

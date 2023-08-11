@@ -42,5 +42,4 @@ public class OffloaderDefinition {
      * The class name for the offloader factory implementation.
      */
     private String offloaderFactoryClass;
-
 }

@@ -41,19 +41,18 @@ public class PulsarByteBufAllocatorDefaultTest {
         assertNotNull(PulsarByteBufAllocator.DEFAULT);
 
         AtomicBoolean called = new AtomicBoolean();
-        try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
-                (mock, context) -> {
-            called.set(true);
-            final List<?> arguments = context.arguments();
-            assertTrue(arguments.get(0) instanceof ByteBufAllocator);
-            assertEquals(arguments.get(2), PoolingPolicy.PooledDirect);
-            assertEquals(arguments.get(4), OutOfMemoryPolicy.FallbackToHeap);
-            assertEquals(arguments.get(6), LeakDetectionPolicy.Advanced);
-        })) {
+        try (MockedConstruction<ByteBufAllocatorImpl> ignored =
+                Mockito.mockConstruction(ByteBufAllocatorImpl.class, (mock, context) -> {
+                    called.set(true);
+                    final List<?> arguments = context.arguments();
+                    assertTrue(arguments.get(0) instanceof ByteBufAllocator);
+                    assertEquals(arguments.get(2), PoolingPolicy.PooledDirect);
+                    assertEquals(arguments.get(4), OutOfMemoryPolicy.FallbackToHeap);
+                    assertEquals(arguments.get(6), LeakDetectionPolicy.Advanced);
+                })) {
             assertFalse(called.get());
             PulsarByteBufAllocator.createByteBufAllocator();
             assertTrue(called.get());
         }
     }
-
 }

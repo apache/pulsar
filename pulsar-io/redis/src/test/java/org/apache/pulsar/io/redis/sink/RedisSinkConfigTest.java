@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
-import org.apache.pulsar.io.redis.RedisAbstractConfig;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.apache.pulsar.io.redis.RedisAbstractConfig;
+import org.testng.annotations.Test;
 
 /**
  * RedisSinkConfig test
@@ -90,8 +88,9 @@ public class RedisSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "redisHosts property not set.")
+    @Test(
+            expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "redisHosts property not set.")
     public final void missingValidValidateTableNameTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisPassword", "fake@123");
@@ -106,8 +105,9 @@ public class RedisSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public final void invalidBatchTimeMsTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");
@@ -123,8 +123,10 @@ public class RedisSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant org.apache.pulsar.io.redis.RedisAbstractConfig.ClientMode.NOTSUPPORT")
+    @Test(
+            expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp =
+                    "No enum constant org.apache.pulsar.io.redis.RedisAbstractConfig.ClientMode.NOTSUPPORT")
     public final void invalidClientModeTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");

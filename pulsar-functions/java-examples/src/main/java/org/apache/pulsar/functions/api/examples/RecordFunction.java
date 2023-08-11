@@ -32,7 +32,8 @@ public class RecordFunction implements Function<String, Record<String>> {
         String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
         String output = String.format("%s!", input);
 
-        Map<String, String> properties = new HashMap<>(context.getCurrentRecord().getProperties());
+        Map<String, String> properties =
+                new HashMap<>(context.getCurrentRecord().getProperties());
         context.getCurrentRecord().getTopicName().ifPresent(topic -> properties.put("input_topic", topic));
 
         return context.newOutputRecordBuilder(Schema.STRING)

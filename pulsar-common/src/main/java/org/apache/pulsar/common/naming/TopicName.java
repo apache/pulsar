@@ -53,8 +53,10 @@ public class TopicName implements ServiceUnitId {
 
     private final int partitionIndex;
 
-    private static final LoadingCache<String, TopicName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, TopicName>() {
+    private static final LoadingCache<String, TopicName> cache = CacheBuilder.newBuilder()
+            .maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build(new CacheLoader<String, TopicName>() {
                 @Override
                 public TopicName load(String name) throws Exception {
                     return new TopicName(name);
@@ -71,8 +73,7 @@ public class TopicName implements ServiceUnitId {
         return TopicName.get(name);
     }
 
-    public static TopicName get(String domain, String tenant, String cluster, String namespace,
-                                String topic) {
+    public static TopicName get(String domain, String tenant, String cluster, String namespace, String topic) {
         String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }
@@ -115,12 +116,11 @@ public class TopicName implements ServiceUnitId {
                 if (parts.length == 3) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else if (parts.length == 1) {
-                    completeTopicName = TopicDomain.persistent.name() + "://"
-                        + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                    completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE
+                            + "/" + parts[0];
                 } else {
-                    throw new IllegalArgumentException(
-                        "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
-                        + "<tenant>/<namespace>/<topic> or <topic>");
+                    throw new IllegalArgumentException("Invalid short topic name '" + completeTopicName
+                            + "', it should be in the format of " + "<tenant>/<namespace>/<topic> or <topic>");
                 }
             }
 
@@ -139,7 +139,6 @@ public class TopicName implements ServiceUnitId {
             // Examples of localName:
             // 1. some, name, xyz
             // 2. xyz-123, feeder-2
-
 
             parts = Splitter.on("/").limit(4).splitToList(rest);
             if (parts.size() == 3) {
@@ -162,7 +161,6 @@ public class TopicName implements ServiceUnitId {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
 
-
             if (localName == null || localName.isEmpty()) {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
@@ -171,12 +169,10 @@ public class TopicName implements ServiceUnitId {
             throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
         }
         if (isV2()) {
-            this.completeTopicName = String.format("%s://%s/%s/%s",
-                                                   domain, tenant, namespacePortion, localName);
+            this.completeTopicName = String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
         } else {
-            this.completeTopicName = String.format("%s://%s/%s/%s/%s",
-                                                   domain, tenant, cluster,
-                                                   namespacePortion, localName);
+            this.completeTopicName =
+                    String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
         }
     }
 
@@ -280,7 +276,8 @@ public class TopicName implements ServiceUnitId {
                 if (partitionIndex < 0) {
                     // for the "topic-partition--1"
                     partitionIndex = -1;
-                } else if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
+                } else if (StringUtils.length(idx)
+                        != String.valueOf(partitionIndex).length()) {
                     // for the "topic-partition-01"
                     partitionIndex = -1;
                 }
@@ -399,8 +396,8 @@ public class TopicName implements ServiceUnitId {
 
     public String getSchemaName() {
         return getTenant()
-            + "/" + getNamespacePortion()
-            + "/" + TopicName.get(getPartitionedTopicName()).getEncodedLocalName();
+                + "/" + getNamespacePortion()
+                + "/" + TopicName.get(getPartitionedTopicName()).getEncodedLocalName();
     }
 
     @Override

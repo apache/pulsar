@@ -118,12 +118,14 @@ public class PulsarSchemaToKafkaSchema {
     private static final ImmutableMap<SchemaType, Schema> pulsarSchemaTypeToOptionalKafkaSchema;
     private static final ImmutableSet<String> kafkaLogicalSchemas;
     private static final AvroData avroData = new AvroData(1000);
-    private static final Cache<byte[], Schema> schemaCache =
-            CacheBuilder.newBuilder().maximumSize(10000)
-                    .expireAfterAccess(30, TimeUnit.MINUTES).build();
-    private static final Cache<Schema, Schema> optionalSchemaCache =
-            CacheBuilder.newBuilder().maximumSize(1000)
-                    .expireAfterAccess(30, TimeUnit.MINUTES).build();
+    private static final Cache<byte[], Schema> schemaCache = CacheBuilder.newBuilder()
+            .maximumSize(10000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build();
+    private static final Cache<Schema, Schema> optionalSchemaCache = CacheBuilder.newBuilder()
+            .maximumSize(1000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build();
 
     static {
         pulsarSchemaTypeToKafkaSchema = ImmutableMap.<SchemaType, Schema>builder()
@@ -187,14 +189,13 @@ public class PulsarSchemaToKafkaSchema {
         }
     }
 
-    public static Schema getOptionalKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema,
-                                               boolean useOptionalPrimitives) {
+    public static Schema getOptionalKafkaConnectSchema(
+            org.apache.pulsar.client.api.Schema pulsarSchema, boolean useOptionalPrimitives) {
         return makeOptional(getKafkaConnectSchema(pulsarSchema, useOptionalPrimitives));
-
     }
 
-    public static Schema getKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema,
-                                               boolean useOptionalPrimitives) {
+    public static Schema getKafkaConnectSchema(
+            org.apache.pulsar.client.api.Schema pulsarSchema, boolean useOptionalPrimitives) {
         if (pulsarSchema == null || pulsarSchema.getSchemaInfo() == null) {
             throw logAndThrowOnUnsupportedSchema(pulsarSchema, "Schema is required.", null);
         }
@@ -228,12 +229,16 @@ public class PulsarSchemaToKafkaSchema {
         }
 
         if (useOptionalPrimitives
-                && pulsarSchemaTypeToOptionalKafkaSchema.containsKey(pulsarSchema.getSchemaInfo().getType())) {
-            return pulsarSchemaTypeToOptionalKafkaSchema.get(pulsarSchema.getSchemaInfo().getType());
+                && pulsarSchemaTypeToOptionalKafkaSchema.containsKey(
+                        pulsarSchema.getSchemaInfo().getType())) {
+            return pulsarSchemaTypeToOptionalKafkaSchema.get(
+                    pulsarSchema.getSchemaInfo().getType());
         }
 
-        if (pulsarSchemaTypeToKafkaSchema.containsKey(pulsarSchema.getSchemaInfo().getType())) {
-            return pulsarSchemaTypeToKafkaSchema.get(pulsarSchema.getSchemaInfo().getType());
+        if (pulsarSchemaTypeToKafkaSchema.containsKey(
+                pulsarSchema.getSchemaInfo().getType())) {
+            return pulsarSchemaTypeToKafkaSchema.get(
+                    pulsarSchema.getSchemaInfo().getType());
         }
 
         try {
@@ -241,13 +246,14 @@ public class PulsarSchemaToKafkaSchema {
                 if (pulsarSchema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
                     KeyValueSchema kvSchema = (KeyValueSchema) pulsarSchema;
                     return SchemaBuilder.map(
-                            makeOptional(getKafkaConnectSchema(kvSchema.getKeySchema(), useOptionalPrimitives)),
-                            makeOptional(getKafkaConnectSchema(kvSchema.getValueSchema(), useOptionalPrimitives)))
-                                .optional()
-                                .build();
+                                    makeOptional(getKafkaConnectSchema(kvSchema.getKeySchema(), useOptionalPrimitives)),
+                                    makeOptional(
+                                            getKafkaConnectSchema(kvSchema.getValueSchema(), useOptionalPrimitives)))
+                            .optional()
+                            .build();
                 }
-                org.apache.avro.Schema avroSchema = parseAvroSchema(
-                        new String(pulsarSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8));
+                org.apache.avro.Schema avroSchema =
+                        parseAvroSchema(new String(pulsarSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8));
                 return avroData.toConnectSchema(avroSchema);
             });
         } catch (ExecutionException | UncheckedExecutionException | ExecutionError ee) {
@@ -256,12 +262,11 @@ public class PulsarSchemaToKafkaSchema {
     }
 
     private static IllegalStateException logAndThrowOnUnsupportedSchema(
-            org.apache.pulsar.client.api.Schema pulsarSchema,
-            String prefix,
-            Throwable cause) {
+            org.apache.pulsar.client.api.Schema pulsarSchema, String prefix, Throwable cause) {
         String msg = prefix + " Pulsar Schema: "
                 + (pulsarSchema == null || pulsarSchema.getSchemaInfo() == null
-                ? "null" : pulsarSchema.getSchemaInfo().toString());
+                        ? "null"
+                        : pulsarSchema.getSchemaInfo().toString());
         log.error(msg);
         return new IllegalStateException(msg, cause);
     }

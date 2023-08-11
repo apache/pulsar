@@ -63,7 +63,8 @@ public class LinuxInfoUtils {
 
     static {
         try {
-            metrics = Class.forName("jdk.internal.platform.Container").getMethod("metrics")
+            metrics = Class.forName("jdk.internal.platform.Container")
+                    .getMethod("metrics")
                     .invoke(null);
             if (metrics != null) {
                 getMetricsProviderMethod = metrics.getClass().getMethod("getProvider");
@@ -151,7 +152,6 @@ public class LinuxInfoUtils {
         }
     }
 
-
     /**
      * Reads first line of /proc/stat to get total cpu usage.
      *
@@ -179,7 +179,8 @@ public class LinuxInfoUtils {
             return ResourceUsage.builder()
                     .usage(total - idle)
                     .idle(idle)
-                    .total(total).build();
+                    .total(total)
+                    .build();
         } catch (IOException e) {
             log.error("[LinuxInfo] Failed to read CPU usage from /proc/stat", e);
             return ResourceUsage.empty();
@@ -238,14 +239,18 @@ public class LinuxInfoUtils {
      * @return Total nic limit
      */
     public static double getTotalNicLimit(List<String> nics, BitRateUnit bitRateUnit) {
-        return bitRateUnit.convert(nics.stream().mapToDouble(nicPath -> {
-            try {
-                return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
-            } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to get total nic limit.", e);
-                return 0d;
-            }
-        }).sum(), BitRateUnit.Megabit);
+        return bitRateUnit.convert(
+                nics.stream()
+                        .mapToDouble(nicPath -> {
+                            try {
+                                return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
+                            } catch (IOException e) {
+                                log.error("[LinuxInfo] Failed to get total nic limit.", e);
+                                return 0d;
+                            }
+                        })
+                        .sum(),
+                BitRateUnit.Megabit);
     }
 
     /**
@@ -256,14 +261,18 @@ public class LinuxInfoUtils {
      * @return Total nic usage
      */
     public static double getTotalNicUsage(List<String> nics, NICUsageType type, BitRateUnit bitRateUnit) {
-        return bitRateUnit.convert(nics.stream().mapToDouble(nic -> {
-            try {
-                return readDoubleFromFile(getReplacedNICPath(type.template, nic));
-            } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
-                return 0d;
-            }
-        }).sum(), BitRateUnit.Byte);
+        return bitRateUnit.convert(
+                nics.stream()
+                        .mapToDouble(nic -> {
+                            try {
+                                return readDoubleFromFile(getReplacedNICPath(type.template, nic));
+                            } catch (IOException e) {
+                                log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
+                                return 0d;
+                            }
+                        })
+                        .sum(),
+                BitRateUnit.Byte);
     }
 
     /**
@@ -356,10 +365,7 @@ public class LinuxInfoUtils {
         private final long usage;
 
         public static ResourceUsage empty() {
-            return ResourceUsage.builder()
-                    .total(-1)
-                    .idle(-1)
-                    .usage(-1).build();
+            return ResourceUsage.builder().total(-1).idle(-1).usage(-1).build();
         }
 
         public boolean isEmpty() {

@@ -67,8 +67,7 @@ public interface SchemaInfo {
         private boolean propertiesSet;
         private long timestamp;
 
-        SchemaInfoBuilder() {
-        }
+        SchemaInfoBuilder() {}
 
         public SchemaInfoBuilder name(String name) {
             this.name = name;
@@ -101,8 +100,7 @@ public interface SchemaInfo {
             if (!this.propertiesSet) {
                 propertiesValue = Collections.emptyMap();
             }
-            return DefaultImplementation
-                    .getDefaultImplementation()
+            return DefaultImplementation.getDefaultImplementation()
                     .newSchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
         }
     }

@@ -20,6 +20,10 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
 import io.prometheus.client.Summary;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
@@ -45,12 +49,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-
 // The tests implement a set of producer/consumer operations on a set of topics.
 // [A thread is started for each producer, and each consumer in the test.]
 // The tenants and namespaces in those topics are associated with a set of resource-groups (RGs).
@@ -66,9 +64,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         ResourceQuotaCalculator dummyQuotaCalc = new ResourceQuotaCalculator() {
             @Override
-            public boolean needToReportLocalUsage(long currentBytesUsed, long lastReportedBytes,
-                                                  long currentMessagesUsed, long lastReportedMessages,
-                                                  long lastReportTimeMSecsSinceEpoch) {
+            public boolean needToReportLocalUsage(
+                    long currentBytesUsed,
+                    long lastReportedBytes,
+                    long currentMessagesUsed,
+                    long lastReportedMessages,
+                    long lastReportTimeMSecsSinceEpoch) {
                 // Pretend to report every time, just to see the RG-metrics increasing.
                 numLocalUsageReports++;
                 return true;
@@ -148,27 +149,28 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             try {
                 // The producer will send messages to a specific topic, since it doesn't make sense for a producer
                 // to produce a message with vagueness about the destination topic (neither do Pulsar APIs allow it).
-                producer = pulsarClient.newProducer()
-                        .topic(myProduceTopic)
-                        .create();
+                producer = pulsarClient.newProducer().topic(myProduceTopic).create();
             } catch (PulsarClientException p) {
                 numExceptions++;
-                log.info("Producer={} got exception while building producer: ex={}",
-                        producerId, p.getMessage());
+                log.info("Producer={} got exception while building producer: ex={}", producerId, p.getMessage());
             }
 
             for (int ix = 0; ix < numMesgsToProduce; ix++) {
                 byte[] mesg;
                 try {
-                    mesg = String.format("ProducerId=%d, ix=%d, topic=%s", producerId, ix, myProduceTopic).getBytes();
+                    mesg = String.format("ProducerId=%d, ix=%d, topic=%s", producerId, ix, myProduceTopic)
+                            .getBytes();
                     MessageId msgId = producer.send(mesg);
                     sentNumBytes += mesg.length;
                     sentNumMsgs++;
                     log.debug("Producer={}, sent msg-ix={}, msgId={}", producerId, ix, msgId);
                 } catch (PulsarClientException e) {
                     numExceptions++;
-                    log.error("Producer={} got exception while sending {}-th time: ex={}",
-                            producerId, ix, e.getMessage());
+                    log.error(
+                            "Producer={} got exception while sending {}-th time: ex={}",
+                            producerId,
+                            ix,
+                            e.getMessage());
                 }
             }
             try {
@@ -176,8 +178,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                 producer.close();
             } catch (PulsarClientException e) {
                 numExceptions++;
-                log.error("Producer={} got exception while closing producer: ex={}",
-                        producerId, e.getMessage());
+                log.error("Producer={} got exception while closing producer: ex={}", producerId, e.getMessage());
             }
 
             log.info("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
@@ -242,8 +243,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                 consumer.close();
             } catch (PulsarClientException p) {
                 numExceptions++;
-                log.error("Consumer={} got exception while closing consumer: ex={}",
-                        consumerId, p.getMessage());
+                log.error("Consumer={} got exception while closing consumer: ex={}", consumerId, p.getMessage());
             }
         }
 
@@ -255,8 +255,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             switch (subscriptionType) {
                 default:
                     numExceptions++;
-                    final String errMesg = String.format("Consumer=%d got unexpected subscription type=%s",
-                            consumerId, subscriptionType);
+                    final String errMesg = String.format(
+                            "Consumer=%d got unexpected subscription type=%s", consumerId, subscriptionType);
                     Assert.fail(errMesg);
                     break;
                 case Shared:
@@ -272,7 +272,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             try {
                 // The consumer will try to get a message from any of the topics, since Pulsar allows a consumer to
                 // be subscribed to multiple topics.
-                consumer = pulsarClient.newConsumer()
+                consumer = pulsarClient
+                        .newConsumer()
                         .topic(topicStrings)
                         .subscriptionName(subscriptionString)
                         .subscriptionType(subscriptionType)
@@ -281,8 +282,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                         .subscribe();
             } catch (PulsarClientException p) {
                 numExceptions++;
-                log.error("Consumer={} got exception while building consumer: ex={}",
-                        consumerId, p.getMessage());
+                log.error("Consumer={} got exception while building consumer: ex={}", consumerId, p.getMessage());
             }
 
             Message<byte[]> message;
@@ -293,7 +293,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                     message = consumer.receive(recvTimeoutMilliSecs, TimeUnit.MILLISECONDS);
                     if (message != null) {
                         consumer.acknowledgeAsync(message);
-                        String mesg = String.format("Consumer=%d recvd %d-th mesg; id=%s, data=%s",
+                        String mesg = String.format(
+                                "Consumer=%d recvd %d-th mesg; id=%s, data=%s",
                                 consumerId, recvdNumMsgs, message.getMessageId(), new String(message.getData()));
                         log.debug(mesg);
                         recvdNumBytes += message.getValue().length;
@@ -301,8 +302,11 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                     }
                 } catch (PulsarClientException p) {
                     numExceptions++;
-                    log.error("Consumer={} got exception in while receiving {}-th mesg at consumer: ex={}",
-                            consumerId, recvdNumMsgs, p.getMessage());
+                    log.error(
+                            "Consumer={} got exception in while receiving {}-th mesg at consumer: ex={}",
+                            consumerId,
+                            recvdNumMsgs,
+                            p.getMessage());
                 }
             }
 
@@ -347,7 +351,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             }
         }
         if ((numEqualRGs + numUnEqualRGs != numTopics) || (numEqualRGs > 0 && numUnEqualRGs > 0)) {
-            String errMesg = String.format("Found %s topics with equal RGs and %s with unequal, on %s topics",
+            String errMesg = String.format(
+                    "Found %s topics with equal RGs and %s with unequal, on %s topics",
                     numEqualRGs, numUnEqualRGs, numTopics);
             throw new PulsarClientException(errMesg);
         } else {
@@ -406,7 +411,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         final int TotalExpectedMessagesToSend = NUM_TOTAL_MESSAGES;
         final int TotalExpectedMessagesToReceive = TotalExpectedMessagesToSend;
 
-        final SubscriptionType consumeSubscriptionType = SubscriptionType.Shared;  // Shared, or Exclusive
+        final SubscriptionType consumeSubscriptionType = SubscriptionType.Shared; // Shared, or Exclusive
 
         ProducerWithThread[] prodThr = new ProducerWithThread[NUM_PRODUCERS];
         ConsumerWithThread[] consThr = new ConsumerWithThread[NUM_CONSUMERS];
@@ -417,8 +422,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         // Fork some consumers to receive the messages.
         for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
             consThr[ix] = new ConsumerWithThread();
-            ConsumeMessages cm = new ConsumeMessages(ix, NUM_MESSAGES_PER_CONSUMER, TotalExpectedMessagesToReceive,
-                    consumeSubscriptionType, topicStrings);
+            ConsumeMessages cm = new ConsumeMessages(
+                    ix,
+                    NUM_MESSAGES_PER_CONSUMER,
+                    TotalExpectedMessagesToReceive,
+                    consumeSubscriptionType,
+                    topicStrings);
             Thread thr = new Thread(cm);
             thr.start();
             consThr[ix].consumer = cm;
@@ -474,8 +483,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
                 consNumMesgsRecvd = consThr[ix].consumer.getNumMessagesRecvd();
                 recvdNumMsgs += consNumMesgsRecvd;
-                log.debug("consumer={} received {} messages (current total {}, expected {})",
-                        ix, consNumMesgsRecvd, recvdNumMsgs, TotalExpectedMessagesToReceive);
+                log.debug(
+                        "consumer={} received {} messages (current total {}, expected {})",
+                        ix,
+                        consNumMesgsRecvd,
+                        recvdNumMsgs,
+                        TotalExpectedMessagesToReceive);
             }
         } while (recvdNumMsgs < TotalExpectedMessagesToReceive);
 
@@ -526,7 +539,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         final int scaleFactor = tenantRGEqualsNsRG ? 1 : 2;
 
         // Verify producer and consumer side stats.
-        this.verifyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
+        this.verifyRGProdConsStats(
+                topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
 
         // Verify the metrics corresponding to the operations in this test.
         this.verifyRGMetrics(sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
@@ -540,11 +554,16 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
     // Verify the app stats with what we see from the broker-service, and the resource-group (which in turn internally
     // derives stats from the broker service)
-    private void verifyRGProdConsStats(String[] topicStrings,
-                                       int sentNumBytes, int sentNumMsgs,
-                                       int recvdNumBytes, int recvdNumMsgs,
-                                       int scaleFactor, boolean checkProduce,
-                                       boolean checkConsume) throws Exception {
+    private void verifyRGProdConsStats(
+            String[] topicStrings,
+            int sentNumBytes,
+            int sentNumMsgs,
+            int recvdNumBytes,
+            int recvdNumMsgs,
+            int scaleFactor,
+            boolean checkProduce,
+            boolean checkConsume)
+            throws Exception {
 
         BrokerService bs = pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
@@ -594,14 +613,14 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
                     final String tenantRGName = TopicToTenantRGName(topic);
                     if (!RGsWithPublishStatsGathered.contains(tenantRGName)) {
-                        prodCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Publish,
-                                getCumulativeUsageStats);
+                        prodCounts = this.rgservice.getRGUsage(
+                                tenantRGName, ResourceGroupMonitoringClass.Publish, getCumulativeUsageStats);
                         totalTenantRGProdCounts = ResourceGroup.accumulateBMCount(totalTenantRGProdCounts, prodCounts);
                         RGsWithPublishStatsGathered.add(tenantRGName);
                     }
                     if (!RGsWithDispatchStatsGathered.contains(tenantRGName)) {
-                        consCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Dispatch,
-                                getCumulativeUsageStats);
+                        consCounts = this.rgservice.getRGUsage(
+                                tenantRGName, ResourceGroupMonitoringClass.Dispatch, getCumulativeUsageStats);
                         totalTenantRGConsCounts = ResourceGroup.accumulateBMCount(totalTenantRGConsCounts, consCounts);
                         RGsWithDispatchStatsGathered.add(tenantRGName);
                     }
@@ -611,14 +630,14 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                     // We will do the same here, to get the expected stats.
                     if (tenantRGName.compareTo(nsRGName) != 0) {
                         if (!RGsWithPublishStatsGathered.contains(nsRGName)) {
-                            prodCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Publish,
-                                    getCumulativeUsageStats);
+                            prodCounts = this.rgservice.getRGUsage(
+                                    nsRGName, ResourceGroupMonitoringClass.Publish, getCumulativeUsageStats);
                             totalNsRGProdCounts = ResourceGroup.accumulateBMCount(totalNsRGProdCounts, prodCounts);
                             RGsWithPublishStatsGathered.add(nsRGName);
                         }
                         if (!RGsWithDispatchStatsGathered.contains(nsRGName)) {
-                            consCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Dispatch,
-                                    getCumulativeUsageStats);
+                            consCounts = this.rgservice.getRGUsage(
+                                    nsRGName, ResourceGroupMonitoringClass.Dispatch, getCumulativeUsageStats);
                             totalNsRGConsCounts = ResourceGroup.accumulateBMCount(totalNsRGConsCounts, consCounts);
                             RGsWithDispatchStatsGathered.add(nsRGName);
                         }
@@ -657,10 +676,15 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     }
 
     // Check the metrics for the RGs involved
-    private void verifyRGMetrics(int sentNumBytes, int sentNumMsgs,
-                                 int recvdNumBytes, int recvdNumMsgs,
-                                 int scaleFactor, boolean checkProduce,
-                                 boolean checkConsume) throws Exception {
+    private void verifyRGMetrics(
+            int sentNumBytes,
+            int sentNumMsgs,
+            int recvdNumBytes,
+            int recvdNumMsgs,
+            int scaleFactor,
+            boolean checkProduce,
+            boolean checkConsume)
+            throws Exception {
         final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
         final int ExpectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
         long totalTenantRegisters = 0;
@@ -701,9 +725,13 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             totalNamespaceUnRegisters += ResourceGroupService.getRgNamespaceUnRegistersCount(rgName);
             totalUpdates += ResourceGroupService.getRgUpdatesCount(rgName);
         }
-        log.info("totalTenantRegisters={}, totalTenantUnRegisters={}, " +
-                        "totalNamespaceRegisters={}, totalNamespaceUnRegisters={}",
-                totalTenantRegisters, totalTenantUnRegisters, totalNamespaceRegisters, totalNamespaceUnRegisters);
+        log.info(
+                "totalTenantRegisters={}, totalTenantUnRegisters={}, "
+                        + "totalNamespaceRegisters={}, totalNamespaceUnRegisters={}",
+                totalTenantRegisters,
+                totalTenantUnRegisters,
+                totalNamespaceRegisters,
+                totalNamespaceUnRegisters);
 
         // On each run, there will be 'NumRGs' registrations
         Assert.assertEquals(totalTenantRegisters - residualTenantRegs, NUM_RESOURCE_GROUPS);
@@ -720,23 +748,23 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         for (ResourceGroupMonitoringClass mc : ResourceGroupMonitoringClass.values()) {
             int mcIdx = mc.ordinal();
-            log.info("mc={}: totalQuotaBytes={}, totalQuotaMessages={}, " +
-                            " totalUsedBytes={}, totalUsedMessages={}" +
-                            " totalUsageReports={}",
-                    mc.name(), totalQuotaBytes[mcIdx], totalQuotaMessages[mcIdx],
-                    totalUsedBytes[mcIdx], totalUsedMessages[mcIdx], totalUsageReportCounts[mcIdx]);
+            log.info(
+                    "mc={}: totalQuotaBytes={}, totalQuotaMessages={}, " + " totalUsedBytes={}, totalUsedMessages={}"
+                            + " totalUsageReports={}",
+                    mc.name(),
+                    totalQuotaBytes[mcIdx],
+                    totalQuotaMessages[mcIdx],
+                    totalUsedBytes[mcIdx],
+                    totalUsedMessages[mcIdx],
+                    totalUsageReportCounts[mcIdx]);
             // On each run, the bytes/messages are monotone incremented in Prometheus metrics.
             // So, we take the residuals into account when comparing against the expected.
             if (checkProduce && mc == ResourceGroupMonitoringClass.Publish) {
-                Assert.assertEquals(totalUsedMessages[mcIdx] - residualSentNumMessages,
-                        sentNumMsgs * scaleFactor);
-                Assert.assertTrue(totalUsedBytes[mcIdx] - residualSentNumBytes
-                        >= ExpectedNumBytesSent);
+                Assert.assertEquals(totalUsedMessages[mcIdx] - residualSentNumMessages, sentNumMsgs * scaleFactor);
+                Assert.assertTrue(totalUsedBytes[mcIdx] - residualSentNumBytes >= ExpectedNumBytesSent);
             } else if (checkConsume && mc == ResourceGroupMonitoringClass.Dispatch) {
-                Assert.assertEquals(totalUsedMessages[mcIdx] - residualRecvdNumMessages,
-                        recvdNumMsgs * scaleFactor);
-                Assert.assertTrue(totalUsedBytes[mcIdx] - residualRecvdNumBytes
-                        >= ExpectedNumBytesReceived);
+                Assert.assertEquals(totalUsedMessages[mcIdx] - residualRecvdNumMessages, recvdNumMsgs * scaleFactor);
+                Assert.assertTrue(totalUsedBytes[mcIdx] - residualRecvdNumBytes >= ExpectedNumBytesReceived);
             }
 
             long perClassUsageReports = numLocalUsageReports / ResourceGroupMonitoringClass.values().length;
@@ -749,7 +777,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         residualRecvdNumBytes += recvdNumBytes;
         residualRecvdNumMessages += recvdNumMsgs * scaleFactor;
 
-        Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
+        Assert.assertEquals(totalUpdates, 0); // currently, we don't update the RGs in this UT
 
         // Basic check that latency metrics are doing some work.
         Summary.Child.Value usageAggrLatency = ResourceGroupService.getRgUsageAggregationLatency();
@@ -776,7 +804,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private static final int NUM_PRODUCERS = 4;
     private static final int NUM_CONSUMERS = 4;
     private static final int NUM_MESSAGES_PER_PRODUCER = 100;
-    private static final int NUM_TOPICS = 8;  // Set == NumProducers, so each producer can send on its own topic
+    private static final int NUM_TOPICS = 8; // Set == NumProducers, so each producer can send on its own topic
     private static final int NUM_RESOURCE_GROUPS = 4; // arbitrarily, half of NumTopics, so 2 topics map to each RG
     private static final int NUM_TOTAL_MESSAGES = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
     private static final int NUM_MESSAGES_PER_CONSUMER = NUM_TOTAL_MESSAGES / NUM_CONSUMERS;
@@ -814,7 +842,6 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private final String[] PersistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
     private final String[] NonPersistentTopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
     private final String[] NonPersistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
-
 
     // We don't periodically report to a remote broker in this test. So, we will use cumulative stats.
     private final ResourceGroupUsageStatsType getCumulativeUsageStats = ResourceGroupUsageStatsType.Cumulative;
@@ -881,7 +908,10 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private void prepareForOps() throws PulsarAdminException {
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         this.conf.setAllowAutoTopicCreation(true);
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters()
+                .createCluster(
+                        clusterName,
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
     }
 
     // Set up of RG/tenant/namespaces/topic names, and checking of the test parameters.
@@ -929,15 +959,16 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
             if (!createdNamespaces.contains(TenantAndNsNameSameOrder[ix])) {
                 admin.namespaces().createNamespace(TenantAndNsNameSameOrder[ix]);
-                admin.namespaces().setNamespaceReplicationClusters(
-                        TenantAndNsNameSameOrder[ix], Sets.newHashSet(clusterName));
+                admin.namespaces()
+                        .setNamespaceReplicationClusters(TenantAndNsNameSameOrder[ix], Sets.newHashSet(clusterName));
                 createdNamespaces.add(TenantAndNsNameSameOrder[ix]);
             }
 
             if (!createdNamespaces.contains(TenantAndNsNameOppositeOrder[ix])) {
                 admin.namespaces().createNamespace(TenantAndNsNameOppositeOrder[ix]);
-                admin.namespaces().setNamespaceReplicationClusters(
-                        TenantAndNsNameOppositeOrder[ix], Sets.newHashSet(clusterName));
+                admin.namespaces()
+                        .setNamespaceReplicationClusters(
+                                TenantAndNsNameOppositeOrder[ix], Sets.newHashSet(clusterName));
                 createdNamespaces.add(TenantAndNsNameOppositeOrder[ix]);
             }
         }
@@ -952,13 +983,10 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         // Create all the persistent and non-persistent topic strings
         for (int ix = 0; ix < NUM_TOPICS; ix++) {
-            PersistentTopicNamesSameTenantAndNsRGs[ix] =
-                    "persistent://" + TopicNamesSameTenantAndNsRGs[ix];
-            PersistentTopicNamesDifferentTenantAndNsRGs[ix] =
-                    "persistent://" + TopicNamesDifferentTenantAndNsRGs[ix];
+            PersistentTopicNamesSameTenantAndNsRGs[ix] = "persistent://" + TopicNamesSameTenantAndNsRGs[ix];
+            PersistentTopicNamesDifferentTenantAndNsRGs[ix] = "persistent://" + TopicNamesDifferentTenantAndNsRGs[ix];
 
-            NonPersistentTopicNamesSameTenantAndNsRGs[ix] =
-                    "non-persistent://" + TopicNamesSameTenantAndNsRGs[ix];
+            NonPersistentTopicNamesSameTenantAndNsRGs[ix] = "non-persistent://" + TopicNamesSameTenantAndNsRGs[ix];
             NonPersistentTopicNamesDifferentTenantAndNsRGs[ix] =
                     "non-persistent://" + TopicNamesDifferentTenantAndNsRGs[ix];
         }

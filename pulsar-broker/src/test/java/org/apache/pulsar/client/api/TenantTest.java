@@ -33,9 +33,7 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     @Override
-    protected void setup() throws Exception {
-        
-    }
+    protected void setup() throws Exception {}
 
     @AfterMethod(alwaysRun = true)
     @Override
@@ -47,7 +45,10 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
     public void testMaxTenant() throws Exception {
         conf.setMaxTenants(2);
         super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("testTenant1", tenantInfo);
         admin.tenants().createTenant("testTenant2", tenantInfo);
@@ -57,14 +58,16 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getStatusCode(), 412);
             Assert.assertEquals(e.getHttpError(), "Exceed the maximum number of tenants");
         }
-        //unlimited
+        // unlimited
         super.internalCleanup();
         conf.setMaxTenants(0);
         super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         for (int i = 0; i < 10; i++) {
             admin.tenants().createTenant("testTenant-unlimited" + i, tenantInfo);
         }
     }
-    
 }

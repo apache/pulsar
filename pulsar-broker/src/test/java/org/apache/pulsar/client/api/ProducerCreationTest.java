@@ -48,22 +48,22 @@ public class ProducerCreationTest extends ProducerConsumerBase {
 
     @DataProvider(name = "topicDomainProvider")
     public Object[][] topicDomainProvider() {
-        return new Object[][] {
-                { TopicDomain.persistent },
-                { TopicDomain.non_persistent }
-        };
+        return new Object[][] {{TopicDomain.persistent}, {TopicDomain.non_persistent}};
     }
 
     @Test(dataProvider = "topicDomainProvider")
     public void testExactlyOnceWithProducerNameSpecified(TopicDomain domain) throws PulsarClientException {
-        Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default", "testExactlyOnceWithProducerNameSpecified").toString())
+        Producer<byte[]> producer1 = pulsarClient
+                .newProducer()
+                .topic(TopicName.get(domain.value(), "public", "default", "testExactlyOnceWithProducerNameSpecified")
+                        .toString())
                 .producerName("p-name-1")
                 .create();
 
         Assert.assertNotNull(producer1);
 
-        Producer<byte[]> producer2 = pulsarClient.newProducer()
+        Producer<byte[]> producer2 = pulsarClient
+                .newProducer()
                 .topic("testExactlyOnceWithProducerNameSpecified")
                 .producerName("p-name-2")
                 .create();
@@ -71,26 +71,31 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         Assert.assertNotNull(producer2);
 
         try {
-            pulsarClient.newProducer()
+            pulsarClient
+                    .newProducer()
                     .topic("testExactlyOnceWithProducerNameSpecified")
                     .producerName("p-name-2")
                     .create();
             Assert.fail("should be failed");
         } catch (PulsarClientException.ProducerBusyException e) {
-            //ok here
+            // ok here
         }
     }
 
     @Test(dataProvider = "topicDomainProvider")
-    public void testGeneratedNameProducerReconnect(TopicDomain domain) throws PulsarClientException, InterruptedException {
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default", "testGeneratedNameProducerReconnect").toString())
+    public void testGeneratedNameProducerReconnect(TopicDomain domain)
+            throws PulsarClientException, InterruptedException {
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic(TopicName.get(domain.value(), "public", "default", "testGeneratedNameProducerReconnect")
+                        .toString())
                 .create();
         Assert.assertTrue(producer.isConnected());
-        //simulate create producer timeout.
+        // simulate create producer timeout.
         Thread.sleep(3000);
 
-        producer.getConnectionHandler().connectionClosed(producer.getConnectionHandler().cnx());
+        producer.getConnectionHandler()
+                .connectionClosed(producer.getConnectionHandler().cnx());
         Assert.assertFalse(producer.isConnected());
         Thread.sleep(3000);
         Assert.assertEquals(producer.getConnectionHandler().getEpoch(), 1);
@@ -124,7 +129,8 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         producer.close();
 
         // Initial subscription will only be created if the topic is persistent
-        Assert.assertEquals(topic.isPersistent(),
+        Assert.assertEquals(
+                topic.isPersistent(),
                 admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
 
         // Existing subscription should not fail the producer creation.
@@ -134,7 +140,8 @@ public class ProducerCreationTest extends ProducerConsumerBase {
                 .create();
         otherProducer.close();
 
-        Assert.assertEquals(topic.isPersistent(),
+        Assert.assertEquals(
+                topic.isPersistent(),
                 admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
     }
 
@@ -174,9 +181,8 @@ public class ProducerCreationTest extends ProducerConsumerBase {
             throws PulsarAdminException, PulsarClientException {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 
-        final TopicName topic =
-                TopicName.get("persistent", "public", "default",
-                        "testInitialSubscriptionCreationWithAutoCreationDisable");
+        final TopicName topic = TopicName.get(
+                "persistent", "public", "default", "testInitialSubscriptionCreationWithAutoCreationDisable");
         final String initialSubscriptionName = "init-sub";
         admin.topics().createNonPartitionedTopic(topic.toString());
         try {

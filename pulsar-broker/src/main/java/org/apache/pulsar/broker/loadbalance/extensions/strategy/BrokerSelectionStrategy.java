@@ -39,5 +39,4 @@ public interface BrokerSelectionStrategy {
      *               The context contains information needed for selection (load data, config, and etc).
      */
     Optional<String> select(Set<String> brokers, ServiceUnitId bundle, LoadManagerContext context);
-
 }

@@ -52,8 +52,7 @@ public class DefaultEvictionContext implements EvictionContext {
         this(referenceTime, currentCount, slidingCount, null);
     }
 
-    public DefaultEvictionContext(Long referenceTime, Long currentCount, Long slidingCount, Long
-            slidingInterval) {
+    public DefaultEvictionContext(Long referenceTime, Long currentCount, Long slidingCount, Long slidingInterval) {
         this.referenceTime = referenceTime;
         this.currentCount = currentCount;
         this.slidingCount = slidingCount;

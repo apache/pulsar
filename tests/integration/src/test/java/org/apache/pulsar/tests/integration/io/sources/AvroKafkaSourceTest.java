@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import static org.testng.Assert.*;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -29,11 +36,15 @@ import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.SourceStatusUtil;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -48,18 +59,6 @@ import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.SourceStatus;
-
-import static org.testng.Assert.*;
 
 /**
  * A tester for testing kafka source with Avro Messages.
@@ -102,11 +101,10 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         return kafkaContainerName + ":9093";
     }
 
-
     public void startKafkaContainers(PulsarCluster cluster) throws Exception {
         this.kafkaContainer = createKafkaContainer(cluster);
         cluster.startService(kafkaContainerName, kafkaContainer);
-        log.info("creating schema registry kafka {}",  getBootstrapServersOnDockerNetwork());
+        log.info("creating schema registry kafka {}", getBootstrapServersOnDockerNetwork());
         this.schemaRegistryContainer = new SchemaRegistryContainer(getBootstrapServersOnDockerNetwork());
         cluster.startService(schemaRegistryContainerName, schemaRegistryContainer);
         sourceConfig.put("bootstrapServers", getBootstrapServersOnDockerNetwork());
@@ -117,9 +115,9 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig.put("heartbeatIntervalMs", 5000L);
         sourceConfig.put("topic", kafkaTopicName);
         sourceConfig.put("valueDeserializationClass", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
-        sourceConfig.put("consumerConfigProperties",
-                ImmutableMap.of("schema.registry.url", getRegistryAddressInDockerNetwork())
-        );
+        sourceConfig.put(
+                "consumerConfigProperties",
+                ImmutableMap.of("schema.registry.url", getRegistryAddressInDockerNetwork()));
     }
 
     private class EnhancedKafkaContainer extends KafkaContainer {
@@ -136,16 +134,13 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
             // otherwise the Kafka Schema Registry won't work
             return "PLAINTEXT://" + kafkaContainerName + ":9093";
         }
-
     }
 
     protected EnhancedKafkaContainer createKafkaContainer(PulsarCluster cluster) {
         return (EnhancedKafkaContainer) new EnhancedKafkaContainer(
-                DockerImageName.parse("confluentinc/cp-kafka:" + CONFLUENT_PLATFORM_VERSION))
+                        DockerImageName.parse("confluentinc/cp-kafka:" + CONFLUENT_PLATFORM_VERSION))
                 .withEmbeddedZookeeper()
-                .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
-                        .withName(kafkaContainerName)
-                );
+                .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd.withName(kafkaContainerName));
     }
 
     public void stopKafkaContainers() {
@@ -160,33 +155,29 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     public void prepareSource() throws Exception {
         log.info("creating topic");
         ExecResult execResult = kafkaContainer.execInContainer(
-            "/usr/bin/kafka-topics",
-            "--create",
-            "--zookeeper",
+                "/usr/bin/kafka-topics",
+                "--create",
+                "--zookeeper",
                 getZooKeeperAddressInDockerNetwork(),
-            "--partitions",
-            "1",
-            "--replication-factor",
-            "1",
-            "--topic",
-            kafkaTopicName);
-        assertTrue(
-            execResult.getStdout().contains("Created topic"),
-            execResult.getStdout());
-
+                "--partitions",
+                "1",
+                "--replication-factor",
+                "1",
+                "--topic",
+                kafkaTopicName);
+        assertTrue(execResult.getStdout().contains("Created topic"), execResult.getStdout());
     }
 
     private String getZooKeeperAddressInDockerNetwork() {
-        return kafkaContainerName +":2181";
+        return kafkaContainerName + ":2181";
     }
 
-    private void testSource()  throws Exception {
+    private void testSource() throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
-        final String outputTopicName = "test-source-connector-"
-                + functionRuntimeType + "-output-topic-" + randomName(8);
-        final String sourceName = "test-source-connector-"
-                + functionRuntimeType + "-name-" + randomName(8);
+        final String outputTopicName =
+                "test-source-connector-" + functionRuntimeType + "-output-topic-" + randomName(8);
+        final String sourceName = "test-source-connector-" + functionRuntimeType + "-name-" + randomName(8);
         final int numMessages = 10;
 
         @Cleanup
@@ -195,7 +186,9 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 .build();
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .build();
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
@@ -244,7 +237,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 });
 
         // validate the source result
-       validateSourceResultAvro(consumer, messages);
+        validateSourceResultAvro(consumer, messages);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -253,8 +246,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    public void validateSourceResultAvro(Consumer<GenericRecord> consumer,
-                                         List<MyBean> beans) throws Exception {
+    public void validateSourceResultAvro(Consumer<GenericRecord> consumer, List<MyBean> beans) throws Exception {
         int recordsNumber = 0;
         Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
         while (msg != null) {
@@ -271,38 +263,43 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         }
 
         Assert.assertEquals(recordsNumber, beans.size());
-        log.info("Stop {} server container. topic: {} has {} records.", kafkaContainerName, consumer.getTopic(), recordsNumber);
+        log.info(
+                "Stop {} server container. topic: {} has {} records.",
+                kafkaContainerName,
+                consumer.getTopic(),
+                recordsNumber);
     }
 
-    protected void getSourceInfoSuccess(String tenant,
-                                        String namespace,
-                                        String sourceName) throws Exception {
+    protected void getSourceInfoSuccess(String tenant, String namespace, String sourceName) throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "get",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "get",
+            "--tenant",
+            tenant,
+            "--namespace",
+            namespace,
+            "--name",
+            sourceName
         };
 
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get source info : {}", result.getStdout());
-        assertTrue(
-                result.getStdout().contains("\"archive\": \"builtin://" + SOURCE_TYPE + "\""),
-                result.getStdout()
-        );
+        assertTrue(result.getStdout().contains("\"archive\": \"builtin://" + SOURCE_TYPE + "\""), result.getStdout());
     }
 
     protected void getSourceStatus(String tenant, String namespace, String sourceName) throws Exception {
 
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "status",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "status",
+            "--tenant",
+            tenant,
+            "--namespace",
+            namespace,
+            "--name",
+            sourceName
         };
 
         final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
@@ -317,32 +314,41 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         assertEquals(sourceStatus.getInstances().size(), 1);
         assertEquals(sourceStatus.getInstances().get(0).getStatus().isRunning(), true);
         assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
-        assertEquals(sourceStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+        assertEquals(
+                sourceStatus
+                        .getInstances()
+                        .get(0)
+                        .getStatus()
+                        .getLatestSystemExceptions()
+                        .size(),
+                0);
 
         assertTrue(result.getStdout().contains("\"running\" : true"));
-
     }
 
-    protected void submitSourceConnector(String tenant,
-                                         String namespace,
-                                         String sourceName,
-                                         String outputTopicName) throws Exception {
+    protected void submitSourceConnector(String tenant, String namespace, String sourceName, String outputTopicName)
+            throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source", "create",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName,
-                "--source-type", SOURCE_TYPE,
-                "--sourceConfig", new Gson().toJson(sourceConfig),
-                "--destinationTopicName", outputTopicName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "create",
+            "--tenant",
+            tenant,
+            "--namespace",
+            namespace,
+            "--name",
+            sourceName,
+            "--source-type",
+            SOURCE_TYPE,
+            "--sourceConfig",
+            new Gson().toJson(sourceConfig),
+            "--destinationTopicName",
+            outputTopicName
         };
 
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertTrue(
-                result.getStdout().contains("Created successfully"),
-                result.getStdout());
+        assertTrue(result.getStdout().contains("Created successfully"), result.getStdout());
     }
 
     @Data
@@ -350,7 +356,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         private String field;
     }
 
-    public List<MyBean> produceSourceMessages(int numMessages) throws Exception{
+    public List<MyBean> produceSourceMessages(int numMessages) throws Exception {
         org.apache.avro.Schema schema = ReflectData.get().getSchema(MyBean.class);
         String schemaDef = schema.toString(false);
         log.info("schema {}", schemaDef);
@@ -373,26 +379,28 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         // we are writing the serialized values to the stdin of kafka-avro-console-producer
         // the only way to do it with TestContainers is actually to create a bash script
         // and execute it
-        String bashFileTemplate = "echo '"+payload+"' " +
-                "| /usr/bin/kafka-avro-console-producer " +
-                "--broker-list " + getBootstrapServersOnDockerNetwork() + " " +
-                "--property 'value.schema=" + schemaDef + "' " +
-                "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
-                "--topic "+kafkaTopicName;
+        String bashFileTemplate = "echo '" + payload + "' " + "| /usr/bin/kafka-avro-console-producer "
+                + "--broker-list "
+                + getBootstrapServersOnDockerNetwork() + " " + "--property 'value.schema="
+                + schemaDef + "' " + "--property schema.registry.url="
+                + getRegistryAddressInDockerNetwork() + " " + "--topic "
+                + kafkaTopicName;
         String file = "/home/appuser/produceRecords.sh";
 
-        schemaRegistryContainer.copyFileToContainer(Transferable
-                        .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
+        schemaRegistryContainer.copyFileToContainer(
+                Transferable.of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
 
         ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
-        log.info("cat results: "+cat.getStdout());
-        log.info("cat stderr: "+cat.getStderr());
+        log.info("cat results: " + cat.getStdout());
+        log.info("cat stderr: " + cat.getStderr());
 
         ExecResult execResult = schemaRegistryContainer.execInContainer("/bin/bash", file);
 
-        log.info("script results: "+execResult.getStdout());
-        log.info("script stderr: "+execResult.getStderr());
-        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
+        log.info("script results: " + execResult.getStdout());
+        log.info("script stderr: " + execResult.getStderr());
+        assertTrue(
+                execResult.getStdout().contains("Closing the Kafka producer"),
+                execResult.getStdout() + " " + execResult.getStderr());
         assertTrue(execResult.getStderr().isEmpty(), execResult.getStderr());
 
         log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
@@ -409,17 +417,18 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         return serialized;
     }
 
-    protected void waitForProcessingSourceMessages(String tenant,
-                                                   String namespace,
-                                                   String sourceName,
-                                                   int numMessages) throws Exception {
+    protected void waitForProcessingSourceMessages(String tenant, String namespace, String sourceName, int numMessages)
+            throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "status",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "status",
+            "--tenant",
+            tenant,
+            "--namespace",
+            namespace,
+            "--name",
+            sourceName
         };
 
         final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
@@ -437,40 +446,47 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumReceivedFromSource(), numMessages);
         assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumWritten(), numMessages);
         assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
-        assertEquals(sourceStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+        assertEquals(
+                sourceStatus
+                        .getInstances()
+                        .get(0)
+                        .getStatus()
+                        .getLatestSystemExceptions()
+                        .size(),
+                0);
     }
 
     protected void deleteSource(String tenant, String namespace, String sourceName) throws Exception {
 
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "delete",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "delete",
+            "--tenant",
+            tenant,
+            "--namespace",
+            namespace,
+            "--name",
+            sourceName
         };
 
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertTrue(
-                result.getStdout().contains("Delete source successfully"),
-                result.getStdout()
-        );
-        assertTrue(
-                result.getStderr().isEmpty(),
-                result.getStderr()
-        );
+        assertTrue(result.getStdout().contains("Delete source successfully"), result.getStdout());
+        assertTrue(result.getStderr().isEmpty(), result.getStderr());
     }
 
     protected void getSourceInfoNotFound(String tenant, String namespace, String sourceName) throws Exception {
 
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "get",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "get",
+            "--tenant",
+            tenant,
+            "--namespace",
+            namespace,
+            "--name",
+            sourceName
         };
 
         try {
@@ -499,7 +515,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     private String getRegistryAddressInDockerNetwork() {
-        return "http://"+schemaRegistryContainerName + ":8081";
+        return "http://" + schemaRegistryContainerName + ":8081";
     }
-
 }

@@ -76,7 +76,9 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
     public void testSingleConsumer() throws Exception {
         final String topic = "my-property/my-ns/test-single-consumer";
         @Cleanup final Producer<String> producer = createProducer(topic);
-        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Shared)
@@ -109,18 +111,21 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
     public void testMultiConsumers() throws Exception {
         final String topic = "my-property/my-ns/test-multi-consumers";
         @Cleanup final Producer<String> producer = createProducer(topic);
-        final ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+        final ConsumerBuilder<String> consumerBuilder = pulsarClient
+                .newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Shared)
                 .receiverQueueSize(5);
 
         final List<String> receivedValues1 = Collections.synchronizedList(new ArrayList<>());
-        @Cleanup final Consumer<String> consumer1 = consumerBuilder
+        @Cleanup
+        final Consumer<String> consumer1 = consumerBuilder
                 .messageListener((MessageListener<String>) (consumer, msg) -> receivedValues1.add(msg.getValue()))
                 .subscribe();
         final List<String> receivedValues2 = Collections.synchronizedList(new ArrayList<>());
-        @Cleanup final Consumer<String> consumer2 = consumerBuilder
+        @Cleanup
+        final Consumer<String> consumer2 = consumerBuilder
                 .messageListener((MessageListener<String>) (consumer, msg) -> receivedValues2.add(msg.getValue()))
                 .subscribe();
 
@@ -132,7 +137,8 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
             producer.send(value);
         }
 
-        Awaitility.await().atMost(Duration.ofSeconds(3))
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(3))
                 .until(() -> receivedValues1.size() + receivedValues2.size() >= values.size());
         assertEquals(receivedValues1.size() + receivedValues2.size(), values.size());
         assertFalse(receivedValues1.isEmpty());
@@ -148,17 +154,19 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
     @Test
     public void testInterleavedChunks() throws Exception {
         final String topic = "persistent://my-property/my-ns/test-interleaved-chunks";
-        final ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+        final ConsumerBuilder<byte[]> consumerBuilder = pulsarClient
+                .newConsumer()
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Shared);
         final List<String> receivedUuidList1 = Collections.synchronizedList(new ArrayList<>());
-        final Consumer<byte[]> consumer1 = consumerBuilder.messageListener((MessageListener<byte[]>)
+        final Consumer<byte[]> consumer1 = consumerBuilder
+                .messageListener((MessageListener<byte[]>)
                         (consumer, msg) -> receivedUuidList1.add(msg.getProducerName() + "-" + msg.getSequenceId()))
                 .consumerName("consumer-1")
                 .subscribe();
-        final PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicIfExists(topic).get().orElse(null);
+        final PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(topic).get().orElse(null);
         assertNotNull(persistentTopic);
         // send: A-0, A-1-0-3, A-1-1-3, B-0, B-1-0-2
         sendNonChunk(persistentTopic, "A", 0);
@@ -181,7 +189,9 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         assertEquals(receivedUuidList1, Arrays.asList("A-0", "B-0", "B-1", "A-1"));
 
         final List<String> receivedUuidList2 = Collections.synchronizedList(new ArrayList<>());
-        @Cleanup final Consumer<byte[]> consumer2 = consumerBuilder.messageListener((MessageListener<byte[]>)
+        @Cleanup
+        final Consumer<byte[]> consumer2 = consumerBuilder
+                .messageListener((MessageListener<byte[]>)
                         (consumer, msg) -> receivedUuidList2.add(msg.getProducerName() + "-" + msg.getSequenceId()))
                 .consumerName("consumer-2")
                 .subscribe();
@@ -193,7 +203,8 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
     }
 
     private Producer<String> createProducer(String topic) throws PulsarClientException {
-        return pulsarClient.newProducer(Schema.STRING)
+        return pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .enableChunking(true)
                 .enableBatching(false)
@@ -211,17 +222,17 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         return Schema.STRING.decode(payload);
     }
 
-    private static void sendNonChunk(final PersistentTopic persistentTopic,
-                                     final String producerName,
-                                     final long sequenceId) {
+    private static void sendNonChunk(
+            final PersistentTopic persistentTopic, final String producerName, final long sequenceId) {
         sendChunk(persistentTopic, producerName, sequenceId, null, null);
     }
 
-    private static void sendChunk(final PersistentTopic persistentTopic,
-                                  final String producerName,
-                                  final long sequenceId,
-                                  final Integer chunkId,
-                                  final Integer numChunks) {
+    private static void sendChunk(
+            final PersistentTopic persistentTopic,
+            final String producerName,
+            final long sequenceId,
+            final Integer chunkId,
+            final Integer numChunks) {
         final MessageMetadata metadata = new MessageMetadata();
         metadata.setProducerName(producerName);
         metadata.setSequenceId(sequenceId);
@@ -232,8 +243,8 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
             metadata.setNumChunksFromMsg(numChunks);
             metadata.setTotalChunkMsgSize(numChunks);
         }
-        final ByteBuf buf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
-                PulsarByteBufAllocator.DEFAULT.buffer(1));
+        final ByteBuf buf = Commands.serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, metadata, PulsarByteBufAllocator.DEFAULT.buffer(1));
         persistentTopic.publishMessage(buf, (e, ledgerId, entryId) -> {
             String name = producerName + "-" + sequenceId;
             if (chunkId != null) {

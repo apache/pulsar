@@ -58,7 +58,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<List<String>> getClustersAsync() {
         WebTarget path = this.adminClusters;
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 
     @Override
@@ -69,8 +69,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<ClusterData> getClusterAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster);
-        return asyncGetRequest(path, new FutureCallback<ClusterDataImpl>(){})
-                .thenApply(clusterData -> clusterData);
+        return asyncGetRequest(path, new FutureCallback<ClusterDataImpl>() {}).thenApply(clusterData -> clusterData);
     }
 
     @Override
@@ -96,8 +95,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void updatePeerClusterNames(
-            String cluster, LinkedHashSet<String> peerClusterNames) throws PulsarAdminException {
+    public void updatePeerClusterNames(String cluster, LinkedHashSet<String> peerClusterNames)
+            throws PulsarAdminException {
         sync(() -> updatePeerClusterNamesAsync(cluster, peerClusterNames));
     }
 
@@ -114,8 +113,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Void> updateClusterMigrationAsync(String cluster, boolean isMigrated,
-            ClusterUrl clusterUrl) {
+    public CompletableFuture<Void> updateClusterMigrationAsync(
+            String cluster, boolean isMigrated, ClusterUrl clusterUrl) {
         WebTarget path = adminClusters.path(cluster).path("migrate").queryParam("migrated", isMigrated);
         return asyncPostRequest(path, Entity.entity(clusterUrl, MediaType.APPLICATION_JSON));
     }
@@ -129,7 +128,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<Set<String>> getPeerClusterNamesAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster).path("peers");
-        return asyncGetRequest(path, new FutureCallback<Set<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<Set<String>>() {});
     }
 
     @Override
@@ -150,8 +149,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Map<String, NamespaceIsolationData>> getNamespaceIsolationPoliciesAsync(
-            String cluster) {
+    public CompletableFuture<Map<String, NamespaceIsolationData>> getNamespaceIsolationPoliciesAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies");
 
         return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceIsolationDataImpl>>() {})
@@ -167,7 +165,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
             String cluster) {
-        WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers");
+        WebTarget path =
+                adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers");
         return asyncGetRequest(path, new FutureCallback<List<BrokerNamespaceIsolationDataImpl>>() {})
                 .thenApply(ArrayList::new);
     }
@@ -181,14 +180,19 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
             String cluster, String broker) {
-        WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers").path(broker);
-        return asyncGetRequest(path, new FutureCallback<BrokerNamespaceIsolationDataImpl>(){})
+        WebTarget path = adminClusters
+                .path(cluster)
+                .path("namespaceIsolationPolicies")
+                .path("brokers")
+                .path(broker);
+        return asyncGetRequest(path, new FutureCallback<BrokerNamespaceIsolationDataImpl>() {})
                 .thenApply(brokerNamespaceIsolationData -> brokerNamespaceIsolationData);
     }
 
     @Override
-    public void createNamespaceIsolationPolicy(String cluster, String policyName,
-            NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
+    public void createNamespaceIsolationPolicy(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            throws PulsarAdminException {
         setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData);
     }
 
@@ -199,8 +203,9 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void updateNamespaceIsolationPolicy(String cluster, String policyName,
-           NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
+    public void updateNamespaceIsolationPolicy(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            throws PulsarAdminException {
         setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData);
     }
 
@@ -217,18 +222,21 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public CompletableFuture<Void> deleteNamespaceIsolationPolicyAsync(String cluster, String policyName) {
-        WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
+        WebTarget path =
+                adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
         return asyncDeleteRequest(path);
     }
 
-    private void setNamespaceIsolationPolicy(String cluster, String policyName,
-             NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
+    private void setNamespaceIsolationPolicy(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            throws PulsarAdminException {
         sync(() -> setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData));
     }
 
-    private CompletableFuture<Void> setNamespaceIsolationPolicyAsync(String cluster, String policyName,
-             NamespaceIsolationData namespaceIsolationData) {
-        WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
+    private CompletableFuture<Void> setNamespaceIsolationPolicyAsync(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
+        WebTarget path =
+                adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
         return asyncPostRequest(path, Entity.entity(namespaceIsolationData, MediaType.APPLICATION_JSON));
     }
 
@@ -241,8 +249,9 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(
             String cluster, String policyName) {
-        WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
-        return asyncGetRequest(path, new FutureCallback<NamespaceIsolationDataImpl>(){})
+        WebTarget path =
+                adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
+        return asyncGetRequest(path, new FutureCallback<NamespaceIsolationDataImpl>() {})
                 .thenApply(namespaceIsolationData -> namespaceIsolationData);
     }
 
@@ -253,8 +262,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Void> createFailureDomainAsync(String cluster, String domainName,
-                                                            FailureDomain domain) {
+    public CompletableFuture<Void> createFailureDomainAsync(String cluster, String domainName, FailureDomain domain) {
         return setDomainAsync(cluster, domainName, domain);
     }
 
@@ -265,8 +273,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Void> updateFailureDomainAsync(String cluster, String domainName,
-                                                            FailureDomain domain) {
+    public CompletableFuture<Void> updateFailureDomainAsync(String cluster, String domainName, FailureDomain domain) {
         return setDomainAsync(cluster, domainName, domain);
     }
 
@@ -301,17 +308,15 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<FailureDomain> getFailureDomainAsync(String cluster, String domainName) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains").path(domainName);
-        return asyncGetRequest(path, new FutureCallback<FailureDomainImpl>(){})
+        return asyncGetRequest(path, new FutureCallback<FailureDomainImpl>() {})
                 .thenApply(failureDomain -> failureDomain);
     }
 
-    private void setDomain(String cluster, String domainName,
-                           FailureDomain domain) throws PulsarAdminException {
+    private void setDomain(String cluster, String domainName, FailureDomain domain) throws PulsarAdminException {
         sync(() -> setDomainAsync(cluster, domainName, domain));
     }
 
-    private CompletableFuture<Void> setDomainAsync(String cluster, String domainName,
-                                                   FailureDomain domain) {
+    private CompletableFuture<Void> setDomainAsync(String cluster, String domainName, FailureDomain domain) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains").path(domainName);
         return asyncPostRequest(path, Entity.entity((FailureDomainImpl) domain, MediaType.APPLICATION_JSON));
     }

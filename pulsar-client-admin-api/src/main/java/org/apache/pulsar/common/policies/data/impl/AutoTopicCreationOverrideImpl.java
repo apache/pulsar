@@ -53,8 +53,8 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
                 }
             } else if (TopicType.NON_PARTITIONED.toString().equals(override.getTopicType())) {
                 if (override.getDefaultNumPartitions() != null) {
-                    return ValidateResult.fail("[defaultNumPartitions] is not allowed to be"
-                            + " set when the type is non-partition.");
+                    return ValidateResult.fail(
+                            "[defaultNumPartitions] is not allowed to be" + " set when the type is non-partition.");
                 }
             }
         }

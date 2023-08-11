@@ -65,7 +65,7 @@ public final class TimeWindow<T> {
                 old.resetWindowStart(windowStart);
                 return old;
             } else {
-                //it should never goes here
+                // it should never goes here
                 throw new IllegalStateException();
             }
         }

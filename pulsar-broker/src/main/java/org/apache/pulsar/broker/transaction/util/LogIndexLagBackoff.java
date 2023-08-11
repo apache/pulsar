@@ -25,8 +25,10 @@ public class LogIndexLagBackoff {
 
     @Getter
     private final long minLag;
+
     @Getter
     private final long maxLag;
+
     @Getter
     private final double exponent;
 
@@ -38,7 +40,6 @@ public class LogIndexLagBackoff {
         this.maxLag = maxLag;
         this.exponent = exponent;
     }
-
 
     public long next(int indexCount) {
         if (indexCount <= 0) {

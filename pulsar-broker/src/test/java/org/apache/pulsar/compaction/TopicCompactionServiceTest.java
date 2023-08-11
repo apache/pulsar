@@ -42,7 +42,12 @@ public class TopicCompactionServiceTest extends CompactorTest {
 
     @Test
     public void test() throws PulsarClientException, PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         String defaultTenant = "prop-xyz";
         admin.tenants().createTenant(defaultTenant, tenantInfo);
@@ -54,65 +59,59 @@ public class TopicCompactionServiceTest extends CompactorTest {
         PulsarTopicCompactionService service = new PulsarTopicCompactionService(topic, bk, () -> compactor);
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
-        producer.newMessage()
-                .key("a")
-                .value("A_1".getBytes())
-                .send();
-        producer.newMessage()
-                .key("b")
-                .value("B_1".getBytes())
-                .send();
-        producer.newMessage()
-                .key("a")
-                .value("A_2".getBytes())
-                .send();
-        producer.newMessage()
-                .key("b")
-                .value("B_2".getBytes())
-                .send();
-        producer.newMessage()
-                .key("b")
-                .value("B_3".getBytes())
-                .send();
+        producer.newMessage().key("a").value("A_1".getBytes()).send();
+        producer.newMessage().key("b").value("B_1".getBytes()).send();
+        producer.newMessage().key("a").value("A_2".getBytes()).send();
+        producer.newMessage().key("b").value("B_2".getBytes()).send();
+        producer.newMessage().key("b").value("B_3".getBytes()).send();
 
         producer.flush();
 
         service.compact().join();
 
-
         CompactedTopicImpl compactedTopic = service.getCompactedTopic();
 
-        Long compactedLedger = admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).properties.get(
-                COMPACTED_TOPIC_LEDGER_PROPERTY);
+        Long compactedLedger = admin.topics()
+                .getInternalStats(topic)
+                .cursors
+                .get(COMPACTION_SUBSCRIPTION)
+                .properties
+                .get(COMPACTED_TOPIC_LEDGER_PROPERTY);
         String markDeletePosition =
                 admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition;
         String[] split = markDeletePosition.split(":");
-        compactedTopic.newCompactedLedger(PositionImpl.get(Long.valueOf(split[0]), Long.valueOf(split[1])),
-                compactedLedger).join();
+        compactedTopic
+                .newCompactedLedger(PositionImpl.get(Long.valueOf(split[0]), Long.valueOf(split[1])), compactedLedger)
+                .join();
 
         Position lastCompactedPosition = service.getLastCompactedPosition().join();
         assertEquals(admin.topics().getInternalStats(topic).lastConfirmedEntry, lastCompactedPosition.toString());
 
-        List<Entry> entries = service.readCompactedEntries(PositionImpl.EARLIEST, 4).join();
+        List<Entry> entries =
+                service.readCompactedEntries(PositionImpl.EARLIEST, 4).join();
         assertEquals(entries.size(), 2);
-        entries.stream().map(e -> {
-            try {
-                return MessageImpl.deserialize(e.getDataBuffer());
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
-        }).forEach(message -> {
-            String data = new String(message.getData());
-            if (Objects.equals(message.getKey(), "a")) {
-                assertEquals(data, "A_2");
-            } else {
-                assertEquals(data, "B_3");
-            }
-        });
+        entries.stream()
+                .map(e -> {
+                    try {
+                        return MessageImpl.deserialize(e.getDataBuffer());
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                })
+                .forEach(message -> {
+                    String data = new String(message.getData());
+                    if (Objects.equals(message.getKey(), "a")) {
+                        assertEquals(data, "A_2");
+                    } else {
+                        assertEquals(data, "B_3");
+                    }
+                });
     }
 }

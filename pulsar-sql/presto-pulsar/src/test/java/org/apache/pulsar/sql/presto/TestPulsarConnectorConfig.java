@@ -100,7 +100,8 @@ public class TestPulsarConnectorConfig {
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), managedLedgerOffloadDriver);
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloaderDirectory);
-        Assert.assertEquals((int) offloadPolicies.getManagedLedgerOffloadMaxThreads(), (int) managedLedgerOffloadMaxThreads);
+        Assert.assertEquals(
+                (int) offloadPolicies.getManagedLedgerOffloadMaxThreads(), (int) managedLedgerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endpoint);
@@ -109,17 +110,18 @@ public class TestPulsarConnectorConfig {
     @Test
     public void testAnnotatedConfigurations() {
         Bootstrap app = new Bootstrap(
-                new JsonModule(),
-                new PulsarConnectorModule("connectorId", Mockito.mock(TypeManager.class)));
+                new JsonModule(), new PulsarConnectorModule("connectorId", Mockito.mock(TypeManager.class)));
 
         Map<String, String> config = new HashMap<>();
 
         config.put("pulsar.managed-ledger-offload-driver", "aws-s3");
         config.put("pulsar.offloaders-directory", "/pulsar/offloaders");
         config.put("pulsar.managed-ledger-offload-max-threads", "2");
-        config.put("pulsar.offloader-properties", "{\"s3ManagedLedgerOffloadBucket\":\"offload-bucket\","
-                + "\"s3ManagedLedgerOffloadRegion\":\"us-west-2\","
-                + "\"s3ManagedLedgerOffloadServiceEndpoint\":\"http://s3.amazonaws.com\"}");
+        config.put(
+                "pulsar.offloader-properties",
+                "{\"s3ManagedLedgerOffloadBucket\":\"offload-bucket\","
+                        + "\"s3ManagedLedgerOffloadRegion\":\"us-west-2\","
+                        + "\"s3ManagedLedgerOffloadServiceEndpoint\":\"http://s3.amazonaws.com\"}");
         config.put("pulsar.auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
         config.put("pulsar.auth-params", "params");
         config.put("pulsar.tls-allow-insecure-connection", "true");
@@ -129,11 +131,12 @@ public class TestPulsarConnectorConfig {
         config.put("pulsar.bookkeeper-num-worker-threads", "10");
         config.put("pulsar.managed-ledger-num-scheduler-threads", "10");
         config.put("pulsar.stats-provider", "org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider");
-        config.put("pulsar.stats-provider-configs", "{\"httpServerEnabled\":\"false\","
-                + "\"prometheusStatsHttpPort\":\"9092\","
-                + "\"prometheusStatsHttpEnable\":\"true\"}");
+        config.put(
+                "pulsar.stats-provider-configs",
+                "{\"httpServerEnabled\":\"false\","
+                        + "\"prometheusStatsHttpPort\":\"9092\","
+                        + "\"prometheusStatsHttpEnable\":\"true\"}");
 
         app.doNotInitializeLogging().setRequiredConfigurationProperties(config).initialize();
     }
-
 }

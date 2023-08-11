@@ -68,34 +68,31 @@ public class HttpSink implements Sink<GenericObject> {
     public void write(Record<GenericObject> record) throws Exception {
         Object json = toJsonSerializable(record.getSchema(), record.getValue().getNativeObject());
         byte[] bytes = mapper.writeValueAsBytes(json);
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-            .uri(uri)
-            .POST(HttpRequest.BodyPublishers.ofByteArray(bytes));
+        HttpRequest.Builder builder =
+                HttpRequest.newBuilder().uri(uri).POST(HttpRequest.BodyPublishers.ofByteArray(bytes));
         httpSinkConfig.getHeaders().forEach(builder::header);
         record.getProperties().forEach((k, v) -> builder.header("PulsarProperties-" + k, v));
         record.getTopicName().ifPresent(topic -> builder.header("PulsarTopic", topic));
         record.getEventTime().ifPresent(eventTime -> builder.header("PulsarEventTime", eventTime.toString()));
         record.getKey().ifPresent(key -> builder.header("PulsarKey", key));
-        record.getMessage().ifPresent(
-            message -> {
-              if (message.getMessageId() != null) {
-                String messageId = Base64.getEncoder().encodeToString(message.getMessageId().toByteArray());
+        record.getMessage().ifPresent(message -> {
+            if (message.getMessageId() != null) {
+                String messageId = Base64.getEncoder()
+                        .encodeToString(message.getMessageId().toByteArray());
                 builder.header("PulsarMessageId", messageId);
-              }
-              if (message.getPublishTime() != 0) {
-                builder.header("PulsarPublishTime", String.valueOf(message.getPublishTime()));
-              }
             }
-        );
+            if (message.getPublishTime() != 0) {
+                builder.header("PulsarPublishTime", String.valueOf(message.getPublishTime()));
+            }
+        });
         builder.header("Content-Type", "application/json");
 
         HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException(
-                String.format("HTTP call to %s failed with status code %s", uri, response.statusCode()));
+                    String.format("HTTP call to %s failed with status code %s", uri, response.statusCode()));
         }
-
     }
 
     private static Object toJsonSerializable(Schema<?> schema, Object val) {
@@ -106,22 +103,28 @@ public class HttpSink implements Sink<GenericObject> {
             case KEY_VALUE:
                 KeyValueSchema<?, ?> keyValueSchema = (KeyValueSchema<?, ?>) schema;
                 org.apache.pulsar.common.schema.KeyValue<?, ?> keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue<?, ?>) val;
+                        (org.apache.pulsar.common.schema.KeyValue<?, ?>) val;
                 Map<String, Object> jsonKeyValue = new HashMap<>();
                 Object key = keyValue.getKey();
                 Object value = keyValue.getValue();
-                jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
-                    key instanceof GenericObject ? ((GenericObject) key).getNativeObject() : key));
-                jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
-                    value instanceof GenericObject ? ((GenericObject) value).getNativeObject() : value));
+                jsonKeyValue.put(
+                        "key",
+                        toJsonSerializable(
+                                keyValueSchema.getKeySchema(),
+                                key instanceof GenericObject ? ((GenericObject) key).getNativeObject() : key));
+                jsonKeyValue.put(
+                        "value",
+                        toJsonSerializable(
+                                keyValueSchema.getValueSchema(),
+                                value instanceof GenericObject ? ((GenericObject) value).getNativeObject() : value));
                 return jsonKeyValue;
             case AVRO:
                 return JsonConverter.toJson((org.apache.avro.generic.GenericRecord) val);
             case JSON:
                 return val;
             default:
-                throw new UnsupportedOperationException("Unsupported schema type ="
-                    + schema.getSchemaInfo().getType());
+                throw new UnsupportedOperationException(
+                        "Unsupported schema type =" + schema.getSchemaInfo().getType());
         }
     }
 

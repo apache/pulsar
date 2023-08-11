@@ -44,15 +44,14 @@ public class SplitCounter {
 
     public SplitCounter() {
         breakdownCounters = Map.of(
-                Success, Map.of(
-                        Topics, new AtomicLong(),
-                        Sessions, new AtomicLong(),
-                        MsgRate, new AtomicLong(),
-                        Bandwidth, new AtomicLong(),
-                        Admin, new AtomicLong()),
-                Failure, Map.of(
-                        Unknown, new AtomicLong())
-        );
+                Success,
+                        Map.of(
+                                Topics, new AtomicLong(),
+                                Sessions, new AtomicLong(),
+                                MsgRate, new AtomicLong(),
+                                Bandwidth, new AtomicLong(),
+                                Admin, new AtomicLong()),
+                Failure, Map.of(Unknown, new AtomicLong()));
     }
 
     public void update(SplitDecision decision) {
@@ -81,11 +80,10 @@ public class SplitCounter {
         m.put("brk_lb_bundles_split_total", splitCount);
         metrics.add(m);
 
-
-        for (Map.Entry<SplitDecision.Label, Map<SplitDecision.Reason, AtomicLong>> etr
-                : breakdownCounters.entrySet()) {
+        for (Map.Entry<SplitDecision.Label, Map<SplitDecision.Reason, AtomicLong>> etr : breakdownCounters.entrySet()) {
             var result = etr.getKey();
-            for (Map.Entry<SplitDecision.Reason, AtomicLong> counter : etr.getValue().entrySet()) {
+            for (Map.Entry<SplitDecision.Reason, AtomicLong> counter :
+                    etr.getValue().entrySet()) {
                 var reason = counter.getKey();
                 var count = counter.getValue();
                 Map<String, String> breakdownDims = new HashMap<>(dimensions);

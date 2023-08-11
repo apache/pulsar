@@ -106,7 +106,8 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
                 // Reset the bundle tree set now that a different broker is
                 // being considered.
                 bundleTreeSetCache.clear();
-                for (String bundle : brokerDataMap.get(mostLoaded).getLocalData().getBundles()) {
+                for (String bundle :
+                        brokerDataMap.get(mostLoaded).getLocalData().getBundles()) {
                     if (!result.containsKey(bundle)) {
                         // Don't consider bundles that are already going to be
                         // moved.

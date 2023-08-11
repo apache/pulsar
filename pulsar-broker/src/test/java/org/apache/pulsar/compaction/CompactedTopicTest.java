@@ -74,10 +74,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "batchEnabledProvider")
     public Object[][] batchEnabledProvider() {
-        return new Object[][] {
-                { Boolean.FALSE },
-                { Boolean.TRUE }
-        };
+        return new Object[][] {{Boolean.FALSE}, {Boolean.TRUE}};
     }
 
     @BeforeMethod
@@ -85,10 +82,15 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.clusters()
+                .createCluster(
+                        "use",
+                        ClusterData.builder()
+                                .serviceUrl(pulsar.getWebServiceAddress())
+                                .build());
+        admin.tenants()
+                .createTenant(
+                        "my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
@@ -102,56 +104,57 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
      * Build a compacted ledger, and return the id of the ledger, the position of the different
      * entries in the ledger, and a list of gaps, and the entry which should be returned after the gap.
      */
-    private Triple<Long, List<Pair<MessageIdData,Long>>, List<Pair<MessageIdData,Long>>>
-        buildCompactedLedger(BookKeeper bk, int count)
-            throws Exception {
-        LedgerHandle lh = bk.createLedger(1, 1,
-                                          Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                                          Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
-        List<Pair<MessageIdData,Long>> positions = new ArrayList<>();
-        List<Pair<MessageIdData,Long>> idsInGaps = new ArrayList<>();
+    private Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> buildCompactedLedger(
+            BookKeeper bk, int count) throws Exception {
+        LedgerHandle lh = bk.createLedger(
+                1, 1, Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE, Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        List<Pair<MessageIdData, Long>> positions = new ArrayList<>();
+        List<Pair<MessageIdData, Long>> idsInGaps = new ArrayList<>();
 
         AtomicLong ledgerIds = new AtomicLong(10L);
         AtomicLong entryIds = new AtomicLong(0L);
-        CompletableFuture.allOf(
-                IntStream.range(0, count).mapToObj((i) -> {
-                        List<MessageIdData> idsInGap = new ArrayList<>();
-                        if (r.nextInt(10) == 1) {
-                            long delta = r.nextInt(10) + 1;
-                            idsInGap.add(new MessageIdData()
-                                         .setLedgerId(ledgerIds.get())
-                                         .setEntryId(entryIds.get() + 1));
-                            ledgerIds.addAndGet(delta);
-                            entryIds.set(0);
-                        }
-                        long delta = r.nextInt(5);
-                        if (delta != 0) {
-                            idsInGap.add(new MessageIdData()
-                                         .setLedgerId(ledgerIds.get())
-                                         .setEntryId(entryIds.get() + 1));
-                        }
-                        MessageIdData id = new MessageIdData()
-                            .setLedgerId(ledgerIds.get())
-                            .setEntryId(entryIds.addAndGet(delta + 1));
+        CompletableFuture.allOf(IntStream.range(0, count)
+                        .mapToObj((i) -> {
+                            List<MessageIdData> idsInGap = new ArrayList<>();
+                            if (r.nextInt(10) == 1) {
+                                long delta = r.nextInt(10) + 1;
+                                idsInGap.add(new MessageIdData()
+                                        .setLedgerId(ledgerIds.get())
+                                        .setEntryId(entryIds.get() + 1));
+                                ledgerIds.addAndGet(delta);
+                                entryIds.set(0);
+                            }
+                            long delta = r.nextInt(5);
+                            if (delta != 0) {
+                                idsInGap.add(new MessageIdData()
+                                        .setLedgerId(ledgerIds.get())
+                                        .setEntryId(entryIds.get() + 1));
+                            }
+                            MessageIdData id = new MessageIdData()
+                                    .setLedgerId(ledgerIds.get())
+                                    .setEntryId(entryIds.addAndGet(delta + 1));
 
-                        @Cleanup
-                        RawMessage m = new RawMessageImpl(id, Unpooled.EMPTY_BUFFER);
+                            @Cleanup RawMessage m = new RawMessageImpl(id, Unpooled.EMPTY_BUFFER);
 
-                        CompletableFuture<Void> f = new CompletableFuture<>();
-                        ByteBuf buffer = m.serialize();
+                            CompletableFuture<Void> f = new CompletableFuture<>();
+                            ByteBuf buffer = m.serialize();
 
-                        lh.asyncAddEntry(buffer,
-                                (rc, ledger, eid, ctx) -> {
-                                     if (rc != BKException.Code.OK) {
-                                         f.completeExceptionally(BKException.create(rc));
-                                     } else {
-                                         positions.add(Pair.of(id, eid));
-                                         idsInGap.forEach((gid) -> idsInGaps.add(Pair.of(gid, eid)));
-                                         f.complete(null);
-                                     }
-                                }, null);
-                        return f;
-                    }).toArray(CompletableFuture[]::new)).get();
+                            lh.asyncAddEntry(
+                                    buffer,
+                                    (rc, ledger, eid, ctx) -> {
+                                        if (rc != BKException.Code.OK) {
+                                            f.completeExceptionally(BKException.create(rc));
+                                        } else {
+                                            positions.add(Pair.of(id, eid));
+                                            idsInGap.forEach((gid) -> idsInGaps.add(Pair.of(gid, eid)));
+                                            f.complete(null);
+                                        }
+                                    },
+                                    null);
+                            return f;
+                        })
+                        .toArray(CompletableFuture[]::new))
+                .get();
         lh.close();
 
         return Triple.of(lh.getId(), positions, idsInGaps);
@@ -159,40 +162,50 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testEntryLookup() throws Exception {
-        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
 
-        Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
-            = buildCompactedLedger(bk, 500);
+        Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData =
+                buildCompactedLedger(bk, 500);
 
         List<Pair<MessageIdData, Long>> positions = compactedLedgerData.getMiddle();
         List<Pair<MessageIdData, Long>> idsInGaps = compactedLedgerData.getRight();
 
-        LedgerHandle lh = bk.openLedger(compactedLedgerData.getLeft(),
-                                        Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                                        Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        LedgerHandle lh = bk.openLedger(
+                compactedLedgerData.getLeft(),
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
         long lastEntryId = lh.getLastAddConfirmed();
-        AsyncLoadingCache<Long,MessageIdData> cache = CompactedTopicImpl.createCache(lh, 50);
+        AsyncLoadingCache<Long, MessageIdData> cache = CompactedTopicImpl.createCache(lh, 50);
 
         MessageIdData firstPositionId = positions.get(0).getLeft();
         Pair<MessageIdData, Long> lastPosition = positions.get(positions.size() - 1);
 
         // check ids before and after ids in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(0, 0), lastEntryId, cache).get(),
-                            Long.valueOf(0));
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(Long.MAX_VALUE, 0),
-                                                              lastEntryId, cache).get(),
-                            Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
+        Assert.assertEquals(
+                CompactedTopicImpl.findStartPoint(new PositionImpl(0, 0), lastEntryId, cache)
+                        .get(),
+                Long.valueOf(0));
+        Assert.assertEquals(
+                CompactedTopicImpl.findStartPoint(new PositionImpl(Long.MAX_VALUE, 0), lastEntryId, cache)
+                        .get(),
+                Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // entry 0 is never in compacted ledger due to how we generate dummy
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(firstPositionId.getLedgerId(), 0),
-                                                              lastEntryId, cache).get(),
-                            Long.valueOf(0));
+        Assert.assertEquals(
+                CompactedTopicImpl.findStartPoint(
+                                new PositionImpl(firstPositionId.getLedgerId(), 0), lastEntryId, cache)
+                        .get(),
+                Long.valueOf(0));
         // check next id after last id in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(lastPosition.getLeft().getLedgerId(),
-                                                                               lastPosition.getLeft().getEntryId() + 1),
-                                                              lastEntryId, cache).get(),
-                            Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
+        Assert.assertEquals(
+                CompactedTopicImpl.findStartPoint(
+                                new PositionImpl(
+                                        lastPosition.getLeft().getLedgerId(),
+                                        lastPosition.getLeft().getEntryId() + 1),
+                                lastEntryId,
+                                cache)
+                        .get(),
+                Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // shuffle to make cache work hard
         Collections.shuffle(positions, r);
@@ -200,73 +213,88 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         // Check ids we know are in compacted ledger
         for (Pair<MessageIdData, Long> p : positions) {
-            PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
-            Long got = CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
+            PositionImpl pos =
+                    new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
+            Long got =
+                    CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
             Assert.assertEquals(got, p.getRight());
         }
 
         // Check ids we know are in the gaps of the compacted ledger
         for (Pair<MessageIdData, Long> gap : idsInGaps) {
-            PositionImpl pos = new PositionImpl(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
-            Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(), gap.getRight());
+            PositionImpl pos =
+                    new PositionImpl(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
+            Assert.assertEquals(
+                    CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(), gap.getRight());
         }
     }
 
     @Test
     public void testCleanupOldCompactedTopicLedger() throws Exception {
-        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
 
-        LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
-                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        LedgerHandle oldCompactedLedger = bk.createLedger(
+                1, 1, Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE, Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
         oldCompactedLedger.close();
-        LedgerHandle newCompactedLedger = bk.createLedger(1, 1,
-                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        LedgerHandle newCompactedLedger = bk.createLedger(
+                1, 1, Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE, Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
         newCompactedLedger.close();
 
         // set the compacted topic ledger
         CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
-        compactedTopic.newCompactedLedger(new PositionImpl(1,2), oldCompactedLedger.getId()).get();
+        compactedTopic
+                .newCompactedLedger(new PositionImpl(1, 2), oldCompactedLedger.getId())
+                .get();
 
         // ensure both ledgers still exist, can be opened
-        bk.openLedger(oldCompactedLedger.getId(),
-                      Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                      Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
-        bk.openLedger(newCompactedLedger.getId(),
-                      Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                      Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
+        bk.openLedger(
+                        oldCompactedLedger.getId(),
+                        Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                        Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD)
+                .close();
+        bk.openLedger(
+                        newCompactedLedger.getId(),
+                        Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                        Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD)
+                .close();
 
         // update the compacted topic ledger
-        PositionImpl newHorizon = new PositionImpl(1,3);
-        compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId()).get();
+        PositionImpl newHorizon = new PositionImpl(1, 3);
+        compactedTopic
+                .newCompactedLedger(newHorizon, newCompactedLedger.getId())
+                .get();
 
         // Make sure the old compacted ledger still exist after the new compacted ledger created.
-        bk.openLedger(oldCompactedLedger.getId(),
-                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
+        bk.openLedger(
+                        oldCompactedLedger.getId(),
+                        Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                        Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD)
+                .close();
 
         Assert.assertTrue(compactedTopic.getCompactedTopicContext().isPresent());
-        Assert.assertEquals(compactedTopic.getCompactedTopicContext().get().getLedger().getId(),
-                newCompactedLedger.getId());
+        Assert.assertEquals(
+                compactedTopic.getCompactedTopicContext().get().getLedger().getId(), newCompactedLedger.getId());
         Assert.assertTrue(compactedTopic.getCompactionHorizon().isPresent());
         Assert.assertEquals(compactedTopic.getCompactionHorizon().get(), newHorizon);
         compactedTopic.deleteCompactedLedger(oldCompactedLedger.getId()).join();
 
         // old ledger should be deleted, new still there
         try {
-            bk.openLedger(oldCompactedLedger.getId(),
-                          Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                          Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
+            bk.openLedger(
+                            oldCompactedLedger.getId(),
+                            Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                            Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD)
+                    .close();
             Assert.fail("Should have failed to open old ledger");
         } catch (BKException.BKNoSuchLedgerExistsException
-            | BKException.BKNoSuchLedgerExistsOnMetadataServerException e) {
+                | BKException.BKNoSuchLedgerExistsOnMetadataServerException e) {
             // correct, expected behaviour
         }
-        bk.openLedger(newCompactedLedger.getId(),
-                      Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                      Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
+        bk.openLedger(
+                        newCompactedLedger.getId(),
+                        Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                        Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD)
+                .close();
     }
 
     @Test(dataProvider = "batchEnabledProvider")
@@ -287,19 +315,26 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         List<CompletableFuture<MessageId>> list = new ArrayList<>(messages);
         for (int i = 0; i < messages; i++) {
-            list.add(producer.newMessage().keyBytes(key.getBytes(Charset.defaultCharset())).value(msgBytes).sendAsync());
+            list.add(producer.newMessage()
+                    .keyBytes(key.getBytes(Charset.defaultCharset()))
+                    .value(msgBytes)
+                    .sendAsync());
         }
 
         FutureUtil.waitForAll(list).get();
         admin.topics().triggerCompaction(topic);
 
-        boolean succeed = retryStrategically((test) -> {
-            try {
-                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 200);
+        boolean succeed = retryStrategically(
+                (test) -> {
+                    try {
+                        return LongRunningProcessStatus.Status.SUCCESS.equals(
+                                admin.topics().compactionStatus(topic).status);
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                10,
+                200);
 
         Assert.assertTrue(succeed);
 
@@ -313,13 +348,17 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         FutureUtil.waitForAll(list).get();
         admin.topics().triggerCompaction(topic);
 
-        succeed = retryStrategically((test) -> {
-            try {
-                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 200);
+        succeed = retryStrategically(
+                (test) -> {
+                    try {
+                        return LongRunningProcessStatus.Status.SUCCESS.equals(
+                                admin.topics().compactionStatus(topic).status);
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                10,
+                200);
         Assert.assertTrue(succeed);
 
         producer.close();
@@ -333,22 +372,29 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 1);
         final int numMessages = 10;
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
         for (int i = 0; i < numMessages; ++i) {
             producer.newMessage().key(key).value(msg).send();
         }
 
         admin.topics().triggerCompaction(topic);
-        boolean succeed = retryStrategically((test) -> {
-            try {
-                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 200);
+        boolean succeed = retryStrategically(
+                (test) -> {
+                    try {
+                        return LongRunningProcessStatus.Status.SUCCESS.equals(
+                                admin.topics().compactionStatus(topic).status);
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                10,
+                200);
 
         Assert.assertTrue(succeed);
-
 
         final String newKey = "2";
         String newMsg = "test compaction msg v2";
@@ -356,7 +402,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             producer.newMessage().key(newKey).value(newMsg).send();
         }
 
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 .readCompacted(true)
@@ -382,20 +429,28 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testLastMessageIdForCompactedLedger() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testLastMessageIdForCompactedLedger-" + UUID.randomUUID();
         final String key = "1";
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
         final int numMessages = 10;
         final String msg = "test compaction msg";
         for (int i = 0; i < numMessages; ++i) {
             producer.newMessage().key(key).value(msg).send();
         }
         admin.topics().triggerCompaction(topic);
-        boolean succeed = retryStrategically((test) -> {
-            try {
-                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 200);
+        boolean succeed = retryStrategically(
+                (test) -> {
+                    try {
+                        return LongRunningProcessStatus.Status.SUCCESS.equals(
+                                admin.topics().compactionStatus(topic).status);
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                },
+                10,
+                200);
 
         Assert.assertTrue(succeed);
 
@@ -405,10 +460,11 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         // Make sure the ledger rollover has triggered.
         Assert.assertTrue(stats0.currentLedgerSize != stats1.currentLedgerSize);
 
-        Optional<Topic> topicRef = pulsar.getBrokerService().getTopicIfExists(topic).get();
+        Optional<Topic> topicRef =
+                pulsar.getBrokerService().getTopicIfExists(topic).get();
         Assert.assertTrue(topicRef.isPresent());
         PersistentTopic persistentTopic = (PersistentTopic) topicRef.get();
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl)persistentTopic.getManagedLedger();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
 
         Awaitility.await().untilAsserted(() -> {
@@ -417,7 +473,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
         });
 
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 .readCompacted(true)
@@ -438,7 +495,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(stats2.lastConfirmedEntry.endsWith(":-1"));
         Assert.assertTrue(stats2.compactedLedger.ledgerId > 0);
 
-        reader = pulsarClient.newReader(Schema.STRING)
+        reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 .readCompacted(true)
@@ -451,12 +509,13 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDoNotLossTheLastCompactedLedgerData() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testDoNotLossTheLastCompactedLedgerData-" +
-                UUID.randomUUID();
+        String topic =
+                "persistent://my-property/use/my-ns/testDoNotLossTheLastCompactedLedgerData-" + UUID.randomUUID();
         final int numMessages = 2000;
         final int keys = 200;
         final String msg = "Test";
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .blockIfQueueFull(true)
                 .maxPendingMessages(numMessages)
@@ -473,15 +532,27 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, keys);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
         });
         admin.topics().unload(topic);
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertEquals(stats.ledgers.size(), 1);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
         });
         admin.topics().unload(topic);
         // Send one more key to and then to trigger the compaction
@@ -493,7 +564,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         });
 
         // Make sure the reader can get all data from the compacted ledger and original ledger.
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
@@ -510,12 +582,13 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReadCompactedDataWhenLedgerRolloverKickIn() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testReadCompactedDataWhenLedgerRolloverKickIn-" +
-                UUID.randomUUID();
+        String topic =
+                "persistent://my-property/use/my-ns/testReadCompactedDataWhenLedgerRolloverKickIn-" + UUID.randomUUID();
         final int numMessages = 2000;
         final int keys = 200;
         final String msg = "Test";
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .blockIfQueueFull(true)
                 .maxPendingMessages(numMessages)
@@ -532,12 +605,19 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, keys);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
         });
         // Send more 200 keys
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key((i % keys + keys) + "").value(msg).sendAsync();
+            lastMessage =
+                    producer.newMessage().key((i % keys + keys) + "").value(msg).sendAsync();
         }
         producer.flush();
         lastMessage.join();
@@ -549,7 +629,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         });
 
         // Start a new reader to reading messages
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
@@ -558,7 +639,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         // Send more 200 keys
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key((i % keys + keys * 2) + "").value(msg).sendAsync();
+            lastMessage = producer.newMessage()
+                    .key((i % keys + keys * 2) + "")
+                    .value(msg)
+                    .sendAsync();
         }
         producer.flush();
         lastMessage.join();
@@ -568,8 +652,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, keys * 3);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
         });
 
         // The reader should read all 600 keys
@@ -585,12 +675,12 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 120000)
     public void testCompactionWithTopicUnloading() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testCompactionWithTopicUnloading-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testCompactionWithTopicUnloading-" + UUID.randomUUID();
         final int numMessages = 2000;
         final int keys = 500;
         final String msg = "Test";
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .blockIfQueueFull(true)
                 .maxPendingMessages(numMessages)
@@ -607,13 +697,20 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, keys);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
         });
 
         admin.topics().unload(topic);
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key((i % keys + keys) + "").value(msg).sendAsync();
+            lastMessage =
+                    producer.newMessage().key((i % keys + keys) + "").value(msg).sendAsync();
         }
         producer.flush();
         lastMessage.join();
@@ -621,16 +718,26 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(100);
         admin.topics().unload(topic);
         admin.topics().triggerCompaction(topic);
-        Awaitility.await().pollInterval(3, TimeUnit.SECONDS).atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
-            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
-            Assert.assertEquals(stats.compactedLedger.entries, keys * 2);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-        });
+        Awaitility.await()
+                .pollInterval(3, TimeUnit.SECONDS)
+                .atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+                    Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
+                    Assert.assertEquals(stats.compactedLedger.entries, keys * 2);
+                    Assert.assertEquals(
+                            admin.topics()
+                                    .getStats(topic)
+                                    .getSubscriptions()
+                                    .get(COMPACTION_SUBSCRIPTION)
+                                    .getConsumers()
+                                    .size(),
+                            0);
+                });
 
         // Start a new reader to reading messages
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
@@ -654,21 +761,26 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://" + ns + "/t1";
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         producer.newMessage().key("k").value(("value").getBytes()).send();
         producer.newMessage().key("k").value(null).send();
-        ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor().compact(topic).get();
+        ((PulsarCompactionServiceFactory) pulsar.getCompactionServiceFactory())
+                .getCompactor()
+                .compact(topic)
+                .get();
 
         Awaitility.await()
                 .pollInterval(3, TimeUnit.SECONDS)
-                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
-            admin.topics().unload(topic);
-            Thread.sleep(100);
-            Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
-        });
+                .atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    admin.topics().unload(topic);
+                    Thread.sleep(100);
+                    Assert.assertTrue(admin.topics()
+                            .getInternalStats(topic)
+                            .lastConfirmedEntry
+                            .endsWith("-1"));
+                });
         // Make sure the last confirm entry is -1, then get last message id from compact ledger
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
         Assert.assertTrue(internalStats.lastConfirmedEntry.endsWith("-1"));
@@ -676,7 +788,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(internalStats.compactedLedger.size, 0);
 
         @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageIdInclusive()
                 .startMessageId(MessageId.earliest)
@@ -687,18 +800,21 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testHasMessageAvailableWithNullValueMessage() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testHasMessageAvailable-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testHasMessageAvailable-" + UUID.randomUUID();
         final int numMessages = 10;
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .blockIfQueueFull(true)
                 .enableBatching(false)
                 .create();
         CompletableFuture<MessageId> lastMessage = null;
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
+            lastMessage = producer.newMessage()
+                    .key(i + "")
+                    .value(String.format("msg [%d]", i))
+                    .sendAsync();
         }
 
         for (int i = numMessages / 2; i < numMessages; ++i) {
@@ -711,13 +827,21 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, numMessages / 2);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
+            Assert.assertEquals(
+                    stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
         });
 
         @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageIdInclusive()
                 .startMessageId(MessageId.earliest)
@@ -732,23 +856,26 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReadCompleteMessagesDuringTopicUnloading() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testReadCompleteMessagesDuringTopicUnloading-" +
-                UUID.randomUUID();
+        String topic =
+                "persistent://my-property/use/my-ns/testReadCompleteMessagesDuringTopicUnloading-" + UUID.randomUUID();
         final int numMessages = 1000;
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .blockIfQueueFull(true)
                 .enableBatching(false)
                 .create();
         // Create a consumer to generate a durable cursor, to avoid deleting the ledger before the reader receives.
         @Cleanup
-        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .subscriptionName("sub_" + UUID.randomUUID())
                 .topic(topic)
                 .subscribe();
         @Cleanup
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageIdInclusive()
                 .startMessageId(MessageId.earliest)
@@ -756,7 +883,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 .create();
         CompletableFuture<MessageId> lastMessage = null;
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
+            lastMessage = producer.newMessage()
+                    .key(i + "")
+                    .value(String.format("msg [%d]", i))
+                    .sendAsync();
         }
         producer.flush();
         lastMessage.join();
@@ -765,15 +895,25 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, numMessages);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
+            Assert.assertEquals(
+                    stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
         });
         // Unload the topic to make sure the original ledger been deleted.
         admin.topics().unload(topic);
         // Produce more messages to the original topic
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + numMessages + "").value(String.format("msg [%d]", i + numMessages)).sendAsync();
+            lastMessage = producer.newMessage()
+                    .key(i + numMessages + "")
+                    .value(String.format("msg [%d]", i + numMessages))
+                    .sendAsync();
         }
         producer.flush();
         lastMessage.join();
@@ -794,12 +934,12 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testReadCompactedLatestMessageWithInclusive() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" +
-                UUID.randomUUID();
+        String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" + UUID.randomUUID();
         final int numMessages = 1;
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
                 .topic(topic)
                 .blockIfQueueFull(true)
                 .enableBatching(false)
@@ -807,7 +947,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         CompletableFuture<MessageId> lastMessage = null;
         for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
+            lastMessage = producer.newMessage()
+                    .key(i + "")
+                    .value(String.format("msg [%d]", i))
+                    .sendAsync();
         }
         producer.flush();
         lastMessage.join();
@@ -817,20 +960,32 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, numMessages);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+            Assert.assertEquals(
+                    admin.topics()
+                            .getStats(topic)
+                            .getSubscriptions()
+                            .get(COMPACTION_SUBSCRIPTION)
+                            .getConsumers()
+                            .size(),
+                    0);
+            Assert.assertEquals(
+                    stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
         });
 
         Awaitility.await()
                 .pollInterval(3, TimeUnit.SECONDS)
-                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+                .atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
                     admin.topics().unload(topic);
-                    Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
+                    Assert.assertTrue(admin.topics()
+                            .getInternalStats(topic)
+                            .lastConfirmedEntry
+                            .endsWith("-1"));
                 });
 
         @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient
+                .newReader()
                 .topic(topic)
                 .startMessageIdInclusive()
                 .startMessageId(MessageId.latest)

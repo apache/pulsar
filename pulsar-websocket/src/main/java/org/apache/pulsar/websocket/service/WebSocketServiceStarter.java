@@ -42,10 +42,14 @@ public class WebSocketServiceStarter {
         @Parameter(description = "config file")
         private String configFile = "";
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Parameter(
+                names = {"-h", "--help"},
+                description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Parameter(
+                names = {"-g", "--generate-docs"},
+                description = "Generate docs")
         private boolean generateDocs = false;
     }
 
@@ -75,8 +79,8 @@ public class WebSocketServiceStarter {
             // load config file and start proxy service
             String configFile = args[0];
             log.info("Loading configuration from {}", configFile);
-            WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
-                    WebSocketProxyConfiguration.class);
+            WebSocketProxyConfiguration config =
+                    PulsarConfigurationLoader.create(configFile, WebSocketProxyConfiguration.class);
             ProxyServer proxyServer = new ProxyServer(config);
             WebSocketService service = new WebSocketService(config);
             start(proxyServer, service);
@@ -91,21 +95,19 @@ public class WebSocketServiceStarter {
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH, new WebSocketConsumerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH, new WebSocketReaderServlet(service));
 
-        proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                new WebSocketProducerServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                new WebSocketConsumerServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                new WebSocketReaderServlet(service));
+        proxyServer.addWebSocketServlet(
+                WebSocketProducerServlet.SERVLET_PATH_V2, new WebSocketProducerServlet(service));
+        proxyServer.addWebSocketServlet(
+                WebSocketConsumerServlet.SERVLET_PATH_V2, new WebSocketConsumerServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2, new WebSocketReaderServlet(service));
 
         proxyServer.addRestResource(ADMIN_PATH_V1, ATTRIBUTE_PROXY_SERVICE_NAME, service, WebSocketProxyStatsV1.class);
         proxyServer.addRestResource(ADMIN_PATH_V2, ATTRIBUTE_PROXY_SERVICE_NAME, service, WebSocketProxyStatsV2.class);
-        proxyServer.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, service.getConfig().getStatusFilePath(),
-                VipStatus.class);
+        proxyServer.addRestResource(
+                "/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, service.getConfig().getStatusFilePath(), VipStatus.class);
         proxyServer.start();
         service.start();
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);
-
 }

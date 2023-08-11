@@ -49,8 +49,8 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
     private PulsarAdmin admin;
 
     @Override
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
-                                                                            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+            String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         specBuilder = super.beforeSetupCluster(clusterName, specBuilder);
         specBuilder.enablePrestoWorker(true);
         return specBuilder;
@@ -80,7 +80,6 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                 .withEnv("SQL_PREFIX_pulsar.auth-params", adminToken)
                 .withEnv("pulsar.broker-binary-service-url", "pulsar://pulsar-broker-0:6650")
                 .withEnv("pulsar.authorization-enabled", "true");
-
     }
 
     @Override
@@ -112,57 +111,53 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
 
         String queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", "public/default", topic);
 
-        assertSQLExecution(
-                () -> {
-                    try {
-                        ContainerExecResult containerExecResult =
-                                execQuery(queryAllDataSql, new HashMap<>() {{
-                                    put("auth-plugin",
-                                            "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                                    put("auth-params", passToken);
-                                }});
-                        assertEquals(containerExecResult.getExitCode(), 0);
-                    } catch (ContainerExecException e) {
-                        fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+        assertSQLExecution(() -> {
+            try {
+                ContainerExecResult containerExecResult = execQuery(queryAllDataSql, new HashMap<>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                        put("auth-params", passToken);
                     }
-                }
-        );
+                });
+                assertEquals(containerExecResult.getExitCode(), 0);
+            } catch (ContainerExecException e) {
+                fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+            }
+        });
 
-        assertSQLExecution(
-                () -> {
-                    try {
-                        execQuery(queryAllDataSql, new HashMap<>() {{
-                            put("auth-plugin",
-                                    "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                            put("auth-params", "invalid-token");
-                        }});
-                        fail("Should not pass");
-                    } catch (ContainerExecException e) {
-                        // Authorization error
-                        assertEquals(e.getResult().getExitCode(), 1);
-                        log.info(e.getResult().getStderr());
-                        assertTrue(e.getResult().getStderr().contains("Failed to authenticate"));
+        assertSQLExecution(() -> {
+            try {
+                execQuery(queryAllDataSql, new HashMap<>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                        put("auth-params", "invalid-token");
                     }
-                }
-        );
+                });
+                fail("Should not pass");
+            } catch (ContainerExecException e) {
+                // Authorization error
+                assertEquals(e.getResult().getExitCode(), 1);
+                log.info(e.getResult().getStderr());
+                assertTrue(e.getResult().getStderr().contains("Failed to authenticate"));
+            }
+        });
 
-        assertSQLExecution(
-                () -> {
-                    try {
-                        execQuery(queryAllDataSql, new HashMap<>() {{
-                            put("auth-plugin",
-                                    "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                            put("auth-params", deniedToken);
-                        }});
-                        fail("Should not pass");
-                    } catch (ContainerExecException e) {
-                        // Authorization error
-                        assertEquals(e.getResult().getExitCode(), 1);
-                        log.info(e.getResult().getStderr());
-                        assertTrue(e.getResult().getStderr().contains("not authorized"));
+        assertSQLExecution(() -> {
+            try {
+                execQuery(queryAllDataSql, new HashMap<>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                        put("auth-params", deniedToken);
                     }
-                }
-        );
+                });
+                fail("Should not pass");
+            } catch (ContainerExecException e) {
+                // Authorization error
+                assertEquals(e.getResult().getExitCode(), 1);
+                log.info(e.getResult().getStderr());
+                assertTrue(e.getResult().getStderr().contains("not authorized"));
+            }
+        });
     }
 
     @Test
@@ -178,45 +173,41 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
 
         admin.topics().createPartitionedTopic(topic2, 2); // Test for partitioned topic
 
-        String queryAllDataSql =
-                String.format("select * from pulsar.\"public/default\".\"%s\", pulsar.\"public/default\".\"%s\";",
-                        topic1, topic2);
+        String queryAllDataSql = String.format(
+                "select * from pulsar.\"public/default\".\"%s\", pulsar.\"public/default\".\"%s\";", topic1, topic2);
 
-        assertSQLExecution(
-                () -> {
-                    try {
-                        execQuery(queryAllDataSql, new HashMap<>() {{
-                            put("auth-plugin",
-                                    "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                            put("auth-params", testToken);
-                        }});
-                        fail("Should not pass");
-                    } catch (ContainerExecException e) {
-                        // Authorization error
-                        assertEquals(e.getResult().getExitCode(), 1);
-                        log.info(e.getResult().getStderr());
+        assertSQLExecution(() -> {
+            try {
+                execQuery(queryAllDataSql, new HashMap<>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                        put("auth-params", testToken);
                     }
-                }
-        );
+                });
+                fail("Should not pass");
+            } catch (ContainerExecException e) {
+                // Authorization error
+                assertEquals(e.getResult().getExitCode(), 1);
+                log.info(e.getResult().getStderr());
+            }
+        });
 
         admin.topics().grantPermission(topic2, testRole, EnumSet.of(AuthAction.consume));
 
-        assertSQLExecution(
-                () -> {
-                    try {
-                        ContainerExecResult containerExecResult =
-                                execQuery(queryAllDataSql, new HashMap<>() {{
-                                    put("auth-plugin",
-                                            "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                                    put("auth-params", testToken);
-                                }});
-
-                        assertEquals(containerExecResult.getExitCode(), 0);
-                    } catch (ContainerExecException e) {
-                        fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+        assertSQLExecution(() -> {
+            try {
+                ContainerExecResult containerExecResult = execQuery(queryAllDataSql, new HashMap<>() {
+                    {
+                        put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                        put("auth-params", testToken);
                     }
-                }
-        );
+                });
+
+                assertEquals(containerExecResult.getExitCode(), 0);
+            } catch (ContainerExecException e) {
+                fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+            }
+        });
     }
 
     private void assertSQLExecution(org.awaitility.core.ThrowingRunnable assertion) {

@@ -32,9 +32,8 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  * A multi version generic protobuf-native reader.
  */
 @Slf4j
-public class MultiVersionGenericProtobufNativeReader
-    extends AbstractMultiVersionReader<GenericRecord>
-    implements SchemaReader<GenericRecord> {
+public class MultiVersionGenericProtobufNativeReader extends AbstractMultiVersionReader<GenericRecord>
+        implements SchemaReader<GenericRecord> {
 
     // the flag controls whether to use the provided schema as reader schema
     // to decode the messages. In `AUTO_CONSUME` mode, setting this flag to `false`
@@ -43,13 +42,12 @@ public class MultiVersionGenericProtobufNativeReader
     private final SchemaInfo schemaInfo;
     private final Descriptors.Descriptor descriptor;
 
-    public MultiVersionGenericProtobufNativeReader(boolean useProvidedSchemaAsReaderSchema,
-                                                   SchemaInfo schemaInfo) {
+    public MultiVersionGenericProtobufNativeReader(boolean useProvidedSchemaAsReaderSchema, SchemaInfo schemaInfo) {
         super(new GenericProtobufNativeReader(parseProtobufSchema(schemaInfo)));
         this.useProvidedSchemaAsReaderSchema = useProvidedSchemaAsReaderSchema;
         this.schemaInfo = schemaInfo;
-        this.descriptor = (Descriptors.Descriptor) providerSchemaReader.getNativeSchema()
-                .orElseThrow(()->{
+        this.descriptor =
+                (Descriptors.Descriptor) providerSchemaReader.getNativeSchema().orElseThrow(() -> {
                     log.error("No protobuf native reader found.");
                     return new IllegalArgumentException("No protobuf native reader found.");
                 });
@@ -59,17 +57,17 @@ public class MultiVersionGenericProtobufNativeReader
     protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            log.info("Load schema reader for version({}), schema is : {}",
+            log.info(
+                    "Load schema reader for version({}), schema is : {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                     schemaInfo);
             Descriptors.Descriptor recordDescriptor = parseProtobufSchema(schemaInfo);
             Descriptors.Descriptor readerSchemaDescriptor =
-                useProvidedSchemaAsReaderSchema ? descriptor : recordDescriptor;
-            return new GenericProtobufNativeReader(
-                    readerSchemaDescriptor,
-                    schemaVersion.get());
+                    useProvidedSchemaAsReaderSchema ? descriptor : recordDescriptor;
+            return new GenericProtobufNativeReader(readerSchemaDescriptor, schemaVersion.get());
         } else {
-            log.warn("No schema found for version({}), use latest schema : {}",
+            log.warn(
+                    "No schema found for version({}), use latest schema : {}",
                     SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                     this.schemaInfo);
             return providerSchemaReader;

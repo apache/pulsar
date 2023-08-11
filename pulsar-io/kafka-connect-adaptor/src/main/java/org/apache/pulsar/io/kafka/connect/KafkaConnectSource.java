@@ -45,15 +45,18 @@ import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
 public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte[], byte[]>> {
 
     private final Cache<org.apache.kafka.connect.data.Schema, KafkaSchemaWrappedSchema> readerCache =
-            CacheBuilder.newBuilder().maximumSize(10000)
-                    .expireAfterAccess(30, TimeUnit.MINUTES).build();
+            CacheBuilder.newBuilder()
+                    .maximumSize(10000)
+                    .expireAfterAccess(30, TimeUnit.MINUTES)
+                    .build();
 
     private boolean jsonWithEnvelope = false;
     private static final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
 
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         if (config.get(JSON_WITH_ENVELOPE_CONFIG) != null) {
-            jsonWithEnvelope = Boolean.parseBoolean(config.get(JSON_WITH_ENVELOPE_CONFIG).toString());
+            jsonWithEnvelope =
+                    Boolean.parseBoolean(config.get(JSON_WITH_ENVELOPE_CONFIG).toString());
             config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, jsonWithEnvelope);
         } else {
             config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
@@ -62,7 +65,6 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
 
         super.open(config, sourceContext);
     }
-
 
     public synchronized KafkaSourceRecord processSourceRecord(final SourceRecord srcRecord) {
         KafkaSourceRecord record = new KafkaSourceRecord(srcRecord);
@@ -84,13 +86,12 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
             super(srcRecord);
             this.srcRecord = srcRecord;
 
-            byte[] keyBytes = keyConverter.fromConnectData(
-                    srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
+            byte[] keyBytes = keyConverter.fromConnectData(srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
             keySize = keyBytes != null ? keyBytes.length : 0;
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
 
-            byte[] valueBytes = valueConverter.fromConnectData(
-                    srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+            byte[] valueBytes =
+                    valueConverter.fromConnectData(srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
             valueSize = valueBytes != null ? valueBytes.length : 0;
 
             this.value = new KeyValue<>(keyBytes, valueBytes);
@@ -105,8 +106,8 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
             }
 
             if (srcRecord.keySchema() != null && keySchema == null) {
-                keySchema = new KafkaSchemaWrappedSchema(
-                        avroData.fromConnectSchema(srcRecord.keySchema()), keyConverter);
+                keySchema =
+                        new KafkaSchemaWrappedSchema(avroData.fromConnectSchema(srcRecord.keySchema()), keyConverter);
                 readerCache.put(srcRecord.keySchema(), keySchema);
             }
 
@@ -117,16 +118,14 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
             }
 
             this.eventTime = Optional.ofNullable(srcRecord.timestamp());
-            this.partitionId = Optional.of(srcRecord.sourcePartition()
-                .entrySet()
-                .stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .collect(Collectors.joining(",")));
+            this.partitionId = Optional.of(srcRecord.sourcePartition().entrySet().stream()
+                    .map(e -> e.getKey() + "=" + e.getValue())
+                    .collect(Collectors.joining(",")));
             this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
         }
 
         @Override
-        public boolean isEmpty(){
+        public boolean isEmpty() {
             return this.value.getValue() == null;
         }
 
@@ -165,27 +164,29 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
                 if (log.isDebugEnabled()) {
                     log.debug("commitRecord() for record: {}", srcRecord);
                 }
-                getSourceTask().commitRecord(srcRecord,
-                        new RecordMetadata(
-                                new TopicPartition(srcRecord.topic() == null
-                                            ? topicName.orElse("UNDEFINED")
-                                            : srcRecord.topic(),
-                                        srcRecord.kafkaPartition() == null ? 0 : srcRecord.kafkaPartition()),
-                                -1L, // baseOffset == -1L means no offset
-                                0, // batchIndex, doesn't matter if baseOffset == -1L
-                                null == srcRecord.timestamp() ? -1L : srcRecord.timestamp(),
-                                keySize, // serializedKeySize
-                                valueSize // serializedValueSize
-                        ));
+                getSourceTask()
+                        .commitRecord(
+                                srcRecord,
+                                new RecordMetadata(
+                                        new TopicPartition(
+                                                srcRecord.topic() == null
+                                                        ? topicName.orElse("UNDEFINED")
+                                                        : srcRecord.topic(),
+                                                srcRecord.kafkaPartition() == null ? 0 : srcRecord.kafkaPartition()),
+                                        -1L, // baseOffset == -1L means no offset
+                                        0, // batchIndex, doesn't matter if baseOffset == -1L
+                                        null == srcRecord.timestamp() ? -1L : srcRecord.timestamp(),
+                                        keySize, // serializedKeySize
+                                        valueSize // serializedValueSize
+                                        ));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.error("Source task failed to commit record, "
-                        + "source task should resend data, will get duplicate", e);
+                log.error(
+                        "Source task failed to commit record, " + "source task should resend data, will get duplicate",
+                        e);
                 return;
             }
             super.ack();
         }
-
     }
-
 }

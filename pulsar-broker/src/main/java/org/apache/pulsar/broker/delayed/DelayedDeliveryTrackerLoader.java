@@ -30,9 +30,10 @@ public class DelayedDeliveryTrackerLoader {
             throws IOException {
         try {
             ServiceConfiguration conf = pulsarService.getConfiguration();
-            DelayedDeliveryTrackerFactory factory =
-                    Reflections.createInstance(conf.getDelayedDeliveryTrackerFactoryClassName(),
-                            DelayedDeliveryTrackerFactory.class, Thread.currentThread().getContextClassLoader());
+            DelayedDeliveryTrackerFactory factory = Reflections.createInstance(
+                    conf.getDelayedDeliveryTrackerFactoryClassName(),
+                    DelayedDeliveryTrackerFactory.class,
+                    Thread.currentThread().getContextClassLoader());
             factory.initialize(pulsarService);
             return factory;
         } catch (Exception e) {

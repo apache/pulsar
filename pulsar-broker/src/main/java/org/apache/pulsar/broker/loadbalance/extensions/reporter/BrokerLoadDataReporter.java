@@ -66,9 +66,8 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
 
     private long tombstoneDelayInMillis;
 
-    public BrokerLoadDataReporter(PulsarService pulsar,
-                                  String lookupServiceAddress,
-                                  LoadDataStore<BrokerLoadData> brokerLoadDataStore) {
+    public BrokerLoadDataReporter(
+            PulsarService pulsar, String lookupServiceAddress, LoadDataStore<BrokerLoadData> brokerLoadDataStore) {
         this.brokerLoadDataStore = brokerLoadDataStore;
         this.lookupServiceAddress = lookupServiceAddress;
         this.pulsar = pulsar;
@@ -81,7 +80,6 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         this.localData = new BrokerLoadData();
         this.lastData = new BrokerLoadData();
         this.tombstoneDelayInMillis = TOMBSTONE_DELAY_IN_MILLIS;
-
     }
 
     @Override
@@ -90,7 +88,8 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         final var pulsarStats = pulsar.getBrokerService().getPulsarStats();
         synchronized (pulsarStats) {
             var brokerStats = pulsarStats.getBrokerStats();
-            localData.update(systemResourceUsage,
+            localData.update(
+                    systemResourceUsage,
                     brokerStats.msgThroughputIn,
                     brokerStats.msgThroughputOut,
                     brokerStats.msgRateIn,
@@ -110,8 +109,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
             if (debug) {
                 log.info("publishing load report:{}", localData.toString(conf));
             }
-            CompletableFuture<Void> future =
-                    this.brokerLoadDataStore.pushAsync(this.lookupServiceAddress, newLoadData);
+            CompletableFuture<Void> future = this.brokerLoadDataStore.pushAsync(this.lookupServiceAddress, newLoadData);
             future.whenComplete((__, ex) -> {
                 if (ex == null) {
                     localData.setReportedAt(System.currentTimeMillis());
@@ -132,32 +130,37 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
     private boolean needBrokerDataUpdate() {
         int loadBalancerReportUpdateMaxIntervalMinutes = conf.getLoadBalancerReportUpdateMaxIntervalMinutes();
         int loadBalancerReportUpdateThresholdPercentage = conf.getLoadBalancerReportUpdateThresholdPercentage();
-        final long updateMaxIntervalMillis = TimeUnit.MINUTES
-                .toMillis(loadBalancerReportUpdateMaxIntervalMinutes);
+        final long updateMaxIntervalMillis = TimeUnit.MINUTES.toMillis(loadBalancerReportUpdateMaxIntervalMinutes);
         long timeSinceLastReportWrittenToStore = System.currentTimeMillis() - localData.getReportedAt();
         boolean debug = ExtensibleLoadManagerImpl.debug(conf, log);
         if (timeSinceLastReportWrittenToStore > updateMaxIntervalMillis) {
             if (debug) {
-                log.info("Writing local data to metadata store because time since last"
+                log.info(
+                        "Writing local data to metadata store because time since last"
                                 + " update exceeded threshold of {} minutes",
                         loadBalancerReportUpdateMaxIntervalMinutes);
             }
             // Always update after surpassing the maximum interval.
             return true;
         }
-        final double maxChange = Math
-                .max(100.0 * (Math.abs(lastData.getMaxResourceUsage() - localData.getMaxResourceUsage())),
-                        Math.max(percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
-                                        localData.getMsgRateIn() + localData.getMsgRateOut()),
-                            Math.max(
-                                percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
+        final double maxChange = Math.max(
+                100.0 * (Math.abs(lastData.getMaxResourceUsage() - localData.getMaxResourceUsage())),
+                Math.max(
+                        percentChange(
+                                lastData.getMsgRateIn() + lastData.getMsgRateOut(),
+                                localData.getMsgRateIn() + localData.getMsgRateOut()),
+                        Math.max(
+                                percentChange(
+                                        lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
                                         localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
                                 percentChange(lastData.getBundleCount(), localData.getBundleCount()))));
         if (maxChange > loadBalancerReportUpdateThresholdPercentage) {
             if (debug) {
-                log.info(String.format("Writing local data to metadata store "
+                log.info(String.format(
+                        "Writing local data to metadata store "
                                 + "because maximum change %.2f%% exceeded threshold %d%%. "
-                                + "Time since last report written is %.2f%% seconds", maxChange,
+                                + "Time since last report written is %.2f%% seconds",
+                        maxChange,
                         loadBalancerReportUpdateThresholdPercentage,
                         timeSinceLastReportWrittenToStore / 1000.0));
             }
@@ -185,20 +188,17 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         }
         var lastSuccessfulTombstonedAt = lastTombstonedAt;
         lastTombstonedAt = now; // dedup first
-        brokerLoadDataStore.removeAsync(lookupServiceAddress)
-                .whenComplete((__, e) -> {
-                            if (e != null) {
-                                log.error("Failed to clean broker load data.", e);
-                                lastTombstonedAt = lastSuccessfulTombstonedAt;
-                            } else {
-                                boolean debug = ExtensibleLoadManagerImpl.debug(conf, log);
-                                if (debug) {
-                                    log.info("Cleaned broker load data.");
-                                }
-                            }
-                        }
-                );
-
+        brokerLoadDataStore.removeAsync(lookupServiceAddress).whenComplete((__, e) -> {
+            if (e != null) {
+                log.error("Failed to clean broker load data.", e);
+                lastTombstonedAt = lastSuccessfulTombstonedAt;
+            } else {
+                boolean debug = ExtensibleLoadManagerImpl.debug(conf, log);
+                if (debug) {
+                    log.info("Cleaned broker load data.");
+                }
+            }
+        });
     }
 
     @Override

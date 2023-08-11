@@ -77,8 +77,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         // update synchronizer and register sync listener
         synchronizer = conf.getSynchronizer();
         registerSyncLister(Optional.ofNullable(synchronizer));
-        this.batchMetadataStoreStats =
-                new BatchMetadataStoreStats(metadataStoreName, executor);
+        this.batchMetadataStoreStats = new BatchMetadataStoreStats(metadataStoreName, executor);
     }
 
     @Override
@@ -149,8 +148,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     @Override
-    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                               EnumSet<CreateOption> options) {
+    protected CompletableFuture<Stat> storePut(
+            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options) {
         OpPut op = new OpPut(path, data, optExpectedVersion, options);
         enqueue(writeOps, op);
         return op.getFuture();

@@ -115,7 +115,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             List<Consumer> consumerList;
             Map.Entry<Integer, List<Consumer>> ceilingEntry = hashRing.ceilingEntry(hash);
             if (ceilingEntry != null) {
-                consumerList =  ceilingEntry.getValue();
+                consumerList = ceilingEntry.getValue();
             } else {
                 consumerList = hashRing.firstEntry().getValue();
             }
@@ -132,10 +132,9 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         rwLock.readLock().lock();
         try {
             int start = 0;
-            for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
-                for (Consumer consumer: entry.getValue()) {
-                    result.computeIfAbsent(consumer, key -> new ArrayList<>())
-                            .add(Range.of(start, entry.getKey()));
+            for (Map.Entry<Integer, List<Consumer>> entry : hashRing.entrySet()) {
+                for (Consumer consumer : entry.getValue()) {
+                    result.computeIfAbsent(consumer, key -> new ArrayList<>()).add(Range.of(start, entry.getKey()));
                 }
                 start = entry.getKey() + 1;
             }

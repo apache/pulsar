@@ -26,9 +26,7 @@ import org.apache.zookeeper.AsyncCallback;
 
 class LegacyHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager {
 
-    LegacyHierarchicalLedgerManager(MetadataStore store,
-                                    ScheduledExecutorService scheduler,
-                                    String ledgerRootPath) {
+    LegacyHierarchicalLedgerManager(MetadataStore store, ScheduledExecutorService scheduler, String ledgerRootPath) {
         super(store, scheduler, ledgerRootPath);
     }
 
@@ -37,27 +35,43 @@ class LegacyHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager 
         return StringUtils.LEGACYHIERARCHICAL_LEDGER_PARENT_NODE_REGEX;
     }
 
-    public void asyncProcessLedgers(final BookkeeperInternalCallbacks.Processor<Long> processor,
-                                    final AsyncCallback.VoidCallback finalCb, final Object context,
-                                    final int successRc, final int failureRc) {
+    public void asyncProcessLedgers(
+            final BookkeeperInternalCallbacks.Processor<Long> processor,
+            final AsyncCallback.VoidCallback finalCb,
+            final Object context,
+            final int successRc,
+            final int failureRc) {
         // process 1st level nodes
-        asyncProcessLevelNodes(ledgerRootPath, (l1Node, cb1) -> {
-            if (!isLedgerParentNode(l1Node)) {
-                cb1.processResult(successRc, null, context);
-                return;
-            }
+        asyncProcessLevelNodes(
+                ledgerRootPath,
+                (l1Node, cb1) -> {
+                    if (!isLedgerParentNode(l1Node)) {
+                        cb1.processResult(successRc, null, context);
+                        return;
+                    }
 
-            String l1NodePath = ledgerRootPath + "/" + l1Node;
-            // process level1 path, after all children of level1 process
-            // it callback to continue processing next level1 node
-            asyncProcessLevelNodes(l1NodePath, (l2Node, cb2) -> {
-                // process level1/level2 path
-                String l2NodePath = ledgerRootPath + "/" + l1Node + "/" + l2Node;
-                // process each ledger
-                // after all ledger are processed, cb2 will be call to continue processing next level2 node
-                asyncProcessLedgersInSingleNode(l2NodePath, processor, cb2,
-                        context, successRc, failureRc);
-            }, cb1, context, successRc, failureRc);
-        }, finalCb, context, successRc, failureRc);
+                    String l1NodePath = ledgerRootPath + "/" + l1Node;
+                    // process level1 path, after all children of level1 process
+                    // it callback to continue processing next level1 node
+                    asyncProcessLevelNodes(
+                            l1NodePath,
+                            (l2Node, cb2) -> {
+                                // process level1/level2 path
+                                String l2NodePath = ledgerRootPath + "/" + l1Node + "/" + l2Node;
+                                // process each ledger
+                                // after all ledger are processed, cb2 will be call to continue processing next level2
+                                // node
+                                asyncProcessLedgersInSingleNode(
+                                        l2NodePath, processor, cb2, context, successRc, failureRc);
+                            },
+                            cb1,
+                            context,
+                            successRc,
+                            failureRc);
+                },
+                finalCb,
+                context,
+                successRc,
+                failureRc);
     }
 }

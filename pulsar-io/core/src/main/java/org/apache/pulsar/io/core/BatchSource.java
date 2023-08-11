@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.core;
 
-
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.pulsar.common.classification.InterfaceAudience;

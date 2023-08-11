@@ -55,7 +55,6 @@ public class BackoffBuilder {
         return this;
     }
 
-
     public Backoff create() {
         return new Backoff(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock);
     }

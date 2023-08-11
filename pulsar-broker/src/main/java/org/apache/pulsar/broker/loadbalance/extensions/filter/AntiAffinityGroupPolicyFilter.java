@@ -44,7 +44,6 @@ public class AntiAffinityGroupPolicyFilter implements BrokerFilter {
         return helper.filterAsync(brokers, serviceUnitId.toString());
     }
 
-
     @Override
     public String name() {
         return FILTER_NAME;

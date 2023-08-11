@@ -38,8 +38,7 @@ public class CountTriggerPolicy<T> implements TriggerPolicy<T, Integer> {
     private final EvictionPolicy<T, ?> evictionPolicy;
     private boolean started;
 
-    public CountTriggerPolicy(int count, TriggerHandler handler, EvictionPolicy<T, ?>
-            evictionPolicy) {
+    public CountTriggerPolicy(int count, TriggerHandler handler, EvictionPolicy<T, ?> evictionPolicy) {
         this.count = count;
         this.currentCount = new AtomicInteger();
         this.handler = handler;
@@ -84,7 +83,7 @@ public class CountTriggerPolicy<T> implements TriggerPolicy<T, Integer> {
 
     @Override
     public String toString() {
-        return "CountTriggerPolicy{" + "count=" + count + ", currentCount=" + currentCount
-                + ", started=" + started + '}';
+        return "CountTriggerPolicy{" + "count=" + count + ", currentCount=" + currentCount + ", started=" + started
+                + '}';
     }
 }

@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.client.Get;
@@ -44,21 +50,12 @@ import org.mockito.Mock;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
  * hbase Sink test
  */
 @Slf4j
 public class HbaseGenericRecordSinkTest {
     private Message<GenericRecord> message;
-
 
     /**
      * A Simple class to test hbase class
@@ -78,6 +75,7 @@ public class HbaseGenericRecordSinkTest {
     private String address = "address";
     private String age = "age";
     private String flag = "flag";
+
     @Mock
     protected SinkContext mockSinkContext;
 
@@ -99,7 +97,7 @@ public class HbaseGenericRecordSinkTest {
         qualifierNames.add(address);
         qualifierNames.add(age);
         qualifierNames.add(flag);
-        map.put("qualifierNames",qualifierNames);
+        map.put("qualifierNames", qualifierNames);
 
         mockSinkContext = mock(SinkContext.class);
         HbaseGenericRecordSink sink = new HbaseGenericRecordSink();
@@ -111,7 +109,8 @@ public class HbaseGenericRecordSinkTest {
         obj.setAddress("address_value");
         obj.setAge(30);
         obj.setFlag(true);
-        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AvroSchema<Foo> schema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
         byte[] bytes = schema.encode(obj);
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
@@ -121,28 +120,30 @@ public class HbaseGenericRecordSinkTest {
         Consumer consumer = mock(Consumer.class);
 
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
-            .message(message)
-            .topicName("fake_topic_name")
-            .ackFunction(() -> {
-                if (pulsarSourceConfig
-                        .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                    consumer.acknowledgeCumulativeAsync(message);
-                } else {
-                    consumer.acknowledgeAsync(message);
-                }
-            }).failFunction(() -> {
-                if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                    throw new RuntimeException("Failed to process message: " + message.getMessageId());
-                }
-            })
-            .build();
+                .message(message)
+                .topicName("fake_topic_name")
+                .ackFunction(() -> {
+                    if (pulsarSourceConfig.getProcessingGuarantees()
+                            == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                        consumer.acknowledgeCumulativeAsync(message);
+                    } else {
+                        consumer.acknowledgeAsync(message);
+                    }
+                })
+                .failFunction(() -> {
+                    if (pulsarSourceConfig.getProcessingGuarantees()
+                            == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                        throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                    }
+                })
+                .build();
 
         genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
 
-        when(message.getValue())
-                .thenReturn(genericAvroSchema.decode(bytes));
+        when(message.getValue()).thenReturn(genericAvroSchema.decode(bytes));
 
-        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
+        log.info(
+                "foo:{}, Message.getValue: {}, record.getValue: {}",
                 obj.toString(),
                 message.getValue().toString(),
                 record.getValue().toString());
@@ -151,7 +152,7 @@ public class HbaseGenericRecordSinkTest {
         map.put("batchTimeMs", 1);
         map.put("batchSize", 1);
         // open should success
-        sink.open(map,mockSinkContext);
+        sink.open(map, mockSinkContext);
 
         // write should success.
         sink.write(record);
@@ -175,5 +176,4 @@ public class HbaseGenericRecordSinkTest {
         table.close();
         sink.close();
     }
-
 }

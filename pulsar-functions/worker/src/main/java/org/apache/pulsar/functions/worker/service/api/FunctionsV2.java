@@ -33,93 +33,84 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface FunctionsV2<W extends WorkerService> {
 
-    Response getFunctionInfo(String tenant,
-                             String namespace,
-                             String functionName,
-                             AuthenticationParameters authParams) throws IOException;
+    Response getFunctionInfo(String tenant, String namespace, String functionName, AuthenticationParameters authParams)
+            throws IOException;
 
-    Response getFunctionInstanceStatus(String tenant,
-                                               String namespace,
-                                               String functionName,
-                                               String instanceId,
-                                               URI uri,
-                                               AuthenticationParameters authParams) throws IOException;
+    Response getFunctionInstanceStatus(
+            String tenant,
+            String namespace,
+            String functionName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams)
+            throws IOException;
 
-    Response getFunctionStatusV2(String tenant,
-                                 String namespace,
-                                 String functionName,
-                                 URI requestUri,
-                                 AuthenticationParameters authParams) throws IOException;
+    Response getFunctionStatusV2(
+            String tenant, String namespace, String functionName, URI requestUri, AuthenticationParameters authParams)
+            throws IOException;
 
-    Response registerFunction(String tenant,
-                              String namespace,
-                              String functionName,
-                              InputStream uploadedInputStream,
-                              FormDataContentDisposition fileDetail,
-                              String functionPkgUrl,
-                              String functionDetailsJson,
-                              AuthenticationParameters authParams);
+    Response registerFunction(
+            String tenant,
+            String namespace,
+            String functionName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String functionPkgUrl,
+            String functionDetailsJson,
+            AuthenticationParameters authParams);
 
+    Response updateFunction(
+            String tenant,
+            String namespace,
+            String functionName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String functionPkgUrl,
+            String functionDetailsJson,
+            AuthenticationParameters authParams);
 
-    Response updateFunction(String tenant,
-                            String namespace,
-                            String functionName,
-                            InputStream uploadedInputStream,
-                            FormDataContentDisposition fileDetail,
-                            String functionPkgUrl,
-                            String functionDetailsJson,
-                            AuthenticationParameters authParams);
-
-    Response deregisterFunction(String tenant, String namespace, String functionName,
-                                AuthenticationParameters authParams);
+    Response deregisterFunction(
+            String tenant, String namespace, String functionName, AuthenticationParameters authParams);
 
     Response listFunctions(String tenant, String namespace, AuthenticationParameters authParams);
 
-    Response triggerFunction(String tenant,
-                             String namespace,
-                             String functionName,
-                             String triggerValue,
-                             InputStream triggerStream,
-                             String topic,
-                             AuthenticationParameters authParams);
+    Response triggerFunction(
+            String tenant,
+            String namespace,
+            String functionName,
+            String triggerValue,
+            InputStream triggerStream,
+            String topic,
+            AuthenticationParameters authParams);
 
-    Response getFunctionState(String tenant,
-                              String namespace,
-                              String functionName,
-                              String key,
-                              AuthenticationParameters authParams);
+    Response getFunctionState(
+            String tenant, String namespace, String functionName, String key, AuthenticationParameters authParams);
 
-    Response restartFunctionInstance(String tenant,
-                                     String namespace,
-                                     String functionName,
-                                     String instanceId,
-                                     URI uri,
-                                     AuthenticationParameters authParams);
+    Response restartFunctionInstance(
+            String tenant,
+            String namespace,
+            String functionName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
+    Response restartFunctionInstances(
+            String tenant, String namespace, String functionName, AuthenticationParameters authParams);
 
-    Response restartFunctionInstances(String tenant,
-                                      String namespace,
-                                      String functionName,
-                                      AuthenticationParameters authParams);
+    Response stopFunctionInstance(
+            String tenant,
+            String namespace,
+            String functionName,
+            String instanceId,
+            URI uri,
+            AuthenticationParameters authParams);
 
-    Response stopFunctionInstance(String tenant,
-                                  String namespace,
-                                  String functionName,
-                                  String instanceId,
-                                  URI uri,
-                                  AuthenticationParameters authParams);
+    Response stopFunctionInstances(
+            String tenant, String namespace, String functionName, AuthenticationParameters authParams);
 
-    Response stopFunctionInstances(String tenant,
-                                   String namespace,
-                                   String functionName,
-                                   AuthenticationParameters authParams);
-
-    Response uploadFunction(InputStream uploadedInputStream,
-                            String path,
-                            AuthenticationParameters authParams);
+    Response uploadFunction(InputStream uploadedInputStream, String path, AuthenticationParameters authParams);
 
     Response downloadFunction(String path, AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getListOfConnectors();
-
 }

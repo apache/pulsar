@@ -48,8 +48,7 @@ public class TimeEvictionPolicy<T> implements EvictionPolicy<T, EvictionContext>
      */
     @Override
     public EvictionPolicy.Action evict(Event<T> event) {
-        long now =
-                evictionContext == null ? System.currentTimeMillis() : evictionContext.getReferenceTime();
+        long now = evictionContext == null ? System.currentTimeMillis() : evictionContext.getReferenceTime();
         long diff = now - event.getTimestamp();
         if (diff >= (windowLength + delta)) {
             return EvictionPolicy.Action.EXPIRE;
@@ -73,12 +72,12 @@ public class TimeEvictionPolicy<T> implements EvictionPolicy<T, EvictionContext>
             if (prevContext == null) {
                 delta = Integer.MAX_VALUE; // consider all events for the initial window
             } else {
-                delta = context.getReferenceTime() - prevContext.getReferenceTime()
-                        - context.getSlidingInterval();
+                delta = context.getReferenceTime() - prevContext.getReferenceTime() - context.getSlidingInterval();
                 if (Math.abs(delta) > 100) {
-                    log.warn(String.format("Possible clock drift or long running computation in window; "
-                            + "Previous eviction time: %s, current eviction time: %s", prevContext
-                            .getReferenceTime(), context.getReferenceTime()));
+                    log.warn(String.format(
+                            "Possible clock drift or long running computation in window; "
+                                    + "Previous eviction time: %s, current eviction time: %s",
+                            prevContext.getReferenceTime(), context.getReferenceTime()));
                 }
             }
         }
@@ -106,7 +105,6 @@ public class TimeEvictionPolicy<T> implements EvictionPolicy<T, EvictionContext>
 
     @Override
     public String toString() {
-        return "TimeEvictionPolicy{" + "windowLength=" + windowLength + ", evictionContext="
-                + evictionContext + '}';
+        return "TimeEvictionPolicy{" + "windowLength=" + windowLength + ", evictionContext=" + evictionContext + '}';
     }
 }

@@ -31,17 +31,15 @@
  */
 package org.apache.pulsar.tests.integration.schema;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import org.apache.avro.reflect.AvroDefault;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.avro.reflect.AvroDefault;
 
 /**
  * Keep a list of schemas for testing.
@@ -56,7 +54,6 @@ public final class Schemas {
 
         private String name;
         private int age;
-
     }
 
     /**
@@ -67,9 +64,9 @@ public final class Schemas {
 
         private String name;
         private int age;
+
         @AvroDefault("\"male\"")
         private String gender;
-
     }
 
     /**
@@ -82,29 +79,32 @@ public final class Schemas {
         private int age;
         private int gpa;
         private int grade;
-
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class AvroLogicalType{
-        @org.apache.avro.reflect.AvroSchema("{\n" +
-                "  \"type\": \"bytes\",\n" +
-                "  \"logicalType\": \"decimal\",\n" +
-                "  \"precision\": 4,\n" +
-                "  \"scale\": 2\n" +
-                "}")
+    public static class AvroLogicalType {
+        @org.apache.avro.reflect.AvroSchema("{\n" + "  \"type\": \"bytes\",\n"
+                + "  \"logicalType\": \"decimal\",\n"
+                + "  \"precision\": 4,\n"
+                + "  \"scale\": 2\n"
+                + "}")
         BigDecimal decimal;
+
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
         LocalDate date;
+
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}")
         Instant timestampMillis;
+
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"time-millis\"}")
         LocalTime timeMillis;
+
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}")
         long timestampMicros;
+
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"time-micros\"}")
         long timeMicros;
     }
@@ -114,14 +114,14 @@ public final class Schemas {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class PersonOne{
+    public static class PersonOne {
         int id;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class PersonTwo{
+    public static class PersonTwo {
         int id;
 
         @AvroDefault("\"Tom\"")
@@ -129,19 +129,18 @@ public final class Schemas {
     }
 
     @Data
-    public static class PersonThree{
+    public static class PersonThree {
         int id;
 
         String name;
     }
 
     @Data
-    public static class PersonFour{
+    public static class PersonFour {
         int id;
 
         String name;
 
         int age;
     }
-
 }

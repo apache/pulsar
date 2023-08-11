@@ -38,8 +38,8 @@ public interface IScheduler {
      * @return
      *            A list of new assignments
      */
-    List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment> currentAssignments,
-                              Set<String> workers);
+    List<Assignment> schedule(
+            List<Instance> unassignedFunctionInstances, List<Assignment> currentAssignments, Set<String> workers);
 
     /**
      * Rebalances function instances scheduled to workers.

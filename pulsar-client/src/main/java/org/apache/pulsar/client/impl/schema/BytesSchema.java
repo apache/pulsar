@@ -32,9 +32,10 @@ public class BytesSchema extends AbstractSchema<byte[]> {
 
     static {
         SCHEMA_INFO = SchemaInfoImpl.builder()
-            .name("Bytes")
-            .type(SchemaType.BYTES)
-            .schema(new byte[0]).build();
+                .name("Bytes")
+                .type(SchemaType.BYTES)
+                .schema(new byte[0])
+                .build();
         INSTANCE = new BytesSchema();
     }
 

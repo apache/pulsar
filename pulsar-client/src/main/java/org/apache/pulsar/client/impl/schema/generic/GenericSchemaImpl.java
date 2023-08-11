@@ -40,8 +40,7 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
     protected GenericSchemaImpl(SchemaInfo schemaInfo) {
         super(schemaInfo);
 
-        this.fields = schema.getFields()
-                .stream()
+        this.fields = schema.getFields().stream()
                 .map(f -> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
     }
@@ -70,16 +69,15 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
      * @param useProvidedSchemaAsReaderSchema {@link Boolean}
      * @return generic schema implementation
      */
-    public static GenericSchemaImpl of(SchemaInfo schemaInfo,
-                                       boolean useProvidedSchemaAsReaderSchema) {
+    public static GenericSchemaImpl of(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
         switch (schemaInfo.getType()) {
             case AVRO:
                 return new GenericAvroSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
             case JSON:
                 return new GenericJsonSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
             default:
-                throw new UnsupportedOperationException("Generic schema is not supported on schema type "
-                    + schemaInfo.getType() + "'");
+                throw new UnsupportedOperationException(
+                        "Generic schema is not supported on schema type " + schemaInfo.getType() + "'");
         }
     }
 }

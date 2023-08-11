@@ -29,7 +29,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 
 public class BucketDelayedMessageIndexStats {
 
-    private static final long[] BUCKETS = new long[]{50, 100, 500, 1000, 5000, 30000, 60000};
+    private static final long[] BUCKETS = new long[] {50, 100, 500, 1000, 5000, 30000, 60000};
 
     enum State {
         succeed,
@@ -56,19 +56,18 @@ public class BucketDelayedMessageIndexStats {
     private final Map<String, StatsBuckets> delayedMessageIndexBucketOpLatencyMs = new ConcurrentHashMap<>();
     private final Map<String, LongAdder> delayedMessageIndexBucketOpCount = new ConcurrentHashMap<>();
 
-    public BucketDelayedMessageIndexStats() {
-    }
+    public BucketDelayedMessageIndexStats() {}
 
     public Map<String, TopicMetricBean> genTopicMetricMap() {
         Map<String, TopicMetricBean> metrics = new HashMap<>();
 
-        metrics.put(BUCKET_TOTAL_NAME,
-                new TopicMetricBean(BUCKET_TOTAL_NAME, delayedMessageIndexBucketTotal.get(), null));
+        metrics.put(
+                BUCKET_TOTAL_NAME, new TopicMetricBean(BUCKET_TOTAL_NAME, delayedMessageIndexBucketTotal.get(), null));
 
-        metrics.put(INDEX_LOADED_NAME,
-                new TopicMetricBean(INDEX_LOADED_NAME, delayedMessageIndexLoaded.get(), null));
+        metrics.put(INDEX_LOADED_NAME, new TopicMetricBean(INDEX_LOADED_NAME, delayedMessageIndexLoaded.get(), null));
 
-        metrics.put(SNAPSHOT_SIZE_BYTES_NAME,
+        metrics.put(
+                SNAPSHOT_SIZE_BYTES_NAME,
                 new TopicMetricBean(SNAPSHOT_SIZE_BYTES_NAME, delayedMessageIndexBucketSnapshotSizeBytes.get(), null));
 
         delayedMessageIndexBucketOpCount.forEach((k, count) -> {
@@ -98,9 +97,11 @@ public class BucketDelayedMessageIndexStats {
                 metrics.put(key, new TopicMetricBean(OP_LATENCY_NAME, count, labelsAndValues));
             }
             String[] labelsAndValues = new String[] {"type", typeName};
-            metrics.put(OP_LATENCY_NAME + "_count" + joinKey(labelsAndValues),
+            metrics.put(
+                    OP_LATENCY_NAME + "_count" + joinKey(labelsAndValues),
                     new TopicMetricBean(OP_LATENCY_NAME + "_count", statsBuckets.getCount(), labelsAndValues));
-            metrics.put(OP_LATENCY_NAME + "_sum" + joinKey(labelsAndValues),
+            metrics.put(
+                    OP_LATENCY_NAME + "_sum" + joinKey(labelsAndValues),
                     new TopicMetricBean(OP_LATENCY_NAME + "_sum", statsBuckets.getSum(), labelsAndValues));
         });
 
@@ -120,20 +121,24 @@ public class BucketDelayedMessageIndexStats {
     }
 
     public void recordTriggerEvent(Type eventType) {
-        delayedMessageIndexBucketOpCount.computeIfAbsent(joinKey(State.all.name(), eventType.name()),
-                k -> new LongAdder()).increment();
+        delayedMessageIndexBucketOpCount
+                .computeIfAbsent(joinKey(State.all.name(), eventType.name()), k -> new LongAdder())
+                .increment();
     }
 
     public void recordSuccessEvent(Type eventType, long cost) {
-        delayedMessageIndexBucketOpCount.computeIfAbsent(joinKey(State.succeed.name(), eventType.name()),
-                k -> new LongAdder()).increment();
-        delayedMessageIndexBucketOpLatencyMs.computeIfAbsent(eventType.name(),
-                k -> new StatsBuckets(BUCKETS)).addValue(cost);
+        delayedMessageIndexBucketOpCount
+                .computeIfAbsent(joinKey(State.succeed.name(), eventType.name()), k -> new LongAdder())
+                .increment();
+        delayedMessageIndexBucketOpLatencyMs
+                .computeIfAbsent(eventType.name(), k -> new StatsBuckets(BUCKETS))
+                .addValue(cost);
     }
 
     public void recordFailEvent(Type eventType) {
-        delayedMessageIndexBucketOpCount.computeIfAbsent(joinKey(State.failed.name(), eventType.name()),
-                k -> new LongAdder()).increment();
+        delayedMessageIndexBucketOpCount
+                .computeIfAbsent(joinKey(State.failed.name(), eventType.name()), k -> new LongAdder())
+                .increment();
     }
 
     public static String joinKey(String... values) {

@@ -43,7 +43,6 @@ public class OneStageAuthenticationState implements AuthenticationState {
     private final AuthenticationProvider provider;
     private volatile String authRole;
 
-
     /**
      * Constructor for a {@link OneStageAuthenticationState} where there is no authentication performed during
      * initialization.
@@ -51,10 +50,8 @@ public class OneStageAuthenticationState implements AuthenticationState {
      * @param sslSession - sslSession associated with the {@link AuthenticationState}
      * @param provider - {@link AuthenticationProvider} to use to verify {@link AuthData}
      */
-    public OneStageAuthenticationState(AuthData authData,
-                                       SocketAddress remoteAddress,
-                                       SSLSession sslSession,
-                                       AuthenticationProvider provider) {
+    public OneStageAuthenticationState(
+            AuthData authData, SocketAddress remoteAddress, SSLSession sslSession, AuthenticationProvider provider) {
         this.provider = provider;
         this.remoteAddress = remoteAddress;
         this.sslSession = sslSession;
@@ -91,16 +88,14 @@ public class OneStageAuthenticationState implements AuthenticationState {
             // Authentication is already completed
             return CompletableFuture.completedFuture(null);
         }
-        this.authenticationDataSource = new AuthenticationDataCommand(
-                new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);
+        this.authenticationDataSource =
+                new AuthenticationDataCommand(new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);
 
-        return provider
-                .authenticateAsync(authenticationDataSource)
-                .thenApply(role -> {
-                    this.authRole = role;
-                    // Single stage authentication always returns null
-                    return null;
-                });
+        return provider.authenticateAsync(authenticationDataSource).thenApply(role -> {
+            this.authRole = role;
+            // Single stage authentication always returns null
+            return null;
+        });
     }
 
     /**

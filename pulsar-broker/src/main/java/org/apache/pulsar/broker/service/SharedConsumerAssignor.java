@@ -50,8 +50,8 @@ public class SharedConsumerAssignor {
     // Process the unassigned messages, e.g. adding them to the replay queue
     private final java.util.function.Consumer<EntryAndMetadata> unassignedMessageProcessor;
 
-    public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
-                                                        final int numConsumers) {
+    public Map<Consumer, List<EntryAndMetadata>> assign(
+            final List<EntryAndMetadata> entryAndMetadataList, final int numConsumers) {
         assert numConsumers >= 0;
         consumerToPermits.clear();
         final Map<Consumer, List<EntryAndMetadata>> consumerToEntries = new IdentityHashMap<>();
@@ -79,14 +79,18 @@ public class SharedConsumerAssignor {
             }
 
             if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
-                consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
+                consumerToEntries
+                        .computeIfAbsent(consumer, __ -> new ArrayList<>())
+                        .add(entryAndMetadata);
             } else {
                 final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer, availablePermits);
                 if (consumerForUuid == null) {
                     unassignedMessageProcessor.accept(entryAndMetadata);
                     continue;
                 }
-                consumerToEntries.computeIfAbsent(consumerForUuid, __ -> new ArrayList<>()).add(entryAndMetadata);
+                consumerToEntries
+                        .computeIfAbsent(consumerForUuid, __ -> new ArrayList<>())
+                        .add(entryAndMetadata);
             }
             availablePermits--;
         }
@@ -112,9 +116,8 @@ public class SharedConsumerAssignor {
         return null;
     }
 
-    private Consumer getConsumerForUuid(final MessageMetadata metadata,
-                                        final Consumer defaultConsumer,
-                                        final int currentAvailablePermits) {
+    private Consumer getConsumerForUuid(
+            final MessageMetadata metadata, final Consumer defaultConsumer, final int currentAvailablePermits) {
         final String uuid = metadata.getUuid();
         Consumer consumer = uuidToConsumer.get(uuid);
         if (consumer == null) {

@@ -72,5 +72,4 @@ public class ChunkMessageIdImpl extends MessageIdImpl {
     public int hashCode() {
         return Objects.hash(super.hashCode(), firstChunkMsgId.hashCode());
     }
-
 }

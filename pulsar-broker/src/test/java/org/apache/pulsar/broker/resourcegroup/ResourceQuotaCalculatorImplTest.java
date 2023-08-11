@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
 
 public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
@@ -43,7 +41,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testRQCalcNegativeConfTest() throws PulsarAdminException {
-        final long[] allUsage = { 0 };
+        final long[] allUsage = {0};
         long calculatedQuota = this.rqCalc.computeLocalQuota(-1, 0, allUsage);
         long expectedQuota = -1;
         Assert.assertEquals(calculatedQuota, expectedQuota);
@@ -51,13 +49,13 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testRQCalcNegativeLocalUsageTest() {
-        final long[] allUsage = { 0 };
+        final long[] allUsage = {0};
         Assert.assertThrows(PulsarAdminException.class, () -> this.rqCalc.computeLocalQuota(0, -1, allUsage));
     }
 
     @Test
     public void testRQCalcNegativeAllUsageTest() {
-        final long[] allUsage = { -1 };
+        final long[] allUsage = {-1};
         Assert.assertThrows(PulsarAdminException.class, () -> this.rqCalc.computeLocalQuota(0, 0, allUsage));
     }
 
@@ -65,7 +63,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
     public void testRQCalcGlobUsedLessThanConfigTest() throws PulsarAdminException {
         final long config = 100;
         final long localUsed = 20;
-        final long[] allUsage = { 40 };
+        final long[] allUsage = {40};
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
         Assert.assertTrue(newQuota > localUsed);
     }
@@ -74,7 +72,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
     public void testRQCalcGlobUsedEqualsToConfigTest() throws PulsarAdminException {
         final long config = 100;
         final long localUsed = 20;
-        final long[] allUsage = { 100 };
+        final long[] allUsage = {100};
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
         Assert.assertEquals(newQuota, localUsed);
     }
@@ -83,7 +81,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
     public void testRQCalcGlobUsedGreaterThanConfigTest() throws PulsarAdminException {
         final long config = 100;
         final long localUsed = 20;
-        final long[] allUsage = { 150 };
+        final long[] allUsage = {150};
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
         Assert.assertTrue(newQuota < localUsed);
     }
@@ -91,7 +89,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
     @Test
     public void testRQCalcProportionalIncrementTest() throws PulsarAdminException {
         final long config = 100;
-        final long[] allUsage = { 60 };
+        final long[] allUsage = {60};
         final long localUsed1 = 20;
         final long localUsed2 = 40;
 
@@ -104,9 +102,9 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testRQCalcGlobUsedZeroTest() throws PulsarAdminException {
-        final long config = 10;  // don't care
-        final long localUsed = 0;  // don't care
-        final long[] allUsage = { 0 };
+        final long config = 10; // don't care
+        final long localUsed = 0; // don't care
+        final long[] allUsage = {0};
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
         Assert.assertEquals(newQuota, config);
     }

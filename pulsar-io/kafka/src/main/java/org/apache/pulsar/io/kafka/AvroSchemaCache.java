@@ -35,8 +35,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 @Slf4j
 final class AvroSchemaCache {
-    private final LoadingCache<Integer, Schema<ByteBuffer>> cache = CacheBuilder
-            .newBuilder()
+    private final LoadingCache<Integer, Schema<ByteBuffer>> cache = CacheBuilder.newBuilder()
             .maximumSize(100)
             .build(new CacheLoader<>() {
                 @Override
@@ -68,13 +67,11 @@ final class AvroSchemaCache {
                     .type(SchemaType.AVRO)
                     .name(schema.getName())
                     .properties(Collections.emptyMap())
-                    .schema(definition.getBytes(StandardCharsets.UTF_8)
-                    ).build();
+                    .schema(definition.getBytes(StandardCharsets.UTF_8))
+                    .build();
             return new ByteBufferSchemaWrapper(schemaInfo);
         } catch (IOException | RestClientException e) {
             throw new RuntimeException(e);
         }
     }
-
-
 }

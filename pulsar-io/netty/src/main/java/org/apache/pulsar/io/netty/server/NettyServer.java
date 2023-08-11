@@ -99,7 +99,8 @@ public class NettyServer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioDatagramChannel.class);
-        bootstrap.handler(new NettyUDPChannelInitializer(new NettyUDPServerHandler(this.nettySource)))
+        bootstrap
+                .handler(new NettyUDPChannelInitializer(new NettyUDPServerHandler(this.nettySource)))
                 .option(ChannelOption.SO_BACKLOG, 1024);
 
         ChannelFuture channelFuture = bootstrap.bind(this.host, this.port).sync();
@@ -107,16 +108,16 @@ public class NettyServer {
     }
 
     private void runTcp() throws InterruptedException {
-        ServerBootstrap serverBootstrap = getServerBootstrap(
-                new NettyTCPChannelInitializer(new NettyTCPServerHandler(this.nettySource)));
+        ServerBootstrap serverBootstrap =
+                getServerBootstrap(new NettyTCPChannelInitializer(new NettyTCPServerHandler(this.nettySource)));
 
         ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
         channelFuture.channel().closeFuture().sync();
     }
 
     private void runHttp() throws InterruptedException {
-        ServerBootstrap serverBootstrap = getServerBootstrap(
-                new NettyHttpChannelInitializer(new NettyHttpServerHandler(this.nettySource), null));
+        ServerBootstrap serverBootstrap =
+                getServerBootstrap(new NettyHttpChannelInitializer(new NettyHttpServerHandler(this.nettySource), null));
 
         ChannelFuture channelFuture = serverBootstrap.bind(this.host, this.port).sync();
         channelFuture.channel().closeFuture().sync();
@@ -128,9 +129,10 @@ public class NettyServer {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(bossGroup, workerGroup);
         serverBootstrap.channel(NioServerSocketChannel.class);
-        serverBootstrap.childHandler(childHandler)
-        .option(ChannelOption.SO_BACKLOG, 1024)
-        .childOption(ChannelOption.SO_KEEPALIVE, true);
+        serverBootstrap
+                .childHandler(childHandler)
+                .option(ChannelOption.SO_BACKLOG, 1024)
+                .childOption(ChannelOption.SO_KEEPALIVE, true);
 
         return serverBootstrap;
     }
@@ -176,8 +178,7 @@ public class NettyServer {
             checkArgument(StringUtils.isNotBlank(host), "host cannot be blank/null");
             checkArgument(this.port >= 1024, "port must be set equal or bigger than 1024");
             checkNotNull(this.nettySource, "nettySource must be set");
-            checkArgument(this.numberOfThreads > 0,
-                    "numberOfThreads must be set as positive");
+            checkArgument(this.numberOfThreads > 0, "numberOfThreads must be set as positive");
 
             return new NettyServer(this);
         }

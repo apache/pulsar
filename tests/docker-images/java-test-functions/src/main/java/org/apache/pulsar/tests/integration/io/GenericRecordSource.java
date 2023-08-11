@@ -52,8 +52,7 @@ public class GenericRecordSource implements Source<GenericRecord> {
         this.recordSchemaBuilder.field("number").type(SchemaType.INT32);
         this.recordSchemaBuilder.field("text").type(SchemaType.STRING);
         schema = Schema.generic(this.recordSchemaBuilder.build(SchemaType.AVRO));
-        fields = Arrays.asList(new Field("number", 0),
-            new Field("text", 1));
+        fields = Arrays.asList(new Field("number", 0), new Field("text", 1));
         log.info("created source, schema {}", new String(schema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8));
     }
 
@@ -64,9 +63,9 @@ public class GenericRecordSource implements Source<GenericRecord> {
 
         int value = count.incrementAndGet();
         GenericRecord record = schema.newRecordBuilder()
-            .set("number", value)
-            .set("text", "value-" + value)
-            .build();
+                .set("number", value)
+                .set("text", "value-" + value)
+                .build();
         log.info("produced {}", record);
         return new Record<GenericRecord>() {
             @Override

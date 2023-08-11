@@ -59,5 +59,4 @@ public interface CounterStateStore extends StateStore {
      * @return the amount of the counter value for this key
      */
     CompletableFuture<Long> getCounterAsync(String key);
-
 }

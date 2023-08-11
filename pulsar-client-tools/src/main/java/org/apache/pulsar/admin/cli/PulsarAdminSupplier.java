@@ -89,8 +89,8 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
     }
 
     @SneakyThrows
-    private static void applyRootParamsToAdminBuilder(PulsarAdminBuilder adminBuilder,
-                                                      PulsarAdminTool.RootParams rootParams) {
+    private static void applyRootParamsToAdminBuilder(
+            PulsarAdminBuilder adminBuilder, PulsarAdminTool.RootParams rootParams) {
         adminBuilder.serviceHttpUrl(rootParams.serviceUrl);
         adminBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);
         adminBuilder.requestTimeout(rootParams.requestTimeout, TimeUnit.SECONDS);
@@ -107,5 +107,4 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
             adminBuilder.tlsTrustCertsFilePath(rootParams.tlsTrustCertsFilePath);
         }
     }
-
 }

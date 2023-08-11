@@ -48,21 +48,19 @@ public class AdditionalServletUtils {
      * @return the additional servlet definition
      * @throws IOException when fail to load the additional servlet or get the definition
      */
-    public AdditionalServletDefinition getAdditionalServletDefinition(
-            String narPath, String narExtractionDirectory) throws IOException {
+    public AdditionalServletDefinition getAdditionalServletDefinition(String narPath, String narExtractionDirectory)
+            throws IOException {
         try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(new File(narPath))
                 .extractionDirectory(narExtractionDirectory)
-                .build();) {
+                .build(); ) {
             return getAdditionalServletDefinition(ncl);
         }
     }
 
     private AdditionalServletDefinition getAdditionalServletDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(ADDITIONAL_SERVLET_FILE);
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(
-                configStr, AdditionalServletDefinition.class
-        );
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, AdditionalServletDefinition.class);
     }
 
     /**
@@ -72,8 +70,8 @@ public class AdditionalServletUtils {
      * @return a collection of additional servlet definitions
      * @throws IOException when fail to load the available additional servlets from the provided directory.
      */
-    public AdditionalServletDefinitions searchForServlets(String additionalServletDirectory,
-                                                          String narExtractionDirectory) throws IOException {
+    public AdditionalServletDefinitions searchForServlets(
+            String additionalServletDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(additionalServletDirectory).toAbsolutePath();
         log.info("Searching for additional servlets in {}", path);
 
@@ -86,9 +84,8 @@ public class AdditionalServletUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    AdditionalServletDefinition def =
-                            AdditionalServletUtils.getAdditionalServletDefinition(
-                                    archive.toString(), narExtractionDirectory);
+                    AdditionalServletDefinition def = AdditionalServletUtils.getAdditionalServletDefinition(
+                            archive.toString(), narExtractionDirectory);
                     log.info("Found additional servlet from {} : {}", archive, def);
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
@@ -100,10 +97,13 @@ public class AdditionalServletUtils {
 
                     servletDefinitions.servlets().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load additional servlet from {}."
-                            + " It is OK however if you want to use this additional servlet,"
-                            + " please make sure you put the correct additional servlet NAR"
-                            + " package in the additional servlets directory.", archive, t);
+                    log.warn(
+                            "Failed to load additional servlet from {}."
+                                    + " It is OK however if you want to use this additional servlet,"
+                                    + " please make sure you put the correct additional servlet NAR"
+                                    + " package in the additional servlets directory.",
+                            archive,
+                            t);
                 }
             }
         }
@@ -116,8 +116,8 @@ public class AdditionalServletUtils {
      *
      * @param metadata the additional servlet definition.
      */
-    public AdditionalServletWithClassLoader load(
-            AdditionalServletMetadata metadata, String narExtractionDirectory) throws IOException {
+    public AdditionalServletWithClassLoader load(AdditionalServletMetadata metadata, String narExtractionDirectory)
+            throws IOException {
 
         final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
@@ -134,7 +134,8 @@ public class AdditionalServletUtils {
 
         try {
             Class additionalServletClass = ncl.loadClass(def.getAdditionalServletClass());
-            Object additionalServlet = additionalServletClass.getDeclaredConstructor().newInstance();
+            Object additionalServlet =
+                    additionalServletClass.getDeclaredConstructor().newInstance();
             if (!(additionalServlet instanceof AdditionalServlet)) {
                 throw new IOException("Class " + def.getAdditionalServletClass()
                         + " does not implement additional servlet interface");
@@ -147,8 +148,7 @@ public class AdditionalServletUtils {
         }
     }
 
-    private void rethrowIOException(Throwable cause)
-            throws IOException {
+    private void rethrowIOException(Throwable cause) throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;
         } else if (cause instanceof RuntimeException) {

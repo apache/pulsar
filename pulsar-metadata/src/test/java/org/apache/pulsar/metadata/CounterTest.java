@@ -43,11 +43,11 @@ public class CounterTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService cs1 = new CoordinationServiceImpl(store);
 
         long l1 = cs1.getNextCounterValue("/my/path").join();
         long l2 = cs1.getNextCounterValue("/my/path").join();
@@ -56,8 +56,7 @@ public class CounterTest extends BaseMetadataStoreTest {
         assertNotEquals(l1, l2);
         assertNotEquals(l2, l3);
 
-        @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService cs2 = new CoordinationServiceImpl(store);
 
         long l4 = cs2.getNextCounterValue("/my/path").join();
         assertNotEquals(l3, l4);
@@ -70,7 +69,8 @@ public class CounterTest extends BaseMetadataStoreTest {
             return;
         }
         String metadataUrl = urlSupplier.get();
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(
+                metadataUrl, MetadataStoreConfig.builder().build());
 
         CoordinationService cs1 = new CoordinationServiceImpl(store1);
 
@@ -88,9 +88,9 @@ public class CounterTest extends BaseMetadataStoreTest {
         zks.checkContainers();
 
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
-        @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store2);
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(
+                metadataUrl, MetadataStoreConfig.builder().build());
+        @Cleanup CoordinationService cs2 = new CoordinationServiceImpl(store2);
 
         long l4 = cs2.getNextCounterValue("/my/path").join();
         assertNotEquals(l1, l4);
@@ -101,26 +101,25 @@ public class CounterTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGetNextCounterRetry(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataStoreExtended spy = spy(store);
 
-        @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(spy);
+        @Cleanup CoordinationService cs1 = new CoordinationServiceImpl(spy);
 
         AtomicInteger count = new AtomicInteger(0);
         CompletableFuture<Stat> future = new CompletableFuture<>();
         future.completeExceptionally(new MetadataStoreException.BadVersionException(""));
-        when(spy.put(eq("/my/path"), eq(new byte[0]), eq(Optional.empty())))
-                .thenAnswer(__ -> {
-                    // Retry three times, then it will return success.
-                    if (count.incrementAndGet() <= 3) {
-                        return future;
-                    }
-                    reset(spy);
-                    return CompletableFuture.completedFuture(null);
-                });
+        when(spy.put(eq("/my/path"), eq(new byte[0]), eq(Optional.empty()))).thenAnswer(__ -> {
+            // Retry three times, then it will return success.
+            if (count.incrementAndGet() <= 3) {
+                return future;
+            }
+            reset(spy);
+            return CompletableFuture.completedFuture(null);
+        });
 
         long l1 = cs1.getNextCounterValue("/my/path").join();
         long l2 = cs1.getNextCounterValue("/my/path").join();
@@ -129,8 +128,7 @@ public class CounterTest extends BaseMetadataStoreTest {
         assertNotEquals(l1, l2);
         assertNotEquals(l2, l3);
 
-        when(spy.put(eq("/my/path1"), eq(new byte[0]), eq(Optional.empty())))
-                .thenReturn(future);
+        when(spy.put(eq("/my/path1"), eq(new byte[0]), eq(Optional.empty()))).thenReturn(future);
 
         try {
             cs1.getNextCounterValue("/my/path1").join();
@@ -141,8 +139,7 @@ public class CounterTest extends BaseMetadataStoreTest {
 
         reset(spy);
 
-        @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store);
+        @Cleanup CoordinationService cs2 = new CoordinationServiceImpl(store);
 
         long l4 = cs2.getNextCounterValue("/my/path").join();
         assertNotEquals(l3, l4);

@@ -21,7 +21,6 @@ package org.apache.pulsar.client.cli;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.lang.reflect.Field;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -33,10 +32,10 @@ public class TestCmdRead {
     @DataProvider(name = "startMessageIds")
     public Object[][] startMessageIds() {
         return new Object[][] {
-            { "latest", "latest" },
-            { "earliest", "earliest" },
-            { "10:0", "CAoQADAA" },
-            { "10:1", "CAoQATAA" },
+            {"latest", "latest"},
+            {"earliest", "earliest"},
+            {"10:0", "CAoQADAA"},
+            {"10:1", "CAoQATAA"},
         };
     }
 
@@ -49,11 +48,13 @@ public class TestCmdRead {
         startMessageIdField.set(cmdRead, msgId);
 
         String topicNameV1 = "persistent://public/cluster/default/t1";
-        assertEquals(cmdRead.getWebSocketReadUri(topicNameV1),
+        assertEquals(
+                cmdRead.getWebSocketReadUri(topicNameV1),
                 "ws://localhost:8080/ws/reader/persistent/public/cluster/default/t1?messageId=" + msgIdQueryParam);
 
         String topicNameV2 = "persistent://public/default/t2";
-        assertEquals(cmdRead.getWebSocketReadUri(topicNameV2),
+        assertEquals(
+                cmdRead.getWebSocketReadUri(topicNameV2),
                 "ws://localhost:8080/ws/v2/reader/persistent/public/default/t2?messageId=" + msgIdQueryParam);
     }
 
@@ -70,5 +71,4 @@ public class TestCmdRead {
             assertTrue(t instanceof IllegalArgumentException);
         }
     }
-
 }

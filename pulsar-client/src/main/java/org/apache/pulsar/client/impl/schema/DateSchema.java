@@ -28,53 +28,54 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class DateSchema extends AbstractSchema<Date> {
 
-   private static final DateSchema INSTANCE;
-   private static final SchemaInfo SCHEMA_INFO;
+    private static final DateSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
 
-   static {
-       SCHEMA_INFO = SchemaInfoImpl.builder()
-             .name("Date")
-             .type(SchemaType.DATE)
-             .schema(new byte[0]).build();
-       INSTANCE = new DateSchema();
-   }
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("Date")
+                .type(SchemaType.DATE)
+                .schema(new byte[0])
+                .build();
+        INSTANCE = new DateSchema();
+    }
 
-   public static DateSchema of() {
-      return INSTANCE;
-   }
+    public static DateSchema of() {
+        return INSTANCE;
+    }
 
-   @Override
-   public byte[] encode(Date message) {
-      if (null == message) {
-         return null;
-      }
+    @Override
+    public byte[] encode(Date message) {
+        if (null == message) {
+            return null;
+        }
 
-      Long date = message.getTime();
-      return LongSchema.of().encode(date);
-   }
+        Long date = message.getTime();
+        return LongSchema.of().encode(date);
+    }
 
-   @Override
-   public Date decode(byte[] bytes) {
-      if (null == bytes) {
-         return null;
-      }
+    @Override
+    public Date decode(byte[] bytes) {
+        if (null == bytes) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(bytes);
-      return new Date(decode);
-   }
+        Long decode = LongSchema.of().decode(bytes);
+        return new Date(decode);
+    }
 
-   @Override
-   public Date decode(ByteBuf byteBuf) {
-      if (null == byteBuf) {
-         return null;
-      }
+    @Override
+    public Date decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
 
-      Long decode = LongSchema.of().decode(byteBuf);
-      return new Date(decode);
-   }
+        Long decode = LongSchema.of().decode(byteBuf);
+        return new Date(decode);
+    }
 
-   @Override
-   public SchemaInfo getSchemaInfo() {
-      return SCHEMA_INFO;
-   }
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        return SCHEMA_INFO;
+    }
 }

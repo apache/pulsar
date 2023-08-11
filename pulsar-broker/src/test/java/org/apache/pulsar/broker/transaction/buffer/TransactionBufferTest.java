@@ -23,17 +23,14 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.testng.annotations.AfterMethod;
@@ -50,9 +47,7 @@ public class TransactionBufferTest {
 
     @DataProvider(name = "providers")
     public static Object[][] providers() {
-        return new Object[][] {
-            { InMemTransactionBufferProvider.class.getName() }
-        };
+        return new Object[][] {{InMemTransactionBufferProvider.class.getName()}};
     }
 
     private final TxnID txnId = new TxnID(1234L, 2345L);
@@ -118,9 +113,8 @@ public class TransactionBufferTest {
         assertEquals(TxnStatus.COMMITTED, txnMeta.status());
 
         // open reader
-        try (TransactionBufferReader reader = buffer.openTransactionBufferReader(
-            txnId, 0L
-        ).get()) {
+        try (TransactionBufferReader reader =
+                buffer.openTransactionBufferReader(txnId, 0L).get()) {
             // read 10 entries
             List<TransactionEntry> txnEntries = reader.readNext(numEntries).get();
             verifyAndReleaseEntries(txnEntries, txnId, 0L, numEntries);
@@ -242,18 +236,13 @@ public class TransactionBufferTest {
     private void appendEntries(TxnID txnId, int numEntries, long startSequenceId) {
         for (int i = 0; i < numEntries; i++) {
             long sequenceId = startSequenceId + i;
-            buffer.appendBufferToTxn(
-                txnId,
-                sequenceId,
-                Unpooled.copiedBuffer("message-" + sequenceId, UTF_8)
-            ).join();
+            buffer.appendBufferToTxn(txnId, sequenceId, Unpooled.copiedBuffer("message-" + sequenceId, UTF_8))
+                    .join();
         }
     }
 
-    private void verifyAndReleaseEntries(List<TransactionEntry> txnEntries,
-                                         TxnID txnID,
-                                         long startSequenceId,
-                                         int numEntriesToRead) {
+    private void verifyAndReleaseEntries(
+            List<TransactionEntry> txnEntries, TxnID txnID, long startSequenceId, int numEntriesToRead) {
         assertEquals(txnEntries.size(), numEntriesToRead);
         for (int i = 0; i < numEntriesToRead; i++) {
             try (TransactionEntry txnEntry = txnEntries.get(i)) {
@@ -261,10 +250,8 @@ public class TransactionBufferTest {
                 assertEquals(txnEntry.committedAtEntryId(), 33L);
                 assertEquals(txnEntry.txnId(), txnID);
                 assertEquals(txnEntry.sequenceId(), startSequenceId + i);
-                assertEquals(new String(
-                    ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()),
-                    UTF_8
-                ), "message-" + i);
+                assertEquals(
+                        new String(ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()), UTF_8), "message-" + i);
             }
         }
     }

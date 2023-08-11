@@ -55,8 +55,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         this.rgResources = pulsarService.getPulsarResources().getResourcegroupResources();
         loadAllResourceGroups();
         this.rgResources.getStore().registerListener(this);
-        rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(
-                rgService, pulsarService, this);
+        rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(rgService, pulsarService, this);
     }
 
     private void loadAllResourceGroups() {
@@ -72,20 +71,24 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
 
             final Sets.SetView<String> deleteList = Sets.difference(existingSet, newSet);
 
-            for (String rgName: deleteList) {
+            for (String rgName : deleteList) {
                 deleteResourceGroup(rgName);
             }
 
             final Sets.SetView<String> addList = Sets.difference(newSet, existingSet);
-            for (String rgName: addList) {
-                pulsarService.getPulsarResources().getResourcegroupResources()
-                    .getResourceGroupAsync(rgName).thenAcceptAsync(optionalRg -> {
-                    ResourceGroup rg = optionalRg.get();
-                    createResourceGroup(rgName, rg);
-                }).exceptionally((ex1) -> {
-                    LOG.error("Failed to fetch resourceGroup", ex1);
-                    return null;
-                });
+            for (String rgName : addList) {
+                pulsarService
+                        .getPulsarResources()
+                        .getResourcegroupResources()
+                        .getResourceGroupAsync(rgName)
+                        .thenAcceptAsync(optionalRg -> {
+                            ResourceGroup rg = optionalRg.get();
+                            createResourceGroup(rgName, rg);
+                        })
+                        .exceptionally((ex1) -> {
+                            LOG.error("Failed to fetch resourceGroup", ex1);
+                            return null;
+                        });
             }
         });
     }
@@ -139,15 +142,15 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
 
         Optional<String> rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath);
         if ((notification.getType() == NotificationType.ChildrenChanged)
-            || (notification.getType() == NotificationType.Created)) {
+                || (notification.getType() == NotificationType.Created)) {
             loadAllResourceGroups();
         } else if (rgName.isPresent()) {
             switch (notification.getType()) {
-            case Modified:
-                updateResourceGroup(rgName.get());
-                break;
-            default:
-                break;
+                case Modified:
+                    updateResourceGroup(rgName.get());
+                    break;
+                default:
+                    break;
             }
         }
     }

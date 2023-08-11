@@ -34,22 +34,21 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     private boolean requireSchemaValidation = true;
     private Schema<T> schema;
 
-    public AutoProduceBytesSchema() {
-    }
+    public AutoProduceBytesSchema() {}
 
     public AutoProduceBytesSchema(Schema<T> schema) {
         this.schema = schema;
         SchemaInfo schemaInfo = schema.getSchemaInfo();
         this.requireSchemaValidation = schemaInfo != null
-                                       && schemaInfo.getType() != SchemaType.BYTES
-                                       && schemaInfo.getType() != SchemaType.NONE;
+                && schemaInfo.getType() != SchemaType.BYTES
+                && schemaInfo.getType() != SchemaType.NONE;
     }
 
     public void setSchema(Schema<T> schema) {
         this.schema = schema;
         this.requireSchemaValidation = schema.getSchemaInfo() != null
-            && SchemaType.BYTES != schema.getSchemaInfo().getType()
-            && SchemaType.NONE != schema.getSchemaInfo().getType();
+                && SchemaType.BYTES != schema.getSchemaInfo().getType()
+                && SchemaType.NONE != schema.getSchemaInfo().getType();
     }
 
     private void ensureSchemaInitialized() {
@@ -105,10 +104,7 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Optional<Object> getNativeSchema() {
-        return Optional
-                .ofNullable(schema)
-                .map(s->s.getNativeSchema())
-                .orElse(Optional.empty());
+        return Optional.ofNullable(schema).map(s -> s.getNativeSchema()).orElse(Optional.empty());
     }
 
     @Override

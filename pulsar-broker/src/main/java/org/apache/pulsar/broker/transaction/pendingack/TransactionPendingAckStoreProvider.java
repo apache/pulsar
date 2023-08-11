@@ -36,7 +36,8 @@ public interface TransactionPendingAckStoreProvider {
      */
     static TransactionPendingAckStoreProvider newProvider(String providerClassName) throws IOException {
         try {
-            TransactionPendingAckStoreProvider ackStoreProvider = Reflections.createInstance(providerClassName,
+            TransactionPendingAckStoreProvider ackStoreProvider = Reflections.createInstance(
+                    providerClassName,
                     TransactionPendingAckStoreProvider.class,
                     Thread.currentThread().getContextClassLoader());
             return ackStoreProvider;

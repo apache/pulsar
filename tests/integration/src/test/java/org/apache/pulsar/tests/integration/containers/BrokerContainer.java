@@ -28,8 +28,17 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
     public static final String NAME = "pulsar-broker";
 
     public BrokerContainer(String clusterName, String hostName) {
-        super(clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, BROKER_PORT_TLS,
-                BROKER_HTTP_PORT, BROKER_HTTPS_PORT, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
+        super(
+                clusterName,
+                hostName,
+                hostName,
+                "bin/run-broker.sh",
+                BROKER_PORT,
+                BROKER_PORT_TLS,
+                BROKER_HTTP_PORT,
+                BROKER_HTTPS_PORT,
+                DEFAULT_HTTP_PATH,
+                DEFAULT_IMAGE_NAME);
         tailContainerLog();
     }
 
@@ -39,7 +48,7 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
 
     @Override
     protected void afterStart() {
-        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/var/log/pulsar/broker.log");
+        DockerUtils.runCommandAsyncWithLogging(
+                this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/broker.log");
     }
 }

@@ -21,13 +21,11 @@ package org.apache.pulsar.client.util;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-
 import org.testng.annotations.Test;
 
 public class ObjectCacheTest {
@@ -41,8 +39,8 @@ public class ObjectCacheTest {
 
         AtomicInteger currentValue = new AtomicInteger(0);
 
-        Supplier<Integer> cache = new ObjectCache<>(() -> currentValue.getAndIncrement(),
-                10, TimeUnit.MILLISECONDS, clock);
+        Supplier<Integer> cache =
+                new ObjectCache<>(() -> currentValue.getAndIncrement(), 10, TimeUnit.MILLISECONDS, clock);
 
         cache.get();
         assertEquals(cache.get().intValue(), 0);
@@ -54,7 +52,6 @@ public class ObjectCacheTest {
 
         currentTime.set(10);
         assertEquals(cache.get().intValue(), 1);
-
 
         currentTime.set(15);
         assertEquals(cache.get().intValue(), 1);

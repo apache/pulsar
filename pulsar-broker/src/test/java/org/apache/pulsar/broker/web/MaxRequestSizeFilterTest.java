@@ -40,8 +40,7 @@ public class MaxRequestSizeFilterTest {
     public void testInChunkedReturnFalse()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         MaxRequestSizeFilter maxRequestSizeFilter = new MaxRequestSizeFilter(MAX_SIZE);
-        Method isChunked = maxRequestSizeFilter.getClass()
-                .getDeclaredMethod("isChunked", ServletRequest.class);
+        Method isChunked = maxRequestSizeFilter.getClass().getDeclaredMethod("isChunked", ServletRequest.class);
         isChunked.setAccessible(true);
         // request is not httpServlet Request
         ServletRequest mockHttpServletRequest = Mockito.mock(ServletRequest.class);
@@ -52,7 +51,7 @@ public class MaxRequestSizeFilterTest {
         Mockito.doReturn(null).when(spyHttpServletRequest).getHeader("Transfer-Encoding");
         Boolean result2 = (Boolean) isChunked.invoke(maxRequestSizeFilter, spyHttpServletRequest);
         Assert.assertFalse(result2);
-        //request Transfer-Encoding is not chunked
+        // request Transfer-Encoding is not chunked
         HttpServletRequest spyHttpServletRequest3 = Mockito.spy(HttpServletRequest.class);
         Mockito.doReturn("whatever").when(spyHttpServletRequest3).getHeader("Transfer-Encoding");
         Boolean result3 = (Boolean) isChunked.invoke(maxRequestSizeFilter, spyHttpServletRequest);
@@ -63,8 +62,7 @@ public class MaxRequestSizeFilterTest {
     public void testInChunkedReturnTrue()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         MaxRequestSizeFilter maxRequestSizeFilter = new MaxRequestSizeFilter(MAX_SIZE);
-        Method isChunked = maxRequestSizeFilter.getClass()
-                .getDeclaredMethod("isChunked", ServletRequest.class);
+        Method isChunked = maxRequestSizeFilter.getClass().getDeclaredMethod("isChunked", ServletRequest.class);
         isChunked.setAccessible(true);
         HttpServletRequest spyHttpServletRequest = Mockito.spy(HttpServletRequest.class);
         // request  Transfer-Encoding is chunked
@@ -100,6 +98,6 @@ public class MaxRequestSizeFilterTest {
         ServletResponse spyHttpServletResponse = Mockito.spy(ServletResponse.class);
         Mockito.doReturn(LEGAL_SIZE).when(spyHttpServletRequest).getContentLengthLong();
         maxRequestSizeFilter.doFilter(spyHttpServletRequest, spyHttpServletResponse, spyFilterChain);
-        Mockito.verify(spyFilterChain).doFilter(spyHttpServletRequest,spyHttpServletResponse);
+        Mockito.verify(spyFilterChain).doFilter(spyHttpServletRequest, spyHttpServletResponse);
     }
 }

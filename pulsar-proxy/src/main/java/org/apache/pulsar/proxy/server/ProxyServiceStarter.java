@@ -65,34 +65,49 @@ import org.slf4j.LoggerFactory;
  */
 public class ProxyServiceStarter {
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
+    @Parameter(
+            names = {"-c", "--config"},
+            description = "Configuration file path",
+            required = true)
     private String configFile;
 
     @Deprecated
-    @Parameter(names = { "-zk", "--zookeeper-servers" },
+    @Parameter(
+            names = {"-zk", "--zookeeper-servers"},
             description = "Local zookeeper connection string, please use --metadata-store instead")
     private String zookeeperServers = "";
-    @Parameter(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
+
+    @Parameter(
+            names = {"-md", "--metadata-store"},
+            description = "Metadata Store service url. eg: zk:my-zk:2181")
     private String metadataStoreUrl = "";
 
     @Deprecated
-    @Parameter(names = { "-gzk", "--global-zookeeper-servers" },
+    @Parameter(
+            names = {"-gzk", "--global-zookeeper-servers"},
             description = "Global zookeeper connection string, please use --configuration-metadata-store instead")
     private String globalZookeeperServers = "";
 
     @Deprecated
-    @Parameter(names = { "-cs", "--configuration-store-servers" },
-                    description = "Configuration store connection string, "
-                            + "please use --configuration-metadata-store instead")
+    @Parameter(
+            names = {"-cs", "--configuration-store-servers"},
+            description =
+                    "Configuration store connection string, " + "please use --configuration-metadata-store instead")
     private String configurationStoreServers = "";
-    @Parameter(names = { "-cms", "--configuration-metadata-store" },
+
+    @Parameter(
+            names = {"-cms", "--configuration-metadata-store"},
             description = "The metadata store URL for the configuration data")
     private String configurationMetadataStoreUrl = "";
 
-    @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+    @Parameter(
+            names = {"-h", "--help"},
+            description = "Show this help message")
     private boolean help = false;
 
-    @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+    @Parameter(
+            names = {"-g", "--generate-docs"},
+            description = "Generate docs")
     private boolean generateDocs = false;
 
     private ProxyConfiguration config;
@@ -105,11 +120,15 @@ public class ProxyServiceStarter {
 
     public ProxyServiceStarter(String[] args) throws Exception {
         try {
-            DateFormat dateFormat = new SimpleDateFormat(
-                FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
+            DateFormat dateFormat =
+                    new SimpleDateFormat(FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
             Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-                System.out.printf("%s [%s] error Uncaught exception in thread %s: %s%n", dateFormat.format(new Date()),
-                        thread.getContextClassLoader(), thread.getName(), exception.getMessage());
+                System.out.printf(
+                        "%s [%s] error Uncaught exception in thread %s: %s%n",
+                        dateFormat.format(new Date()),
+                        thread.getContextClassLoader(),
+                        thread.getName(),
+                        exception.getMessage());
                 exception.printStackTrace(System.out);
             });
 
@@ -157,19 +176,22 @@ public class ProxyServiceStarter {
             }
 
             if (isNotBlank(config.getBrokerServiceURL())) {
-                checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
+                checkArgument(
+                        config.getBrokerServiceURL().startsWith("pulsar://"),
                         "brokerServiceURL must start with pulsar://");
             }
 
             if (isNotBlank(config.getBrokerServiceURLTLS())) {
-                checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
+                checkArgument(
+                        config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
                         "brokerServiceURLTLS must start with pulsar+ssl://");
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                     || config.isAuthorizationEnabled()) {
                 checkArgument(!isEmpty(config.getMetadataStoreUrl()), "metadataStoreUrl must be provided");
-                checkArgument(!isEmpty(config.getConfigurationMetadataStoreUrl()),
+                checkArgument(
+                        !isEmpty(config.getConfigurationMetadataStoreUrl()),
                         "configurationMetadataStoreUrl must be provided");
             }
 
@@ -195,8 +217,8 @@ public class ProxyServiceStarter {
     }
 
     public void start() throws Exception {
-        AuthenticationService authenticationService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(config));
+        AuthenticationService authenticationService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(config));
         // create proxy service
         proxyService = new ProxyService(config, authenticationService);
         // create a web-service
@@ -211,19 +233,25 @@ public class ProxyServiceStarter {
             DefaultExports.initialize();
 
             // Report direct memory from Netty counters
-            Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return getJvmDirectMemoryUsed();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
+            Gauge.build("jvm_memory_direct_bytes_used", "-")
+                    .create()
+                    .setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return getJvmDirectMemoryUsed();
+                        }
+                    })
+                    .register(CollectorRegistry.defaultRegistry);
 
-            Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return DirectMemoryUtils.jvmMaxDirectMemory();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
+            Gauge.build("jvm_memory_direct_bytes_max", "-")
+                    .create()
+                    .setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return DirectMemoryUtils.jvmMaxDirectMemory();
+                        }
+                    })
+                    .register(CollectorRegistry.defaultRegistry);
 
             metricsInitialized = true;
         }
@@ -249,15 +277,20 @@ public class ProxyServiceStarter {
         }
     }
 
-    public static void addWebServerHandlers(WebServer server,
-                                     ProxyConfiguration config,
-                                     ProxyService service,
-                                     BrokerDiscoveryProvider discoveryProvider) throws Exception {
+    public static void addWebServerHandlers(
+            WebServer server,
+            ProxyConfiguration config,
+            ProxyService service,
+            BrokerDiscoveryProvider discoveryProvider)
+            throws Exception {
         if (service != null) {
             PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
             if (metricsServlet != null) {
-                server.addServlet("/metrics", new ServletHolder(metricsServlet),
-                        Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+                server.addServlet(
+                        "/metrics",
+                        new ServletHolder(metricsServlet),
+                        Collections.emptyList(),
+                        config.isAuthenticateMetricsEndpoint());
             }
         }
         server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(), VipStatus.class);
@@ -282,8 +315,11 @@ public class ProxyServiceStarter {
                     service.getProxyAdditionalServlets().getServlets().values();
             for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
-                server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
-                        Collections.emptyList(), config.isAuthenticationEnabled());
+                server.addServlet(
+                        servletWithClassLoader.getBasePath(),
+                        servletWithClassLoader.getServletHolder(),
+                        Collections.emptyList(),
+                        config.isAuthenticationEnabled());
                 log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
             }
         }
@@ -296,22 +332,16 @@ public class ProxyServiceStarter {
             WebSocketService webSocketService = new WebSocketService(createClusterData(config), serviceConfiguration);
             webSocketService.start();
             final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
-            server.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                    new ServletHolder(producerWebSocketServlet));
-            server.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(producerWebSocketServlet));
+            server.addServlet(WebSocketProducerServlet.SERVLET_PATH, new ServletHolder(producerWebSocketServlet));
+            server.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2, new ServletHolder(producerWebSocketServlet));
 
             final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
-            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(consumerWebSocketServlet));
-            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(consumerWebSocketServlet));
+            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH, new ServletHolder(consumerWebSocketServlet));
+            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2, new ServletHolder(consumerWebSocketServlet));
 
             final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
-            server.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                    new ServletHolder(readerWebSocketServlet));
-            server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                    new ServletHolder(readerWebSocketServlet));
+            server.addServlet(WebSocketReaderServlet.SERVLET_PATH, new ServletHolder(readerWebSocketServlet));
+            server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2, new ServletHolder(readerWebSocketServlet));
         }
     }
 
@@ -344,5 +374,4 @@ public class ProxyServiceStarter {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServiceStarter.class);
-
 }

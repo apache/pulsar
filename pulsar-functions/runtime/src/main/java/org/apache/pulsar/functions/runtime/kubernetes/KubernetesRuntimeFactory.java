@@ -105,18 +105,23 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Timer changeConfigMapTimer;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private AppsV1Api appsClient;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private CoreV1Api coreClient;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private SecretsProviderConfigurator secretsProviderConfigurator;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Optional<KubernetesFunctionAuthProvider> authProvider;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Optional<KubernetesManifestCustomizer> manifestCustomizer;
@@ -131,12 +136,14 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
-                           SecretsProviderConfigurator secretsProviderConfigurator,
-                           ConnectorsManager connectorsManager,
-                           FunctionsManager functionsManager,
-                           Optional<FunctionAuthProvider> functionAuthProvider,
-                           Optional<RuntimeCustomizer> runtimeCustomizer) {
+    public void initialize(
+            WorkerConfig workerConfig,
+            AuthenticationConfig authenticationConfig,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            ConnectorsManager connectorsManager,
+            FunctionsManager functionsManager,
+            Optional<FunctionAuthProvider> functionAuthProvider,
+            Optional<RuntimeCustomizer> runtimeCustomizer) {
 
         KubernetesRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), KubernetesRuntimeFactoryConfig.class);
@@ -174,7 +181,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.configAdminCLI = "/bin/pulsar-admin";
         }
         this.downloadDirectory = isNotEmpty(workerConfig.getDownloadDirectory())
-                ? workerConfig.getDownloadDirectory() : this.pulsarRootDir; // for backward comp
+                ? workerConfig.getDownloadDirectory()
+                : this.pulsarRootDir; // for backward comp
         if (!Paths.get(this.downloadDirectory).isAbsolute()) {
             this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;
         }
@@ -188,8 +196,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (Paths.get(factoryConfig.getExtraFunctionDependenciesDir()).isAbsolute()) {
                 this.extraDependenciesDir = factoryConfig.getExtraFunctionDependenciesDir();
             } else {
-                this.extraDependenciesDir = this.pulsarRootDir
-                        + "/" + factoryConfig.getExtraFunctionDependenciesDir();
+                this.extraDependenciesDir = this.pulsarRootDir + "/" + factoryConfig.getExtraFunctionDependenciesDir();
             }
         } else {
             this.extraDependenciesDir = this.pulsarRootDir + "/instances/deps";
@@ -201,13 +208,16 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.memoryOverCommitRatio = factoryConfig.getMemoryOverCommitRatio();
         this.gracePeriodSeconds = factoryConfig.getGracePeriodSeconds();
         this.pulsarServiceUrl = StringUtils.isEmpty(factoryConfig.getPulsarServiceUrl())
-                ? workerConfig.getPulsarServiceUrl() : factoryConfig.getPulsarServiceUrl();
+                ? workerConfig.getPulsarServiceUrl()
+                : factoryConfig.getPulsarServiceUrl();
         this.pulsarAdminUrl = StringUtils.isEmpty(factoryConfig.getPulsarAdminUrl())
-                ? workerConfig.getPulsarWebServiceUrl() : factoryConfig.getPulsarAdminUrl();
+                ? workerConfig.getPulsarWebServiceUrl()
+                : factoryConfig.getPulsarAdminUrl();
         this.stateStorageServiceUri = workerConfig.getStateStorageServiceUrl();
         this.authConfig = authenticationConfig;
         this.expectedMetricsCollectionInterval = factoryConfig.getExpectedMetricsCollectionInterval() == null
-                ? -1 : factoryConfig.getExpectedMetricsCollectionInterval();
+                ? -1
+                : factoryConfig.getExpectedMetricsCollectionInterval();
         this.changeConfigMap = factoryConfig.getChangeConfigMap();
         this.changeConfigMapNamespace = factoryConfig.getChangeConfigMapNamespace();
         this.functionInstanceMinResources = workerConfig.getFunctionInstanceMinResources();
@@ -249,10 +259,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             } else {
                 KubernetesFunctionAuthProvider kubernetesFunctionAuthProvider =
                         (KubernetesFunctionAuthProvider) functionAuthProvider.get();
-                kubernetesFunctionAuthProvider.initialize(coreClient, serverCaBytes,
+                kubernetesFunctionAuthProvider.initialize(
+                        coreClient,
+                        serverCaBytes,
                         (funcDetails) -> getRuntimeCustomizer()
                                 .map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace))
-                                .orElse(jobNamespace), factoryConfig.getKubernetesFunctionAuthProviderConfig());
+                                .orElse(jobNamespace),
+                        factoryConfig.getKubernetesFunctionAuthProviderConfig());
                 this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
             }
         } else {
@@ -266,11 +279,14 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
-                                             String originalCodeFileName,
-                                             String transformFunctionPkgUrl,
-                                             String originalTransformFunctionFileName,
-                                             Long expectedHealthCheckInterval) throws Exception {
+    public KubernetesRuntime createContainer(
+            InstanceConfig instanceConfig,
+            String codePkgUrl,
+            String originalCodeFileName,
+            String transformFunctionPkgUrl,
+            String originalTransformFunctionFileName,
+            Long expectedHealthCheckInterval)
+            throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
@@ -282,16 +298,17 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             case GO:
                 break;
             default:
-                throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
+                throw new RuntimeException("Unsupported Runtime "
+                        + instanceConfig.getFunctionDetails().getRuntime());
         }
 
         // adjust the auth config to support auth
         if (authenticationEnabled) {
-            authProvider.ifPresent(kubernetesFunctionAuthProvider ->
-                    kubernetesFunctionAuthProvider.configureAuthenticationConfig(authConfig,
+            authProvider.ifPresent(
+                    kubernetesFunctionAuthProvider -> kubernetesFunctionAuthProvider.configureAuthenticationConfig(
+                            authConfig,
                             Optional.ofNullable(getFunctionAuthData(
                                     Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
-
         }
 
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
@@ -313,59 +330,58 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
 
         return new KubernetesRuntime(
-            appsClient,
-            coreClient,
-            // get the namespace for this function
-            overriddenNamespace,
-            overriddenName,
-            customLabels,
-            installUserCodeDependencies,
-            pythonDependencyRepository,
-            pythonExtraDependencyRepository,
-            pulsarDockerImageName,
-            functionDockerImages,
-            imagePullPolicy,
-            pulsarRootDir,
-            instanceConfig,
-            instanceFile,
-            extraDependenciesDir,
-            logDirectory,
-            configAdminCLI,
-            codePkgUrl,
-            originalCodeFileName,
-            originalTransformFunctionFileName,
-            pulsarServiceUrl,
-            pulsarAdminUrl,
-            stateStorageServiceUri,
-            authConfig,
-            secretsProviderConfigurator,
-            expectedMetricsCollectionInterval,
-            percentMemoryPadding,
-            cpuOverCommitRatio,
-            memoryOverCommitRatio,
-            gracePeriodSeconds,
-            authProvider,
-            authenticationEnabled,
-            grpcPort,
-            narExtractionDirectory,
-            manifestCustomizer,
-            functionInstanceClassPath,
-            downloadDirectory);
+                appsClient,
+                coreClient,
+                // get the namespace for this function
+                overriddenNamespace,
+                overriddenName,
+                customLabels,
+                installUserCodeDependencies,
+                pythonDependencyRepository,
+                pythonExtraDependencyRepository,
+                pulsarDockerImageName,
+                functionDockerImages,
+                imagePullPolicy,
+                pulsarRootDir,
+                instanceConfig,
+                instanceFile,
+                extraDependenciesDir,
+                logDirectory,
+                configAdminCLI,
+                codePkgUrl,
+                originalCodeFileName,
+                originalTransformFunctionFileName,
+                pulsarServiceUrl,
+                pulsarAdminUrl,
+                stateStorageServiceUri,
+                authConfig,
+                secretsProviderConfigurator,
+                expectedMetricsCollectionInterval,
+                percentMemoryPadding,
+                cpuOverCommitRatio,
+                memoryOverCommitRatio,
+                gracePeriodSeconds,
+                authProvider,
+                authenticationEnabled,
+                grpcPort,
+                narExtractionDirectory,
+                manifestCustomizer,
+                functionInstanceClassPath,
+                downloadDirectory);
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 
     @Override
-    public void doAdmissionChecks(Function.FunctionDetails functionDetails){
+    public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         final String overriddenJobName = getOverriddenName(functionDetails);
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
         validateMaxResourcesRequired(functionDetails);
         validateResourcesGranularityAndProportion(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient,
-                getOverriddenNamespace(functionDetails), overriddenJobName, functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(
+                appsClient, coreClient, getOverriddenNamespace(functionDetails), overriddenJobName, functionDetails);
     }
 
     @VisibleForTesting
@@ -395,19 +411,28 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (!isEmpty(changeConfigMap)) {
                 changeConfigMapTimer = new Timer();
                 final KubernetesRuntimeFactory kubernetesRuntimeFactory = this;
-                changeConfigMapTimer.scheduleAtFixedRate(new TimerTask() {
-                    @Override
-                    public void run() {
-                        fetchConfigMap(coreClient, changeConfigMap, changeConfigMapNamespace, kubernetesRuntimeFactory);
-                    }
-                }, 300000, 300000);
+                changeConfigMapTimer.scheduleAtFixedRate(
+                        new TimerTask() {
+                            @Override
+                            public void run() {
+                                fetchConfigMap(
+                                        coreClient,
+                                        changeConfigMap,
+                                        changeConfigMapNamespace,
+                                        kubernetesRuntimeFactory);
+                            }
+                        },
+                        300000,
+                        300000);
             }
         }
     }
 
-    static void fetchConfigMap(CoreV1Api coreClient, String changeConfigMap,
-                               String changeConfigMapNamespace,
-                               KubernetesRuntimeFactory kubernetesRuntimeFactory) {
+    static void fetchConfigMap(
+            CoreV1Api coreClient,
+            String changeConfigMap,
+            String changeConfigMapNamespace,
+            KubernetesRuntimeFactory kubernetesRuntimeFactory) {
         try {
             V1ConfigMap v1ConfigMap =
                     coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace, null);
@@ -416,19 +441,25 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 overRideKubernetesConfig(data, kubernetesRuntimeFactory);
             }
         } catch (Exception e) {
-            log.error("Error while trying to fetch configmap {} at namespace {}", changeConfigMap,
-                    changeConfigMapNamespace, e);
+            log.error(
+                    "Error while trying to fetch configmap {} at namespace {}",
+                    changeConfigMap,
+                    changeConfigMapNamespace,
+                    e);
         }
     }
 
-    static void overRideKubernetesConfig(Map<String, String> data,
-                                         KubernetesRuntimeFactory kubernetesRuntimeFactory) throws Exception {
+    static void overRideKubernetesConfig(Map<String, String> data, KubernetesRuntimeFactory kubernetesRuntimeFactory)
+            throws Exception {
         for (Field field : KubernetesRuntimeFactory.class.getDeclaredFields()) {
             field.setAccessible(true);
-            if (data.containsKey(field.getName()) && !data.get(field.getName())
-                    .equals(field.get(kubernetesRuntimeFactory))) {
-                log.info("Kubernetes Config {} changed from {} to {}", field.getName(),
-                        field.get(kubernetesRuntimeFactory), data.get(field.getName()));
+            if (data.containsKey(field.getName())
+                    && !data.get(field.getName()).equals(field.get(kubernetesRuntimeFactory))) {
+                log.info(
+                        "Kubernetes Config {} changed from {} to {}",
+                        field.getName(),
+                        field.get(kubernetesRuntimeFactory),
+                        data.get(field.getName()));
                 field.set(kubernetesRuntimeFactory, data.get(field.getName()));
             }
         }
@@ -441,27 +472,27 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
             if (minCpu != null) {
                 if (functionDetails.getResources() == null) {
-                    throw new IllegalArgumentException(
-                            String.format("Per instance CPU requested is not specified. "
-                                    + "Must specify CPU requested for function to be at least %s", minCpu));
+                    throw new IllegalArgumentException(String.format(
+                            "Per instance CPU requested is not specified. "
+                                    + "Must specify CPU requested for function to be at least %s",
+                            minCpu));
                 } else if (functionDetails.getResources().getCpu() < minCpu) {
-                    throw new IllegalArgumentException(
-                            String.format("Per instance CPU requested, %s, "
-                                            + "for function is less than the minimum required, %s",
-                                    functionDetails.getResources().getCpu(), minCpu));
+                    throw new IllegalArgumentException(String.format(
+                            "Per instance CPU requested, %s, " + "for function is less than the minimum required, %s",
+                            functionDetails.getResources().getCpu(), minCpu));
                 }
             }
 
             if (minRam != null) {
                 if (functionDetails.getResources() == null) {
-                    throw new IllegalArgumentException(
-                            String.format("Per instance RAM requested is not specified. "
-                                    + "Must specify RAM requested for function to be at least %s", minRam));
+                    throw new IllegalArgumentException(String.format(
+                            "Per instance RAM requested is not specified. "
+                                    + "Must specify RAM requested for function to be at least %s",
+                            minRam));
                 } else if (functionDetails.getResources().getRam() < minRam) {
-                    throw new IllegalArgumentException(
-                            String.format("Per instance RAM requested, %s, "
-                                            + "for function is less than the minimum required, %s",
-                                    functionDetails.getResources().getRam(), minRam));
+                    throw new IllegalArgumentException(String.format(
+                            "Per instance RAM requested, %s, " + "for function is less than the minimum required, %s",
+                            functionDetails.getResources().getRam(), minRam));
                 }
             }
         }
@@ -473,17 +504,15 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             Long maxRam = functionInstanceMaxResources.getRam();
 
             if (maxCpu != null && functionDetails.getResources().getCpu() > maxCpu) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Per instance CPU requested, %s, for function is greater than the maximum required, %s",
-                                functionDetails.getResources().getCpu(), maxCpu));
+                throw new IllegalArgumentException(String.format(
+                        "Per instance CPU requested, %s, for function is greater than the maximum required, %s",
+                        functionDetails.getResources().getCpu(), maxCpu));
             }
 
             if (maxRam != null && functionDetails.getResources().getRam() > maxRam) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Per instance RAM requested, %s, for function is greater than the maximum required, %s",
-                                functionDetails.getResources().getRam(), maxRam));
+                throw new IllegalArgumentException(String.format(
+                        "Per instance RAM requested, %s, for function is greater than the maximum required, %s",
+                        functionDetails.getResources().getRam(), maxRam));
             }
         }
     }
@@ -498,12 +527,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 // convert cpus to milli-cores to avoid loss of precision
                 long grnCpuMillis = Math.round(baseMillis * grnCpu);
                 if (grnCpuMillis > 0) {
-                    long cpuMillis = Math.round(baseMillis * functionDetails.getResources().getCpu());
+                    long cpuMillis = Math.round(
+                            baseMillis * functionDetails.getResources().getCpu());
                     if (cpuMillis == 0 || cpuMillis % grnCpuMillis != 0) {
-                        throw new IllegalArgumentException(
-                                String.format("Per instance cpu requested, %s, for function should be positive and a "
-                                                + "multiple of the granularity, %s",
-                                        functionDetails.getResources().getCpu(), grnCpu));
+                        throw new IllegalArgumentException(String.format(
+                                "Per instance cpu requested, %s, for function should be positive and a "
+                                        + "multiple of the granularity, %s",
+                                functionDetails.getResources().getCpu(), grnCpu));
                     }
                     if (functionInstanceResourceChangeInLockStep) {
                         multiples = cpuMillis / grnCpuMillis;
@@ -513,20 +543,22 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (grnRam != null && grnRam > 0) {
                 if (functionDetails.getResources().getRam() == 0
                         || functionDetails.getResources().getRam() % grnRam != 0) {
-                    throw new IllegalArgumentException(
-                            String.format("Per instance ram requested, %s, "
-                                            + "for function should be positive and a multiple of the granularity, %s",
-                                    functionDetails.getResources().getRam(), grnRam));
+                    throw new IllegalArgumentException(String.format(
+                            "Per instance ram requested, %s, "
+                                    + "for function should be positive and a multiple of the granularity, %s",
+                            functionDetails.getResources().getRam(), grnRam));
                 }
                 if (functionInstanceResourceChangeInLockStep && multiples > 0) {
                     long ramMultiples = functionDetails.getResources().getRam() / grnRam;
                     if (multiples != ramMultiples) {
-                        throw new IllegalArgumentException(
-                                String.format("Per instance cpu requested, %s, ram requested, %s,"
-                                                + " for function should be positive and the same multiple of the "
-                                                + "granularity, cpu, %s, ram, %s",
-                                        functionDetails.getResources().getCpu(),
-                                        functionDetails.getResources().getRam(), grnCpu, grnRam));
+                        throw new IllegalArgumentException(String.format(
+                                "Per instance cpu requested, %s, ram requested, %s,"
+                                        + " for function should be positive and the same multiple of the "
+                                        + "granularity, cpu, %s, ram, %s",
+                                functionDetails.getResources().getCpu(),
+                                functionDetails.getResources().getRam(),
+                                grnCpu,
+                                grnRam));
                     }
                 }
             }
@@ -545,12 +577,15 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     private String getOverriddenNamespace(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
-        return manifestCustomizer.map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace))
+        return manifestCustomizer
+                .map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace))
                 .orElse(jobNamespace);
     }
 
     private String getOverriddenName(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
-        return manifestCustomizer.map((customizer) -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);
+        return manifestCustomizer
+                .map((customizer) -> customizer.customizeName(funcDetails, jobName))
+                .orElse(jobName);
     }
 }

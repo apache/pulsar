@@ -106,14 +106,12 @@ public interface Record<T> {
     /**
      * Acknowledge that this record is fully processed.
      */
-    default void ack() {
-    }
+    default void ack() {}
 
     /**
      * To indicate that this record has failed to be processed.
      */
-    default void fail() {
-    }
+    default void fail() {}
 
     /**
      * To support message routing on a per message basis.

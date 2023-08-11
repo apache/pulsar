@@ -120,12 +120,10 @@ public class BatchMessageIdImplTest {
 
     @Test
     public void serializeAndDeserializeTest() throws IOException {
-        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, 0,
-            1, 10, BatchMessageIdImpl.newAckSet(10));
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, 0, 1, 10, BatchMessageIdImpl.newAckSet(10));
         byte[] serialized = batchMessageId.toByteArray();
         BatchMessageIdImpl deserialized = (BatchMessageIdImpl) MessageIdImpl.fromByteArray(serialized);
         assertEquals(deserialized.getBatchSize(), batchMessageId.getBatchSize());
         assertEquals(deserialized, batchMessageId);
     }
-
 }

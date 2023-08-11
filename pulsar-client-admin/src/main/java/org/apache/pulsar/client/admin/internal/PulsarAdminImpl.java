@@ -104,8 +104,9 @@ public class PulsarAdminImpl implements PulsarAdmin {
     protected final WebTarget root;
     protected final Authentication auth;
 
-    public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
-                           ClassLoader clientBuilderClassLoader) throws PulsarClientException {
+    public PulsarAdminImpl(
+            String serviceUrl, ClientConfigurationData clientConfigData, ClassLoader clientBuilderClassLoader)
+            throws PulsarClientException {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
 
         this.clientConfigData = clientConfigData;
@@ -118,8 +119,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
             clientConfigData.setServiceUrl(serviceUrl);
         }
 
-        AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
-                clientConfigData.getAutoCertRefreshSeconds());
+        AsyncHttpConnectorProvider asyncConnectorProvider =
+                new AsyncHttpConnectorProvider(clientConfigData, clientConfigData.getAutoCertRefreshSeconds());
 
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
@@ -137,7 +138,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 .withConfig(httpConfig)
                 .connectTimeout(this.clientConfigData.getConnectionTimeoutMs(), TimeUnit.MILLISECONDS)
                 .readTimeout(this.clientConfigData.getReadTimeoutMs(), TimeUnit.MILLISECONDS)
-                .register(JacksonConfigurator.class).register(JacksonFeature.class);
+                .register(JacksonConfigurator.class)
+                .register(JacksonFeature.class);
 
         boolean useTls = clientConfigData.getServiceUrl().startsWith("https://");
 

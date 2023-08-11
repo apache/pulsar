@@ -64,7 +64,8 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
     public void shouldAllBrokersKnowTheLeader() {
         Awaitility.await().untilAsserted(() -> {
             for (PulsarService broker : getAllBrokers()) {
-                Optional<LeaderBroker> currentLeader = broker.getLeaderElectionService().getCurrentLeader();
+                Optional<LeaderBroker> currentLeader =
+                        broker.getLeaderElectionService().getCurrentLeader();
                 assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
             }
         });
@@ -79,8 +80,8 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
                         broker.getLeaderElectionService().readCurrentLeader().get(1, TimeUnit.SECONDS);
                 assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
                 if (leader != null) {
-                    assertEquals(currentLeader.get(), leader,
-                            "Different leader on broker " + broker.getBrokerServiceUrl());
+                    assertEquals(
+                            currentLeader.get(), leader, "Different leader on broker " + broker.getBrokerServiceUrl());
                 } else {
                     leader = currentLeader.get();
                 }
@@ -92,8 +93,8 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
     public void shouldProvideConsistentAnswerToTopicLookups()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         String topicNameBase = "persistent://public/default/lookuptest" + UUID.randomUUID() + "-";
-        List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
-                .collect(Collectors.toList());
+        List<String> topicNames =
+                IntStream.range(0, 500).mapToObj(i -> topicNameBase + i).collect(Collectors.toList());
         List<PulsarAdmin> allAdmins = getAllAdmins();
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newFixedThreadPool(allAdmins.size());
@@ -109,14 +110,17 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
                 log.info("Doing lookup to broker {}", brokerAdmin.getServiceUrl());
                 resultFutures.add(executorService.submit(() -> {
                     phaser.arriveAndAwaitAdvance();
-                    return topicNames.stream().map(topicName -> {
-                        try {
-                            return brokerAdmin.lookups().lookupTopic(topicName);
-                        } catch (PulsarAdminException e) {
-                            log.error("Error looking up topic {} in {}", topicName, brokerAdmin.getServiceUrl());
-                            throw new RuntimeException(e);
-                        }
-                    }).collect(Collectors.toList());
+                    return topicNames.stream()
+                            .map(topicName -> {
+                                try {
+                                    return brokerAdmin.lookups().lookupTopic(topicName);
+                                } catch (PulsarAdminException e) {
+                                    log.error(
+                                            "Error looking up topic {} in {}", topicName, brokerAdmin.getServiceUrl());
+                                    throw new RuntimeException(e);
+                                }
+                            })
+                            .collect(Collectors.toList());
                 }));
             }
         }

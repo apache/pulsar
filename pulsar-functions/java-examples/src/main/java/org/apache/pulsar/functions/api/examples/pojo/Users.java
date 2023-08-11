@@ -43,5 +43,4 @@ public class Users {
         private Integer age;
         private String phone;
     }
-
 }

@@ -45,7 +45,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public CompletableFuture<BookiesClusterInfo> getBookiesAsync() {
         WebTarget path = adminBookies.path("all");
-        return asyncGetRequest(path, new FutureCallback<BookiesClusterInfo>(){});
+        return asyncGetRequest(path, new FutureCallback<BookiesClusterInfo>() {});
     }
 
     @Override
@@ -56,7 +56,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync() {
         WebTarget path = adminBookies.path("racks-info");
-        return asyncGetRequest(path, new FutureCallback<BookiesRackConfiguration>(){});
+        return asyncGetRequest(path, new FutureCallback<BookiesRackConfiguration>() {});
     }
 
     @Override
@@ -67,7 +67,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public CompletableFuture<BookieInfo> getBookieRackInfoAsync(String bookieAddress) {
         WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
-        return asyncGetRequest(path, new FutureCallback<BookieInfo>(){});
+        return asyncGetRequest(path, new FutureCallback<BookieInfo>() {});
     }
 
     @Override
@@ -93,5 +93,4 @@ public class BookiesImpl extends BaseResource implements Bookies {
         WebTarget path = adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group);
         return asyncPostRequest(path, Entity.entity(bookieInfo, MediaType.APPLICATION_JSON));
     }
-
 }

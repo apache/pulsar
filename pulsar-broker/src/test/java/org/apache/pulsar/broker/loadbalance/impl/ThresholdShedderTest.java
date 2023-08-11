@@ -166,7 +166,7 @@ public class ThresholdShedderTest {
     public void testBrokerWithMultipleBundles() {
         int numBundles = 10;
         LoadData loadData = new LoadData();
-        
+
         LocalBrokerData broker1 = new LocalBrokerData();
         broker1.setBandwidthIn(new ResourceUsage(999, 1000));
         broker1.setBandwidthOut(new ResourceUsage(999, 1000));
@@ -206,8 +206,7 @@ public class ThresholdShedderTest {
 
         Multimap<String, String> bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"),
-            List.of("bundle-10", "bundle-9", "bundle-8"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-10", "bundle-9", "bundle-8"));
     }
 
     @Test
@@ -254,8 +253,7 @@ public class ThresholdShedderTest {
 
         Multimap<String, String> bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"),
-            List.of("bundle-8", "bundle-7", "bundle-6", "bundle-5"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-8", "bundle-7", "bundle-6", "bundle-5"));
     }
 
     @Test
@@ -268,8 +266,9 @@ public class ThresholdShedderTest {
         data.setBandwidthIn(new ResourceUsage(30, 100));
         data.setBandwidthOut(new ResourceUsage(20, 100));
 
-        assertEquals(data.printResourceUsage(),
-            "cpu: 10.00%, memory: 50.00%, directMemory: 90.00%, bandwidthIn: 30.00%, bandwidthOut: 20.00%");
+        assertEquals(
+                data.printResourceUsage(),
+                "cpu: 10.00%, memory: 50.00%, directMemory: 90.00%, bandwidthIn: 30.00%, bandwidthOut: 20.00%");
     }
 
     @Test
@@ -279,9 +278,9 @@ public class ThresholdShedderTest {
         int lowLoadNode = 10;
         LoadData loadData = new LoadData();
         double throughput = 100 * 1024 * 1024;
-        //There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
-        //At this time, the average load is 80*10/11 = 72.73, and the threshold for rebalancing is 72.73 + 10 = 82.73.
-        //Since 80 < 82.73, rebalancing will not be trigger, and there is one Broker with load of 0.
+        // There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
+        // At this time, the average load is 80*10/11 = 72.73, and the threshold for rebalancing is 72.73 + 10 = 82.73.
+        // Since 80 < 82.73, rebalancing will not be trigger, and there is one Broker with load of 0.
         for (int i = 0; i < brokerNum; i++) {
             LocalBrokerData broker = new LocalBrokerData();
             for (int j = 0; j < numBundles; j++) {
@@ -315,7 +314,7 @@ public class ThresholdShedderTest {
         int brokerNum = 11;
         LoadData loadData = new LoadData();
         double throughput = 80 * 1024 * 1024;
-        //Load of all Brokers are 80%, and no Broker needs to offload.
+        // Load of all Brokers are 80%, and no Broker needs to offload.
         for (int i = 0; i < brokerNum; i++) {
             LocalBrokerData broker = new LocalBrokerData();
             for (int j = 0; j < numBundles; j++) {
@@ -350,11 +349,11 @@ public class ThresholdShedderTest {
         int brokerWithManyBundles = 3;
         LoadData loadData = new LoadData();
         double throughput = 100 * 1024 * 1024;
-        //There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
-        //Only broker3 has 10 bundles.
+        // There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
+        // Only broker3 has 10 bundles.
         for (int i = 0; i < brokerNum; i++) {
             LocalBrokerData broker = new LocalBrokerData();
-            //Broker3 has 10 bundles
+            // Broker3 has 10 bundles
             int numBundles = i == brokerWithManyBundles ? 10 : 1;
             for (int j = 0; j < numBundles; j++) {
                 BundleData bundle = new BundleData();

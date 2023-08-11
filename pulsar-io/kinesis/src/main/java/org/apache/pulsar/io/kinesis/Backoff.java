@@ -24,10 +24,9 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
 
-
 /**
  * All variables are in TimeUnit millis by default.
-  */
+ */
 @Data
 public class Backoff {
     public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
@@ -44,8 +43,14 @@ public class Backoff {
     private static final Random random = new Random();
 
     @VisibleForTesting
-    Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop, Clock clock) {
+    Backoff(
+            long initial,
+            TimeUnit unitInitial,
+            long max,
+            TimeUnit unitMax,
+            long mandatoryStop,
+            TimeUnit unitMandatoryStop,
+            Clock clock) {
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
         this.next = this.initial;
@@ -53,8 +58,13 @@ public class Backoff {
         this.clock = clock;
     }
 
-    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-                   TimeUnit unitMandatoryStop) {
+    public Backoff(
+            long initial,
+            TimeUnit unitInitial,
+            long max,
+            TimeUnit unitMax,
+            long mandatoryStop,
+            TimeUnit unitMandatoryStop) {
         this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone());
     }
 
@@ -98,5 +108,4 @@ public class Backoff {
         this.next = this.initial;
         this.mandatoryStopMade = false;
     }
-
 }

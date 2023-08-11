@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -37,11 +36,20 @@ import org.apache.pulsar.common.util.Codec;
 @Slf4j
 public class ShadowReplicator extends PersistentReplicator {
 
-    public ShadowReplicator(String shadowTopic, PersistentTopic sourceTopic, ManagedCursor cursor,
-                            BrokerService brokerService, PulsarClientImpl replicationClient)
+    public ShadowReplicator(
+            String shadowTopic,
+            PersistentTopic sourceTopic,
+            ManagedCursor cursor,
+            BrokerService brokerService,
+            PulsarClientImpl replicationClient)
             throws PulsarServerException {
-        super(brokerService.pulsar().getConfiguration().getClusterName(), sourceTopic, cursor,
-                brokerService.pulsar().getConfiguration().getClusterName(), shadowTopic, brokerService,
+        super(
+                brokerService.pulsar().getConfiguration().getClusterName(),
+                sourceTopic,
+                cursor,
+                brokerService.pulsar().getConfiguration().getClusterName(),
+                shadowTopic,
+                brokerService,
                 replicationClient);
     }
 
@@ -69,8 +77,13 @@ public class ShadowReplicator extends PersistentReplicator {
                 try {
                     msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
                 } catch (Throwable t) {
-                    log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
-                            entry.getPosition(), length, t.getMessage(), t);
+                    log.error(
+                            "[{}] Failed to deserialize message at {} (buffer size: {}): {}",
+                            replicatorId,
+                            entry.getPosition(),
+                            length,
+                            t.getMessage(),
+                            t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
                     continue;
@@ -79,8 +92,11 @@ public class ShadowReplicator extends PersistentReplicator {
                 if (msg.isExpired(messageTTLInSeconds)) {
                     msgExpired.recordEvent(0 /* no value stat */);
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
-                                replicatorId, entry.getPosition(), msg.getReplicateTo());
+                        log.debug(
+                                "[{}] Discarding expired message at position {}, replicateTo {}",
+                                replicatorId,
+                                entry.getPosition(),
+                                msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
@@ -92,8 +108,10 @@ public class ShadowReplicator extends PersistentReplicator {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recovered when the producer is ready
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Dropping read message at {} because producer is not ready",
-                                replicatorId, entry.getPosition());
+                        log.debug(
+                                "[{}] Dropping read message at {} because producer is not ready",
+                                replicatorId,
+                                entry.getPosition());
                     }
                     isLocalMessageSkippedOnce = true;
                     entry.release();
@@ -117,8 +135,11 @@ public class ShadowReplicator extends PersistentReplicator {
                 atLeastOneMessageSentForReplication = true;
             }
         } catch (Exception e) {
-            log.error("[{}] Unexpected exception in replication task for shadow topic: {}",
-                    replicatorId, e.getMessage(), e);
+            log.error(
+                    "[{}] Unexpected exception in replication task for shadow topic: {}",
+                    replicatorId,
+                    e.getMessage(),
+                    e);
         }
         return atLeastOneMessageSentForReplication;
     }

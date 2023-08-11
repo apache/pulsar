@@ -45,8 +45,9 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
     @BeforeMethod
     protected void setup() throws Exception {
         setUpBase(1, 16, null, 0);
-        Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+        Awaitility.await()
+                .until(() -> ((PulsarClientImpl) pulsarClient).getTcClient().getState()
+                        == TransactionCoordinatorClient.State.READY);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -56,9 +57,7 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
 
     @DataProvider(name = "isPartition")
     public Object[][] isPartition() {
-        return new Object[][]{
-                { true }, { false }
-        };
+        return new Object[][] {{true}, {false}};
     }
 
     @Test(timeOut = 10_000, dataProvider = "isPartition")
@@ -111,7 +110,8 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
             if (isPartition) {
                 admin.topics().createPartitionedTopic(t, partitionCount);
             }
-            pulsarClient.newProducer()
+            pulsarClient
+                    .newProducer()
                     .topic(t)
                     .sendTimeout(0, TimeUnit.SECONDS)
                     .create()
@@ -120,5 +120,4 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         }
         return topics;
     }
-
 }

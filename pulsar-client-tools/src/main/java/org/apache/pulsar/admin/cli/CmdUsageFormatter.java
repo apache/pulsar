@@ -51,14 +51,15 @@ public class CmdUsageFormatter extends DefaultUsageFormatter {
     public void appendCommands(StringBuilder out, int indentCount, int descriptionIndent, String indent) {
         out.append(indent + "  Commands:\n");
 
-        for (Map.Entry<JCommander.ProgramName, JCommander> commands : commander.getRawCommands().entrySet()) {
+        for (Map.Entry<JCommander.ProgramName, JCommander> commands :
+                commander.getRawCommands().entrySet()) {
             Object arg = commands.getValue().getObjects().get(0);
             Parameters p = arg.getClass().getAnnotation(Parameters.class);
 
             if (p == null || !p.hidden()) {
                 JCommander.ProgramName progName = commands.getKey();
                 String dispName = progName.getDisplayName();
-                //skip the deprecated command
+                // skip the deprecated command
                 if (deprecatedCommands.contains(dispName)) {
                     continue;
                 }
@@ -81,8 +82,7 @@ public class CmdUsageFormatter extends DefaultUsageFormatter {
         this.deprecatedCommands.remove(command);
     }
 
-    public void clearDeprecatedCommand(){
+    public void clearDeprecatedCommand() {
         this.deprecatedCommands.clear();
     }
-
 }

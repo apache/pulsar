@@ -55,6 +55,7 @@ public class UnloadCounter {
     @Getter
     @VisibleForTesting
     double loadAvg;
+
     @Getter
     @VisibleForTesting
     double loadStd;
@@ -63,21 +64,21 @@ public class UnloadCounter {
 
     public UnloadCounter() {
         breakdownCounters = Map.of(
-                Success, Map.of(
-                        Overloaded, new AtomicLong(),
-                        Underloaded, new AtomicLong(),
-                        Admin, new AtomicLong()),
-                Skip, Map.of(
-                        HitCount, new AtomicLong(),
-                        NoBundles, new AtomicLong(),
-                        CoolDown, new AtomicLong(),
-                        OutDatedData, new AtomicLong(),
-                        NoLoadData, new AtomicLong(),
-                        NoBrokers, new AtomicLong(),
-                        Unknown, new AtomicLong()),
-                Failure, Map.of(
-                        Unknown, new AtomicLong())
-        );
+                Success,
+                        Map.of(
+                                Overloaded, new AtomicLong(),
+                                Underloaded, new AtomicLong(),
+                                Admin, new AtomicLong()),
+                Skip,
+                        Map.of(
+                                HitCount, new AtomicLong(),
+                                NoBundles, new AtomicLong(),
+                                CoolDown, new AtomicLong(),
+                                OutDatedData, new AtomicLong(),
+                                NoLoadData, new AtomicLong(),
+                                NoBrokers, new AtomicLong(),
+                                Unknown, new AtomicLong()),
+                Failure, Map.of(Unknown, new AtomicLong()));
     }
 
     public void update(UnloadDecision decision) {
@@ -132,7 +133,6 @@ public class UnloadCounter {
                 metrics.add(metric);
             }
         }
-
 
         if (loadAvg > 0 && loadStd > 0) {
             {

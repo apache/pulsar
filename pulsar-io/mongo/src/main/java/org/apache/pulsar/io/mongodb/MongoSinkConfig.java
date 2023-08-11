@@ -47,8 +47,7 @@ public class MongoSinkConfig extends MongoAbstractConfig {
             @JsonProperty("database") String database,
             @JsonProperty("collection") String collection,
             @JsonProperty("batchSize") int batchSize,
-            @JsonProperty("batchTimeMs") long batchTimeMs
-    ) {
+            @JsonProperty("batchTimeMs") long batchTimeMs) {
         super(mongoUri, database, collection, batchSize, batchTimeMs);
     }
 

@@ -45,7 +45,8 @@ class WebExecutorStats implements AutoCloseable {
     private WebExecutorStats(WebExecutorThreadPool executor) {
         this.executor = executor;
 
-        this.maxThreads = Gauge.build("pulsar_web_executor_max_threads", "-").create()
+        this.maxThreads = Gauge.build("pulsar_web_executor_max_threads", "-")
+                .create()
                 .setChild(new Gauge.Child() {
                     public double get() {
                         return WebExecutorStats.this.executor.getMaxThreads();
@@ -53,7 +54,8 @@ class WebExecutorStats implements AutoCloseable {
                 })
                 .register();
 
-        this.minThreads = Gauge.build("pulsar_web_executor_min_threads", "-").create()
+        this.minThreads = Gauge.build("pulsar_web_executor_min_threads", "-")
+                .create()
                 .setChild(new Gauge.Child() {
                     public double get() {
                         return WebExecutorStats.this.executor.getMinThreads();
@@ -61,7 +63,8 @@ class WebExecutorStats implements AutoCloseable {
                 })
                 .register();
 
-        this.idleThreads = Gauge.build("pulsar_web_executor_idle_threads", "-").create()
+        this.idleThreads = Gauge.build("pulsar_web_executor_idle_threads", "-")
+                .create()
                 .setChild(new Gauge.Child() {
                     public double get() {
                         return WebExecutorStats.this.executor.getIdleThreads();
@@ -69,7 +72,8 @@ class WebExecutorStats implements AutoCloseable {
                 })
                 .register();
 
-        this.activeThreads = Gauge.build("pulsar_web_executor_active_threads", "-").create()
+        this.activeThreads = Gauge.build("pulsar_web_executor_active_threads", "-")
+                .create()
                 .setChild(new Gauge.Child() {
                     public double get() {
                         return WebExecutorStats.this.executor.getThreads()
@@ -78,7 +82,8 @@ class WebExecutorStats implements AutoCloseable {
                 })
                 .register();
 
-        this.currentThreads = Gauge.build("pulsar_web_executor_current_threads", "-").create()
+        this.currentThreads = Gauge.build("pulsar_web_executor_current_threads", "-")
+                .create()
                 .setChild(new Gauge.Child() {
                     public double get() {
                         return WebExecutorStats.this.executor.getThreads();

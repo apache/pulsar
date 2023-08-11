@@ -27,6 +27,5 @@ public class SegmentStats {
         this.persistentPosition = persistentPosition;
     }
 
-    public SegmentStats() {
-    }
+    public SegmentStats() {}
 }

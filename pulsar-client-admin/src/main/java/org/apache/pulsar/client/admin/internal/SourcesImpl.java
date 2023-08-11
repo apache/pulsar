@@ -81,8 +81,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public SourceStatus getSourceStatus(
-            String tenant, String namespace, String sourceName) throws PulsarAdminException {
+    public SourceStatus getSourceStatus(String tenant, String namespace, String sourceName)
+            throws PulsarAdminException {
         return sync(() -> getSourceStatusAsync(tenant, namespace, sourceName));
     }
 
@@ -101,7 +101,11 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(
             String tenant, String namespace, String sourceName, int id) {
-        WebTarget path = source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(id)).path("status");
+        WebTarget path = source.path(tenant)
+                .path(namespace)
+                .path(sourceName)
+                .path(Integer.toString(id))
+                .path("status");
         return asyncGetRequest(path, SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class);
     }
 
@@ -114,24 +118,28 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     public CompletableFuture<Void> createSourceAsync(SourceConfig sourceConfig, String fileName) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            RequestBuilder builder =
-                    post(source.path(sourceConfig.getTenant())
-                            .path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", objectWriter()
-                            .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder = post(source.path(sourceConfig.getTenant())
+                            .path(sourceConfig.getNamespace())
+                            .path(sourceConfig.getName())
+                            .getUri()
+                            .toASCIIString())
+                    .addBodyPart(new StringPart(
+                            "sourceConfig",
+                            objectWriter().writeValueAsString(sourceConfig),
+                            MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+            asyncHttpClient
+                    .executeRequest(addAuthHeaders(source, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                            future.completeExceptionally(
-                                    getApiException(Response
-                                            .status(response.getStatusCode())
-                                            .entity(response.getResponseBody()).build()));
+                            future.completeExceptionally(getApiException(Response.status(response.getStatusCode())
+                                    .entity(response.getResponseBody())
+                                    .build()));
                         } else {
                             future.complete(null);
                         }
@@ -155,11 +163,11 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     public CompletableFuture<Void> createSourceWithUrlAsync(SourceConfig sourceConfig, String pkgUrl) {
         final FormDataMultiPart mp = new FormDataMultiPart();
         mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-        mp.bodyPart(new FormDataBodyPart("sourceConfig",
-                new Gson().toJson(sourceConfig),
-                MediaType.APPLICATION_JSON_TYPE));
+        mp.bodyPart(
+                new FormDataBodyPart("sourceConfig", new Gson().toJson(sourceConfig), MediaType.APPLICATION_JSON_TYPE));
         WebTarget path = source.path(sourceConfig.getTenant())
-                .path(sourceConfig.getNamespace()).path(sourceConfig.getName());
+                .path(sourceConfig.getNamespace())
+                .path(sourceConfig.getName());
         return asyncPostRequest(path, Entity.entity(mp, MediaType.MULTIPART_FORM_DATA));
     }
 
@@ -185,31 +193,34 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            RequestBuilder builder =
-                    put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
-                            .path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", objectWriter()
-                            .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder = put(source.path(sourceConfig.getTenant())
+                            .path(sourceConfig.getNamespace())
+                            .path(sourceConfig.getName())
+                            .getUri()
+                            .toASCIIString())
+                    .addBodyPart(new StringPart(
+                            "sourceConfig",
+                            objectWriter().writeValueAsString(sourceConfig),
+                            MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
-                builder.addBodyPart(new StringPart("updateOptions",
-                        objectWriter().writeValueAsString(options),
-                        MediaType.APPLICATION_JSON));
+                builder.addBodyPart(new StringPart(
+                        "updateOptions", objectWriter().writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+            asyncHttpClient
+                    .executeRequest(addAuthHeaders(source, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                            future.completeExceptionally(
-                                    getApiException(Response
-                                            .status(response.getStatusCode())
-                                            .entity(response.getResponseBody()).build()));
+                            future.completeExceptionally(getApiException(Response.status(response.getStatusCode())
+                                    .entity(response.getResponseBody())
+                                    .build()));
                         } else {
                             future.complete(null);
                         }
@@ -248,17 +259,14 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             final FormDataMultiPart mp = new FormDataMultiPart();
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
             mp.bodyPart(new FormDataBodyPart(
-                    "sourceConfig",
-                    new Gson().toJson(sourceConfig),
-                    MediaType.APPLICATION_JSON_TYPE));
+                    "sourceConfig", new Gson().toJson(sourceConfig), MediaType.APPLICATION_JSON_TYPE));
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
-                        "updateOptions",
-                        objectWriter().writeValueAsString(options),
-                        MediaType.APPLICATION_JSON_TYPE));
+                        "updateOptions", objectWriter().writeValueAsString(options), MediaType.APPLICATION_JSON_TYPE));
             }
-            WebTarget path = source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
+            WebTarget path = source.path(sourceConfig.getTenant())
+                    .path(sourceConfig.getNamespace())
                     .path(sourceConfig.getName());
             return asyncPutRequest(path, Entity.entity(mp, MediaType.MULTIPART_FORM_DATA));
         } catch (Exception e) {
@@ -286,7 +294,10 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<Void> restartSourceAsync(
             String tenant, String namespace, String functionName, int instanceId) {
-        WebTarget path = source.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
+        WebTarget path = source.path(tenant)
+                .path(namespace)
+                .path(functionName)
+                .path(Integer.toString(instanceId))
                 .path("restart");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -310,7 +321,10 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public CompletableFuture<Void> stopSourceAsync(String tenant, String namespace, String sourceName, int instanceId) {
-        WebTarget path = source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(instanceId))
+        WebTarget path = source.path(tenant)
+                .path(namespace)
+                .path(sourceName)
+                .path(Integer.toString(instanceId))
                 .path("stop");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -335,7 +349,10 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<Void> startSourceAsync(
             String tenant, String namespace, String sourceName, int instanceId) {
-        WebTarget path = source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(instanceId))
+        WebTarget path = source.path(tenant)
+                .path(namespace)
+                .path(sourceName)
+                .path(Integer.toString(instanceId))
                 .path("start");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }

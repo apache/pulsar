@@ -92,33 +92,44 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
 
     @Override
     public void prepareInsertEvent() throws Exception {
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres " +
-                        "-c \"insert into inventory.products(name, description, weight) " +
-                        "values('test-debezium', 'description', 10);\"");
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres "+
-                        "-c \"select count(1), max(id) from inventory.products where name='test-debezium' and weight=10;\"");
+        this.debeziumPostgresqlContainer.execCmd(
+                "/bin/bash",
+                "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres "
+                        + "-c \"insert into inventory.products(name, description, weight) "
+                        + "values('test-debezium', 'description', 10);\"");
+        this.debeziumPostgresqlContainer.execCmd(
+                "/bin/bash",
+                "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres "
+                        + "-c \"select count(1), max(id) from inventory.products where name='test-debezium' and weight=10;\"");
     }
 
     @Override
     public void prepareDeleteEvent() throws Exception {
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres " +
-                        "-c \"delete from inventory.products where name='test-debezium';\"");
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+        this.debeziumPostgresqlContainer.execCmd(
+                "/bin/bash",
+                "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres "
+                        + "-c \"delete from inventory.products where name='test-debezium';\"");
+        this.debeziumPostgresqlContainer.execCmd(
+                "/bin/bash",
+                "-c",
                 "psql -h 127.0.0.1 -U postgres -d postgres -c \"select count(1) from inventory.products where name='test-debezium';\"");
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres " +
-                        "-c \"update inventory.products " +
-                        "set description='test-update-description', weight='20' where name='test-debezium';\"");
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres -c " +
-                        "\"select count(1) from inventory.products where name='test-debezium' and weight=20;\"");
+        this.debeziumPostgresqlContainer.execCmd(
+                "/bin/bash",
+                "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres " + "-c \"update inventory.products "
+                        + "set description='test-update-description', weight='20' where name='test-debezium';\"");
+        this.debeziumPostgresqlContainer.execCmd(
+                "/bin/bash",
+                "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres -c "
+                        + "\"select count(1) from inventory.products where name='test-debezium' and weight=20;\"");
     }
 
     @Override
@@ -131,12 +142,16 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
         not updating in insert-heavy load.
         */
         try {
-            ContainerExecResult res = debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+            ContainerExecResult res = debeziumPostgresqlContainer.execCmd(
+                    "/bin/bash",
+                    "-c",
                     "psql -h 127.0.0.1 -U postgres -d postgres -c \"select confirmed_flush_lsn from pg_replication_slots;\"");
             res.assertNoStderr();
             String lastConfirmedFlushLsn = res.getStdout();
-            log.info("Current confirmedFlushLsn: \n{} \nLast confirmedFlushLsn: \n{}",
-                    confirmedFlushLsn.get(), lastConfirmedFlushLsn);
+            log.info(
+                    "Current confirmedFlushLsn: \n{} \nLast confirmedFlushLsn: \n{}",
+                    confirmedFlushLsn.get(),
+                    lastConfirmedFlushLsn);
             Assert.assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
             confirmedFlushLsn.set(lastConfirmedFlushLsn);
         } catch (Exception e) {
@@ -159,5 +174,4 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
             }
         }
     }
-
 }

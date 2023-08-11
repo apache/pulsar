@@ -59,12 +59,12 @@ public class AuthenticationProviderOpenIDTest {
     @DataProvider(name = "supportedAlgorithms")
     public static Object[][] supportedAlgorithms() {
         return new Object[][] {
-                { SignatureAlgorithm.RS256 },
-                { SignatureAlgorithm.RS384 },
-                { SignatureAlgorithm.RS512 },
-                { SignatureAlgorithm.ES256 },
-                { SignatureAlgorithm.ES384 },
-                { SignatureAlgorithm.ES512 }
+            {SignatureAlgorithm.RS256},
+            {SignatureAlgorithm.RS384},
+            {SignatureAlgorithm.RS512},
+            {SignatureAlgorithm.ES256},
+            {SignatureAlgorithm.ES384},
+            {SignatureAlgorithm.ES512}
         };
     }
 
@@ -86,27 +86,28 @@ public class AuthenticationProviderOpenIDTest {
     @Test
     public void testNullToken() {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        Assert.assertThrows(AuthenticationException.class,
-                () -> provider.authenticate(new AuthenticationDataCommand(null)));
+        Assert.assertThrows(
+                AuthenticationException.class, () -> provider.authenticate(new AuthenticationDataCommand(null)));
     }
 
     @Test
     public void testThatNullAlgFails() {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        Assert.assertThrows(AuthenticationException.class,
-                () -> provider.verifyJWT(null, null, null));
+        Assert.assertThrows(AuthenticationException.class, () -> provider.verifyJWT(null, null, null));
     }
 
     @Test
     public void testThatUnsupportedAlgsThrowExceptions() {
         Set<SignatureAlgorithm> unsupportedAlgs = new HashSet<>(Set.of(SignatureAlgorithm.values()));
-        Arrays.stream(supportedAlgorithms()).map(o -> (SignatureAlgorithm) o[0]).toList()
+        Arrays.stream(supportedAlgorithms())
+                .map(o -> (SignatureAlgorithm) o[0])
+                .toList()
                 .forEach(unsupportedAlgs::remove);
         unsupportedAlgs.forEach(unsupportedAlg -> {
             AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
             // We don't create a public key because it's irrelevant
-            Assert.assertThrows(AuthenticationException.class,
-                    () -> provider.verifyJWT(null, unsupportedAlg.getValue(), null));
+            Assert.assertThrows(
+                    AuthenticationException.class, () -> provider.verifyJWT(null, unsupportedAlg.getValue(), null));
         });
     }
 
@@ -132,7 +133,8 @@ public class AuthenticationProviderOpenIDTest {
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         // Choose a different algorithm from a different alg family
-        Assert.assertThrows(AuthenticationException.class,
+        Assert.assertThrows(
+                AuthenticationException.class,
                 () -> provider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.ES512.getValue(), jwt));
     }
 
@@ -145,7 +147,8 @@ public class AuthenticationProviderOpenIDTest {
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         // Choose a different algorithm but within the same alg family as above
-        Assert.assertThrows(AuthenticationException.class,
+        Assert.assertThrows(
+                AuthenticationException.class,
                 () -> provider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS512.getValue(), jwt));
     }
 
@@ -157,7 +160,8 @@ public class AuthenticationProviderOpenIDTest {
         defaultJwtBuilder.setExpiration(Date.from(Instant.now().minusSeconds(60)));
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
-        Assert.assertThrows(AuthenticationException.class,
+        Assert.assertThrows(
+                AuthenticationException.class,
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
@@ -170,7 +174,8 @@ public class AuthenticationProviderOpenIDTest {
         defaultJwtBuilder.setNotBefore(Date.from(Instant.now().plusSeconds(60)));
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
-        Assert.assertThrows(AuthenticationException.class,
+        Assert.assertThrows(
+                AuthenticationException.class,
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
@@ -183,7 +188,8 @@ public class AuthenticationProviderOpenIDTest {
         defaultJwtBuilder.setIssuedAt(Date.from(Instant.now().plusSeconds(60)));
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
-        Assert.assertThrows(AuthenticationException.class,
+        Assert.assertThrows(
+                AuthenticationException.class,
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
@@ -276,13 +282,15 @@ public class AuthenticationProviderOpenIDTest {
     public void ensureInsecureIssuerFailsInitialization() {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com,http://myissuer.com");
+        props.setProperty(
+                AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com,http://myissuer.com");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
         Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
     }
 
-    @Test void ensureMissingRoleClaimReturnsNull() throws Exception {
+    @Test
+    void ensureMissingRoleClaimReturnsNull() throws Exception {
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
         defaultJwtBuilder.setAudience(basicProviderAudience);
@@ -292,7 +300,8 @@ public class AuthenticationProviderOpenIDTest {
         assertNull(basicProvider.getRole(jwtWithoutSub));
     }
 
-    @Test void ensureRoleClaimForStringReturnsRole() throws Exception {
+    @Test
+    void ensureRoleClaimForStringReturnsRole() throws Exception {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");
@@ -311,7 +320,8 @@ public class AuthenticationProviderOpenIDTest {
         Assert.assertEquals("my-role", provider.getRole(jwt));
     }
 
-    @Test void ensureRoleClaimForSingletonListReturnsRole() throws Exception {
+    @Test
+    void ensureRoleClaimForSingletonListReturnsRole() throws Exception {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");
@@ -332,7 +342,8 @@ public class AuthenticationProviderOpenIDTest {
         Assert.assertEquals("my-role", provider.getRole(jwt));
     }
 
-    @Test void ensureRoleClaimForMultiEntryListReturnsFirstRole() throws Exception {
+    @Test
+    void ensureRoleClaimForMultiEntryListReturnsFirstRole() throws Exception {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");
@@ -353,7 +364,8 @@ public class AuthenticationProviderOpenIDTest {
         Assert.assertEquals("my-role-1", provider.getRole(jwt));
     }
 
-    @Test void ensureRoleClaimForEmptyListReturnsNull() throws Exception {
+    @Test
+    void ensureRoleClaimForEmptyListReturnsNull() throws Exception {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");

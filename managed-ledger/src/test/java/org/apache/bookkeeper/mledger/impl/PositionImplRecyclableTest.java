@@ -26,7 +26,7 @@ public class PositionImplRecyclableTest {
     @Test
     void shouldNotCarryStateInAckSetWhenRecycled() {
         PositionImplRecyclable position = PositionImplRecyclable.create();
-        position.ackSet = new long[]{1L, 2L, 3L};
+        position.ackSet = new long[] {1L, 2L, 3L};
         position.recycle();
         PositionImplRecyclable position2 = PositionImplRecyclable.create();
         assertNull(position2.ackSet);

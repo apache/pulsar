@@ -46,6 +46,7 @@ public class InstanceConfig {
     // Whether the pulsar admin client exposed to function context, default is disabled.
     @Getter
     private boolean exposePulsarAdminClientEnabled = false;
+
     private int metricsPort;
     private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
     private boolean ignoreUnknownConfigFields;

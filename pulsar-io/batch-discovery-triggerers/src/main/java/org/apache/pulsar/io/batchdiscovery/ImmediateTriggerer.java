@@ -27,18 +27,16 @@ import org.apache.pulsar.io.core.SourceContext;
 @Slf4j
 public class ImmediateTriggerer implements BatchSourceTriggerer {
 
-  @Override
-  public void init(Map<String, Object> map, SourceContext sourceContext) throws Exception {
-    log.info("Initialized ImmediateTrigger at: {}", System.currentTimeMillis());
-  }
+    @Override
+    public void init(Map<String, Object> map, SourceContext sourceContext) throws Exception {
+        log.info("Initialized ImmediateTrigger at: {}", System.currentTimeMillis());
+    }
 
-  @Override
-  public void start(Consumer<String> consumer) {
-    consumer.accept("");
-  }
+    @Override
+    public void start(Consumer<String> consumer) {
+        consumer.accept("");
+    }
 
-  @Override
-  public void stop() {
-
-  }
+    @Override
+    public void stop() {}
 }

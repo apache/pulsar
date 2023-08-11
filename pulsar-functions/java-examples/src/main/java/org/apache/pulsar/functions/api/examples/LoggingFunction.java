@@ -34,5 +34,4 @@ public class LoggingFunction implements Function<String, String> {
         context.getLogger().info(input + "-log");
         return String.format("%s!", input);
     }
-
 }

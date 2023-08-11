@@ -33,6 +33,7 @@ import lombok.NoArgsConstructor;
 public interface ConfigStore {
 
     String DEFAULT_CONFIG = "default";
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -40,7 +41,6 @@ public interface ConfigStore {
         String name;
         String value;
     }
-
 
     void putConfig(ConfigEntry entry) throws IOException;
 
@@ -56,7 +56,7 @@ public interface ConfigStore {
 
     static void cleanupValue(ConfigEntry entry) {
         StringBuilder builder = new StringBuilder();
-        try (Scanner scanner = new Scanner(entry.getValue());) {
+        try (Scanner scanner = new Scanner(entry.getValue()); ) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine().trim();
                 if (line.isBlank() || line.startsWith("#")) {
@@ -72,7 +72,7 @@ public interface ConfigStore {
     static void setProperty(ConfigEntry entry, String propertyName, String propertyValue) {
         Set<String> keys = new HashSet<>();
         StringBuilder builder = new StringBuilder();
-        try (Scanner scanner = new Scanner(entry.getValue());) {
+        try (Scanner scanner = new Scanner(entry.getValue()); ) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine().trim();
                 if (line.isBlank() || line.startsWith("#")) {
@@ -100,7 +100,7 @@ public interface ConfigStore {
     }
 
     static String getProperty(ConfigEntry entry, String propertyName) {
-        try (Scanner scanner = new Scanner(entry.getValue());) {
+        try (Scanner scanner = new Scanner(entry.getValue()); ) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine().trim();
                 if (line.isBlank() || line.startsWith("#")) {
@@ -120,6 +120,4 @@ public interface ConfigStore {
         }
         return null;
     }
-
-
 }

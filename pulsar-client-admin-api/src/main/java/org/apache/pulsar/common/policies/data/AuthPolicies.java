@@ -27,7 +27,9 @@ import org.apache.pulsar.client.admin.utils.ReflectionUtils;
  */
 public interface AuthPolicies {
     Map<String, Set<AuthAction>> getNamespaceAuthentication();
+
     Map<String, Map<String, Set<AuthAction>>> getTopicAuthentication();
+
     Map<String, Set<String>> getSubscriptionAuthentication();
 
     static Builder builder() {
@@ -36,8 +38,11 @@ public interface AuthPolicies {
 
     interface Builder {
         AuthPolicies build();
+
         Builder namespaceAuthentication(Map<String, Set<AuthAction>> namespaceAuthentication);
+
         Builder topicAuthentication(Map<String, Map<String, Set<AuthAction>>> topicAuthentication);
+
         Builder subscriptionAuthentication(Map<String, Set<String>> subscriptionAuthentication);
     }
 }

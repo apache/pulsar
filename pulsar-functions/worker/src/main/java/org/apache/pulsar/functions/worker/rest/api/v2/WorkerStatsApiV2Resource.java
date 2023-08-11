@@ -52,8 +52,10 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
     public static final String ATTRIBUTE_WORKERSTATS_SERVICE = "worker-stats";
 
     private WorkerService workerService;
+
     @Context
     protected ServletContext servletContext;
+
     @Context
     protected HttpServletRequest httpRequest;
 
@@ -95,10 +97,11 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
             notes = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics",
             response = org.apache.pulsar.common.stats.Metrics.class,
             responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Don't have admin permission"),
+                @ApiResponse(code = 503, message = "Worker service is not running")
+            })
     @Produces(MediaType.APPLICATION_JSON)
     public List<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
         return workers().getWorkerMetrics(authParams());
@@ -111,10 +114,11 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
             notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics",
             response = WorkerFunctionInstanceStats.class,
             responseContainer = "List")
-    @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
-    })
+    @ApiResponses(
+            value = {
+                @ApiResponse(code = 401, message = "Don't have admin permission"),
+                @ApiResponse(code = 503, message = "Worker service is not running")
+            })
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerFunctionInstanceStats> getStats() throws IOException {
         return workers().getFunctionsMetrics(authParams());

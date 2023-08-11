@@ -74,7 +74,7 @@ public class MLTransactionSequenceIdGenerator implements ManagedLedgerIntercepto
                             if (ledgerEntry != null) {
                                 List<TransactionMetadataEntry> transactionLogs =
                                         MLTransactionLogImpl.deserializeEntry(ledgerEntry.getEntryBuffer());
-                                if (!CollectionUtils.isEmpty(transactionLogs)){
+                                if (!CollectionUtils.isEmpty(transactionLogs)) {
                                     TransactionMetadataEntry lastConfirmEntry =
                                             transactionLogs.get(transactionLogs.size() - 1);
                                     this.sequenceId.set(lastConfirmEntry.getMaxLocalTxnId());
@@ -84,8 +84,10 @@ public class MLTransactionSequenceIdGenerator implements ManagedLedgerIntercepto
                             promise.complete(null);
                         } catch (Exception e) {
                             entries.close();
-                            log.error("[{}] Failed to recover the tc sequenceId from the last add confirmed entry.",
-                                    name, e);
+                            log.error(
+                                    "[{}] Failed to recover the tc sequenceId from the last add confirmed entry.",
+                                    name,
+                                    e);
                             promise.completeExceptionally(e);
                         }
                     } else {

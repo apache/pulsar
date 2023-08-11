@@ -30,8 +30,7 @@ public class SubscribeRate {
     public int subscribeThrottlingRatePerConsumer = -1;
     public int ratePeriodInSecond = 30;
 
-    public SubscribeRate() {
-    }
+    public SubscribeRate() {}
 
     public SubscribeRate(int subscribeThrottlingRatePerConsumer, int ratePeriodInSecond) {
         this.subscribeThrottlingRatePerConsumer = subscribeThrottlingRatePerConsumer;
@@ -40,8 +39,8 @@ public class SubscribeRate {
 
     public static SubscribeRate normalize(SubscribeRate subscribeRate) {
         if (subscribeRate != null
-            && subscribeRate.subscribeThrottlingRatePerConsumer > 0
-            && subscribeRate.ratePeriodInSecond > 0) {
+                && subscribeRate.subscribeThrottlingRatePerConsumer > 0
+                && subscribeRate.ratePeriodInSecond > 0) {
             return subscribeRate;
         } else {
             return null;
@@ -62,5 +61,4 @@ public class SubscribeRate {
         }
         return false;
     }
-
 }

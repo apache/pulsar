@@ -36,9 +36,13 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 @Slf4j
 public class GeoPersistentReplicator extends PersistentReplicator {
 
-    public GeoPersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster,
-                                   String remoteCluster, BrokerService brokerService,
-                                   PulsarClientImpl replicationClient)
+    public GeoPersistentReplicator(
+            PersistentTopic topic,
+            ManagedCursor cursor,
+            String localCluster,
+            String remoteCluster,
+            BrokerService brokerService,
+            PulsarClientImpl replicationClient)
             throws PulsarServerException {
         super(localCluster, topic, cursor, remoteCluster, topic.getName(), brokerService, replicationClient);
     }
@@ -76,8 +80,13 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 try {
                     msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
                 } catch (Throwable t) {
-                    log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
-                            entry.getPosition(), length, t.getMessage(), t);
+                    log.error(
+                            "[{}] Failed to deserialize message at {} (buffer size: {}): {}",
+                            replicatorId,
+                            entry.getPosition(),
+                            length,
+                            t.getMessage(),
+                            t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
                     continue;
@@ -89,8 +98,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.recycle();
                     continue;
                 }
-                if (msg.getMessageBuilder().hasTxnidLeastBits() && msg.getMessageBuilder().hasTxnidMostBits()) {
-                    TxnID tx = new TxnID(msg.getMessageBuilder().getTxnidMostBits(),
+                if (msg.getMessageBuilder().hasTxnidLeastBits()
+                        && msg.getMessageBuilder().hasTxnidMostBits()) {
+                    TxnID tx = new TxnID(
+                            msg.getMessageBuilder().getTxnidMostBits(),
                             msg.getMessageBuilder().getTxnidLeastBits());
                     if (topic.isTxnAborted(tx, (PositionImpl) entry.getPosition())) {
                         cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
@@ -114,8 +125,11 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 if (msg.hasReplicateTo() && !msg.getReplicateTo().contains(remoteCluster)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Skipping message at position {}, replicateTo {}", replicatorId,
-                                entry.getPosition(), msg.getReplicateTo());
+                        log.debug(
+                                "[{}] Skipping message at position {}, replicateTo {}",
+                                replicatorId,
+                                entry.getPosition(),
+                                msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
@@ -126,8 +140,11 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 if (msg.isExpired(messageTTLInSeconds)) {
                     msgExpired.recordEvent(0 /* no value stat */);
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
-                                replicatorId, entry.getPosition(), msg.getReplicateTo());
+                        log.debug(
+                                "[{}] Discarding expired message at position {}, replicateTo {}",
+                                replicatorId,
+                                entry.getPosition(),
+                                msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
@@ -139,8 +156,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recovered when the producer is ready
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Dropping read message at {} because producer is not ready",
-                                replicatorId, entry.getPosition());
+                        log.debug(
+                                "[{}] Dropping read message at {} because producer is not ready",
+                                replicatorId,
+                                entry.getPosition());
                     }
                     isLocalMessageSkippedOnce = true;
                     entry.release();
@@ -169,8 +188,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     log.info("[{}] Pause the data replication due to new detected schema", replicatorId);
                     schemaFuture.whenComplete((__, e) -> {
                         if (e != null) {
-                            log.warn("[{}] Failed to get schema from local cluster, will try in the next loop",
-                                    replicatorId, e);
+                            log.warn(
+                                    "[{}] Failed to get schema from local cluster, will try in the next loop",
+                                    replicatorId,
+                                    e);
                         }
                         log.info("[{}] Resume the data replication after the schema fetching done", replicatorId);
                         cursor.rewind();

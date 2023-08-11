@@ -22,14 +22,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.google.common.collect.Maps;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.flume.Channel;
 import org.apache.flume.ChannelSelector;
 import org.apache.flume.Context;
@@ -58,7 +55,6 @@ public class StringSinkTests extends AbstractFlumeTests {
 
     @Mock
     protected Record<String> mockRecord;
-
 
     private AvroSource source;
     private Channel channel;

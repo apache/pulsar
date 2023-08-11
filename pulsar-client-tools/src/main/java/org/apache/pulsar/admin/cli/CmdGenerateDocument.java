@@ -60,7 +60,8 @@ public class CmdGenerateDocument extends CmdBase {
             try {
                 if (!c.getKey().equals("documents") && c.getValue() != null) {
                     baseJcommander.addCommand(
-                            c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
+                            c.getKey(),
+                            c.getValue().getConstructor(Supplier.class).newInstance(admin));
                 }
             } catch (Exception e) {
                 System.err.println(e.getMessage());
@@ -75,18 +76,17 @@ public class CmdGenerateDocument extends CmdBase {
     @Parameters(commandDescription = "Generate document for modules")
     private class GenerateDocument extends CliCommand {
 
-        @Parameter(description = "Please specify the module name, if not, documents will be generated for all modules."
-                + "Optional modules(clusters, tenants, brokers, broker-stats, namespaces, topics, schemas, bookies,"
-                + "functions, ns-isolation-policy, resource-quotas, functions, sources, sinks)")
+        @Parameter(
+                description = "Please specify the module name, if not, documents will be generated for all modules."
+                        + "Optional modules(clusters, tenants, brokers, broker-stats, namespaces, topics, schemas, bookies,"
+                        + "functions, ns-isolation-policy, resource-quotas, functions, sources, sinks)")
         private java.util.List<String> modules;
 
         @Override
         void run() throws PulsarAdminException {
             StringBuilder sb = new StringBuilder();
             if (modules == null || modules.isEmpty()) {
-                baseJcommander.getCommands().forEach((k, v) ->
-                    this.generateDocument(sb, k, v)
-                );
+                baseJcommander.getCommands().forEach((k, v) -> this.generateDocument(sb, k, v));
             } else {
                 String module = getOneArgument(modules);
                 JCommander obj = baseJcommander.getCommands().get(module);
@@ -103,17 +103,25 @@ public class CmdGenerateDocument extends CmdBase {
             sb.append("# ").append(module).append("\n\n");
             sb.append(usageFormatter.getCommandDescription(module)).append("\n");
             sb.append("\n\n```shell\n")
-                    .append("$ pulsar-admin ").append(module).append(" subcommand")
+                    .append("$ pulsar-admin ")
+                    .append(module)
+                    .append(" subcommand")
                     .append("\n```");
             sb.append("\n\n");
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
             cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
                 sb.append("\n\n## ").append(subK).append("\n\n");
-                sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK)).append("\n\n");
+                sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK))
+                        .append("\n\n");
                 sb.append("**Command:**\n\n");
-                sb.append("```shell\n$ pulsar-admin ").append(module).append(" ")
-                        .append(subK).append(" options").append("\n```\n\n");
-                List<ParameterDescription> options = cmdObj.jcommander.getCommands().get(subK).getParameters();
+                sb.append("```shell\n$ pulsar-admin ")
+                        .append(module)
+                        .append(" ")
+                        .append(subK)
+                        .append(" options")
+                        .append("\n```\n\n");
+                List<ParameterDescription> options =
+                        cmdObj.jcommander.getCommands().get(subK).getParameters();
                 if (options.size() > 0) {
                     sb.append("**Options:**\n\n");
                     sb.append("|Flag|Description|Default|");
@@ -124,20 +132,24 @@ public class CmdGenerateDocument extends CmdBase {
                         sb.append("\n|---|---|---|\n");
                     }
                 }
-                options.stream().filter(
-                        ele -> ele.getParameterAnnotation() == null
-                                || !ele.getParameterAnnotation().hidden()
-                ).forEach((option) -> {
-                            String[] descriptions = option.getDescription().replace("\n", " ").split(" #");
-                            sb.append("| `").append(option.getNames())
-                                    .append("` | ").append(descriptions[0])
-                                    .append("|").append(option.getDefault()).append("|");
+                options.stream()
+                        .filter(ele -> ele.getParameterAnnotation() == null
+                                || !ele.getParameterAnnotation().hidden())
+                        .forEach((option) -> {
+                            String[] descriptions =
+                                    option.getDescription().replace("\n", " ").split(" #");
+                            sb.append("| `")
+                                    .append(option.getNames())
+                                    .append("` | ")
+                                    .append(descriptions[0])
+                                    .append("|")
+                                    .append(option.getDefault())
+                                    .append("|");
                             if (needsLangSupport(module, subK) && descriptions.length > 1) {
                                 sb.append(descriptions[1]);
                             }
                             sb.append("|\n");
-                        }
-                );
+                        });
             });
             System.out.println(sb);
         }

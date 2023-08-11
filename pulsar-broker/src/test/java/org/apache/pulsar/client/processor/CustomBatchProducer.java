@@ -44,8 +44,8 @@ public class CustomBatchProducer {
 
     public void flush() {
         final ByteBuf buf = CustomBatchFormat.serialize(messages);
-        final ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.None,
-                createCustomMetadata(), buf);
+        final ByteBuf headerAndPayload =
+                Commands.serializeMetadataAndPayload(Commands.ChecksumType.None, createCustomMetadata(), buf);
         buf.release();
         persistentTopic.publishMessage(headerAndPayload, (e, ledgerId, entryId) -> {
             if (e == null) {

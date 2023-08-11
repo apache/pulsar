@@ -63,9 +63,11 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("prop",
-                new TenantInfoImpl(Set.of("appid1"), Set.of("test")));
+        admin.clusters()
+                .createCluster(
+                        "test",
+                        ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("prop", new TenantInfoImpl(Set.of("appid1"), Set.of("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"));
         persistentTopics = spy(PersistentTopics.class);
@@ -139,9 +141,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
-            public void setTimeoutHandler(TimeoutHandler handler) {
-
-            }
+            public void setTimeoutHandler(TimeoutHandler handler) {}
 
             @Override
             public Collection<Class<?>> register(Class<?> callback) {
@@ -164,10 +164,9 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
             }
         };
         try {
-            persistentTopics.getLastMessageId(asyncResponse, testTenant,
-                    testNamespace, "my-topic", true);
+            persistentTopics.getLastMessageId(asyncResponse, testTenant, testNamespace, "my-topic", true);
         } catch (Exception e) {
-            //System.out.println(e.getMessage());
+            // System.out.println(e.getMessage());
             Assert.assertEquals("Topic not found", e.getMessage());
         }
 
@@ -177,7 +176,9 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         final int numberOfMessages = 30;
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -190,10 +191,9 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
         persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
         Awaitility.await().until(() -> id[0] != null);
-        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() >= 0);
-        Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id[0]).getEntryId());
+        Assert.assertTrue(((MessageIdImpl) id[0]).getLedgerId() >= 0);
+        Assert.assertEquals(numberOfMessages - 1, ((MessageIdImpl) id[0]).getEntryId());
         messageId = id[0];
-
 
         // send more numberOfMessages messages, the last message id should be numberOfMessages*2-1
         for (int i = 0; i < numberOfMessages; i++) {
@@ -204,8 +204,8 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         while (id[0] == messageId) {
             Thread.sleep(1);
         }
-        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
-        Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
+        Assert.assertTrue(((MessageIdImpl) id[0]).getLedgerId() > 0);
+        Assert.assertEquals(2 * numberOfMessages - 1, ((MessageIdImpl) id[0]).getEntryId());
     }
 
     /**
@@ -218,9 +218,8 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetLastMessageIdWhenTopicWithoutData() throws Exception {
         final String topic = "persistent://prop/ns-abc/testGetLastMessageIdWhenTopicWithoutData-" + UUID.randomUUID();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         final int messages = 10;
         for (int i = 0; i < messages; i++) {
             producer.send("Message - " + i);
@@ -233,7 +232,8 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertEquals(stats.ledgers.size(), 1);
         });
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+        Reader<String> reader = pulsarClient
+                .newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .create();

@@ -23,7 +23,7 @@ import java.util.Objects;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 
 interface DelayedIndexQueue {
-    Comparator<DelayedIndex> COMPARATOR = (o1, o2) ->  {
+    Comparator<DelayedIndex> COMPARATOR = (o1, o2) -> {
         if (!Objects.equals(o1.getTimestamp(), o2.getTimestamp())) {
             return Long.compare(o1.getTimestamp(), o2.getTimestamp());
         } else if (!Objects.equals(o1.getLedgerId(), o2.getLedgerId())) {

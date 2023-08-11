@@ -69,12 +69,13 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
         // Check every broker and select
         loadData.getBrokerData().forEach((broker, brokerData) -> {
-
             final LocalBrokerData localData = brokerData.getLocalData();
             final double currentUsage = localData.getMaxResourceUsage();
             if (currentUsage < overloadThreshold) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Broker is not overloaded, ignoring at this point ({})", broker,
+                    log.debug(
+                            "[{}] Broker is not overloaded, ignoring at this point ({})",
+                            broker,
                             localData.printResourceUsage());
                 }
                 return;
@@ -90,7 +91,10 @@ public class OverloadShedder implements LoadSheddingStrategy {
             log.info(
                     "Attempting to shed load on {}, which has resource usage {}% above threshold {}%"
                             + " -- Offloading at least {} MByte/s of traffic ({})",
-                    broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024,
+                    broker,
+                    100 * currentUsage,
+                    100 * overloadThreshold,
+                    minimumThroughputToOffload / 1024 / 1024,
                     localData.printResourceUsage());
 
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);
@@ -101,39 +105,42 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 // make up for at least the minimum throughput to offload
 
                 loadData.getBundleDataForLoadShedding().entrySet().stream()
-                    .filter(e -> localData.getBundles().contains(e.getKey()))
-                    .map((e) -> {
-                        // Map to throughput value
-                        // Consider short-term byte rate to address system resource burden
-                        String bundle = e.getKey();
-                        BundleData bundleData = e.getValue();
-                        TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                        double throughput = shortTermData.getMsgThroughputIn() + shortTermData
-                                .getMsgThroughputOut();
-                    return Pair.of(bundle, throughput);
-                }).filter(e -> {
-                    // Only consider bundles that were not already unloaded recently
-                    return !recentlyUnloadedBundles.containsKey(e.getLeft());
-                }).sorted((e1, e2) -> {
-                    // Sort by throughput in reverse order
-                    return Double.compare(e2.getRight(), e1.getRight());
-                }).forEach(e -> {
-                    if (trafficMarkedToOffload.doubleValue() < minimumThroughputToOffload
-                            || atLeastOneBundleSelected.isFalse()) {
-                       selectedBundlesCache.put(broker, e.getLeft());
-                       trafficMarkedToOffload.add(e.getRight());
-                       atLeastOneBundleSelected.setTrue();
-                   }
-                });
+                        .filter(e -> localData.getBundles().contains(e.getKey()))
+                        .map((e) -> {
+                            // Map to throughput value
+                            // Consider short-term byte rate to address system resource burden
+                            String bundle = e.getKey();
+                            BundleData bundleData = e.getValue();
+                            TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                            double throughput =
+                                    shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+                            return Pair.of(bundle, throughput);
+                        })
+                        .filter(e -> {
+                            // Only consider bundles that were not already unloaded recently
+                            return !recentlyUnloadedBundles.containsKey(e.getLeft());
+                        })
+                        .sorted((e1, e2) -> {
+                            // Sort by throughput in reverse order
+                            return Double.compare(e2.getRight(), e1.getRight());
+                        })
+                        .forEach(e -> {
+                            if (trafficMarkedToOffload.doubleValue() < minimumThroughputToOffload
+                                    || atLeastOneBundleSelected.isFalse()) {
+                                selectedBundlesCache.put(broker, e.getLeft());
+                                trafficMarkedToOffload.add(e.getRight());
+                                atLeastOneBundleSelected.setTrue();
+                            }
+                        });
             } else if (localData.getBundles().size() == 1) {
                 log.warn(
                         "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
                                 + "No Load Shedding will be done on this broker",
-                        localData.getBundles().iterator().next(), broker);
+                        localData.getBundles().iterator().next(),
+                        broker);
             } else {
                 log.warn("Broker {} is overloaded despite having no bundles", broker);
             }
-
         });
 
         return selectedBundlesCache;

@@ -70,5 +70,4 @@ public interface TransactionEntry extends Entry, AutoCloseable {
      */
     @Override
     void close();
-
 }

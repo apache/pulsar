@@ -40,8 +40,8 @@ public class MultiTopicConsumerStatsRecorderImpl extends ConsumerStatsRecorderIm
         super(consumer);
     }
 
-    public MultiTopicConsumerStatsRecorderImpl(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf,
-            Consumer<?> consumer) {
+    public MultiTopicConsumerStatsRecorderImpl(
+            PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf, Consumer<?> consumer) {
         super(pulsarClient, conf, consumer);
     }
 

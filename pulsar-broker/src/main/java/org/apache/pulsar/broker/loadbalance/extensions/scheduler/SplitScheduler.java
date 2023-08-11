@@ -70,13 +70,14 @@ public class SplitScheduler implements LoadManagerScheduler {
 
     private long counterLastUpdatedAt = 0;
 
-    public SplitScheduler(PulsarService pulsar,
-                          ServiceUnitStateChannel serviceUnitStateChannel,
-                          SplitManager splitManager,
-                          SplitCounter counter,
-                          AtomicReference<List<Metrics>> splitMetrics,
-                          LoadManagerContext context,
-                          NamespaceBundleSplitStrategy bundleSplitStrategy) {
+    public SplitScheduler(
+            PulsarService pulsar,
+            ServiceUnitStateChannel serviceUnitStateChannel,
+            SplitManager splitManager,
+            SplitCounter counter,
+            AtomicReference<List<Metrics>> splitMetrics,
+            LoadManagerContext context,
+            NamespaceBundleSplitStrategy bundleSplitStrategy) {
         this.pulsar = pulsar;
         this.loadManagerExecutor = pulsar.getLoadManagerExecutor();
         this.splitManager = splitManager;
@@ -88,13 +89,20 @@ public class SplitScheduler implements LoadManagerScheduler {
         this.serviceUnitStateChannel = serviceUnitStateChannel;
     }
 
-    public SplitScheduler(PulsarService pulsar,
-                          ServiceUnitStateChannel serviceUnitStateChannel,
-                          SplitManager splitManager,
-                          SplitCounter counter,
-                          AtomicReference<List<Metrics>> splitMetrics,
-                          LoadManagerContext context) {
-        this(pulsar, serviceUnitStateChannel, splitManager, counter, splitMetrics, context,
+    public SplitScheduler(
+            PulsarService pulsar,
+            ServiceUnitStateChannel serviceUnitStateChannel,
+            SplitManager splitManager,
+            SplitCounter counter,
+            AtomicReference<List<Metrics>> splitMetrics,
+            LoadManagerContext context) {
+        this(
+                pulsar,
+                serviceUnitStateChannel,
+                splitManager,
+                counter,
+                splitMetrics,
+                context,
                 new DefaultNamespaceBundleSplitStrategyImpl(counter));
     }
 
@@ -102,8 +110,10 @@ public class SplitScheduler implements LoadManagerScheduler {
     public void execute() {
         boolean debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
         if (debugMode) {
-            log.info("Load balancer enabled: {}, Split enabled: {}.",
-                    conf.isLoadBalancerEnabled(), conf.isLoadBalancerAutoBundleSplitEnabled());
+            log.info(
+                    "Load balancer enabled: {}, Split enabled: {}.",
+                    conf.isLoadBalancerEnabled(),
+                    conf.isLoadBalancerAutoBundleSplitEnabled());
         }
 
         if (!isLoadBalancerAutoBundleSplitEnabled()) {
@@ -125,18 +135,16 @@ public class SplitScheduler implements LoadManagerScheduler {
                 for (SplitDecision decision : decisions) {
                     if (decision.getLabel() == Success) {
                         var split = decision.getSplit();
-                        futures.add(
-                                splitManager.waitAsync(
-                                        serviceUnitStateChannel.publishSplitEventAsync(split),
-                                        split.serviceUnit(),
-                                        decision,
-                                        asyncOpTimeoutMs, TimeUnit.MILLISECONDS)
-                        );
+                        futures.add(splitManager.waitAsync(
+                                serviceUnitStateChannel.publishSplitEventAsync(split),
+                                split.serviceUnit(),
+                                decision,
+                                asyncOpTimeoutMs,
+                                TimeUnit.MILLISECONDS));
                     }
                 }
                 try {
-                    FutureUtil.waitForAll(futures)
-                            .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
+                    FutureUtil.waitForAll(futures).get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
                 } catch (Throwable e) {
                     log.error("Failed to wait for split events to persist.", e);
                 }
@@ -155,23 +163,26 @@ public class SplitScheduler implements LoadManagerScheduler {
 
     @Override
     public void start() {
-        long interval = TimeUnit.MINUTES
-                .toMillis(conf.getLoadBalancerSplitIntervalMinutes());
-        task = loadManagerExecutor.scheduleAtFixedRate(() -> {
-            try {
-                execute();
-                var debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
-                if (debugMode) {
-                    StringJoiner joiner = new StringJoiner("\n");
-                    joiner.add("### OwnershipEntrySet start ###");
-                    serviceUnitStateChannel.getOwnershipEntrySet().forEach(e -> joiner.add(e.toString()));
-                    joiner.add("### OwnershipEntrySet end ###");
-                    log.info(joiner.toString());
-                }
-            } catch (Throwable e) {
-                log.error("Failed to run the split job.", e);
-            }
-        }, interval, interval, TimeUnit.MILLISECONDS);
+        long interval = TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSplitIntervalMinutes());
+        task = loadManagerExecutor.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        execute();
+                        var debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
+                        if (debugMode) {
+                            StringJoiner joiner = new StringJoiner("\n");
+                            joiner.add("### OwnershipEntrySet start ###");
+                            serviceUnitStateChannel.getOwnershipEntrySet().forEach(e -> joiner.add(e.toString()));
+                            joiner.add("### OwnershipEntrySet end ###");
+                            log.info(joiner.toString());
+                        }
+                    } catch (Throwable e) {
+                        log.error("Failed to run the split job.", e);
+                    }
+                },
+                interval,
+                interval,
+                TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -185,5 +196,4 @@ public class SplitScheduler implements LoadManagerScheduler {
     private boolean isLoadBalancerAutoBundleSplitEnabled() {
         return conf.isLoadBalancerEnabled() && conf.isLoadBalancerAutoBundleSplitEnabled();
     }
-
 }

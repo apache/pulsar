@@ -39,20 +39,37 @@ public class NettyServerSslContextBuilder extends SslContextAutoRefreshBuilder<S
     protected final boolean tlsRequireTrustedClientCertOnConnect;
     protected final SslProvider sslProvider;
 
-    public NettyServerSslContextBuilder(boolean allowInsecure, String trustCertsFilePath,
-                                        String certificateFilePath,
-                                        String keyFilePath, Set<String> ciphers, Set<String> protocols,
-                                        boolean requireTrustedClientCertOnConnect,
-                                        long delayInSeconds) {
-        this(null, allowInsecure, trustCertsFilePath, certificateFilePath, keyFilePath, ciphers, protocols,
-                requireTrustedClientCertOnConnect, delayInSeconds);
+    public NettyServerSslContextBuilder(
+            boolean allowInsecure,
+            String trustCertsFilePath,
+            String certificateFilePath,
+            String keyFilePath,
+            Set<String> ciphers,
+            Set<String> protocols,
+            boolean requireTrustedClientCertOnConnect,
+            long delayInSeconds) {
+        this(
+                null,
+                allowInsecure,
+                trustCertsFilePath,
+                certificateFilePath,
+                keyFilePath,
+                ciphers,
+                protocols,
+                requireTrustedClientCertOnConnect,
+                delayInSeconds);
     }
 
-    public NettyServerSslContextBuilder(SslProvider sslProvider, boolean allowInsecure, String trustCertsFilePath,
-                                        String certificateFilePath,
-                                        String keyFilePath, Set<String> ciphers, Set<String> protocols,
-                                        boolean requireTrustedClientCertOnConnect,
-                                        long delayInSeconds) {
+    public NettyServerSslContextBuilder(
+            SslProvider sslProvider,
+            boolean allowInsecure,
+            String trustCertsFilePath,
+            String certificateFilePath,
+            String keyFilePath,
+            Set<String> ciphers,
+            Set<String> protocols,
+            boolean requireTrustedClientCertOnConnect,
+            long delayInSeconds) {
         super(delayInSeconds);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
@@ -67,11 +84,15 @@ public class NettyServerSslContextBuilder extends SslContextAutoRefreshBuilder<S
     @Override
     public synchronized SslContext update()
             throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
-        this.sslNettyContext =
-                SecurityUtility.createNettySslContextForServer(this.sslProvider, tlsAllowInsecureConnection,
-                        tlsTrustCertsFilePath.getFileName(), tlsCertificateFilePath.getFileName(),
-                        tlsKeyFilePath.getFileName(),
-                        tlsCiphers, tlsProtocols, tlsRequireTrustedClientCertOnConnect);
+        this.sslNettyContext = SecurityUtility.createNettySslContextForServer(
+                this.sslProvider,
+                tlsAllowInsecureConnection,
+                tlsTrustCertsFilePath.getFileName(),
+                tlsCertificateFilePath.getFileName(),
+                tlsKeyFilePath.getFileName(),
+                tlsCiphers,
+                tlsProtocols,
+                tlsRequireTrustedClientCertOnConnect);
         return this.sslNettyContext;
     }
 
@@ -82,7 +103,7 @@ public class NettyServerSslContextBuilder extends SslContextAutoRefreshBuilder<S
 
     @Override
     public boolean needUpdate() {
-        return  tlsTrustCertsFilePath.checkAndRefresh()
+        return tlsTrustCertsFilePath.checkAndRefresh()
                 || tlsCertificateFilePath.checkAndRefresh()
                 || tlsKeyFilePath.checkAndRefresh();
     }

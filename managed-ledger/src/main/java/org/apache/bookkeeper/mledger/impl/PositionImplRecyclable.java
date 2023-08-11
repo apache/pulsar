@@ -46,5 +46,4 @@ public class PositionImplRecyclable extends PositionImpl implements Position {
         ackSet = null;
         recyclerHandle.recycle(this);
     }
-
 }
