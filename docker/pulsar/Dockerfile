@@ -86,6 +86,7 @@ COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
 # This script is intentionally run as the root user to make the dependencies available for all UIDs.
+RUN chmod +x /pulsar/bin/install-pulsar-client.sh
 RUN /pulsar/bin/install-pulsar-client.sh
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
