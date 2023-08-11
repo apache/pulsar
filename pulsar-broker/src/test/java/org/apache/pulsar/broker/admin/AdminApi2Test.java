@@ -2096,6 +2096,32 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testUpdateClusterServiceUrl() throws Exception {
+        String clusterName = "test_cluster";
+        clusterDataImpl initialCluster = new clusterDataImpl();
+        initialCluster.setServiceUrl("http://example.com");
+        admin.clusters().createCluster(clusterName, initialCluster);
+        clusterDataImpl updatedCluster = new clusterDataImpl();
+        updatedCluster.setServiceUrl("http://new-example.com");
+        admin.clusters().updateCluster(clusterName, updatedCluster);
+        clusterDataImpl retrievedCluster = (ClusterDataImpl) admin.clusters().getCluster(ClusterName);
+        Assert.assertEquals(retrievedCluster.getServiceUrl(), updatedCluster.getServiceUrl());
+    }
+
+    @Test
+    public void testUpdateClusterBrokerServiceUrl() throws Exception {
+        String clusterName = "test_cluster";
+        clusterDataImpl initialCluster = new clusterDataImpl();
+        initialCluster.setBrokerServiceUrl("pulsar://broker.example.com:6650");
+        admin.clusters().createCluster(clusterName, initialCluster);
+        clusterDataImpl updatedCluster = new clusterDataImpl();
+        updatedCluster.setBrokerServiceUrl("pulsar://new-broker.example.com:6650");
+        admin.clusters().updateCluster(clusterName, updatedCluster);
+        clusterDataImpl retrievedCluster = (ClusterDataImpl) admin.clusters().getCluster(ClusterName);
+        Assert.assertEquals(retrievedCluster.getBrokerServiceUrl(), updatedCluster.getBrokerServiceUrl());
+    }
+
+    @Test
     public void testMaxNamespacesPerTenant() throws Exception {
         restartClusterAfterTest();
         cleanup();
