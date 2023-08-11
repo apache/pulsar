@@ -53,6 +53,7 @@
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <mockito.version>3.12.4</mockito.version>
+    <spotless.version>2.36.0</spotless.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -226,6 +227,29 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <java>
+            <palantirJavaFormat>
+              <version>2.30.0</version>
+            </palantirJavaFormat>
+            <!-- static imports first, then others, no blank lines  -->
+            <importOrder>
+              <order>\#|</order>
+            </importOrder>
+            <removeUnusedImports/>
+            <trimTrailingWhitespace/>
+            <endWithNewline/>
+            <indent>
+              <spaces>true</spaces>
+              <spacesPerTab>4</spacesPerTab>
+            </indent>
+          </java>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.rat</groupId>

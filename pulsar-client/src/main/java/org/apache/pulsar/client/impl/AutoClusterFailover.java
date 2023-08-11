@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -333,6 +334,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             return this;
         }
 
+        @SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
         @Override
         public ServiceUrlProvider build() {
             Objects.requireNonNull(primary, "primary service url shouldn't be null");

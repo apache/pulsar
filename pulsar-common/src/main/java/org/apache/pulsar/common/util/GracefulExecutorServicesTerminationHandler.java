@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -152,6 +153,7 @@ class GracefulExecutorServicesTerminationHandler {
         }
     }
 
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED")
     private void waitUntilShutdownWaitingThreadIsCompleted() {
         try {
             shutdownThreadCompletedLatch.await(terminationTimeout.toNanos()

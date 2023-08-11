@@ -49,11 +49,7 @@
     <suppress checks=".*" files="BitSetRecyclable.java"/>
     <!-- pulsar io -->
     <suppress checks="RegexpSinglelineJava" files="KafkaConnectData.java"/>
-    <suppress checks="LineLength" files="KafkaConnectData.java"/>
     <suppress checks="RegexpSinglelineJava" files="KafkaConnectSink.java"/>
-    <!-- pulsar io es -->
-    <suppress checks="LineLength" files="ElasticSearchConfig.java"/>
-    <suppress checks="LineLength" files="ElasticSearchClient.java"/>
     <!-- pulsar io flume -->
     <suppress checks="RegexpSingleline" files="Application.java"/>
     <suppress checks="RegexpSinglelineJava" files="AbstractConfigurationProvider.java"/>
@@ -69,8 +65,6 @@
     <!-- pulsar io influxdb -->
     <suppress checks="RegexpSinglelineJava" files="InfluxDBSinkConfig.java"/>
     <!-- pulsar io kinesis -->
-    <suppress checks="LineLength" files="KinesisSinkConfig.java"/>
-    <suppress checks="LineLength" files="KinesisSink.java"/>
     <suppress checks=".*" files=".+[\\/]org[\\/]apache[\\/]pulsar[\\/]io[\\/]kinesis[\\/]fbs[\\/].+.java"/>
     <!-- pulsar io mongo -->
     <suppress checks="RegexpSinglelineJava" files="MongoSink.java"/>

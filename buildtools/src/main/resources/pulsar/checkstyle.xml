@@ -28,30 +28,6 @@ what the following rules do, please see the checkstyle configuration
 page at http://checkstyle.sourceforge.net/config.html -->
 
 <module name="Checker">
-    <!--
-
-    LENGTH and CODING CHECKS
-
-    -->
-
-    <module name="LineLength">
-        <!-- Checks if a line is too long. -->
-        <property name="max" value="120"/>
-        <property name="severity" value="error"/>
-
-        <!-- Checks only for Java files. -->
-        <property name="fileExtensions" value="java"/>
-
-        <!--
-          The default ignore pattern exempts the following elements:
-            - import statements
-            - long URLs inside comments
-        -->
-
-        <property name="ignorePattern"
-                  value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
-    </module>
-
     <!-- Required to support SuppressWarningsComment -->
     <!--    <module name="FileContentsHolder"/>-->
 

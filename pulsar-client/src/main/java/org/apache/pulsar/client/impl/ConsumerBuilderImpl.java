@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -186,6 +187,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return topics(Arrays.stream(topicNames).collect(Collectors.toList()));
     }
 
+    @SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
     @Override
     public ConsumerBuilder<T> topics(List<String> topicNames) {
         checkArgument(topicNames != null && !topicNames.isEmpty(),

@@ -285,6 +285,7 @@ flexible messaging model and an intuitive client API.</description>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.5.0</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <spotless.version>2.36.0</spotless.version>
     <git-commit-id-plugin.version>4.9.10</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
@@ -1511,6 +1512,28 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
       <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <java>
+            <palantirJavaFormat>
+              <version>2.30.0</version>
+            </palantirJavaFormat>
+            <!-- static imports first, then others, no blank lines  -->
+            <importOrder>
+              <order>\#|</order>
+            </importOrder>
+            <removeUnusedImports/>
+            <trimTrailingWhitespace/>
+            <endWithNewline/>
+            <indent>
+              <spaces>true</spaces>
+              <spacesPerTab>4</spacesPerTab>
+            </indent>
+          </java>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
@@ -2005,6 +2028,11 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>docker-maven-plugin</artifactId>
           <version>${docker-maven.version}</version>
         </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <extensions>
@@ -2428,6 +2456,13 @@ flexible messaging model and an intuitive client API.</description>
                 <phase>none</phase>
               </execution>
             </executions>
+          </plugin>
+          <plugin>
+            <groupId>com.diffplug.spotless</groupId>
+            <artifactId>spotless-maven-plugin</artifactId>
+            <configuration>
+              <skip>true</skip>
+            </configuration>
           </plugin>
         </plugins>
       </build>
