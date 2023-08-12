@@ -44,6 +44,10 @@ public class RawBatchConverter {
     public static boolean isReadableBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+        return isReadableBatch(metadata);
+    }
+
+    public static boolean isReadableBatch(MessageMetadata metadata) {
         return metadata.hasNumMessagesInBatch() && metadata.getEncryptionKeysCount() == 0;
     }
 

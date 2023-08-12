@@ -127,21 +127,30 @@ public class TwoPhaseCompactor extends Compactor {
                 boolean deletedMessage = false;
                 boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                if (RawBatchConverter.isReadableBatch(m)) {
+                MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+                if (RawBatchConverter.isReadableBatch(metadata)) {
                     try {
+                        int numMessagesInBatch = metadata.getNumMessagesInBatch();
+                        int deleteCnt = 0;
                         for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(m)) {
+                             boolean singleDeletedMessage = false;
+                             boolean singleReplaceMessage = false;
                             if (e != null) {
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
-                                    replaceMessage = old != null;
+                                    singleReplaceMessage = old != null;
                                 } else {
-                                    deletedMessage = true;
+                                    singleDeletedMessage = true;
                                     latestForKey.remove(e.getMiddle());
+                                    deleteCnt++;
                                 }
                             }
-                            if (replaceMessage || deletedMessage) {
+                            if (singleDeletedMessage || singleReplaceMessage) {
                                 mxBean.addCompactionRemovedEvent(reader.getTopic());
                             }
+                        }
+                        if (deleteCnt == numMessagesInBatch) {
+                            deletedMessage = true;
                         }
                     } catch (IOException ioe) {
                         log.info("Error decoding batch for message {}. Whole batch will be included in output",
@@ -162,14 +171,14 @@ public class TwoPhaseCompactor extends Compactor {
                         mxBean.addCompactionRemovedEvent(reader.getTopic());
                     }
                 }
-                MessageId first = firstMessageId.orElse(id);
+                MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
                 MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                 if (id.compareTo(lastMessageId) == 0) {
-                    loopPromise.complete(new PhaseOneResult(first, to == null ? id : to,
+                    loopPromise.complete(new PhaseOneResult(first == null ? id : first, to == null ? id : to,
                             lastMessageId, latestForKey));
                 } else {
                     phaseOneLoop(reader,
-                            Optional.of(first),
+                            Optional.ofNullable(first),
                             Optional.ofNullable(to),
                             lastMessageId,
                             latestForKey, loopPromise);
