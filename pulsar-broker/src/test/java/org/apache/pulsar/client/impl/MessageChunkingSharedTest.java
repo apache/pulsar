@@ -246,14 +246,20 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         msgIdGenerator.setAccessible(true);
         assertEquals(msg.getSequenceId() + 1, msgIdGenerator.get(partProducer));
 
-        long sequenceID = (long) msgIdGenerator.get(partProducer) + 1024L;
-        String message2 = "b".repeat(messageSize * 1000);
-        partProducer.newMessage().value(message2).sequenceId(sequenceID).send();
+        String message2 = "b".repeat(messageSize * 2);
+        partProducer.newMessage().value(message2).send();
         Message<String> msg2 = consumer.receive(5, TimeUnit.SECONDS);
-        assertNotNull(msg2);
-        assertTrue(msg2.getMessageId() instanceof ChunkMessageIdImpl);
+        assertFalse(msg2.getMessageId() instanceof ChunkMessageIdImpl);
         assertEquals(msg2.getValue(), message2);
-        assertEquals(msg2.getSequenceId(), sequenceID);
+
+        long sequenceID = (long) msgIdGenerator.get(partProducer) + 1024L;
+        String message3 = "c".repeat(messageSize * 1000);
+        partProducer.newMessage().value(message3).sequenceId(sequenceID).send();
+        Message<String> msg3 = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg3);
+        assertTrue(msg3.getMessageId() instanceof ChunkMessageIdImpl);
+        assertEquals(msg3.getValue(), message3);
+        assertEquals(msg3.getSequenceId(), sequenceID);
     }
 
     private static void sendNonChunk(final PersistentTopic persistentTopic,
