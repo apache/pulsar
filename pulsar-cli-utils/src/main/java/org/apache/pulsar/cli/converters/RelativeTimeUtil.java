@@ -23,9 +23,6 @@ import java.math.RoundingMode;
 import java.util.concurrent.TimeUnit;
 import lombok.experimental.UtilityClass;
 
-/**
- * Mirror of {@link org.apache.pulsar.common.util.RelativeTimeUtil}.
- */
 @UtilityClass
 public class RelativeTimeUtil {
     public static long parseRelativeTimeInSeconds(String relativeTime) {
