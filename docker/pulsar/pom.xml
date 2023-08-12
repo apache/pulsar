@@ -47,63 +47,65 @@
     </dependency>
   </dependencies>
 
+  <properties>
+    <UBUNTU_MIRROR>mirror://mirrors.ubuntu.com/mirrors.txt</UBUNTU_MIRROR>
+    <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
+  </properties>
+
   <profiles>
+    <profile>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/../../.git/index</missing>
+        </file>
+      </activation>
+      <properties>
+        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
+      </properties>
+    </profile>
     <profile>
       <id>docker</id>
       <build>
         <plugins>
           <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
             <executions>
               <execution>
                 <id>default</id>
+                <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-version</id>
-                <goals>
                   <goal>tag</goal>
                 </goals>
                 <configuration>
-                  <repository>pulsar</repository>
-                  <tag>${project.version}</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
-                <configuration>
-                  <repository>pulsar</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>tag-and-push-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-                <configuration>
-                  <repository>${docker.organization}/pulsar</repository>
-                  <tag>latest</tag>
+                  <images>
+                    <image>
+                      <name>${docker.organization}/pulsar</name>
+                      <build>
+                        <args>
+                          <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
+                          <PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</PULSAR_CLIENT_PYTHON_VERSION>
+                          <UBUNTU_MIRROR>${UBUNTU_MIRROR}</UBUNTU_MIRROR>
+                          <UBUNTU_SECURITY_MIRROR>${UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
+                        </args>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
+                        </tags>
+                        <buildx>
+                          <platforms>
+                            <platform></platform>
+                          </platforms>
+                        </buildx>
+                      </build>
+                    </image>
+                  </images>
                 </configuration>
               </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar</repository>
-              <pullNewerImage>false</pullNewerImage>
-              <tag>${project.version}</tag>
-              <buildArgs>
-                <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
-                <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
-              </buildArgs>
-            </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
@@ -126,5 +128,29 @@
         </plugins>
       </build>
     </profile>
+
+    <profile>
+      <id>docker-push</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>default</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>build</goal>
+                  <goal>tag</goal>
+                  <goal>push</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
 </project>
