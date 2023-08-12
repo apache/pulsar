@@ -19,8 +19,8 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping.METADATA_STORE_INSTANCE;
+import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -166,12 +166,12 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             String secondaryIsolationGroupString = ConfigurationStringUtil
                     .castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
             if (!primaryIsolationGroupString.isEmpty()) {
-                pair.setLeft(new HashSet<>(Arrays.asList(primaryIsolationGroupString.split(","))));
+                pair.setLeft(Sets.newHashSet(primaryIsolationGroupString.split(",")));
             } else {
                 pair.setLeft(Collections.emptySet());
             }
             if (!secondaryIsolationGroupString.isEmpty()) {
-                pair.setRight(new HashSet<>(Arrays.asList(secondaryIsolationGroupString.split(","))));
+                pair.setRight(Sets.newHashSet(secondaryIsolationGroupString.split(",")));
             } else {
                 pair.setRight(Collections.emptySet());
             }
