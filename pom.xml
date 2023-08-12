@@ -80,6 +80,8 @@ flexible messaging model and an intuitive client API.</description>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
 
+    <pulsar.client.python.version>3.2.0</pulsar.client.python.version>
+
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>

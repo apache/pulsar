@@ -85,6 +85,9 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
+ARG PULSAR_CLIENT_PYTHON_VERSION
+ENV PULSAR_CLIENT_PYTHON_VERSION ${PULSAR_CLIENT_PYTHON_VERSION}
+
 # This script is intentionally run as the root user to make the dependencies available for all UIDs.
 RUN chmod +x /pulsar/bin/install-pulsar-client.sh
 RUN /pulsar/bin/install-pulsar-client.sh

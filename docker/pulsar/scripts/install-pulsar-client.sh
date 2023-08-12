@@ -22,4 +22,4 @@ set -x
 
 PYTHON_MAJOR_MINOR=$(python3 -V | sed -E 's/.* ([[:digit:]]+)\.([[:digit:]]+).*/\1\2/')
 WHEEL_FILE=$(ls /pulsar/pulsar-client | grep "cp${PYTHON_MAJOR_MINOR}")
-pip3 install /pulsar/pulsar-client/${WHEEL_FILE}[all]
+pip3 install pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}
