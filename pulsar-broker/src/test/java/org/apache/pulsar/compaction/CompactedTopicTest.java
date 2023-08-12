@@ -23,6 +23,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
@@ -62,6 +64,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -839,5 +842,69 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(reader.hasMessageAvailable());
         Assert.assertEquals(reader.readNext().getMessageId(), lastMessage.get());
+    }
+
+    @Test
+    public void testCompactWithConcurrentGetCompactionHorizonAndCompactedTopicContext() throws Exception {
+        BookKeeper bk0 = pulsar.getBookKeeperClientFactory().create(
+                this.conf, null, null, Optional.empty(), null);
+
+        final BookKeeper bk = Mockito.spy(bk0);
+
+        Mockito.doAnswer(invocation -> {
+            Thread.sleep(1500);
+            invocation.callRealMethod();
+            return null;
+        }).when(bk).asyncOpenLedger(Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
+        LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        oldCompactedLedger.close();
+        LedgerHandle newCompactedLedger = bk.createLedger(1, 1,
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        newCompactedLedger.close();
+
+        CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
+
+        PositionImpl oldHorizon = new PositionImpl(1, 2);
+        var future = CompletableFuture.supplyAsync(() -> {
+            // set the compacted topic ledger
+            return compactedTopic.newCompactedLedger(oldHorizon, oldCompactedLedger.getId());
+        });
+        Thread.sleep(500);
+
+        Optional<Position> compactionHorizon = compactedTopic.getCompactionHorizon();
+        CompletableFuture<CompactedTopicContext> compactedTopicContext =
+                compactedTopic.getCompactedTopicContextFuture();
+
+        if (compactedTopicContext != null) {
+            Assert.assertEquals(compactionHorizon.get(), oldHorizon);
+            Assert.assertNotNull(compactedTopicContext);
+            Assert.assertEquals(compactedTopicContext.join().ledger.getId(), oldCompactedLedger.getId());
+        } else {
+            Assert.assertTrue(compactionHorizon.isEmpty());
+        }
+
+        future.join();
+
+        PositionImpl newHorizon = new PositionImpl(1, 3);
+        var future2 = CompletableFuture.supplyAsync(() -> {
+            // update the compacted topic ledger
+            return compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId());
+        });
+        Thread.sleep(500);
+
+        compactionHorizon = compactedTopic.getCompactionHorizon();
+        compactedTopicContext = compactedTopic.getCompactedTopicContextFuture();
+
+        if (compactedTopicContext.join().ledger.getId() == newCompactedLedger.getId()) {
+            Assert.assertEquals(compactionHorizon.get(), newHorizon);
+        } else {
+            Assert.assertEquals(compactionHorizon.get(), oldHorizon);
+        }
+
+        future2.join();
     }
 }
