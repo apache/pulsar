@@ -77,6 +77,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -109,6 +110,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -1216,6 +1218,56 @@ public class BrokerServiceTest extends BrokerTestBase {
                 }
             }
         }
+    }
+
+    @Test
+    public void testCheckInactiveSubscriptionsShouldNotDeleteCompactionCursor() throws Exception {
+        String namespace = "prop/test";
+
+        // set up broker disable auto create and set concurrent load to 1 qps.
+        cleanup();
+        conf.setBrokerServiceCompactionThresholdInBytes(8);
+        setup();
+
+        try {
+            admin.namespaces().createNamespace(namespace);
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok.. (if test fails intermittently and namespace is already created)
+        }
+
+        String compactionInactiveTestTopic = "persistent://prop/test/testCompactionCursorShouldNotDelete";
+
+        admin.topics().createNonPartitionedTopic(compactionInactiveTestTopic);
+
+        CompletableFuture<Optional<Topic>> topicCf =
+                pulsar.getBrokerService().getTopic(compactionInactiveTestTopic, true);
+
+        Optional<Topic> topicOptional = topicCf.get();
+        assertTrue(topicOptional.isPresent());
+
+        PersistentTopic topic = (PersistentTopic) topicOptional.get();
+
+        PersistentSubscription sub = (PersistentSubscription) topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION);
+        assertNotNull(sub);
+
+        topic.checkCompaction();
+
+        Field currentCompaction = PersistentTopic.class.getDeclaredField("currentCompaction");
+        currentCompaction.setAccessible(true);
+        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>)currentCompaction.get(topic);
+
+        compactionFuture.get();
+
+        Thread.sleep(2000);
+
+        // this operation is async delete
+        topic.checkInactiveSubscriptionsWithExpirationTime(1000);
+
+        // wait for async delete finish
+        Thread.sleep(2000);
+
+        assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
+
     }
 
     /**
