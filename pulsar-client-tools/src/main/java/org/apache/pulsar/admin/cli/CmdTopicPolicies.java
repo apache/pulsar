@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
+import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.base.Strings;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -1764,24 +1767,24 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = {"-m", "--maxBlockSizeInBytes"},
                 description = "ManagedLedger offload max block Size in bytes,"
                         + "s3 and google-cloud-storage requires this parameter")
-        private int maxBlockSizeInBytes;
+        private int maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
 
         @Parameter(names = {"-rb", "--readBufferSizeInBytes"},
                 description = "ManagedLedger offload read buffer size in bytes,"
                         + "s3 and google-cloud-storage requires this parameter")
-        private int readBufferSizeInBytes;
+        private int readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
         @Parameter(names = {"-t", "--offloadThresholdInBytes"}
-                , description = "ManagedLedger offload threshold in bytes", required = true)
-        private long offloadThresholdInBytes;
+                , description = "ManagedLedger offload threshold in bytes")
+        private Long offloadThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
 
         @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
                 , description = "ManagedLedger offload threshold in seconds")
-        private Long offloadThresholdInSeconds;
+        private Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
 
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")
-        private Long offloadDeletionLagInMillis;
+        private Long offloadDeletionLagInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
 
         @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
@@ -1798,9 +1801,37 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
+        public final List<String> driverNames = OffloadPoliciesImpl.DRIVER_NAMES;
+
+        public boolean driverSupported(String driver) {
+            return driverNames.stream().anyMatch(d -> d.equalsIgnoreCase(driver));
+        }
+
+        public boolean isS3Driver(String driver) {
+            if (StringUtils.isEmpty(driver)) {
+                return false;
+            }
+            return driver.equalsIgnoreCase(driverNames.get(0)) || driver.equalsIgnoreCase(driverNames.get(1));
+        }
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
+
+            if (!driverSupported(driver)) {
+                throw new ParameterException("The driver " + driver + " is not supported, "
+                        + "(Possible values: " + String.join(",", driverNames) + ").");
+            }
+
+            if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+                throw new ParameterException(
+                        "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
+                                + " if s3 offload enabled");
+            }
+            positiveCheck("maxBlockSizeInBytes", maxBlockSizeInBytes);
+            maxValueCheck("maxBlockSizeInBytes", maxBlockSizeInBytes, Integer.MAX_VALUE);
+            positiveCheck("readBufferSizeInBytes", readBufferSizeInBytes);
+            maxValueCheck("readBufferSizeInBytes", readBufferSizeInBytes, Integer.MAX_VALUE);
 
             OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
 
