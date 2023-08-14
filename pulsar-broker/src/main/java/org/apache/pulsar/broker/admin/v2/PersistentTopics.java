@@ -380,6 +380,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Offload policies for the specified topic") OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
+            .thenAccept(__ -> validateOffloadPolicies(offloadPolicies))
             .thenCompose(__ -> internalSetOffloadPolicies(offloadPolicies, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
