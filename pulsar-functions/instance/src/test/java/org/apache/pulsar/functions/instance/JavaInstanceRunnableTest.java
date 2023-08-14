@@ -257,7 +257,6 @@ public class JavaInstanceRunnableTest {
         }
     }
 
-
     public static class ConnectorTestConfig1 {
         public String field1;
     }
