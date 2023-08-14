@@ -48,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -95,6 +96,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
+@Slf4j
 public class CompactionTest extends MockedPulsarServiceBaseTest {
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
@@ -532,6 +534,61 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
             Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
         }
+    }
+
+    @Test
+    public void testBatchMessageWithNullValue() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-topic1";
+
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .receiverQueueSize(1).readCompacted(true).subscribe().close();
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .maxPendingMessages(3)
+            .enableBatching(true)
+            .batchingMaxMessages(3)
+            .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create()
+        ) {
+            // batch 1
+            producer.newMessage().key("key1").value("my-message-1".getBytes()).sendAsync();
+            producer.newMessage().key("key1").value(null).sendAsync();
+            producer.newMessage().key("key2").value("my-message-3".getBytes()).send();
+
+            // batch 2
+            producer.newMessage().key("key3").value("my-message-4".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-message-5".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-message-6".getBytes()).send();
+
+            // batch 3
+            producer.newMessage().key("key4").value("my-message-7".getBytes()).sendAsync();
+            producer.newMessage().key("key4").value(null).sendAsync();
+            producer.newMessage().key("key5").value("my-message-9".getBytes()).send();
+        }
+
+
+        // compact the topic
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // Read messages before compaction to get ids
+        List<Message<byte[]>> messages = new ArrayList<>();
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+             .subscriptionName("sub1").receiverQueueSize(1).readCompacted(true).subscribe()) {
+            while (true) {
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+                if (message ==  null) {
+                    break;
+                }
+                messages.add(message);
+            }
+        }
+
+        assertEquals(messages.size(), 3);
+        assertEquals(messages.get(0).getKey(), "key2");
+        assertEquals(messages.get(1).getKey(), "key3");
+        assertEquals(messages.get(2).getKey(), "key5");
     }
 
     @Test
