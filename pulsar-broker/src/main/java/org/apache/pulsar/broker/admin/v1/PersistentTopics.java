@@ -41,6 +41,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -322,13 +323,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .exceptionally(ex -> {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!isRedirectException(t)) {
-                        if (t instanceof RestException && ((RestException) t).getResponse().getStatus()
-                                == Response.Status.NOT_FOUND.getStatusCode()) {
+                        if (AdminResource.isNotFoundException(t)) {
                             log.error("[{}] Failed to get partitioned metadata topic {}: {}",
                                     clientAppId(), topicName, ex.getMessage());
                         } else {
                             log.error("[{}] Failed to get partitioned metadata topic {}",
-                                    clientAppId(), topicName, ex);
+                                    clientAppId(), topicName, t);
                         }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
