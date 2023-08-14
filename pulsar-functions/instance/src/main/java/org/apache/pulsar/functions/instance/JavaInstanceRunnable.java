@@ -917,9 +917,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             return config;
         }
 
-        if (instanceConfig.isInterpolateSecretsIntoConfigMap()) {
-            interpolateSecretsIntoConfigs(secretsProvider, config);
-        }
+        interpolateSecretsIntoConfigs(secretsProvider, config);
 
         if (instanceConfig.isIgnoreUnknownConfigFields() && componentClassLoader instanceof NarClassLoader) {
             final String configClassName;

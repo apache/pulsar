@@ -222,7 +222,6 @@ public class FunctionActioner {
             instanceConfig.setAdditionalJavaRuntimeArguments(workerConfig.getAdditionalJavaRuntimeArguments());
         }
         instanceConfig.setIgnoreUnknownConfigFields(workerConfig.isIgnoreUnknownConfigFields());
-        instanceConfig.setInterpolateSecretsIntoConfigMap(workerConfig.isInterpolateSecretsIntoConfigMap());
         return instanceConfig;
     }
 

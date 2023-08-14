@@ -749,17 +749,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean ignoreUnknownConfigFields = false;
 
-    @FieldContext(
-            category = CATEGORY_CONNECTORS,
-            doc = "Whether to interpolate secrets into the connector's configuration. Only affects Sinks and Sources."
-                    + " Applies to all connectors deployed by this function worker."
-                    + " When true, the SecretsProvider will recursively interpolate secrets into the connector's "
-                    + " configuration. See the SecretsProvider implementation for additional details."
-                    + " In the event of a key collision, the sink or source configuration will take precedence."
-                    + " Defaults to false."
-    )
-    private boolean interpolateSecretsIntoConfigMap = false;
-
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }

@@ -158,16 +158,6 @@ public class JavaInstanceStarter implements AutoCloseable {
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
 
-    @Parameter(names = "--interpolate_secrets_into_config_map", arity = 1,
-            description = "Whether to interpolate secrets into the connector's configuration. Only affects Sinks and"
-                    + " Sources. Applies to all connectors deployed by this function worker."
-                    + " When true, the SecretsProvider will recursively interpolate secrets into the connector's "
-                    + " configuration. See the SecretsProvider implementation for additional details."
-                    + " In the event of a key collision, the sink or source configuration will take precedence."
-                    + " Defaults to false.",
-            required = false)
-    public boolean interpolateSecretsIntoConfigMap = false;
-
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -196,7 +186,6 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
-        instanceConfig.setInterpolateSecretsIntoConfigMap(interpolateSecretsIntoConfigMap);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
