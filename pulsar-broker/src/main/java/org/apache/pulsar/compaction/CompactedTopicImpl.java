@@ -69,14 +69,16 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     @Override
     public CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId) {
-        CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
-        compactedTopicContext = openCompactedLedger(bk, compactedLedgerId);
+        synchronized (this) {
+            CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
+            compactedTopicContext = openCompactedLedger(bk, compactedLedgerId);
 
-        compactionHorizon = (PositionImpl) p;
+            compactionHorizon = (PositionImpl) p;
 
-        // delete the ledger from the old context once the new one is open
-        return compactedTopicContext.thenCompose(__ ->
-                previousContext != null ? previousContext : CompletableFuture.completedFuture(null));
+            // delete the ledger from the old context once the new one is open
+            return compactedTopicContext.thenCompose(
+                    __ -> previousContext != null ? previousContext : CompletableFuture.completedFuture(null));
+        }
     }
 
     @Override
