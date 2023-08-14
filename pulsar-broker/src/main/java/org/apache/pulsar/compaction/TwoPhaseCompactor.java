@@ -133,20 +133,17 @@ public class TwoPhaseCompactor extends Compactor {
                         int numMessagesInBatch = metadata.getNumMessagesInBatch();
                         int deleteCnt = 0;
                         for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(m)) {
-                             boolean singleDeletedMessage = false;
-                             boolean singleReplaceMessage = false;
                             if (e != null) {
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
-                                    singleReplaceMessage = old != null;
+                                    if (old != null) {
+                                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                                    }
                                 } else {
-                                    singleDeletedMessage = true;
                                     latestForKey.remove(e.getMiddle());
                                     deleteCnt++;
+                                    mxBean.addCompactionRemovedEvent(reader.getTopic());
                                 }
-                            }
-                            if (singleDeletedMessage || singleReplaceMessage) {
-                                mxBean.addCompactionRemovedEvent(reader.getTopic());
                             }
                         }
                         if (deleteCnt == numMessagesInBatch) {
