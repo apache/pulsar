@@ -42,10 +42,20 @@ public class RawBatchConverter {
     public static boolean isReadableBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+        return isReadableBatch(metadata);
+    }
+
+    public static boolean isReadableBatch(MessageMetadata metadata) {
         return metadata.hasNumMessagesInBatch() && metadata.getEncryptionKeysCount() == 0;
     }
 
     public static List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSize(RawMessage msg)
+        throws IOException {
+        return extractIdsAndKeysAndSize(msg, true);
+    }
+
+    public static List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSize(RawMessage msg,
+                                                                                             boolean extractNullKey)
             throws IOException {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
@@ -69,7 +79,7 @@ public class RawBatchConverter {
                                                   msg.getMessageIdData().getEntryId(),
                                                   msg.getMessageIdData().getPartition(),
                                                   i);
-            if (!smm.isCompactedOut()) {
+            if (!smm.isCompactedOut() && (extractNullKey || smm.hasPartitionKey())) {
                 idsAndKeysAndSize.add(ImmutableTriple.of(id,
                         smm.hasPartitionKey() ? smm.getPartitionKey() : null,
                         smm.hasPayloadSize() ? smm.getPayloadSize() : 0));
