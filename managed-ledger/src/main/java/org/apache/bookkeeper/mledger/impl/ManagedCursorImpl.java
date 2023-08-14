@@ -2154,7 +2154,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
 
         if (State.NoLedger.equals(STATE_UPDATER.get(this))) {
-            persistPositionMetaStore(mdEntry, cb);
+            persistPositionToMetaStore(mdEntry, cb);
         } else {
             persistPositionToLedger(cursorLedger, mdEntry, cb);
         }
@@ -3079,12 +3079,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                 STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
 
                 // Before giving up, try to persist the position in the metadata store.
-                persistPositionMetaStore(mdEntry, callback);
+                persistPositionToMetaStore(mdEntry, callback);
             }
         }, null);
     }
 
-    void persistPositionMetaStore(MarkDeleteEntry mdEntry, final VoidCallback callback) {
+    void persistPositionToMetaStore(MarkDeleteEntry mdEntry, final VoidCallback callback) {
         final PositionImpl newPosition = mdEntry.newPosition;
         STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
         mbean.persistToLedger(false);
