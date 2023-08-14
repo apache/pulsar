@@ -203,8 +203,6 @@ public class JavaInstanceRunnableTest {
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }
 
-
-
     @Test
     public void testSourceConfigParsingPreservesOriginalType() throws Exception {
         final Map<String, Object> parsedConfig = JavaInstanceRunnable.augmentAndFilterConnectorConfig(

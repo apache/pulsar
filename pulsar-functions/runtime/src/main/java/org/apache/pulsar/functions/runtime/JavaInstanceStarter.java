@@ -158,6 +158,7 @@ public class JavaInstanceStarter implements AutoCloseable {
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
 
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
