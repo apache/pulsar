@@ -286,6 +286,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Mock cursor ledger write failed.
         bkc.addEntryFailAfter(0, BKException.Code.NoBookieAvailableException);
         // Trigger a failed writing of the cursor ledger, then wait the stat of cursor to be "NoLedger".
+        // This time ZK will be written due to a failure to write BK.
         cursor.markDelete(positions.get(1));
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cursor.getState(), "NoLedger");
@@ -297,6 +298,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Mock cursor ledger create failed.
         bkc.failNow(BKException.Code.NoBookieAvailableException);
         // Verify the cursor status will be persistent to ZK even if the cursor ledger creation always fails.
+        // This time ZK will be written due to catch up.
         Position lastEntry = positions.get(entryCount -1);
         cursor.markDelete(lastEntry);
         long persistZookeeperSucceed2 = cursor.getStats().getPersistZookeeperSucceed();
