@@ -21,10 +21,8 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,9 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
-
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -47,7 +43,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -665,7 +660,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         producer.newMessage().key("k").value(("value").getBytes()).send();
         producer.newMessage().key("k").value(null).send();
-        pulsar.getCompactor().compact(topic).get();
+        ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor().compact(topic).get();
 
         Awaitility.await()
                 .pollInterval(3, TimeUnit.SECONDS)

@@ -202,7 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <hadoop2.version>2.10.2</hadoop2.version>
     <hadoop3.version>3.3.5</hadoop3.version>
     <hbase.version>2.4.16</hbase.version>
-    <guava.version>32.0.0-jre</guava.version>
+    <guava.version>32.1.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>6.2.8</confluent.version>
@@ -869,14 +869,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-core</artifactId>
         <version>${swagger.version}</version>
-        <scope>provided</scope>
       </dependency>
 
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-annotations</artifactId>
         <version>${swagger.version}</version>
-        <scope>provided</scope>
       </dependency>
 
       <dependency>
@@ -1852,34 +1850,6 @@ flexible messaging model and an intuitive client API.</description>
             </execution>
         </executions>
       </plugin>
-      <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-assembly-plugin</artifactId>
-          <version>${maven-assembly-plugin.version}</version>
-          <inherited>false</inherited>
-          <executions>
-              <execution>
-                  <id>source-release-assembly-tar-gz</id>
-                  <phase>generate-sources</phase>
-                  <goals>
-                      <goal>single</goal>
-                  </goals>
-                  <configuration>
-                      <skipAssembly>${skipSourceReleaseAssembly}</skipAssembly>
-                      <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
-                      <descriptors>
-                        <descriptor>src/assembly-source-package.xml</descriptor>
-                      </descriptors>
-                      <finalName>apache-pulsar-${project.version}-src</finalName>
-                      <appendAssemblyId>false</appendAssemblyId>
-                      <formats>
-                          <format>tar.gz</format>
-                      </formats>
-                      <tarLongFileMode>posix</tarLongFileMode>
-                  </configuration>
-              </execution>
-          </executions>
-      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -2221,6 +2191,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-client-all</module>
+        <module>pulsar-docs-tools</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-testclient</module>
@@ -2283,6 +2254,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-tools</module>
         <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
+        <module>pulsar-docs-tools</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-testclient</module>

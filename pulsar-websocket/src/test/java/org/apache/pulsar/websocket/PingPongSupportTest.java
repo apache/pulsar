@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.websocket;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.server.Server;
@@ -40,11 +43,18 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
+import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class PingPongHandlerTest {
+/**
+ * Test to ensure {@link AbstractWebSocketHandler} has ping/pong support
+ */
+public class PingPongSupportTest {
 
     private static Server server;
 
@@ -67,9 +77,9 @@ public class PingPongHandlerTest {
         when(config.getWebSocketMaxTextFrameSize()).thenReturn(1048576);
         when(config.getWebSocketSessionIdleTimeoutMillis()).thenReturn(300000);
 
-        ServletHolder servletHolder = new ServletHolder("ws-events", new WebSocketPingPongServlet(service));
+        ServletHolder servletHolder = new ServletHolder("ws-events", new GenericWebSocketServlet(service));
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath(WebSocketPingPongServlet.SERVLET_PATH);
+        context.setContextPath("/ws");
         context.addServlet(servletHolder, "/*");
         server.setHandler(context);
         try {
@@ -87,16 +97,58 @@ public class PingPongHandlerTest {
         executor.stop();
     }
 
-    @Test
-    public void testPingPong() throws Exception {
+    /**
+     * We test these different endpoints because they are parsed in the AbstractWebSocketHandler. Technically, we are
+     * not testing these implementations, but the ping/pong support is guaranteed as part of the framework.
+     */
+    @DataProvider(name = "endpoint")
+    public static Object[][] cacheEnable() {
+        return new Object[][] { { "producer" }, { "consumer" }, { "reader" } };
+    }
+
+    @Test(dataProvider = "endpoint")
+    public void testPingPong(String endpoint) throws Exception {
         HttpClient httpClient = new HttpClient();
         WebSocketClient webSocketClient = new WebSocketClient(httpClient);
         webSocketClient.start();
         MyWebSocket myWebSocket = new MyWebSocket();
-        String webSocketUri = "ws://localhost:8080/ws/pingpong";
+        String webSocketUri = "ws://localhost:8080/ws/v2/" + endpoint + "/persistent/my-property/my-ns/my-topic";
         Future<Session> sessionFuture = webSocketClient.connect(myWebSocket, URI.create(webSocketUri));
         sessionFuture.get().getRemote().sendPing(ByteBuffer.wrap("test".getBytes()));
         assertTrue(myWebSocket.getResponse().contains("test"));
+    }
+
+    public static class GenericWebSocketHandler extends AbstractWebSocketHandler {
+
+        public GenericWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+            super(service, request, response);
+        }
+
+        @Override
+        protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+            return true;
+        }
+
+        @Override
+        public void close() throws IOException {
+
+        }
+    }
+
+    public static class GenericWebSocketServlet extends WebSocketServlet {
+
+        private static final long serialVersionUID = 1L;
+        private final WebSocketService service;
+
+        public GenericWebSocketServlet(WebSocketService service) {
+            this.service = service;
+        }
+
+        @Override
+        public void configure(WebSocketServletFactory factory) {
+            factory.setCreator((request, response) ->
+                    new GenericWebSocketHandler(service, request.getHttpServletRequest(), response));
+        }
     }
 
     @WebSocket

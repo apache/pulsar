@@ -54,6 +54,9 @@ java ../RemoveJksPassword.java broker.truststore.jks 111111 broker.truststore.no
 java ../RemoveJksPassword.java proxy.truststore.jks 111111 proxy.truststore.nopassword.jks
 java ../RemoveJksPassword.java proxy-and-client.truststore.jks 111111 proxy-and-client.truststore.nopassword.jks
 
+# write broker truststore to pem file for use in http client as a ca cert
+keytool -keystore broker.truststore.jks -exportcert -alias truststore | openssl x509 -inform der -text > broker.truststore.pem
+
 # cleanup
 rm broker.cer
 rm client.cer

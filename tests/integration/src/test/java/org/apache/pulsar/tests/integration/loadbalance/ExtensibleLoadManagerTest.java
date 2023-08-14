@@ -163,6 +163,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         for (int i = 1; i < admins.size(); i++) {
             assertEquals(result.get(i - 1), result.get(i));
         }
+        admins.forEach(a -> a.close());
+        executor.shutdown();
     }
 
     @Test(timeOut = 30 * 1000)

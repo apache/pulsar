@@ -1356,7 +1356,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Enable or disable the broker interceptor"
+        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
     )
     private boolean disableBrokerInterceptors = true;
 
@@ -1653,6 +1653,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "kerberos kinit command."
     )
     private String kinitCommand = "/usr/bin/kinit";
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "how often the broker expires the inflight SASL context."
+    )
+    private long inflightSaslContextExpiryMs = 30_000L;
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Maximum number of inflight sasl context."
+    )
+    private long maxInflightSaslContext = 50_000L;
 
     /**** --- BookKeeper Client. --- ****/
     @FieldContext(

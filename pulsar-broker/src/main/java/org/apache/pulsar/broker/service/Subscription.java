@@ -30,7 +30,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 
-public interface Subscription {
+public interface Subscription extends MessageExpirer {
 
     BrokerInterceptor interceptor();
 
@@ -83,10 +83,6 @@ public interface Subscription {
     CompletableFuture<Void> resetCursor(Position position);
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
-
-    boolean expireMessages(int messageTTLInSeconds);
-
-    boolean expireMessages(Position position);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 

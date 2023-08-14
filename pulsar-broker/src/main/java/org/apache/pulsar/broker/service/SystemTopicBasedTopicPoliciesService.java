@@ -30,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -220,12 +221,25 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             NamespaceName namespace = topicName.getNamespaceObject();
             prepareInitPoliciesCache(namespace, new CompletableFuture<>());
         }
-        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
-                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
-            throw new TopicPoliciesCacheNotInitException();
+
+        MutablePair<TopicPoliciesCacheNotInitException, TopicPolicies> result = new MutablePair<>();
+        policyCacheInitMap.compute(topicName.getNamespaceObject(), (k, initialized) -> {
+            if (initialized == null || !initialized) {
+                result.setLeft(new TopicPoliciesCacheNotInitException());
+            } else {
+                TopicPolicies topicPolicies =
+                        isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
+                                : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+                result.setRight(topicPolicies);
+            }
+            return initialized;
+        });
+
+        if (result.getLeft() != null) {
+            throw result.getLeft();
+        } else {
+            return result.getRight();
         }
-        return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
-                : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override
@@ -388,7 +402,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
-        policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+
         if (cleanOwnedBundlesCount) {
             ownedBundlesCountPerNamespace.remove(namespace);
         }
@@ -399,7 +413,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         return null;
                     });
         }
-        policyCacheInitMap.remove(namespace);
+
+        policyCacheInitMap.compute(namespace, (k, v) -> {
+            policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+            return null;
+        });
     }
 
     private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {

@@ -49,14 +49,14 @@ public class BrokerLoadManagerClassFilterTest extends BrokerFilterTestBase {
                 "broker5", getLookupData("3.0.0", null)
         );
 
-        Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(originalBrokers), null, context).get();
+        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
         assertEquals(result, Map.of(
                 "broker1", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName()),
                 "broker2", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName())
         ));
 
         context.brokerConfiguration().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        result = filter.filter(new HashMap<>(originalBrokers), null, context).get();
+        result = filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
 
         assertEquals(result, Map.of(
                 "broker3", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),

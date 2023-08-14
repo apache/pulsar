@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.docs.tools;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.Parameters;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import lombok.Getter;
@@ -145,11 +146,15 @@ public class CmdGenerateDocs {
             sb.append("|Flag|Description|Default|\n");
             sb.append("|---|---|---|\n");
             List<ParameterDescription> options = cmd.getParameters();
-            options.forEach((option) ->
-                    sb.append("| `").append(option.getNames())
-                            .append("` | ").append(option.getDescription().replace("\n", " "))
-                            .append("|").append(option.getDefault()).append("|\n")
-            );
+            options.stream().sorted(Comparator.comparing(ParameterDescription::getLongestName))
+                    .forEach((option) ->
+                            sb.append("| `")
+                                    .append(option.getNames())
+                                    .append("` | ")
+                                    .append(option.getDescription().replace("\n", " "))
+                                    .append("|")
+                                    .append(option.getDefault()).append("|\n")
+                    );
         }
         return sb.toString();
     }

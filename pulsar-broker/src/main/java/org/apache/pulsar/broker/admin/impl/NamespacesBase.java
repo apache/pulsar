@@ -233,14 +233,14 @@ public abstract class NamespacesBase extends AdminResource {
                                     }))
                             .thenCompose(topics -> {
                                 List<String> allTopics = topics.get(0);
-                                ArrayList<String> allUserCreatedTopics = new ArrayList<>();
+                                Set<String> allUserCreatedTopics = new HashSet<>();
                                 List<String> allPartitionedTopics = topics.get(1);
-                                ArrayList<String> allUserCreatedPartitionTopics = new ArrayList<>();
+                                Set<String> allUserCreatedPartitionTopics = new HashSet<>();
                                 boolean hasNonSystemTopic = false;
-                                List<String> allSystemTopics = new ArrayList<>();
-                                List<String> allPartitionedSystemTopics = new ArrayList<>();
-                                List<String> topicPolicy = new ArrayList<>();
-                                List<String> partitionedTopicPolicy = new ArrayList<>();
+                                Set<String> allSystemTopics = new HashSet<>();
+                                Set<String> allPartitionedSystemTopics = new HashSet<>();
+                                Set<String> topicPolicy = new HashSet<>();
+                                Set<String> partitionedTopicPolicy = new HashSet<>();
                                 for (String topic : allTopics) {
                                     if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                                         hasNonSystemTopic = true;
@@ -279,6 +279,12 @@ public abstract class NamespacesBase extends AdminResource {
                                         return old;
                                     });
                                 }
+                                allUserCreatedTopics.removeIf(t ->
+                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
+                                allSystemTopics.removeIf(t ->
+                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
+                                topicPolicy.removeIf(t ->
+                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
                                 return markDeleteFuture.thenCompose(__ ->
                                                 internalDeleteTopicsAsync(allUserCreatedTopics))
                                         .thenCompose(ignore ->
@@ -348,7 +354,7 @@ public abstract class NamespacesBase extends AdminResource {
         return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
     }
 
-    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
+    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(Set<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -362,7 +368,7 @@ public abstract class NamespacesBase extends AdminResource {
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames) {
+    private CompletableFuture<Void> internalDeleteTopicsAsync(Set<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -2307,28 +2313,6 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to remove offload configuration for namespace {}", clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
-        }
-    }
-
-    private void validateOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
-        if (offloadPolicies == null) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The offloadPolicies must be specified for namespace offload.");
-        }
-        if (!offloadPolicies.driverSupported()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: "
-                            + "driver is not supported, support value: {}",
-                    clientAppId(), namespaceName, OffloadPoliciesImpl.getSupportedDriverNames());
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The driver is not supported, support value: " + OffloadPoliciesImpl.getSupportedDriverNames());
-        }
-        if (!offloadPolicies.bucketValid()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The bucket must be specified for namespace offload.");
         }
     }
 

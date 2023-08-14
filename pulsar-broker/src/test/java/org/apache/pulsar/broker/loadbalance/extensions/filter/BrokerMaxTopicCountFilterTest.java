@@ -60,7 +60,7 @@ public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
                 "broker4", getLookupData()
         );
         Map<String, BrokerLookupData> result =
-                filter.filter(new HashMap<>(originalBrokers), null, context).get();
+                filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
         assertEquals(result, Map.of(
                 "broker2", getLookupData(),
                 "broker4", getLookupData()

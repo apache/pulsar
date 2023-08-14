@@ -22,12 +22,14 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiPredicate;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -59,7 +61,6 @@ import org.slf4j.LoggerFactory;
 public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
-    protected static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
     private final Duration phaseOneLoopReadTimeout;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
@@ -128,8 +129,7 @@ public class TwoPhaseCompactor extends Compactor {
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
-                        for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
-                                .extractIdsAndKeysAndSize(m)) {
+                        for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(m)) {
                             if (e != null) {
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
@@ -238,7 +238,7 @@ public class TwoPhaseCompactor extends Compactor {
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
-                        messageToAdd = RawBatchConverter.rebatchMessage(
+                        messageToAdd = rebatchMessage(
                                 m, (key, subid) -> subid.equals(latestForKey.get(key)));
                     } catch (IOException ioe) {
                         log.info("Error decoding batch for message {}. Whole batch will be included in output",
@@ -386,7 +386,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private static Pair<String, Integer> extractKeyAndSize(RawMessage m) {
+    protected Pair<String, Integer> extractKeyAndSize(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         if (msgMetadata.hasPartitionKey()) {
@@ -398,6 +398,16 @@ public class TwoPhaseCompactor extends Compactor {
         } else {
             return null;
         }
+    }
+
+    protected List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSizeFromBatch(RawMessage msg)
+            throws IOException {
+        return RawBatchConverter.extractIdsAndKeysAndSize(msg);
+    }
+
+    protected Optional<RawMessage> rebatchMessage(RawMessage msg, BiPredicate<String, MessageId> filter)
+            throws IOException {
+        return RawBatchConverter.rebatchMessage(msg, filter);
     }
 
     private static class PhaseOneResult {

@@ -772,16 +772,26 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset",
                     topicName, subName);
 
-            try {
-                boolean forceReset = false;
-                if (topic.getCompactedTopic() != null && topic.getCompactedTopic().getCompactionHorizon().isPresent()) {
-                    PositionImpl horizon = (PositionImpl) topic.getCompactedTopic().getCompactionHorizon().get();
+            CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
+            if (topic.getTopicCompactionService() == null) {
+                forceReset.complete(false);
+            } else {
+                topic.getTopicCompactionService().getLastCompactedPosition().thenAccept(lastCompactedPosition -> {
                     PositionImpl resetTo = (PositionImpl) finalPosition;
-                    if (horizon.compareTo(resetTo) >= 0) {
-                        forceReset = true;
+                    if (lastCompactedPosition != null && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
+                            lastCompactedPosition.getEntryId()) <= 0) {
+                        forceReset.complete(true);
+                    } else {
+                        forceReset.complete(false);
                     }
-                }
-                cursor.asyncResetCursor(finalPosition, forceReset, new AsyncCallbacks.ResetCursorCallback() {
+                }).exceptionally(ex -> {
+                    forceReset.completeExceptionally(ex);
+                    return null;
+                });
+            }
+
+            forceReset.thenAccept(forceResetValue -> {
+                cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {
                         if (log.isDebugEnabled()) {
@@ -811,11 +821,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         }
                     }
                 });
-            } catch (Exception e) {
+            }).exceptionally((e) -> {
                 log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                 future.completeExceptionally(new BrokerServiceException(e));
-            }
+                return null;
+            });
         });
     }
 

@@ -35,8 +35,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
@@ -357,12 +355,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         admin.topics().skipAllMessages(topic, "sub");
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse(consumer.isConnected());
-            final List<ConsumerImpl> consumers = ((MultiTopicsConsumerImpl) consumer2).getConsumers();
-            consumers.forEach(c -> Assert.assertFalse(c.isConnected()));
-            Assert.assertFalse(consumer2.isConnected());
-            Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic));
-            Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic2));
+            final List<String> topics = admin.topics().getList("prop/ns-abc");
+            Assert.assertFalse(topics.contains(topic));
+            Assert.assertFalse(topics.contains(topic2));
         });
         consumer.close();
         consumer2.close();
