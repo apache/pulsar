@@ -120,7 +120,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
-                                                         startPoint + numberOfEntriesToRead);
+                                                         startPoint + (numberOfEntriesToRead - 1));
                                 if (startPoint == NEWER_THAN_COMPACTED) {
                                     cursor.seek(compactionHorizon.getNext());
                                     callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
