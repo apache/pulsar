@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -151,6 +152,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         final int numMessages = 1000;
         final int maxKeys = 10;
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -176,6 +178,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testCompactAddCompact() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -213,6 +216,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testCompactedInOrder() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -263,6 +267,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testCompactedWithConcurrentSend() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testCompactedWithConcurrentSend";
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
