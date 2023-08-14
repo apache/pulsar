@@ -53,6 +53,10 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Note: If you want to guarantee that strong consistency between `compactionHorizon` and `compactedTopicContext`,
+ * you need to call getting them method in "synchronized(CompactedTopicImpl){ ... }" lock block.
+ */
 public class CompactedTopicImpl implements CompactedTopic {
     static final long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
     static final long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
