@@ -127,22 +127,28 @@ public class TwoPhaseCompactor extends Compactor {
                 boolean deletedMessage = false;
                 boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                if (RawBatchConverter.isReadableBatch(m)) {
+                MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+                if (RawBatchConverter.isReadableBatch(metadata)) {
                     try {
+                        int numMessagesInBatch = metadata.getNumMessagesInBatch();
+                        int deleteCnt = 0;
                         for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
-                                .extractIdsAndKeysAndSize(m)) {
+                                .extractIdsAndKeysAndSize(m, false)) {
                             if (e != null) {
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
-                                    replaceMessage = old != null;
+                                    if (old != null) {
+                                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                                    }
                                 } else {
-                                    deletedMessage = true;
                                     latestForKey.remove(e.getMiddle());
+                                    deleteCnt++;
+                                    mxBean.addCompactionRemovedEvent(reader.getTopic());
                                 }
                             }
-                            if (replaceMessage || deletedMessage) {
-                                mxBean.addCompactionRemovedEvent(reader.getTopic());
-                            }
+                        }
+                        if (deleteCnt == numMessagesInBatch) {
+                            deletedMessage = true;
                         }
                     } catch (IOException ioe) {
                         log.info("Error decoding batch for message {}. Whole batch will be included in output",
