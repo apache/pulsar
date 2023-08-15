@@ -576,9 +576,9 @@ public class Consumer {
                 ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             }
 
-            if (checkCanRemovePendingAcksAndHandle(position, msgId)) {
-                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-            }
+            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+
+            checkCanRemovePendingAcksAndHandle(position, msgId);
 
             checkAckValidationError(ack, position);
 

@@ -1683,6 +1683,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .subscriptionName("sub-1")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
                 .subscribe();
         producer.send("1".getBytes(StandardCharsets.UTF_8));
         Message<byte[]> message = consumer1.receive();
