@@ -23,6 +23,7 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.api.proto.CompressionType;
 
 /**
  * Class represent single message to be published.
@@ -69,4 +70,12 @@ public class ProducerMessage {
 
     // Base64 encoded serialized schema for payload
     public String valueSchema;
+
+    public String encryptionParam;
+
+    public CompressionType compressionType;
+
+    public Integer uncompressedMessageSize;
+
+    public Integer batchSize;
 }

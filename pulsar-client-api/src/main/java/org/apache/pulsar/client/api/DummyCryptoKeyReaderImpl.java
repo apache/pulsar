@@ -16,24 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.websocket.data;
+package org.apache.pulsar.client.api;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import java.util.Map;
-import org.apache.pulsar.common.api.EncryptionContext;
 
-@JsonInclude(Include.NON_NULL)
-public class ConsumerMessage {
-    public String messageId;
-    public String payload;
-    public Map<String, String> properties;
-    public String publishTime;
-    public int redeliveryCount;
-    public String eventTime;
+public class DummyCryptoKeyReaderImpl implements CryptoKeyReader {
 
-    public EncryptionContext encryptionContext;
+    public static final DummyCryptoKeyReaderImpl INSTANCE = new DummyCryptoKeyReaderImpl();
 
-    public String key;
-    // TODO support ackSet in the future.
+    private DummyCryptoKeyReaderImpl(){}
+
+    @Override
+    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata) {
+        return null;
+    }
+
+    @Override
+    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata) {
+        return null;
+    }
 }

@@ -25,10 +25,13 @@ import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFrom
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
@@ -38,20 +41,25 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.DummyCryptoKeyReaderImpl;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.common.api.proto.EncryptionKeys;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.apache.pulsar.websocket.service.WSSDummyMessageCryptoImpl;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
 import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -76,6 +84,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private final LongAdder numBytesSent;
     private final StatsBuckets publishLatencyStatsUSec;
     private volatile long msgPublishedCounter = 0;
+    private boolean clientSideEncrypt;
     private static final AtomicLongFieldUpdater<ProducerHandler> MSG_PUBLISHED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ProducerHandler.class, "msgPublishedCounter");
 
@@ -98,6 +107,12 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
         try {
             this.producer = getProducerBuilder(service.getPulsarClient()).topic(topic.toString()).create();
+            if (clientSideEncrypt) {
+                log.info("[{}] [{}] The producer session is created with param encryptionKeyValues, which means that"
+                                + " message encryption will be done on the client side, then the server will skip "
+                                + "batch message processing, message compression processing, and message encryption"
+                                + " processing", producer.getTopic(), producer.getProducerName());
+            }
             if (!this.service.addProducer(this)) {
                 log.warn("[{}:{}] Failed to add producer handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -159,7 +174,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         final long msgSize = rawPayload.length;
-        TypedMessageBuilder<byte[]> builder = producer.newMessage();
+        TypedMessageBuilderImpl<byte[]> builder = (TypedMessageBuilderImpl<byte[]>) producer.newMessage();
 
         try {
             builder.value(rawPayload);
@@ -192,6 +207,30 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             builder.deliverAfter(sendRequest.deliverAfterMs, TimeUnit.MILLISECONDS);
         }
 
+        // If client-side encryption is enabled, the attributes "encryptParam", "uncompressedMessageSize",
+        // "uncompressedMessageSize" and "batchSize" of message metadata must be set according to the parameters
+        // when the client sends messages.
+        if (clientSideEncrypt) {
+            try {
+                if (!StringUtils.isBlank(sendRequest.encryptionParam)) {
+                    builder.getMetadataBuilder().setEncryptionParam(Base64.getDecoder()
+                            .decode(sendRequest.encryptionParam));
+                }
+            } catch (Exception e){
+                String msg = format("Invalid Base64 encryptionParam error=%s", e.getMessage());
+                sendAckResponse(new ProducerAck(PayloadEncodingError, msg, null, requestContext));
+                return;
+            }
+            if (sendRequest.compressionType != null && sendRequest.uncompressedMessageSize != null) {
+                // Set compression information.
+                builder.getMetadataBuilder().setCompression(sendRequest.compressionType);
+                builder.getMetadataBuilder().setUncompressedSize(sendRequest.uncompressedMessageSize);
+            }
+            if (sendRequest.batchSize != null) {
+                builder.getMetadataBuilder().setNumMessagesInBatch(sendRequest.batchSize);
+            }
+        }
+
         final long now = System.nanoTime();
 
         builder.sendAsync().thenAccept(msgId -> {
@@ -206,7 +245,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             }
         }).exceptionally(exception -> {
             log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
-                    getRemote().getInetSocketAddress().toString(), exception.getMessage());
+                    getRemote().getInetSocketAddress().toString(), exception.getMessage(), exception);
             numMsgsFailed.increment();
             sendAckResponse(
                     new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
@@ -315,23 +354,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             builder.sendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
         }
 
-        if (queryParams.containsKey("batchingEnabled")) {
-            builder.enableBatching(Boolean.parseBoolean(queryParams.get("batchingEnabled")));
-        }
-
-        if (queryParams.containsKey("batchingMaxMessages")) {
-            builder.batchingMaxMessages(Integer.parseInt(queryParams.get("batchingMaxMessages")));
-        }
-
-        if (queryParams.containsKey("maxPendingMessages")) {
-            builder.maxPendingMessages(Integer.parseInt(queryParams.get("maxPendingMessages")));
-        }
-
-        if (queryParams.containsKey("batchingMaxPublishDelay")) {
-            builder.batchingMaxPublishDelay(Integer.parseInt(queryParams.get("batchingMaxPublishDelay")),
-                    TimeUnit.MILLISECONDS);
-        }
-
         if (queryParams.containsKey("messageRoutingMode")) {
             checkArgument(
                     Enums.getIfPresent(MessageRoutingMode.class, queryParams.get("messageRoutingMode")).isPresent(),
@@ -339,6 +361,111 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             MessageRoutingMode routingMode = MessageRoutingMode.valueOf(queryParams.get("messageRoutingMode"));
             if (!MessageRoutingMode.CustomPartition.equals(routingMode)) {
                 builder.messageRoutingMode(routingMode);
+            }
+        }
+
+        if (queryParams.containsKey("encryptionKeyValues")) {
+            popularProducerBuilderForClientSideEncrypt(builder);
+        } else {
+            popularProducerBuilderForServerSideEncrypt(builder);
+        }
+        return builder;
+    }
+
+    private void popularProducerBuilderForClientSideEncrypt(ProducerBuilder<byte[]> builder) {
+        this.clientSideEncrypt = true;
+        final String keyMetadataParamsStr = queryParams.get("encryptionKeyMetadata");
+        final String[] keyDataParams = queryParams.get("encryptionKeyValues").split(",");
+        final String[] keyMetadataParams = keyMetadataParamsStr == null ? null
+                : keyMetadataParamsStr.split(",");
+        final String[] keyNameArr = queryParams.get("encryptionKeys").split(",");
+
+        // Check params length.
+        checkArgument(keyNameArr.length > 0,
+                String.format("Invalid encryptionKeys %s", queryParams.get("encryptionKeys")));
+        checkArgument(keyNameArr.length == keyDataParams.length,
+                "The count of encryptionKeys and encryptionKeyValues are not equal.");
+
+        // Defer params decoded.
+        final List<KeyValue>[] keyMetadataArr = new ArrayList[keyNameArr.length];
+        final byte[][] keyDadaArr = new byte[keyNameArr.length][];
+
+        try {
+            // Check and decode params.
+            for (int i = 0; i < keyNameArr.length; i++) {
+                // Check and trim params.
+                keyNameArr[i] = StringUtils.trim(keyNameArr[i]);
+                keyDataParams[i] = StringUtils.trim(keyDataParams[i]);
+                checkArgument(!StringUtils.isBlank(keyNameArr[i]),
+                        String.format("There is an blank encryptionKey %s", queryParams.get("encryptionKeys")));
+                checkArgument(!StringUtils.isBlank(keyDataParams[i]),
+                        String.format("There is an blank encryptionValue %s", queryParams.get("encryptionKeys")));
+                if (keyMetadataParams != null && StringUtils.isNoneBlank(keyMetadataParams[i])) {
+                    keyMetadataParams[i] = StringUtils.trim(keyMetadataParams[i]);
+                }
+                // Decode params.
+                try {
+                    keyDadaArr[i] = Base64.getDecoder().decode(keyDataParams[i]);
+                    keyMetadataParams[i] = new String(Base64.getDecoder().decode(keyMetadataParams[i]),
+                            StandardCharsets.UTF_8);
+                } catch (Exception base64DecodeEx) {
+                    log.error("Could not base64 decode the param encryptionKeyValues or encryptionKeyMetadata",
+                            base64DecodeEx);
+                    throw new IllegalArgumentException(
+                            "Could not base64 decode the param encryptionKeyValues or encryptionKeyMetadata");
+                }
+                if (keyMetadataParams != null && StringUtils.isNoneBlank(keyMetadataParams[i])) {
+                    keyMetadataArr[i] = ObjectMapperFactory.getMapper().getObjectMapper()
+                            .readValue(keyMetadataParams[i], new TypeReference<List<KeyValue>>() {
+                            });
+                } else {
+                    keyMetadataArr[i] = Collections.emptyList();
+                }
+                // Add encrypt key.
+                builder.addEncryptionKey(keyNameArr[i]);
+            }
+        } catch (JsonProcessingException jsonProcessingException) {
+            log.error("The parameter encryptionKeyMetadata is not a correct json", jsonProcessingException);
+            throw new IllegalArgumentException("The parameter encryptionKeyMetadata is not a correct json");
+        }
+        // Disable server-side batch process, compression, and encryption, and only set the message metadata that
+        // which client-side provided.
+        builder.enableBatching(false);
+        builder.compressionType(CompressionType.NONE);
+        builder.cryptoKeyReader(DummyCryptoKeyReaderImpl.INSTANCE);
+        // Inject encryption metadata decorator.
+        builder.messageCrypto(new WSSDummyMessageCryptoImpl(msgMetadata -> {
+            for (int i = 0; i < keyNameArr.length; i++) {
+                msgMetadata.addEncryptionKey().setKey(keyNameArr[i]).setValue(keyDadaArr[i])
+                        .addAllMetadatas(keyMetadataArr[i]);
+            }
+        }));
+        // Do warning param check and print warning log.
+        printWarnLogIfSettingBatchedParams();
+        printWarnLogIfSettingCompressionParams();
+    }
+
+    private void popularProducerBuilderForServerSideEncrypt(ProducerBuilder<byte[]> builder) {
+        this.clientSideEncrypt = false;
+        if (queryParams.containsKey("batchingEnabled")) {
+            boolean batchingEnabled = Boolean.parseBoolean(queryParams.get("batchingEnabled"));
+            if (batchingEnabled) {
+                builder.enableBatching(true);
+                if (queryParams.containsKey("batchingMaxMessages")) {
+                    builder.batchingMaxMessages(Integer.parseInt(queryParams.get("batchingMaxMessages")));
+                }
+
+                if (queryParams.containsKey("maxPendingMessages")) {
+                    builder.maxPendingMessages(Integer.parseInt(queryParams.get("maxPendingMessages")));
+                }
+
+                if (queryParams.containsKey("batchingMaxPublishDelay")) {
+                    builder.batchingMaxPublishDelay(Integer.parseInt(queryParams.get("batchingMaxPublishDelay")),
+                            TimeUnit.MILLISECONDS);
+                }
+            } else {
+                builder.enableBatching(false);
+                printWarnLogIfSettingBatchedParams();
             }
         }
 
@@ -356,7 +483,27 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 builder.addEncryptionKey(key);
             }
         }
-        return builder;
+    }
+
+    private void printWarnLogIfSettingBatchedParams() {
+        if (clientSideEncrypt && queryParams.containsKey("batchingMaxMessages")) {
+            log.warn("Since clientSideEncrypt is true, the param batchingEnabled of producer will be ignored");
+        }
+        if (queryParams.containsKey("batchingMaxMessages")) {
+            log.warn("Since batchingEnabled is false, the param batchingMaxMessages of producer will be ignored");
+        }
+        if (queryParams.containsKey("maxPendingMessages")) {
+            log.warn("Since batchingEnabled is false, the param maxPendingMessages of producer will be ignored");
+        }
+        if (queryParams.containsKey("batchingMaxPublishDelay")) {
+            log.warn("Since batchingEnabled is false, the param batchingMaxPublishDelay of producer will be ignored");
+        }
+    }
+
+    private void printWarnLogIfSettingCompressionParams() {
+        if (clientSideEncrypt && queryParams.containsKey("compressionType")) {
+            log.warn("Since clientSideEncrypt is true, the param compressionType of producer will be ignored");
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerHandler.class);

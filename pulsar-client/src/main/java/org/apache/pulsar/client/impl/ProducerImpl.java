@@ -586,11 +586,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             msgMetadata.setProducerName(producerName);
 
-            if (conf.getCompressionType() != CompressionType.NONE) {
-                msgMetadata
-                        .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+            // TODO (Highlight) Review the changes and see if there are any other implications.
+            if (msgMetadata.getCompression() == null) {
+                if (conf.getCompressionType() != CompressionType.NONE) {
+                    msgMetadata
+                            .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+                }
+                msgMetadata.setUncompressedSize(uncompressedSize);
             }
-            msgMetadata.setUncompressedSize(uncompressedSize);
         }
     }
 

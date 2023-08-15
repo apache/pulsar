@@ -465,6 +465,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         if (service.getCryptoKeyReader().isPresent()) {
             builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+        } else {
+            // TODO If users do not set cryptoKeyReaderFactoryClassName, it does not mean that they can receive
+            //  un-decrypted messages. Therefore, there is concern to set this config to "CONSUME" internally.
+            builder.cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME);
         }
         return builder;
     }
