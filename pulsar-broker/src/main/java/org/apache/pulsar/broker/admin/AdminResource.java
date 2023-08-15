@@ -57,6 +57,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.EntryFilters;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -304,7 +305,9 @@ public abstract class AdminResource extends PulsarWebResource {
             // fetch bundles from LocalZK-policies
             BundlesData bundleData = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName).getBundlesData();
+            Optional<LocalPolicies> localPolicies = getLocalPolicies().getLocalPolicies(namespaceName);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
+            policies.migrated = localPolicies.isPresent() ? localPolicies.get().migrated : false;
             if (policies.is_allow_auto_update_schema == null) {
                 // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
                 policies.is_allow_auto_update_schema = pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();

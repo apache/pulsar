@@ -1384,9 +1384,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     private static CompletableFuture<Boolean> isNamespaceMigrationEnabledAsync(PulsarService pulsar, String topic) {
-        return pulsar.getPulsarResources().getNamespaceResources().
-                    getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                    .thenApply(policies ->  policies.isPresent() && policies.get().isMigrated);
+        return pulsar.getPulsarResources().getLocalPolicies()
+                .getLocalPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                .thenApply(policies -> policies.isPresent() && policies.get().migrated);
     }
 
     public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar, String topic) {
