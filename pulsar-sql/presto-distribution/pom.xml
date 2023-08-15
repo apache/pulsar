@@ -36,7 +36,7 @@
     <jersey.version>2.34</jersey.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
-    <maven.version>3.0.5</maven.version>
+    <maven.version>3.8.1</maven.version>
     <guava.version>32.1.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <errorprone.version>2.5.1</errorprone.version>
