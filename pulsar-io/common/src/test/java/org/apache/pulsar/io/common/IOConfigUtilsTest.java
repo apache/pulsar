@@ -55,6 +55,14 @@ public class IOConfigUtilsTest {
         protected String testRequired;
 
         @FieldDoc(
+                required = true,
+                defaultValue = "defaultStr",
+                sensitive = true,
+                help = "requiredWithDefault"
+        )
+        protected String requiredWithDefault;
+
+        @FieldDoc(
                 required = false,
                 defaultValue = "defaultStr",
                 sensitive = false,
@@ -300,6 +308,8 @@ public class IOConfigUtilsTest {
         TestDefaultConfig testDefaultConfig =
                 IOConfigUtils.loadWithSecrets(configMap, TestDefaultConfig.class, new TestSinkContext());
         Assert.assertEquals(testDefaultConfig.getDefaultStr(), "defaultStr");
+        Assert.assertEquals(testDefaultConfig.getTestRequired(), "test");
+        Assert.assertEquals(testDefaultConfig.getRequiredWithDefault(), "defaultStr");
         Assert.assertEquals(testDefaultConfig.isDefaultBool(), true);
         Assert.assertEquals(testDefaultConfig.getDefaultInt(), 100);
         Assert.assertEquals(testDefaultConfig.getDefaultLong(), 100);

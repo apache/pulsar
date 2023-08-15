@@ -77,12 +77,12 @@ public class IOConfigUtils {
                         }
                     }
                     configs.computeIfAbsent(field.getName(), key -> {
-                        if (fieldDoc.required()) {
-                            throw new IllegalArgumentException(field.getName() + " cannot be null");
-                        }
                         String value = fieldDoc.defaultValue();
                         if (value != null && !value.isEmpty()) {
                             return value;
+                        }
+                        if (fieldDoc.required()) {
+                            throw new IllegalArgumentException(field.getName() + " cannot be null");
                         }
                         return null;
                     });
