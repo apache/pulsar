@@ -227,6 +227,18 @@ public class JavaInstanceRunnableTest {
         };
     }
 
+    @Test(dataProvider = "component")
+    public void testEmptyStringInput(FunctionDetails.ComponentType componentType) throws Exception {
+        final Map<String, Object> parsedConfig = JavaInstanceRunnable.augmentAndFilterConnectorConfig(
+                "",
+                new InstanceConfig(),
+                new EnvironmentBasedSecretsProvider(),
+                null,
+                componentType
+        );
+        Assert.assertEquals(parsedConfig.size(), 0);
+    }
+
     // Environment variables are set in the pom.xml file
     @Test(dataProvider = "component")
     public void testInterpolatingEnvironmentVariables(FunctionDetails.ComponentType componentType) throws Exception {

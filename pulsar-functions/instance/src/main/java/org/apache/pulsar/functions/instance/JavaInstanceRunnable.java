@@ -907,7 +907,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                                                org.apache.pulsar.functions.proto.Function
                                                             .FunctionDetails.ComponentType componentType)
             throws IOException {
-        final Map<String, Object> config = ObjectMapperFactory
+        final Map<String, Object> config = connectorConfigs.isEmpty() ? new HashMap<>() : ObjectMapperFactory
                 .getMapper()
                 .reader()
                 .forType(new TypeReference<Map<String, Object>>() {})
