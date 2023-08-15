@@ -176,6 +176,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // Wait for all consumers to continue receiving messages.
         Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
                 .pollDelay(5, TimeUnit.SECONDS)
                 .until(() ->
                         (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
