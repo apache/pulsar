@@ -1304,6 +1304,24 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             remoteAddress, topicName, subscriptionName,
                                             exception.getCause().getMessage());
                                 }
+                            } else if (exception.getCause() instanceof BrokerServiceException.TopicMigratedException) {
+                                Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(),
+                                        topicName.toString());
+                                if (clusterURL.isPresent()) {
+                                    log.info("[{}] redirect migrated consumer to topic {}: "
+                                                    + "consumerId={}, subName={}, {}", remoteAddress,
+                                            topicName, consumerId, subscriptionName, exception.getCause().getMessage());
+                                    boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Consumer, consumerId,
+                                            clusterURL.get().getBrokerServiceUrl(),
+                                            clusterURL.get().getBrokerServiceUrlTls());
+                                    if (!msgSent) {
+                                        log.info("consumer client doesn't support topic migration handling {}-{}-{}",
+                                                topicName, remoteAddress, consumerId);
+                                    }
+                                    consumers.remove(consumerId, consumerFuture);
+                                    closeConsumer(consumerId);
+                                    return null;
+                                }
                             } else if (exception.getCause() instanceof BrokerServiceException) {
                                 log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
                                          remoteAddress, topicName, subscriptionName,
@@ -1567,6 +1585,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     producers.remove(producerId, producerFuture);
                     return null;
+                } else if (cause instanceof BrokerServiceException.TopicMigratedException) {
+                    Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(), topicName.toString());
+                    if (clusterURL.isPresent()) {
+                        log.info("[{}] redirect migrated producer to topic {}: "
+                                        + "producerId={}, producerName = {}, {}", remoteAddress,
+                                topicName, producerId, producerName, cause.getMessage());
+                        boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
+                                clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
+                        if (!msgSent) {
+                            log.info("client doesn't support topic migration handling {}-{}-{}", topicName,
+                                    remoteAddress, producerId);
+                        }
+                        producers.remove(producerId, producerFuture);
+                        closeProducer(producerId, -1L);
+                        return null;
+                    }
                 }
 
                 // Do not print stack traces for expected exceptions
@@ -2986,9 +3020,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
-        // removes producer-connection from map and send close command to
-        // producer
-        safelyRemoveProducer(producer);
         closeProducer(producer.getProducerId(), producer.getEpoch());
 
     }
@@ -3015,8 +3046,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeConsumer(Consumer consumer) {
         // removes consumer-connection from map and send close command to consumer
         safelyRemoveConsumer(consumer);
+        closeConsumer(consumer.consumerId());
+    }
+
+    public void closeConsumer(long consumerId) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
+            writeAndFlush(Commands.newCloseConsumer(consumerId, -1L));
         } else {
             close();
         }

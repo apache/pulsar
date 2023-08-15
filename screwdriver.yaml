@@ -1,0 +1,193 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+version: 4
+shared:
+  environment:
+    CONTAINER: oracle-jdk11-latest
+    JDK_VERSION: 11
+  settings:
+    email: cloud-messaging-devel@yahoo-inc.com
+  annotations:
+    screwdriver.cd/timeout: 300
+    screwdriver.cd/ram: TURBO
+    screwdriver.cd/cpu: TURBO
+jobs:
+  semgrep:
+    requires:
+      - ~pr
+      - ~commit
+    environment:
+      YAHOO_SEMGREP_ENFORCING: true
+    template: python-2204/validate_semgrep
+  component:
+    requires:
+      - ~commit
+      - ~pr
+    steps:
+      - assemble: echo assemble disabled
+      - flatten: echo flatten disabled
+      - restore: echo restore disabled
+      - ykeykeyd-restart: echo ykeykeyd restart disabled
+      - mvn-cache-get: echo mvn cache get disabled
+      - mvn-owasp-dependency-check: echo mvn dep check disabled
+      - premvn-build: |
+          sudo yum install -y gcc-c++
+      - mvn-build: |
+          mvn --version
+          mvn -X -U clean install -DskipTests
+      - mvn-cache-set: echo mvn cache set disabled
+      - package: echo package disabled
+      - publish: echo publish disabled
+      - maven-release-prepare: echo mvn release prepare disabled
+      - maven-release-perform: echo mvn release perform disabled
+      - sonar: echo sonar disabled
+    image: >-
+      docker.ouroath.com:4443/java_platform/ylinux7-yinst-openjdk-latest:latest-11
+  pulsar_common:
+    requires: [ ~pr, component ]
+    steps:
+      - assemble: echo assemble disabled
+      - flatten: echo flatten disabled
+      - restore: echo restore disabled
+      - ykeykeyd-restart: echo ykeykeyd restart disabled
+      - mvn-cache-get: echo mvn cache get disabled
+      - mvn-owasp-dependency-check: echo mvn dep check disabled
+      - premvn-build: |
+          sudo yum install -y gcc-c++
+      - mvn-build: |
+          mvn -U clean install -DskipTests
+          mvn test -pl pulsar-common
+      - mvn-cache-set: echo mvn cache set disabled
+      - package: echo package disabled
+      - publish: echo publish disabled
+      - maven-release-prepare: echo mvn release prepare disabled
+      - maven-release-perform: echo mvn release perform disabled
+      - sonar: echo sonar disabled
+    image: >-
+      docker.ouroath.com:4443/java_platform/ylinux7-yinst-openjdk-latest:latest-11
+  managed_ledger:
+    requires: [ ~pr, component ]
+    steps:
+      - assemble: echo assemble disabled
+      - flatten: echo flatten disabled
+      - restore: echo disabled restore
+      - ykeykeyd-restart: echo disabled ykeykey restore
+      - mvn-cache-get: echo disabled mvn cache get
+      - mvn-owasp-dependency-check: echo mvn dep check disabled
+      - premvn-build: |
+          sudo yum install -y gcc-c++
+      - mvn-build: |
+          mvn -U clean install -DskipTests
+          mvn test -pl managed-ledger
+      - mvn-cache-set: echo mvn cache set disabled
+      - package: echo package disabled
+      - publish: echo publish disabled
+      - maven-release-prepare: echo mvn release prepare disabled
+      - maven-release-perform: echo mvn release perform disabled
+      - sonar: echo sonar disabled
+    image: >-
+      docker.ouroath.com:4443/java_platform/ylinux7-yinst-openjdk-latest:latest-11
+  pulsar_client:
+    requires: [ ~pr, component ]
+    steps:
+      - assemble: echo assemble disabled
+      - flatten: echo flatten disabled
+      - restore: echo restore disabled
+      - ykeykeyd-restart: echo yekykey restore disabled
+      - mvn-cache-get: echo mvn cache get disabled
+      - mvn-owasp-dependency-check: echo mvn dep check disabled
+      - premvn-build: |
+          sudo yum install -y gcc-c++
+      - mvn-build: |
+          mvn -U clean install -DskipTests
+          mvn test -pl pulsar-client
+      - mvn-cache-set: echo mvn cache set disabled
+      - package: echo package disabled
+      - publish: echo publish disabled
+      - maven-release-prepare: echo mvn release prepare disabled
+      - maven-release-perform: echo mvn release perform disabled
+      - sonar: echo sonar disabled
+    image: >-
+      docker.ouroath.com:4443/java_platform/ylinux7-yinst-openjdk-latest:latest-11
+  pulsar_broker1:
+    requires: [ ~pr, component ]
+    steps:
+      - assemble: echo assemble disabled
+      - flatten: echo flatten disabled
+      - restore: echo restore disabled
+      - ykeykeyd-restart: echo ykeykey restart disabled
+      - mvn-cache-get: echo mvn cache get disabled
+      - mvn-owasp-dependency-check: echo mvn dep check disabled
+      - premvn-build: |
+          sudo yum install -y gcc-c++
+      - mvn-build: |
+          mvn -U clean install -DskipTests
+          mvn test -pl pulsar-broker -Dtest=org.apache.pulsar.PulsarBrokerStarterTest,org.apache.pulsar.broker.loadbalance.impl.OverloadShedderTest,org.apache.pulsar.broker.loadbalance.impl.LoadManagerSharedTest,org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategyTest,org.apache.pulsar.broker.loadbalance.LeaderElectionServiceTest,org.apache.pulsar.broker.loadbalance.BrokerVersionFilterTest,org.apache.pulsar.broker.loadbalance.ModularLoadManagerImplTest,org.apache.pulsar.broker.loadbalance.LoadBalancerTest,org.apache.pulsar.broker.loadbalance.SimpleLoadManagerImplTest,org.apache.pulsar.broker.loadbalance.LoadReportNetworkLimitTest,org.apache.pulsar.broker.loadbalance.AntiAffinityNamespaceGroupTest,org.apache.pulsar.broker.cache.ResourceQuotaCacheTest,org.apache.pulsar.broker.web.WebServiceTest,org.apache.pulsar.broker.web.RestExceptionTest,org.apache.pulsar.broker.admin.v1.V1_AdminApiTest,org.apache.pulsar.broker.admin.v1.V1_AdminApiTest2,org.apache.pulsar.broker.admin.AdminApiSchemaTest,org.apache.pulsar.broker.admin.AdminApiTlsAuthTest,org.apache.pulsar.broker.admin.AdminApiGetLastMessageIdTest,org.apache.pulsar.broker.admin.NamespacesTest,org.apache.pulsar.broker.admin.BrokerAdminClientTlsAuthTest,org.apache.pulsar.broker.admin.AdminApiTest,org.apache.pulsar.broker.admin.TopicAutoCreationTest,org.apache.pulsar.broker.admin.TopicPoliciesDisableTest,org.apache.pulsar.broker.admin.CreateSubscriptionTest,org.apache.pulsar.broker.admin.AdminApiSchemaValidationEnforced,org.apache.pulsar.broker.admin.AdminApiMaxUnackedMessages,org.apache.pulsar.broker.admin.AdminTest,org.apache.pulsar.broker.admin.AdminTopicApiTest,org.apache.pulsar.broker.admin.AdminApiSchemaAutoUpdateTest,org.apache.pulsar.broker.admin.BookiesApiTest,org.apache.pulsar.broker.admin.v3.PackagesApiTest,org.apache.pulsar.broker.admin.PersistentTopicsTest,org.apache.pulsar.broker.admin.IncrementPartitionsTest,org.apache.pulsar.broker.admin.MaxUnackedMessagesTest,org.apache.pulsar.broker.admin.AdminResourceTest,org.apache.pulsar.broker.intercept.MangedLedgerInterceptorImplTest,org.apache.pulsar.broker.intercept.BrokerInterceptorWithClassLoaderTest,org.apache.pulsar.broker.intercept.InterceptFilterOutTest,org.apache.pulsar.broker.intercept.BrokerInterceptorUtilsTest,org.apache.pulsar.broker.intercept.BrokerInterceptorTest,org.apache.pulsar.broker.namespace.OwnerShipCacheForCurrentServerTest,org.apache.pulsar.broker.namespace.NamespaceServiceTest,org.apache.pulsar.broker.namespace.NamespaceCreateBundlesTest,org.apache.pulsar.broker.namespace.NamespaceUnloadingTest,org.apache.pulsar.broker.namespace.OwnershipCacheTest,org.apache.pulsar.broker.namespace.NamespaceOwnershipListenerTests,org.apache.pulsar.broker.lookup.http.HttpTopicLookupv2Test,org.apache.pulsar.broker.protocol.ProtocolHandlerWithClassLoaderTest,org.apache.pulsar.broker.protocol.ProtocolHandlerUtilsTest,org.apache.pulsar.broker.protocol.ProtocolHandlersTest,org.apache.pulsar.broker.zookeeper.ZooKeeperClientAspectJTest,org.apache.pulsar.broker.zookeeper.ClusterMetadataSetupTest,org.apache.pulsar.broker.zookeeper.ZooKeeperSessionExpireRecoveryTest,org.apache.pulsar.broker.zookeeper.ZooKeeperSessionExpireRecoveryTest,org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicServiceTest,org.apache.pulsar.broker.BookKeeperClientFactoryImplTest,org.apache.pulsar.broker.delayed.InMemoryDeliveryTrackerTest,org.apache.pulsar.broker.SLAMonitoringTest,org.apache.pulsar.broker.service.AdvertisedAddressTest,org.apache.pulsar.PulsarBrokerStarterTest,org.apache.pulsar.broker.loadbalance.impl.OverloadShedderTest,org.apache.pulsar.broker.loadbalance.impl.LoadManagerSharedTest,org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategyTest,org.apache.pulsar.broker.loadbalance.LeaderElectionServiceTest,org.apache.pulsar.broker.loadbalance.BrokerVersionFilterTest,org.apache.pulsar.broker.loadbalance.ModularLoadManagerImplTest,org.apache.pulsar.broker.loadbalance.LoadBalancerTest,org.apache.pulsar.broker.loadbalance.SimpleLoadManagerImplTest,org.apache.pulsar.broker.loadbalance.LoadReportNetworkLimitTest,org.apache.pulsar.broker.loadbalance.AntiAffinityNamespaceGroupTest,org.apache.pulsar.broker.cache.ResourceQuotaCacheTest,org.apache.pulsar.broker.web.WebServiceTest,org.apache.pulsar.broker.web.RestExceptionTest,org.apache.pulsar.broker.admin.v1.V1_AdminApiTest,org.apache.pulsar.broker.admin.v1.V1_AdminApiTest2,org.apache.pulsar.broker.admin.AdminApiSchemaTest,org.apache.pulsar.broker.admin.AdminApiTlsAuthTest,org.apache.pulsar.broker.admin.AdminApiGetLastMessageIdTest,org.apache.pulsar.broker.admin.NamespacesTest,org.apache.pulsar.broker.admin.BrokerAdminClientTlsAuthTest,org.apache.pulsar.broker.admin.AdminApiTest,org.apache.pulsar.broker.admin.TopicAutoCreationTest,org.apache.pulsar.broker.admin.TopicPoliciesDisableTest,org.apache.pulsar.broker.admin.CreateSubscriptionTest,org.apache.pulsar.broker.admin.AdminApiSchemaValidationEnforced,org.apache.pulsar.broker.admin.AdminApiMaxUnackedMessages,org.apache.pulsar.broker.admin.AdminTest,org.apache.pulsar.broker.admin.AdminTopicApiTest,org.apache.pulsar.broker.admin.AdminApiSchemaAutoUpdateTest,org.apache.pulsar.broker.admin.BookiesApiTest,org.apache.pulsar.broker.admin.v3.PackagesApiTest,org.apache.pulsar.broker.admin.PersistentTopicsTest,org.apache.pulsar.broker.admin.IncrementPartitionsTest,org.apache.pulsar.broker.admin.MaxUnackedMessagesTest,org.apache.pulsar.broker.admin.AdminResourceTest,org.apache.pulsar.broker.intercept.MangedLedgerInterceptorImplTest,org.apache.pulsar.broker.intercept.BrokerInterceptorWithClassLoaderTest,org.apache.pulsar.broker.intercept.InterceptFilterOutTest,org.apache.pulsar.broker.intercept.BrokerInterceptorUtilsTest,org.apache.pulsar.broker.intercept.BrokerInterceptorTest,org.apache.pulsar.broker.namespace.OwnerShipCacheForCurrentServerTest,org.apache.pulsar.broker.namespace.NamespaceServiceTest,org.apache.pulsar.broker.namespace.NamespaceCreateBundlesTest,org.apache.pulsar.broker.namespace.NamespaceUnloadingTest,org.apache.pulsar.broker.namespace.OwnershipCacheTest,org.apache.pulsar.broker.namespace.NamespaceOwnershipListenerTests,org.apache.pulsar.broker.lookup.http.HttpTopicLookupv2Test,org.apache.pulsar.broker.protocol.ProtocolHandlerWithClassLoaderTest,org.apache.pulsar.broker.protocol.ProtocolHandlerUtilsTest,org.apache.pulsar.broker.protocol.ProtocolHandlersTest,org.apache.pulsar.broker.zookeeper.ZooKeeperClientAspectJTest,org.apache.pulsar.broker.zookeeper.ClusterMetadataSetupTest,org.apache.pulsar.broker.zookeeper.ZooKeeperSessionExpireRecoveryTest,org.apache.pulsar.broker.zookeeper.ZooKeeperSessionExpireRecoveryTest,org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicServiceTest,org.apache.pulsar.broker.BookKeeperClientFactoryImplTest,org.apache.pulsar.broker.delayed.InMemoryDeliveryTrackerTest,org.apache.pulsar.broker.SLAMonitoringTest,org.apache.pulsar.broker.service.AdvertisedAddressTest  -DfailIfNoTests=false
+      - mvn-cache-set: echo mvn cache set disabled
+      - package: echo package disabled
+      - publish: echo publish disabled
+      - maven-release-prepare: echo mvn release prepare disabled
+      - maven-release-perform: echo mvn release perform disabled
+      - sonar: echo sonar disabled
+    image: >-
+      docker.ouroath.com:4443/java_platform/ylinux7-yinst-openjdk-latest:latest-11
+  pulsar_broker2:
+    requires: [ ~pr, component ]
+    steps:
+      - assemble: echo assemble disabled
+      - flatten: echo flatten disabled
+      - restore: echo restore disabled
+      - ykeykeyd-restart: echo ykeykey restart disabled
+      - mvn-cache-get: echo mvn cache get disabled
+      - mvn-owasp-dependency-check: echo mvn dep check disabled
+      - premvn-build: |
+          sudo yum install -y gcc-c++
+      - mvn-build: |
+          mvn -U clean install -DskipTests
+          mvn test -pl pulsar-broker -Dtest=org.apache.pulsar.broker.service.ClusterMigrationTest,org.apache.pulsar.broker.service.TopicPoliciesServiceDisableTest,org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelectorTest,org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesServiceTest,org.apache.pulsar.broker.service.TransactionMetadataStoreServiceTest,org.apache.pulsar.broker.service.PersistentTopicTest,org.apache.pulsar.broker.service.persistent.PersistentFailoverStreamingDispatcherE2ETest,org.apache.pulsar.broker.service.persistent.PersistentSubscriptionTest,org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumersTest,org.apache.pulsar.broker.service.persistent.MessageDuplicationTest,org.apache.pulsar.broker.service.persistent.PersistentTopicTest,org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionSnapshotCacheTest,org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionConfigTest,org.apache.pulsar.broker.service.persistent.PersistentDispatcherFailoverConsumerStreamingDispatcherTest,org.apache.pulsar.broker.service.persistent.ChecksumTest,org.apache.pulsar.broker.service.persistent.TopicDuplicationTest,org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsSnapshotBuilderTest,org.apache.pulsar.broker.service.persistent.DelayedDeliveryTest,org.apache.pulsar.broker.service.NonPersistentTopicE2ETest,org.apache.pulsar.broker.service.PersistentMessageFinderTest,org.apache.pulsar.broker.service.OpportunisticStripingTest,org.apache.pulsar.broker.service.ReplicaorglobalNSTest,org.apache.pulsar.broker.service.BrokerBkEnsemblesTests,org.apache.pulsar.broker.service.BrokerServiceThrottlingTest,org.apache.pulsar.broker.service.MessageTTLTest,org.apache.pulsar.broker.service.ReplicatorRateLimiterTest,org.apache.pulsar.broker.service.TopicTerminationTest,org.apache.pulsar.broker.service.PartitionKeyTest,org.apache.pulsar.broker.service.PersistentTopicConcurrentTest,org.apache.pulsar.broker.service.SubscriptionSeekTest,org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelectorTest,org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelectorTest,org.apache.pulsar.broker.service.CurrentLedgerRolloverIfFullTest,org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageTest,org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheckTest,org.apache.pulsar.broker.service.BrokerServiceAutoSubscriptionCreationTest,org.apache.pulsar.broker.service.PrecisTopicPublishRateThrottleTest,org.apache.pulsar.broker.service.BrokerBookieIsolationTest,org.apache.pulsar.broker.service.ResendRequestTest,org.apache.pulsar.broker.service.BrokerServiceTest,org.apache.pulsar.broker.service.BatchMessageTest,org.apache.pulsar.broker.service.BatchMessageTest,org.apache.pulsar.broker.service.MessageIdSerializationTest,org.apache.pulsar.broker.service.PeerReplicatorTest,org.apache.pulsar.broker.service.PeerReplicatorTest,org.apache.pulsar.broker.service.DistributedIdGeneratorTest,org.apache.pulsar.broker.service.DistributedIdGeneratorTest,org.apache.pulsar.broker.service.ReplicatorTlsTest,org.apache.pulsar.broker.service.PublishRateLimiterTest,org.apache.pulsar.broker.service.KeyValueTest,org.apache.pulsar.broker.service.PersistentFailoverE2ETest,org.apache.pulsar.broker.service.BrokerServiceAutoTopicCreationTest,org.apache.pulsar.broker.service.BrokerEntryMetadataE2ETest,org.apache.pulsar.broker.service.ServerCnxTest,org.apache.pulsar.broker.service.MaxMessageSizeTest,org.apache.pulsar.broker.service.BacklogQuotaManagerTest,org.apache.pulsar.broker.service.TopicOwnerTest,org.apache.pulsar.broker.service.EnableProxyProtocolTest,org.apache.pulsar.broker.service.PersistentQueueE2ETest,org.apache.pulsar.broker.service.ConsumedLedgersTrimTest,org.apache.pulsar.broker.stats.SubscriptionStatsTest,org.apache.pulsar.broker.stats.ConsumerStatsTest,org.apache.pulsar.broker.stats.ManagedLedgerMetricsTest,org.apache.pulsar.broker.stats.ManagedCursorMetricsTest,org.apache.pulsar.broker.service.BkEnsemblesTestBase,org.apache.pulsar.broker.service.BkEnsemblesTestBase,org.apache.pulsar.client.impl.MessageRedeliveryTest,org.apache.pulsar.client.impl.TopicPublishThrottlingInitTest,org.apache.pulsar.client.impl.BatchMessageIndexAckDisableTest,org.apache.pulsar.client.impl.NegativeAcksTest,org.apache.pulsar.client.impl.BatchMessageIndexAckTest,org.apache.pulsar.client.impl.ConsumerUnsubscribeTest,org.apache.pulsar.client.impl.TopicsConsumerImplTest,org.apache.pulsar.client.impl.SequenceIdWithErrorTest,org.apache.pulsar.client.impl.ConnectionPoolTest,org.apache.pulsar.client.impl.PerMessageUnAcknowledgedRedeliveryTest,org.apache.pulsar.client.impl.RawMessageSerDeserTest,org.apache.pulsar.client.impl.ConsumerAckResponseTest,org.apache.pulsar.client.impl.ZeroQueueSizeTest,org.apache.pulsar.client.impl.KeyStoreTlsProducerConsumerTestWithAuthTest,org.apache.pulsar.client.impl.CompactedOutBatchMessageTest,org.apache.pulsar.client.impl.BatchMessageIdImplSerializationTest,org.apache.pulsar.client.impl.ConsumerConfigurationTest,org.apache.pulsar.client.impl.MessageChunkingTest,org.apache.pulsar.client.impl.UnAcknowledgedMessagesTimeoutTest,org.apache.pulsar.client.impl.TopicDoesNotExistsTest,org.apache.pulsar.client.impl.ReaderTest,org.apache.pulsar.client.impl.KeyStoreTlsTest,org.apache.pulsar.client.impl.PatternTopicsConsumerImplTest,org.apache.pulsar.client.impl.SchemaDeleteTest,org.apache.pulsar.client.impl.KeyStoreTlsProducerConsumerTestWithoutAuthTest,org.apache.pulsar.client.impl.BrokerClientIntegrationTest,org.apache.pulsar.client.impl.AdminApiKeyStoreTlsAuthTest,org.apache.pulsar.client.impl.MessageChecksumTest,org.apache.pulsar.client.impl.PulsarMultiHostClientTest,org.apache.pulsar.client.impl.ConsumeBaseExceptionTest,org.apache.pulsar.client.impl.MessageParserTest,org.apache.pulsar.client.impl.TopicFromMessageTest,org.apache.pulsar.client.impl.ConsumerDedupPermitsUpdateTest,org.apache.pulsar.client.impl.ProducerSemaphoreTest,org.apache.pulsar.client.api.ProducerConsumerBase -DfailIfNoTests=false
+      - mvn-cache-set: echo mvn cache set disabled
+      - package: echo package disabled
+      - publish: echo publish disabled
+      - maven-release-prepare: echo mvn release prepare disabled
+      - maven-release-perform: echo mvn release perform disabled
+      - sonar: echo sonar disabled
+    image: >-
+      docker.ouroath.com:4443/java_platform/ylinux7-yinst-openjdk-latest:latest-11
+  publish:
+    requires: [pulsar_common, pulsar_client, pulsar_broker1, pulsar_broker2, managed_ledger]
+    steps:
+      - assemble: echo assemble disabled
+      - flatten: echo flatten disabled
+      - restore: echo restore disabled
+      - ykeykeyd-restart: echo ykeykeyd restart disabled
+      - mvn-cache-get: echo mvn cache get disabled
+      - mvn-owasp-dependency-check: echo mvn dep check disabled
+      - premvn-build: |
+          sudo yum install -y gcc-c++
+      - mvn-build: echo mvn build disabled
+      - mvn-cache-set: echo mvn cache set disabled
+      - package: echo pkg disabled
+      - publish: |
+          ./push-to-maven-repo.sh
+      - maven-release-prepare: echo mvn release prepare disabled
+      - maven-release-perform: echo mvn release perform disabled
+      - sonar: echo sonar disabled
+    image: >-
+      docker.ouroath.com:4443/java_platform/ylinux7-yinst-openjdk-latest:latest-11

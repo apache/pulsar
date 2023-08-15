@@ -368,8 +368,8 @@ public class ClusterMigrationTest {
         String newTopicName = topicName + "-new";
         consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(subType)
                 .subscriptionName("sM").subscribe();
-        retryStrategically((t) -> pulsar1.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
-        pulsar1.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
+        retryStrategically((t) -> pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
+        pulsar2.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
         retryStrategically((t) ->
         pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent() &&
         pulsar2.getBrokerService().getTopicReference(newTopicName).get().getSubscription("sM")
@@ -398,7 +398,7 @@ public class ClusterMigrationTest {
                 .subscriptionName("s1-d").subscribe();
         Producer<byte[]> producerDiff = client1.newProducer().topic(diffTopic).enableBatching(false)
                 .producerName("cluster1-d").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        AbstractTopic topicDiff = (AbstractTopic) pulsar1.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
+        AbstractTopic topicDiff = (AbstractTopic) pulsar2.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
         assertNotNull(topicDiff);
         for (int i = 0; i < n; i++) {
             producerDiff.send("diff".getBytes());
@@ -603,6 +603,39 @@ public class ClusterMigrationTest {
 
         consumer1.close();
         producer1.close();
+
+        // publish to new topic which should be redirected immediately
+        String newTopic = topicName+"-new";
+        producer1 = client1.newProducer().topic(newTopic).enableBatching(false)
+                .producerName("cluster1-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        retryStrategically((test) -> {
+            try {
+                pulsar2.getBrokerService().getTopic(newTopic, false).getNow(null).get();
+                return true;
+            } catch (Exception e) {
+                // ok
+            }
+            return false;
+        }, 10, 500);
+        PersistentTopic pulsar2Topic = (PersistentTopic) pulsar2.getBrokerService().getTopic(newTopic, false).getNow(null)
+                .get();
+        retryStrategically((test) -> {
+            try {
+                return !pulsar2Topic.getProducers().isEmpty();
+            } catch (Exception e) {
+                return false;
+            }
+        }, 10, 500);
+        assertFalse(pulsar2Topic.getProducers().isEmpty());
+        consumer1 = client1.newConsumer().topic(newTopic).subscriptionName("s1").subscribe();
+        retryStrategically((test) -> {
+            try {
+                return !pulsar2Topic.getSubscription("s1").getConsumers().isEmpty();
+            } catch (Exception e) {
+                return false;
+            }
+        }, 10, 500);
+        assertFalse(pulsar2Topic.getSubscription("s1").getConsumers().isEmpty());
     }
 
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
@@ -803,7 +836,7 @@ public class ClusterMigrationTest {
         consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(subType)
                 .subscriptionName("sM").subscribe();
         retryStrategically((t) -> pulsar1.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
-        pulsar1.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
+        pulsar2.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
         retryStrategically((t) ->
                 pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent() &&
                         pulsar2.getBrokerService().getTopicReference(newTopicName).get().getSubscription("sM")
@@ -832,7 +865,7 @@ public class ClusterMigrationTest {
                 .subscriptionName("s1-d").subscribe();
         Producer<byte[]> producerDiff = client1.newProducer().topic(diffTopic).enableBatching(false)
                 .producerName("cluster1-d").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        AbstractTopic topicDiff = (AbstractTopic) pulsar1.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
+        AbstractTopic topicDiff = (AbstractTopic) pulsar2.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
         assertNotNull(topicDiff);
         for (int i = 0; i < n; i++) {
             producerDiff.send("diff".getBytes());
