@@ -3272,7 +3272,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             .toList().size())
                     .sum();
             if (hasSchema
-                    || (!producers.isEmpty())
+                    || (userCreatedProducerCount > 0)
                     || (numActiveConsumersWithoutAutoSchema != 0)
                     || (ledger.getTotalSize() != 0)) {
                 return checkSchemaCompatibleForConsumer(schema);

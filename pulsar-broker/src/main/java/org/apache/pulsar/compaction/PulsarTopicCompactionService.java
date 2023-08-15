@@ -78,7 +78,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
                         return CompletableFuture.completedFuture(Collections.emptyList());
                     }
                     long endPoint =
-                            Math.min(context.ledger.getLastAddConfirmed(), startPoint + numberOfEntriesToRead);
+                            Math.min(context.ledger.getLastAddConfirmed(), startPoint + (numberOfEntriesToRead - 1));
                     return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint);
                 })).whenComplete((result, ex) -> {
                     if (ex == null) {

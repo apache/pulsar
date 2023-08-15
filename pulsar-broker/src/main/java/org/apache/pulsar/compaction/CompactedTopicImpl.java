@@ -119,7 +119,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
-                                                         startPoint + numberOfEntriesToRead);
+                                                         startPoint + (numberOfEntriesToRead - 1));
                                 return readEntries(context.ledger, startPoint, endPoint)
                                     .thenAccept((entries) -> {
                                         Entry lastEntry = entries.get(entries.size() - 1);

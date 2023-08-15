@@ -56,4 +56,18 @@ public class CmdUtils {
             }
         }
     }
+
+    public static boolean positiveCheck(String paramName, long value) {
+        if (value <= 0) {
+            throw new ParameterException(paramName + " cannot be less than or equal to 0!");
+        }
+        return true;
+    }
+
+    public static boolean maxValueCheck(String paramName, long value, long maxValue) {
+        if (value > maxValue) {
+            throw new ParameterException(paramName + " cannot be greater than " + maxValue + "!");
+        }
+        return true;
+    }
 }
