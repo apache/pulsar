@@ -487,6 +487,7 @@ public class Consumer {
     private CompletableFuture<Long> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
         long totalAckCount = 0;
+        boolean individualAck = false;
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
@@ -510,9 +511,14 @@ public class Consumer {
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
+                individualAck = true;
             }
 
-            if (checkCanRemovePendingAcksAndHandle(position, msgId)) {
+            if (individualAck) {
+                if (checkCanRemovePendingAcksAndHandle(position, msgId)) {
+                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                }
+            } else {
                 addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
             }
             positionsAcked.add(position);
