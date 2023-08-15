@@ -1352,6 +1352,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return getMigratedClusterUrl(brokerService.getPulsar(), topic);
     }
 
+    public static CompletableFuture<Boolean> isClusterMigrationEnabled(PulsarService pulsar,
+            String topic) {
+        return getMigratedClusterUrlAsync(pulsar, topic).thenApply(url -> url.isPresent());
+    }
+
     public static CompletableFuture<Optional<ClusterUrl>> getMigratedClusterUrlAsync(PulsarService pulsar,
                                                                                      String topic) {
         return pulsar.getPulsarResources().getClusterResources().getClusterAsync(pulsar.getConfig().getClusterName())
