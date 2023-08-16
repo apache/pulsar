@@ -32,8 +32,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 
@@ -151,6 +151,17 @@ public class CmdClusters extends CmdBase {
             java.util.LinkedHashSet<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
                     : Sets.newLinkedHashSet(Arrays.asList(peerClusterNames.split(",")));
             getAdmin().clusters().updatePeerClusterNames(cluster, clusters);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the cluster migration configuration data for the specified cluster")
+    private class GetClusterMigration extends CliCommand {
+        @Parameter(description = "cluster-name", required = true)
+        private java.util.List<String> params;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            print(getAdmin().clusters().getClusterMigration(cluster));
         }
     }
 
