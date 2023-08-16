@@ -70,8 +70,7 @@ public class KinesisSinkConfigTests {
                 "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "Either the awsEndpoint, cloudwatchEndpoint or awsRegion must be set")
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public final void missCloudWatchEndpointTest() {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");

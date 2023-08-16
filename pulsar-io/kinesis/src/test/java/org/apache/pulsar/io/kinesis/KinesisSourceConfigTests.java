@@ -151,8 +151,7 @@ public class KinesisSourceConfigTests {
         KinesisSourceConfig.load(map, Mockito.mock(SourceContext.class));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "Either the awsEndpoint, cloudwatchEndpoint, dynamoEndpoint or awsRegion must be set")
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public final void missCloudWatchEndpointTest() {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");

@@ -108,7 +108,7 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
         KinesisSinkConfig kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsRegion())
                         || (isNotBlank(kinesisSinkConfig.getAwsEndpoint()) && isNotBlank(kinesisSinkConfig.getCloudwatchEndpoint())),
-                "Either the awsEndpoint, cloudwatchEndpoint or awsRegion must be set");
+                "Either \"awsRegion\" must be set OR all of [\"awsEndpoint\", \"cloudwatchEndpoint\"] must be set.");
         return kinesisSinkConfig;
     }
 

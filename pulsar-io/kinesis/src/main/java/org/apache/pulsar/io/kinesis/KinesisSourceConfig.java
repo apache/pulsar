@@ -133,12 +133,12 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
     public static KinesisSourceConfig load(Map<String, Object> config, SourceContext sourceContext) {
         KinesisSourceConfig kinesisSourceConfig = IOConfigUtils.loadWithSecrets(config,
                 KinesisSourceConfig.class, sourceContext);
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsRegion())
-                        || (isNotBlank(kinesisSourceConfig.getAwsEndpoint())
-                            && isNotBlank(kinesisSourceConfig.getCloudwatchEndpoint())
-                            && isNotBlank(kinesisSourceConfig.getDynamoEndpoint())),
-                "Either the awsEndpoint, cloudwatchEndpoint, dynamoEndpoint or awsRegion must be set");
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
+        boolean isNotBlankEndpoint = isNotBlank(kinesisSourceConfig.getAwsEndpoint())
+                && isNotBlank(kinesisSourceConfig.getCloudwatchEndpoint())
+                && isNotBlank(kinesisSourceConfig.getDynamoEndpoint());
+        checkArgument(isNotBlank(kinesisSourceConfig.getAwsRegion()) || isNotBlankEndpoint,
+                "Either \"awsRegion\" must be set OR all of "
+                        + "[ \"awsEndpoint\", \"cloudwatchEndpoint\", and \"dynamoEndpoint\" ] must be set.");
         if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
             checkArgument((kinesisSourceConfig.getStartAtTime() != null),
                     "When initialPositionInStream is AT_TIMESTAMP, startAtTime must be specified");
