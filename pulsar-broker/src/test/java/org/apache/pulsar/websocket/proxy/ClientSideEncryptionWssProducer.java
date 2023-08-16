@@ -90,8 +90,8 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
                 keyName);
         final String encryptedPublicKeyDataToString = WssClientSideEncryptUtils.base64AndUrlEncode(encryptedPubKeyData);
 
-        final String encryptedPublicKeyMetadata = WssClientSideEncryptUtils.base64EncodePublicKeyDataMetadata(msgCrypto,
-                cryptoKeyReader, keyName);
+        final String encryptedPublicKeyMetadata = WssClientSideEncryptUtils
+                .base64AndUrlEncodePublicKeyDataMetadata(msgCrypto, cryptoKeyReader, keyName);
 
         // Build the URL for producer.
         final StringBuilder producerUrL = new StringBuilder(protocolAndHostPort)

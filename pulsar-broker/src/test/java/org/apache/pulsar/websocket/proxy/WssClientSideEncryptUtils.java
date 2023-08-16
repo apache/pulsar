@@ -119,8 +119,8 @@ public class WssClientSideEncryptUtils {
         return calculateEncryptedKey(msgCrypto, encryptionKeyInfo.getKey());
     }
 
-    public static String base64EncodePublicKeyDataMetadata(MessageCryptoBc msgCrypto, CryptoKeyReader cryptoKeyReader,
-                                               String publicKeyName)
+    public static String base64AndUrlEncodePublicKeyDataMetadata(MessageCryptoBc msgCrypto, CryptoKeyReader cryptoKeyReader,
+                                                                 String publicKeyName)
             throws PulsarClientException.CryptoException {
         try {
             EncryptionKeyInfo encryptionKeyInfo = cryptoKeyReader.getPublicKey(publicKeyName, Collections.emptyMap());
@@ -132,7 +132,7 @@ public class WssClientSideEncryptUtils {
             }
             String json = ObjectMapperFactory.getMapper().getObjectMapper()
                     .writeValueAsString(entryList);
-            return base64Encode(json);
+            return urlEncode(base64Encode(json));
         } catch (JsonProcessingException e) {
             throw new PulsarClientException.CryptoException("Serialize encryption public key metadata failed");
         }
