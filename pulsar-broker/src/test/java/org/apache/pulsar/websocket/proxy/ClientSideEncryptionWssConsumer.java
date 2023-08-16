@@ -83,7 +83,8 @@ public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements
                 .append("/")
                 .append(subscriptionName)
                 .append("?")
-                .append("subscriptionType=").append(subscriptionType.toString());
+                .append("subscriptionType=").append(subscriptionType.toString())
+                .append("&").append("cryptoFailureAction=CONSUME");
         return URI.create(consumerUri.toString());
     }
 
