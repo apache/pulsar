@@ -39,12 +39,27 @@ public class RetryUtil {
             throw new IllegalArgumentException("Illegal initial time");
         }
         scheduledExecutorService.execute(() ->
-                executeWithRetry(supplier, backoff, scheduledExecutorService, callback));
+                executeWithRetry(supplier, backoff, scheduledExecutorService, callback, true));
+    }
+
+    public static <T> void retryWithoutLogAsynchronously(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
+                                               ScheduledExecutorService scheduledExecutorService,
+                                               CompletableFuture<T> callback) {
+        if (backoff.getMax() <= 0) {
+            throw new IllegalArgumentException("Illegal max retry time");
+        }
+        if (backoff.getInitial() <= 0) {
+            throw new IllegalArgumentException("Illegal initial time");
+        }
+        scheduledExecutorService.schedule(() ->
+                executeWithRetry(supplier, backoff, scheduledExecutorService, callback, false),
+                backoff.next(), TimeUnit.MILLISECONDS);
     }
 
     private static <T> void executeWithRetry(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                              ScheduledExecutorService scheduledExecutorService,
-                                             CompletableFuture<T> callback) {
+                                             CompletableFuture<T> callback,
+                                             boolean isLog) {
         supplier.get().whenComplete((result, e) -> {
             if (e != null) {
                 long next = backoff.next();
@@ -52,9 +67,11 @@ public class RetryUtil {
                 if (isMandatoryStop) {
                     callback.completeExceptionally(e);
                 } else {
-                    log.warn("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
+                    if (isLog) {
+                        log.warn("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
+                    }
                     scheduledExecutorService.schedule(() ->
-                                    executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
+                                    executeWithRetry(supplier, backoff, scheduledExecutorService, callback, isLog),
                             next, TimeUnit.MILLISECONDS);
                 }
                 return;
