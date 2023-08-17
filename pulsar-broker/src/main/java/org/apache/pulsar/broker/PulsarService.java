@@ -1738,9 +1738,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public String getLookupServiceAddress() {
-        return String.format("%s:%s", advertisedAddress, config.getWebServicePort().isPresent()
-                ? config.getWebServicePort().get()
-                : config.getWebServicePortTls().orElseThrow());
+        return String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
+                ? config.getWebServicePortTls().get()
+                : config.getWebServicePort().orElseThrow());
     }
 
     public TopicPoliciesService getTopicPoliciesService() {
