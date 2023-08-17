@@ -181,7 +181,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     updatePublishDispatcher();
                     updateResourceGroupLimiter(policies);
                     return updateClusterMigrated();
-                });
+                }).thenCompose(__ -> initTopicPolicy());
     }
 
     @Override

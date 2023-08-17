@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
@@ -31,6 +33,8 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jetbrains.annotations.NotNull;
+
 
 /**
  * Topic policies service.
@@ -63,6 +67,8 @@ public interface TopicPoliciesService {
      */
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
+    @Nonnull
+    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName, boolean isGlobal);
     /**
      * Get policies from current cache.
      * @param topicName topic name
@@ -156,6 +162,13 @@ public interface TopicPoliciesService {
             return null;
         }
 
+        @NotNull
+        @Override
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName,
+                                                                                boolean isGlobal) {
+            return completedFuture(null);
+        }
+
         @Override
         public TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal)
                 throws TopicPoliciesCacheNotInitException {
@@ -169,19 +182,19 @@ public interface TopicPoliciesService {
 
         @Override
         public CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName) {
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
         }
 
         @Override
         public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
             //No-op
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
         }
 
         @Override
         public CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
             //No-op
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
         }
 
         @Override
