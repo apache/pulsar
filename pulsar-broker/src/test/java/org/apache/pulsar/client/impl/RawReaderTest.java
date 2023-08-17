@@ -116,7 +116,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testHasMessageAvailableWithoutBatch() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/testHasMessageAvailableWithoutBatch";
         Set<String> keys = publishMessages(topic, numKeys);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         while (true) {
@@ -133,12 +133,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testHasMessageAvailableWithBatch() throws Exception {
         int numKeys = 20;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
         Set<String> keys = publishMessages(topic, numKeys, true);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         int messageCount = 0;
@@ -163,6 +164,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(messageCount, numKeys);
         Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
@@ -185,12 +187,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testSeekToStart() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/testSeekToStart";
 
         publishMessages(topic, numKeys);
 
@@ -219,12 +222,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(readKeys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testSeekToMiddle() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/testSeekToMiddle";
 
         publishMessages(topic, numKeys);
 
@@ -262,6 +266,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(readKeys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     /**
@@ -270,7 +275,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testFlowControl() throws Exception {
         int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/testFlowControl";
 
         publishMessages(topic, numMessages);
 
@@ -296,6 +301,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(timeouts, 1);
         Assert.assertEquals(keys.size(), numMessages);
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
@@ -324,6 +330,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertEquals(keys.size(), numMessages);
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
@@ -459,7 +466,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                         Assert.assertEquals(
                                 ledger.openCursor(subscription).getProperties().get("foobar"),
                                 Long.valueOf(0xdeadbeefdecaL)));
-
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
