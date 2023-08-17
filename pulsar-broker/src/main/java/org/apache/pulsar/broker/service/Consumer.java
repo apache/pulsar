@@ -818,6 +818,21 @@ public class Consumer {
         }
     }
 
+    public boolean checkAndApplyTopicMigration() {
+        if (subscription.isSubsciptionMigrated()) {
+            Optional<ClusterUrl> clusterUrl = AbstractTopic.getMigratedClusterUrl(cnx.getBrokerService().getPulsar());
+            if (clusterUrl.isPresent()) {
+                ClusterUrl url = clusterUrl.get();
+                cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),
+                        url.getBrokerServiceUrlTls());
+                // disconnect consumer after sending migrated cluster url
+                disconnect();
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
