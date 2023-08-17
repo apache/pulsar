@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -111,10 +112,16 @@ public class HttpLookupService implements LookupService {
         });
     }
 
+    @VisibleForTesting
+    protected boolean checkAllowTopicCreation() {
+        return true;
+    }
+
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
-        return httpClient.get(String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",
+        return httpClient.get(String.format(format, topicName.getLookupName())
+                        + (checkAllowTopicCreation() ? "?checkAllowAutoCreation=true" : ""),
                 PartitionedTopicMetadata.class);
     }
 

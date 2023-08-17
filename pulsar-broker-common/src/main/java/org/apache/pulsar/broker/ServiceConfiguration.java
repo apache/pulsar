@@ -1401,6 +1401,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> messagingProtocols = new TreeSet<>();
 
     @FieldContext(
+        category = CATEGORY_PROTOCOLS,
+        doc = "Whether to check if a topic exists when querying partitions of the topic. "
+                + "It's enabled by default, when a topic is not created, querying the partitions of this topic will "
+                + "throw an exception. Otherwise, the queried result is 0. "
+                + "Disable this option to be compatible with some old clients."
+    )
+    private boolean checkTopicExistsWhenQueryPartitions = true;
+
+    @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
     private boolean systemTopicEnabled = true;

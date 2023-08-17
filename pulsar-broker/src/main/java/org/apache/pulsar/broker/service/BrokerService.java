@@ -3022,6 +3022,11 @@ public class BrokerService implements Closeable {
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
             TopicName topicName) {
+        return fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName, false);
+    }
+
+    public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
+            TopicName topicName, boolean checkTopicExists) {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
@@ -3072,7 +3077,13 @@ public class BrokerService implements Closeable {
                                             return null;
                                         });
                                     } else {
-                                        future.complete(metadata);
+                                        if (checkTopicExists
+                                                && metadata.partitions == 0
+                                                && !topicExists) {
+                                            future.complete(new PartitionedTopicMetadata(-1, metadata.properties));
+                                        } else {
+                                            future.complete(metadata);
+                                        }
                                     }
                                 });
 
@@ -3105,6 +3116,16 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
+        return fetchPartitionedTopicMetadataAsync(topicName, false);
+    }
+
+    public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(
+            TopicName topicName, boolean mightCheckAllowAutoCreation) {
+        if (mightCheckAllowAutoCreation && !pulsar.getConfig().isCheckTopicExistsWhenQueryPartitions()) {
+            // Some old clients might not add the "checkAllowAutoCreation=true" query param. If this option is enabled,
+            // use the same behavior with that query param.
+            return fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName, true);
+        }
         // gets the number of partitions from the configuration cache
         return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .getPartitionedTopicMetadataAsync(topicName).thenApply(metadata -> {
