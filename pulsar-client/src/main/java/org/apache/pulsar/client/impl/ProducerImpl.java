@@ -586,8 +586,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             msgMetadata.setProducerName(producerName);
 
-            // TODO (Highlight) Review the changes and see if there are any other implications.
-            if (msgMetadata.getCompression() == null) {
+            // The field "uncompressedSize" is zero means the compression info were not set yet.
+            if (msgMetadata.getUncompressedSize() <= 0) {
                 if (conf.getCompressionType() != CompressionType.NONE) {
                     msgMetadata
                             .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
