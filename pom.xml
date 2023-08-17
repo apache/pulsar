@@ -2454,7 +2454,7 @@ flexible messaging model and an intuitive client API.</description>
     <repository>
       <id>bk-staging</id>
       <name>bk-staging</name>
-      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1087/</url>
+      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1088/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
