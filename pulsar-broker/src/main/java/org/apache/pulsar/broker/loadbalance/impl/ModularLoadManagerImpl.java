@@ -1152,8 +1152,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
             final String bundle = entry.getKey();
             final BundleData data = entry.getValue();
-            if ((data.getLongTermData().getMsgThroughputIn() < conf.getLoadBalancerBundleThroughputThresholdInByte()
-                    || data.getLongTermData().getMsgRateIn() < conf.getLoadBalancerBundleMsgThreshold())
+            if (((conf.getLoadBalancerBundleThroughputThresholdInByte() > 0
+                    && data.getLongTermData().getMsgThroughputIn()
+                    < conf.getLoadBalancerBundleThroughputThresholdInByte())
+                    || (conf.getLoadBalancerBundleMsgThreshold() > 0
+                    && data.getLongTermData().getMsgRateIn() < conf.getLoadBalancerBundleMsgThreshold()))
                     && bundlesCache.exists(getBundleDataPath(bundle)).join()) {
                 // Skip writing bundle data if throughput is too low and bundle data already exists.
                 log.debug("Skip updating bundle data for bundle {} because throughput/msg is too low", bundle);
