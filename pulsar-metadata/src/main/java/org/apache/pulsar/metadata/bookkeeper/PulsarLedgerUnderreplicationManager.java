@@ -978,11 +978,13 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     @Override
     public void notifyUnderReplicationLedgerChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb)
             throws ReplicationException.UnavailableException {
-        log.debug("notifyUnderReplicationLedgerChanged()");
-        store.registerListener(e -> {
-            if (e.getType() == NotificationType.Deleted && ID_EXTRACTION_PATTERN.matcher(e.getPath()).find()) {
-                cb.operationComplete(0, null);
-            }
-        });
+        //The store listener callback executor is metadata-store executor,
+        //in cb.operationComplete(0, null), it will get all underreplication ledgers from metadata-store, it's sync
+        //operation. So it's a deadlock.
+//        store.registerListener(e -> {
+//            if (e.getType() == NotificationType.Deleted && ID_EXTRACTION_PATTERN.matcher(e.getPath()).find()) {
+//                cb.operationComplete(0, null);
+//            }
+//        });
     }
 }
