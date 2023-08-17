@@ -522,7 +522,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPublishers().size(), 0);
         assertEquals(topicStats.getMsgDropRate(), 0);
         assertEquals(topicStats.getOwnerBroker(),
-                pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get());
+                pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePortTls().get());
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(nonPersistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Set.of("my-sub"));
@@ -1315,7 +1315,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         String cluster = pulsar.getConfiguration().getClusterName();
         String namespaceRegex = "other/" + cluster + "/other.*";
         String brokerName = pulsar.getAdvertisedAddress();
-        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
+        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePortTls().get();
 
         Map<String, String> parameters1 = new HashMap<>();
         parameters1.put("min_limit", "1");
