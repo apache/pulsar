@@ -30,6 +30,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -144,10 +145,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = publishMessages(topic, numKeys, true);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         int messageCount = 0;
+        AtomicBoolean error = new AtomicBoolean(false);
+        List<MessageId> ids = new ArrayList<>();
+        List<String> keys2 = new ArrayList<>();
         while (true) {
             boolean hasMsg = reader.hasMessageAvailableAsync().get();
             if (hasMsg && (messageCount == numKeys)) {
-                Assert.fail("HasMessageAvailable shows still has message when there is no message");
+                error.set(true);
             }
             if (hasMsg) {
                 try (RawMessage m = reader.readNextAsync().get()) {
@@ -155,13 +159,20 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                     messageCount += meta.getNumMessagesInBatch();
                     RawBatchConverter.extractIdsAndKeysAndSize(m).forEach(batchInfo -> {
                         String key = batchInfo.getMiddle();
-                        Assert.assertTrue(keys.remove(key));
+                        keys2.add(key);
+                        ids.add(batchInfo.getLeft());
+                        if (!error.get()) {
+                            Assert.assertTrue(keys.remove(key));
+                        }
                     });
 
                 }
             } else {
                 break;
             }
+        }
+        if (error.get()) {
+            Assert.assertEquals(ids, keys2);
         }
         Assert.assertEquals(messageCount, numKeys);
         Assert.assertTrue(keys.isEmpty());
