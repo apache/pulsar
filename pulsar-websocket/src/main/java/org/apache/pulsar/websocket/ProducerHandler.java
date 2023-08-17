@@ -377,6 +377,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         final String[] keyDataParams = queryParams.get("encryptionKeyValues").split(",");
         final String[] keyMetadataParams = keyMetadataParamsStr == null ? null
                 : keyMetadataParamsStr.split(",");
+        final boolean hasParamKeyMetadata = keyMetadataParams != null;
         final String[] keyNameArr = queryParams.get("encryptionKeys").split(",");
 
         // Check params length.
@@ -384,6 +385,10 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 String.format("Invalid encryptionKeys %s", queryParams.get("encryptionKeys")));
         checkArgument(keyNameArr.length == keyDataParams.length,
                 "The count of encryptionKeys and encryptionKeyValues are not equal.");
+        if (hasParamKeyMetadata) {
+            checkArgument(keyMetadataParams.length == keyDataParams.length,
+                    "The count of encryptionKeyMetadata and encryptionKeyValues are not equal.");
+        }
 
         // Defer params decoded.
         final List<KeyValue>[] keyMetadataArr = new ArrayList[keyNameArr.length];
@@ -399,21 +404,23 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                         String.format("There is an blank encryptionKey %s", queryParams.get("encryptionKeys")));
                 checkArgument(!StringUtils.isBlank(keyDataParams[i]),
                         String.format("There is an blank encryptionValue %s", queryParams.get("encryptionKeys")));
-                if (keyMetadataParams != null && StringUtils.isNoneBlank(keyMetadataParams[i])) {
+                if (hasParamKeyMetadata) {
                     keyMetadataParams[i] = StringUtils.trim(keyMetadataParams[i]);
                 }
                 // Decode params.
                 try {
                     keyDadaArr[i] = Base64.getDecoder().decode(keyDataParams[i]);
-                    keyMetadataParams[i] = new String(Base64.getDecoder().decode(keyMetadataParams[i]),
-                            StandardCharsets.UTF_8);
+                    if (hasParamKeyMetadata && !StringUtils.isBlank(keyMetadataParams[i])) {
+                        keyMetadataParams[i] = new String(Base64.getDecoder().decode(keyMetadataParams[i]),
+                                StandardCharsets.UTF_8);
+                    }
                 } catch (Exception base64DecodeEx) {
                     log.error("Could not base64 decode the param encryptionKeyValues or encryptionKeyMetadata",
                             base64DecodeEx);
                     throw new IllegalArgumentException(
                             "Could not base64 decode the param encryptionKeyValues or encryptionKeyMetadata");
                 }
-                if (keyMetadataParams != null && StringUtils.isNoneBlank(keyMetadataParams[i])) {
+                if (hasParamKeyMetadata && !StringUtils.isBlank(keyMetadataParams[i])) {
                     keyMetadataArr[i] = ObjectMapperFactory.getMapper().getObjectMapper()
                             .readValue(keyMetadataParams[i], new TypeReference<List<KeyValue>>() {
                             });
