@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -116,7 +117,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testHasMessageAvailableWithoutBatch() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/testHasMessageAvailableWithoutBatch";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
         Set<String> keys = publishMessages(topic, numKeys);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         while (true) {
@@ -139,7 +140,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testHasMessageAvailableWithBatch() throws Exception {
         int numKeys = 20;
-        String topic = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
         Set<String> keys = publishMessages(topic, numKeys, true);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         int messageCount = 0;
@@ -171,7 +172,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void testRawReader() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         Set<String> keys = publishMessages(topic, numKeys);
 
@@ -193,7 +194,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSeekToStart() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/testSeekToStart";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numKeys);
 
@@ -228,7 +229,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSeekToMiddle() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/testSeekToMiddle";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numKeys);
 
@@ -275,7 +276,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testFlowControl() throws Exception {
         int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
-        String topic = "persistent://my-property/my-ns/testFlowControl";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numMessages);
 
@@ -307,7 +308,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testFlowControlBatch() throws Exception {
         int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numMessages, true);
 
@@ -335,7 +336,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBatchingExtractKeysAndIds() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
             .maxPendingMessages(3)
@@ -370,7 +371,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBatchingRebatch() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
             .maxPendingMessages(3)
@@ -399,7 +400,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBatchingRebatchWithBrokerEntryMetadata() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .maxPendingMessages(3)
@@ -435,7 +436,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void testAcknowledgeWithProperties() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         Set<String> keys = publishMessages(topic, numKeys);
 
@@ -473,7 +474,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void testReadCancellationOnClose() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
         publishMessages(topic, numKeys/2);
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
