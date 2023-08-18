@@ -18,21 +18,20 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
-import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.*;
 
 /**
  * Hierarchical Ledger Manager which manages ledger meta in zookeeper using 2-level hierarchical znodes.
@@ -85,7 +84,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
                 continue;
             }
             List<String> l2Nodes = store.getChildren(ledgersRoot + "/" + curL1Nodes)
-                    .get(BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             l2NodesIter = l2Nodes.iterator();
             if (!l2NodesIter.hasNext()) {
                 l2NodesIter = null;
@@ -101,7 +100,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
             try {
                 if (l1NodesIter == null) {
                     List<String> l1Nodes = store.getChildren(ledgersRoot)
-                            .get(BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+                            .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                     l1NodesIter = l1Nodes.iterator();
                     hasMoreElements = nextL1Node();
                 } else if (l2NodesIter == null || !l2NodesIter.hasNext()) {
@@ -163,7 +162,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
         String nodePath = nodeBuilder.toString();
         List<String> ledgerNodes = null;
         try {
-            ledgerNodes = store.getChildren(nodePath).get(BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+            ledgerNodes = store.getChildren(nodePath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (ExecutionException | TimeoutException e) {
             throw new IOException("Error when get child nodes from zk", e);
         } catch (InterruptedException e) {
