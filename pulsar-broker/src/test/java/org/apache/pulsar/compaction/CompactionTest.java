@@ -569,7 +569,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
 
         // compact the topic
-        compact(topic);
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
 
         // Read messages before compaction to get ids
         List<Message<byte[]>> messages = new ArrayList<>();
