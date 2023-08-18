@@ -2319,16 +2319,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             // read before, use lastDequeueMessage for comparison
             if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
-                log.info("hasMoreMessages,  lastMessageIdInBroker: {}, lastDequeuedMessageId: {}",
-                        lastMessageIdInBroker, lastDequeuedMessageId);
                 completehasMessageAvailableWithValue(booleanFuture, true);
                 return booleanFuture;
             }
 
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
-                log.info("getLastMessageIdAsync, lastMessageIdInBroker : {}, lastDequeuedMessageId : {}",
-                        lastMessageIdInBroker, lastDequeuedMessageId);
                 completehasMessageAvailableWithValue(booleanFuture,
                         hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false));
             }).exceptionally(e -> {

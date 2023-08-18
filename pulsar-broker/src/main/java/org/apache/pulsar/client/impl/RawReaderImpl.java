@@ -158,7 +158,6 @@ public class RawReaderImpl implements RawReader {
                 MessageIdData messageId = messageAndCnx.msg.getMessageIdData();
                 lastDequeuedMessageId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                     messageId.getPartition(), numMsg - 1);
-                log.info("update lastDequeuedMessageId: {}, lastDequeuedMessageId");
 
                 ClientCnx currentCnx = cnx();
                 if (currentCnx == messageAndCnx.cnx) {

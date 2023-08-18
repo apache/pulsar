@@ -148,13 +148,10 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = publishMessages(topic, numKeys, true);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         int messageCount = 0;
-        AtomicBoolean error = new AtomicBoolean(false);
-        List<MessageId> ids = new ArrayList<>();
-        List<String> keys2 = new ArrayList<>();
         while (true) {
             boolean hasMsg = reader.hasMessageAvailableAsync().get();
             if (hasMsg && (messageCount == numKeys)) {
-                error.set(true);
+                Assert.fail("HasMessageAvailable shows still has message when there is no message");
             }
             if (hasMsg) {
                 try (RawMessage m = reader.readNextAsync().get()) {
@@ -162,21 +159,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                     messageCount += meta.getNumMessagesInBatch();
                     RawBatchConverter.extractIdsAndKeysAndSize(m).forEach(batchInfo -> {
                         String key = batchInfo.getMiddle();
-                        keys2.add(key);
-                        ids.add(batchInfo.getLeft());
-                        log.info("ids : {}, keys2 : {}", ids, keys2);
-                        if (!error.get()) {
-                            Assert.assertTrue(keys.remove(key));
-                        }
+                        Assert.assertTrue(keys.remove(key));
                     });
 
                 }
             } else {
                 break;
             }
-        }
-        if (error.get()) {
-            Assert.assertEquals(ids, keys2);
         }
         Assert.assertEquals(messageCount, numKeys);
         Assert.assertTrue(keys.isEmpty());
