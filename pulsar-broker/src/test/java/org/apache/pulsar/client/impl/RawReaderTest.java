@@ -31,6 +31,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -53,6 +54,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@Slf4j
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "foobar-sub";
@@ -64,6 +66,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                 "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
                 "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
         ));
+        conf.setSystemTopicEnabled(false);
         conf.setExposingBrokerEntryMetadataToClientEnabled(true);
         super.internalSetup();
 
@@ -161,6 +164,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                         String key = batchInfo.getMiddle();
                         keys2.add(key);
                         ids.add(batchInfo.getLeft());
+                        log.info("ids : {}, keys2 : {}", ids, keys2);
                         if (!error.get()) {
                             Assert.assertTrue(keys.remove(key));
                         }
