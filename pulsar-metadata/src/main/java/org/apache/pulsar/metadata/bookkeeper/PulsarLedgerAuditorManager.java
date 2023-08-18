@@ -55,7 +55,6 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         synchronized (this) {
             this.leaderElectionState = state;
             notifyAll();
-
         }
     }
 
