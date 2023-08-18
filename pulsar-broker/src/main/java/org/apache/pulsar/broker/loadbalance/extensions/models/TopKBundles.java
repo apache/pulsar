@@ -68,12 +68,25 @@ public class TopKBundles {
         try {
             var isLoadBalancerSheddingBundlesWithPoliciesEnabled =
                     pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+            var loadBalancerBundleThroughputThresholdInByte =
+                    pulsar.getConfiguration().getLoadBalancerBundleThroughputThresholdInByte();
+            var loadBalancerBundleMsgRateThreshold =
+                    pulsar.getConfiguration().getLoadBalancerBundleMsgThreshold();
+
             for (var etr : bundleStats.entrySet()) {
                 String bundle = etr.getKey();
                 if (bundle.startsWith(NamespaceName.SYSTEM_NAMESPACE.toString())) {
                     continue;
                 }
                 if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled && hasPolicies(bundle)) {
+                    continue;
+                }
+                if (loadBalancerBundleThroughputThresholdInByte > 0
+                        && etr.getValue().msgThroughputIn < loadBalancerBundleThroughputThresholdInByte) {
+                    continue;
+                }
+                if (loadBalancerBundleMsgRateThreshold > 0
+                        && etr.getValue().msgRateIn < loadBalancerBundleMsgRateThreshold) {
                     continue;
                 }
                 arr.add(etr);
