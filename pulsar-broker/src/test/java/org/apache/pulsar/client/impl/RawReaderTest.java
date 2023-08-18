@@ -135,9 +135,9 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(keys.isEmpty());
     }
 
-    @Test
+    @Test(invocationCount = 1000)
     public void testHasMessageAvailableWithBatch() throws Exception {
-        int numKeys = 20;
+        int numKeys = 2000;
         String topic = "persistent://my-property/my-ns/my-raw-topic";
         Set<String> keys = publishMessages(topic, numKeys, true);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
