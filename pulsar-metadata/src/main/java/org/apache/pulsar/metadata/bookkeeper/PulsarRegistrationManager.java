@@ -122,6 +122,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
         } catch (ExecutionException | InterruptedException e) {
             throw new BookieException.MetadataStoreException("Failed to get cluster instance id", e);
         }
+
     }
 
     @Override
