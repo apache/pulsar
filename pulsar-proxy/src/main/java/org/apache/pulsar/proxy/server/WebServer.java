@@ -237,11 +237,7 @@ public class WebServer {
         config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath(basePath);
-        context.addServlet(servletHolder, MATCH_ALL);
-        context.setAttribute(attribute, attributeValue);
-        handlers.add(context);
+        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)));
     }
 
     public int getExternalServicePort() {
