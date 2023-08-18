@@ -113,6 +113,40 @@ public class TopKBundlesTest {
     }
 
     @Test
+    public void testFilterLowThroughputBundle() {
+        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+        var topKBundles = new TopKBundles(pulsar);
+        pulsar.getConfiguration().setLoadBalancerBundleThroughputThresholdInByte(1000);
+        pulsar.getConfiguration().setLoadBalancerBundleMsgThreshold(1000);
+
+        NamespaceBundleStats stats1 = new NamespaceBundleStats();
+        stats1.msgRateIn = 100000;
+        stats1.msgThroughputIn = 100000;
+        bundleStats.put(bundle1, stats1);
+
+        NamespaceBundleStats stats2 = new NamespaceBundleStats();
+        stats2.msgRateIn = 500;
+        stats2.msgThroughputIn = 500;
+        bundleStats.put(bundle2, stats2);
+
+        NamespaceBundleStats stats3 = new NamespaceBundleStats();
+        stats3.msgRateIn = 10000;
+        stats3.msgThroughputIn = 10;
+        bundleStats.put(bundle3, stats3);
+
+        NamespaceBundleStats stats4 = new NamespaceBundleStats();
+        stats4.msgRateIn = 10;
+        stats4.msgThroughputIn = 10000;
+        bundleStats.put(bundle4, stats4);
+
+        topKBundles.update(bundleStats, 3);
+        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
+        var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
+
+        assertEquals(top0.bundleName(), bundle1);
+    }
+
+    @Test
     public void testSystemNamespace() {
         Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
         var topKBundles = new TopKBundles(pulsar);
