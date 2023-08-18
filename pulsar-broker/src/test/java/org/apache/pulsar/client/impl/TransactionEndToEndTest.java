@@ -741,6 +741,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
             }
+            producer.flush();
             Message<byte[]> message = null;
             Thread.sleep(1000L);
             for (int i = 0; i < messageCnt; i++) {
