@@ -67,6 +67,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.http.HttpResponse;
@@ -1258,14 +1259,20 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         compactionFuture.get();
 
-        Thread.sleep(2000);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
 
-        // this operation is async delete
-        topic.checkInactiveSubscriptionsWithExpirationTime(1000);
+        // make cursor last active time to very small to check if it will be deleted
+        Field cursorField = ManagedCursorImpl.class.getDeclaredField("lastActive");
+        cursorField.setAccessible(true);
+        cursorField.set(cursor, 0);
 
-        // wait for async delete finish
-        Thread.sleep(2000);
+        // trigger inactive check.
+        topic.checkInactiveSubscriptions();
 
+        // if subscription deleted the result should be zero
+        assertEquals(0, topic.getExpiredSubscriptionNumbers());
+
+        // check if the subscription is exist.
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
 
     }
