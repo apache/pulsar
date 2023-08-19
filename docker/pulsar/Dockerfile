@@ -49,7 +49,7 @@ RUN chmod g+w /pulsar/trino
 ### Create 2nd stage from Ubuntu image
 ### and add OpenJDK and Python dependencies (for Pulsar functions)
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
@@ -81,7 +81,7 @@ RUN apt-get -y --purge autoremove \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install pyyaml==5.4.1
+RUN pip3 install pyyaml==6.0.1
 
 # Pulsar currently writes to the below directories, assuming the default configuration.
 # Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.

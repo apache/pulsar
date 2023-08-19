@@ -50,9 +50,11 @@ import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.compaction.CompactedTopicUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +63,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     private final AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     protected final PersistentTopic topic;
-    protected final Executor topicExecutor;
+    protected final Executor executor;
 
     protected final String name;
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
@@ -79,7 +81,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         super(subscriptionType, partitionIndex, topic.getName(), subscription,
                 topic.getBrokerService().pulsar().getConfiguration(), cursor);
         this.topic = topic;
-        this.topicExecutor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread(topicName);
+        this.executor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
         this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
                 : ""/* NonDurableCursor doesn't have name */);
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
@@ -148,7 +150,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void readEntriesComplete(final List<Entry> entries, Object obj) {
-        topicExecutor.execute(() -> internalReadEntriesComplete(entries, obj));
+        executor.execute(() -> internalReadEntriesComplete(entries, obj));
     }
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
@@ -226,7 +228,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                             sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
 
                     // Schedule a new read batch operation only after the previous batch has been written to the socket.
-                    topicExecutor.execute(() -> {
+                    executor.execute(() -> {
                             synchronized (PersistentDispatcherSingleActiveConsumer.this) {
                                 Consumer newConsumer = getActiveConsumer();
                                 readMoreEntries(newConsumer);
@@ -238,7 +240,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topicExecutor.execute(() -> internalConsumerFlow(consumer));
+        executor.execute(() -> internalConsumerFlow(consumer));
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer) {
@@ -267,7 +269,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-        topicExecutor.execute(() -> internalRedeliverUnacknowledgedMessages(consumer, consumerEpoch));
+        executor.execute(() -> internalRedeliverUnacknowledgedMessages(consumer, consumerEpoch));
     }
 
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
@@ -347,8 +349,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
-                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
-                            this, consumer);
+                    boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
+                    CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(), cursor,
+                            messagesToRead, bytesToRead, readFromEarliest, this, true, consumer);
                 } else {
                     ReadEntriesCtx readEntriesCtx =
                             ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
@@ -459,7 +462,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        topicExecutor.execute(() -> internalReadEntriesFailed(exception, ctx));
+        executor.execute(() -> internalReadEntriesFailed(exception, ctx));
     }
 
     private synchronized void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
@@ -507,7 +510,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         topic.getBrokerService().executor().schedule(() -> {
 
             // Jump again into dispatcher dedicated thread
-            topicExecutor.execute(() -> {
+            executor.execute(() -> {
                 synchronized (PersistentDispatcherSingleActiveConsumer.this) {
                     Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                     // we should retry the read if we have an active consumer and there is no pending read

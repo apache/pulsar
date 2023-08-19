@@ -35,7 +35,6 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected CompressionType compressionType;
     protected CompressionCodec compressor;
     protected String topicName;
-    protected String producerName;
     protected ProducerImpl producer;
 
     protected int maxNumMessagesInBatch;
@@ -108,7 +107,6 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     public void setProducer(ProducerImpl<?> producer) {
         this.producer = producer;
         this.topicName = producer.getTopic();
-        this.producerName = producer.getProducerName();
         this.compressionType = CompressionCodecProvider
                 .convertToWireProtocol(producer.getConfiguration().getCompressionType());
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);

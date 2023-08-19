@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.io.sinks;
 
 import java.util.Optional;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
@@ -32,8 +31,9 @@ public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
         super(schemaEnable);
     }
 
+
     @Override
-    protected ElasticsearchContainer createSinkService(PulsarCluster cluster) {
+    protected ElasticsearchContainer createElasticContainer() {
         return new ElasticsearchContainer(ELASTICSEARCH_7)
                 .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
     }

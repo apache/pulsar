@@ -524,7 +524,7 @@ public class SinkConfigUtils {
         return new ExtractedSinkDetails(sinkClassName, typeArg.getName(), functionClassName);
     }
 
-    private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
+    public static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
         List<String> retval = new LinkedList<>();
         if (sinkConfig.getInputs() != null) {
             retval.addAll(sinkConfig.getInputs());

@@ -151,6 +151,13 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>com.github.tomakehurst</groupId>
+      <artifactId>wiremock-jre8</artifactId>
+      <version>${wiremock.version}</version>
+      <scope>test</scope>
+    </dependency>
+
     <!-- zookeeper server -->
     <dependency>
        <groupId>io.dropwizard.metrics</groupId>
@@ -277,6 +284,18 @@
     </dependency>
 
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-docs-tools</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.swagger</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
     </dependency>
@@ -284,6 +303,7 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -309,6 +329,7 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>

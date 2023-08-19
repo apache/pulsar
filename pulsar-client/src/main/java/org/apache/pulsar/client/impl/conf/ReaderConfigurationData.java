@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.util.HashSet;
@@ -28,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.ReaderInterceptor;
@@ -113,6 +115,9 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     )
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
+    @JsonIgnore
+    private transient MessageCrypto messageCrypto = null;
+
     @ApiModelProperty(
             name = "readCompacted",
             value = "If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full "
@@ -183,5 +188,15 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ReaderConfigurationData");
         }
+    }
+
+    @SuppressFBWarnings({"EI_EXPOSE_REP"})
+    public MessageCrypto getMessageCrypto() {
+        return messageCrypto;
+    }
+
+    @SuppressFBWarnings({"EI_EXPOSE_REP2"})
+    public void setMessageCrypto(MessageCrypto messageCrypto) {
+        this.messageCrypto = messageCrypto;
     }
 }

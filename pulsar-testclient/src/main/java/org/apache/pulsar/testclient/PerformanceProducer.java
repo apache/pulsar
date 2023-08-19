@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.testclient;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileOutputStream;
@@ -199,6 +202,11 @@ public class PerformanceProducer {
         @Parameter(names = { "-d",
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
+
+        @Parameter(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay by a random"
+                + " number of seconds. this value between the specified origin (inclusive) and the specified bound"
+                + " (exclusive). e.g. 1,300", converter = RangeConvert.class)
+        public Range<Long> delayRange = null;
 
         @Parameter(names = { "-set",
                 "--set-event-time" }, description = "Set the eventTime on messages")
@@ -423,6 +431,7 @@ public class PerformanceProducer {
 
             oldTime = now;
         }
+        PerfClientUtils.exit(0);
     }
 
     private static void executorShutdownNow() {
@@ -496,6 +505,7 @@ public class PerformanceProducer {
                                     byte[] payloadBytes,
                                     CountDownLatch doneLatch) {
         PulsarClient client = null;
+        boolean produceEnough = false;
         try {
             // Now processing command line arguments
             List<Future<Producer<byte[]>>> futures = new ArrayList<>();
@@ -560,6 +570,9 @@ public class PerformanceProducer {
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
+                if (produceEnough) {
+                    break;
+                }
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
@@ -567,7 +580,8 @@ public class PerformanceProducer {
                                     + "--------------", arguments.testTime);
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
+                            produceEnough = true;
+                            break;
                         }
                     }
 
@@ -577,7 +591,8 @@ public class PerformanceProducer {
                                     , numMessages);
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
+                            produceEnough = true;
+                            break;
                         }
                     }
                     rateLimiter.acquire();
@@ -615,6 +630,10 @@ public class PerformanceProducer {
                     }
                     if (arguments.delay > 0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                    } else if (arguments.delayRange != null) {
+                        final long deliverAfter = ThreadLocalRandom.current()
+                                .nextLong(arguments.delayRange.lowerEndpoint(), arguments.delayRange.upperEndpoint());
+                        messageBuilder.deliverAfter(deliverAfter, TimeUnit.SECONDS);
                     }
                     if (arguments.setEventTime) {
                         messageBuilder.eventTime(System.currentTimeMillis());
@@ -706,10 +725,12 @@ public class PerformanceProducer {
         } catch (Throwable t) {
             log.error("Got error", t);
         } finally {
+            if (!produceEnough) {
+                doneLatch.countDown();
+            }
             if (null != client) {
                 try {
                     client.close();
-                    PerfClientUtils.exit(1);
                 } catch (PulsarClientException e) {
                     log.error("Failed to close test client", e);
                 }
@@ -774,4 +795,21 @@ public class PerformanceProducer {
     public enum MessageKeyGenerationMode {
         autoIncrement, random
     }
+
+    static class RangeConvert implements IStringConverter<Range<Long>> {
+        @Override
+        public Range<Long> convert(String rangeStr) {
+            try {
+                requireNonNull(rangeStr);
+                final String[] facts = rangeStr.split(",");
+                final long min = Long.parseLong(facts[0].trim());
+                final long max = Long.parseLong(facts[1].trim());
+                return Range.closedOpen(min, max);
+            } catch (Throwable ex) {
+                throw new IllegalArgumentException("Unknown delay range interval,"
+                        + " the format should be \"<origin>,<bound>\". error message: " + rangeStr);
+            }
+        }
+    }
+
 }

@@ -147,7 +147,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(messageDataHashSet.size(), totalMessages);
         printIncomingMessageQueue(consumer);
 
-        // 9. Calling resend after acking all messages - expectin 0 messages
+        // 9. Calling resend after acking all messages - expecting 0 messages
         consumer.redeliverUnacknowledgedMessages();
         assertNull(consumer.receive(2000, TimeUnit.MILLISECONDS));
 

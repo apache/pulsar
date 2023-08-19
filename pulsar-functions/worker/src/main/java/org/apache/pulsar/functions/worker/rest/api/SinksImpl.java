@@ -295,7 +295,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-        if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null) {
+        if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null
+                && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sinkName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }

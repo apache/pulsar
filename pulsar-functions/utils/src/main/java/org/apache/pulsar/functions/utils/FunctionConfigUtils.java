@@ -714,10 +714,6 @@ public class FunctionConfigUtils {
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in python");
         }
-
-        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
-            throw new IllegalArgumentException("Retain Key Orderering not yet supported in python");
-        }
     }
 
     private static void doGolangChecks(FunctionConfig functionConfig) {
@@ -748,7 +744,7 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static void doCommonChecks(FunctionConfig functionConfig) {
+    public static void doCommonChecks(FunctionConfig functionConfig) {
         if (isEmpty(functionConfig.getTenant())) {
             throw new IllegalArgumentException("Function tenant cannot be null");
         }
@@ -890,7 +886,7 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static Collection<String> collectAllInputTopics(FunctionConfig functionConfig) {
+    public static Collection<String> collectAllInputTopics(FunctionConfig functionConfig) {
         List<String> retval = new LinkedList<>();
         if (functionConfig.getInputs() != null) {
             retval.addAll(functionConfig.getInputs());

@@ -20,7 +20,7 @@ package org.apache.pulsar;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 
 /**
  * Pulsar version entry point.

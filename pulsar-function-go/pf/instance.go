@@ -21,8 +21,10 @@ package pf
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -149,7 +151,6 @@ func (gi *goInstance) startFunction(function function) error {
 	defer metricsServicer.close()
 CLOSE:
 	for {
-		idleTimer.Reset(idleDuration)
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
@@ -181,6 +182,11 @@ CLOSE:
 			close(channel)
 			break CLOSE
 		}
+		// reset the idle timer and drain if appropriate before the next loop
+		if !idleTimer.Stop() {
+			<-idleTimer.C
+		}
+		idleTimer.Reset(idleDuration)
 	}
 
 	gi.closeLogTopic()
@@ -188,11 +194,40 @@ CLOSE:
 	return nil
 }
 
-func (gi *goInstance) setupClient() error {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
+const (
+	authPluginToken = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+	authPluginNone  = ""
+)
 
-		URL: gi.context.instanceConf.pulsarServiceURL,
-	})
+func (gi *goInstance) setupClient() error {
+	ic := gi.context.instanceConf
+
+	clientOpts := pulsar.ClientOptions{
+		URL:                        ic.pulsarServiceURL,
+		TLSTrustCertsFilePath:      ic.tlsTrustCertsPath,
+		TLSAllowInsecureConnection: ic.tlsAllowInsecure,
+		TLSValidateHostname:        ic.tlsHostnameVerification,
+	}
+
+	switch ic.authPlugin {
+	case authPluginToken:
+		switch {
+		case strings.HasPrefix(ic.authParams, "file://"):
+			clientOpts.Authentication = pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:])
+		case strings.HasPrefix(ic.authParams, "token:"):
+			clientOpts.Authentication = pulsar.NewAuthenticationToken(ic.authParams[6:])
+		case ic.authParams == "":
+			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
+		default:
+			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
+		}
+	case authPluginNone:
+		clientOpts.Authentication, _ = pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
+	default:
+		return fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+	}
+
+	client, err := pulsar.NewClient(clientOpts)
 	if err != nil {
 		log.Errorf("create client error:%v", err)
 		gi.stats.incrTotalSysExceptions(err)

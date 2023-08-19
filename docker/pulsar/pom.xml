@@ -48,11 +48,22 @@
   </dependencies>
 
   <properties>
-      <UBUNTU_MIRROR>mirror://mirrors.ubuntu.com/mirrors.txt</UBUNTU_MIRROR>
-      <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
+    <UBUNTU_MIRROR>mirror://mirrors.ubuntu.com/mirrors.txt</UBUNTU_MIRROR>
+    <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
   </properties>
 
   <profiles>
+    <profile>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/../../.git/index</missing>
+        </file>
+      </activation>
+      <properties>
+        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
+      </properties>
+    </profile>
     <profile>
       <id>docker</id>
       <build>
@@ -82,7 +93,7 @@
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
-                          <tag>${project.version}</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
                         <buildx>
                           <platforms>

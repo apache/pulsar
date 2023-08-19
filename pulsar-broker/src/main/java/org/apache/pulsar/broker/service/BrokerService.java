@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -48,11 +49,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -68,7 +69,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.ws.rs.core.Response;
+import javax.annotation.Nonnull;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -100,6 +101,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
@@ -162,7 +164,6 @@ import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.RateLimiter;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
@@ -220,7 +221,7 @@ public class BrokerService implements Closeable {
 
     private final ConcurrentLinkedQueue<TopicLoadingContext> pendingTopicLoadingQueue;
 
-    private AuthorizationService authorizationService = null;
+    private AuthorizationService authorizationService;
     private final ScheduledExecutorService statsUpdater;
     @Getter
     private final ScheduledExecutorService backlogQuotaChecker;
@@ -315,7 +316,7 @@ public class BrokerService implements Closeable {
                         PersistentOfflineTopicStats>newBuilder().build();
 
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
-                .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
+                .numThreads(pulsar.getConfiguration().getTopicOrderedExecutorThreadNum())
                 .name("broker-topic-workers").build();
         final DefaultThreadFactory acceptorThreadFactory =
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-acceptor");
@@ -1185,23 +1186,9 @@ public class BrokerService implements Closeable {
             future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
-        NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
         // Check whether there are auth policies for the topic
-        pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(optPolicies -> {
-            if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
-                    .containsKey(topic)) {
-                // if there is no auth policy for the topic, just complete and return
-                if (log.isDebugEnabled()) {
-                    log.debug("Authentication policies not found for topic {}", topic);
-                }
-                future.complete(null);
-                return;
-            }
-            pulsar.getPulsarResources().getNamespaceResources()
-                    .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
-                        p.auth_policies.getTopicAuthentication().remove(topic);
-                        return p;
-                    }).thenAccept(v -> {
+        authorizationService.removePermissionsAsync(TopicName.get(topic))
+                    .thenAccept(v -> {
                         log.info("Successfully delete authentication policies for topic {}", topic);
                         future.complete(null);
                     }).exceptionally(ex1 -> {
@@ -1217,15 +1204,14 @@ public class BrokerService implements Closeable {
                         }
                         return null;
                     });
-        }).exceptionally(ex -> {
-            log.error("Failed to get policies for topic {}", topic, ex);
-            future.completeExceptionally(ex);
-            return null;
-        });
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
+        topicFuture.exceptionally(t -> {
+            pulsarStats.recordTopicLoadFailed();
+            return null;
+        });
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load non-persistent topic {}", topic);
@@ -1529,7 +1515,8 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic, topicFuture, properties));
+                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic,
+                                createIfMissing, topicFuture, properties));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
@@ -1617,6 +1604,11 @@ public class BrokerService implements Closeable {
                                        Map<String, String> properties) {
         TopicName topicName = TopicName.get(topic);
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+
+        topicFuture.exceptionally(t -> {
+            pulsarStats.recordTopicLoadFailed();
+            return null;
+        });
 
         if (isTransactionInternalName(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
@@ -1944,7 +1936,7 @@ public class BrokerService implements Closeable {
     }
 
     public void refreshTopicToStatsMaps(NamespaceBundle oldBundle) {
-        Objects.requireNonNull(oldBundle);
+        requireNonNull(oldBundle);
         try {
             // retrieve all topics under existing old bundle
             List<Topic> topics = getAllTopicsFromNamespaceBundle(oldBundle.getNamespaceObject().toString(),
@@ -2216,10 +2208,6 @@ public class BrokerService implements Closeable {
 
     public AuthorizationService getAuthorizationService() {
         return authorizationService;
-    }
-
-    public CompletableFuture<Void> removeTopicFromCache(String topicName) {
-        return removeTopicFutureFromCache(topicName, null);
     }
 
     public CompletableFuture<Void> removeTopicFromCache(Topic topic) {
@@ -3010,7 +2998,10 @@ public class BrokerService implements Closeable {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            checkOwnershipAndCreatePersistentTopic(topic, true, pendingFuture, pendingTopic.getProperties());
+            checkOwnershipAndCreatePersistentTopic(topic,
+                    pendingTopic.isCreateIfMissing(),
+                    pendingFuture,
+                    pendingTopic.getProperties());
             pendingFuture.handle((persistentTopic, ex) -> {
                 // release permit and process next pending topic
                 if (acquiredPermit) {
@@ -3034,12 +3025,9 @@ public class BrokerService implements Closeable {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
-        Optional<Policies> policies =
-                pulsar.getPulsarResources().getNamespaceResources()
-                        .getPoliciesIfCached(topicName.getNamespaceObject());
-        return pulsar.getNamespaceService().checkTopicExists(topicName)
-                .thenCompose(topicExists -> {
-                    return fetchPartitionedTopicMetadataAsync(topicName)
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                .thenCompose(policies -> pulsar.getNamespaceService().checkTopicExists(topicName)
+                    .thenCompose(topicExists -> fetchPartitionedTopicMetadataAsync(topicName)
                             .thenCompose(metadata -> {
                                 CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
 
@@ -3052,7 +3040,7 @@ public class BrokerService implements Closeable {
                                             && !topicExists
                                             && !topicName.isPartitioned()
                                             && pulsar.getBrokerService()
-                                                            .isDefaultTopicTypePartitioned(topicName, policies)) {
+                                            .isDefaultTopicTypePartitioned(topicName, policies)) {
                                         isAllowAutoTopicCreationAsync(topicName, policies).thenAccept(allowed -> {
                                             if (allowed) {
                                                 pulsar.getBrokerService()
@@ -3061,7 +3049,7 @@ public class BrokerService implements Closeable {
                                                         .exceptionally(ex -> {
                                                             if (ex.getCause()
                                                                     instanceof MetadataStoreException
-                                                                        .AlreadyExistsException) {
+                                                                    .AlreadyExistsException) {
                                                                 // The partitioned topic might be created concurrently
                                                                 fetchPartitionedTopicMetadataAsync(topicName)
                                                                         .whenComplete((metadata2, ex2) -> {
@@ -3089,8 +3077,7 @@ public class BrokerService implements Closeable {
                                 });
 
                                 return future;
-                            });
-                });
+                            })));
     }
 
     @SuppressWarnings("deprecation")
@@ -3282,10 +3269,9 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName) {
-        Optional<Policies> policies =
-                pulsar.getPulsarResources().getNamespaceResources()
-                        .getPoliciesIfCached(topicName.getNamespaceObject());
-        return isAllowAutoTopicCreationAsync(topicName, policies);
+        return pulsar.getPulsarResources().getNamespaceResources()
+                        .getPoliciesAsync(topicName.getNamespaceObject())
+                .thenCompose(policies -> isAllowAutoTopicCreationAsync(topicName, policies));
     }
 
     private CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName,
@@ -3295,10 +3281,19 @@ public class BrokerService implements Closeable {
                     topicName.getNamespaceObject());
             return CompletableFuture.completedFuture(false);
         }
-        //System topic can always be created automatically
+
+        // ServiceUnitStateChannelImpl.TOPIC expects to be a non-partitioned-topic now.
+        // We don't allow the auto-creation here.
+        // ServiceUnitStateChannelImpl.start() is responsible to create the topic.
+        if (ServiceUnitStateChannelImpl.TOPIC.equals(topicName.toString())) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        //Other system topics can be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(true);
         }
+
         final boolean allowed;
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
@@ -3346,11 +3341,23 @@ public class BrokerService implements Closeable {
         return null;
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call. we can use #{@link BrokerService#isAllowAutoSubscriptionCreationAsync(TopicName)} to instead of it.
+     */
+    @Deprecated
     public boolean isAllowAutoSubscriptionCreation(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return isAllowAutoSubscriptionCreation(topicName);
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call. we can use #{@link BrokerService#isAllowAutoSubscriptionCreationAsync(TopicName)} to instead of it.
+     */
+    @Deprecated
     public boolean isAllowAutoSubscriptionCreation(final TopicName topicName) {
         AutoSubscriptionCreationOverride autoSubscriptionCreationOverride =
                 getAutoSubscriptionCreationOverride(topicName);
@@ -3361,6 +3368,12 @@ public class BrokerService implements Closeable {
         }
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call. we can use #{@link BrokerService#isAllowAutoSubscriptionCreationAsync(TopicName)} to instead of it.
+     */
+    @Deprecated
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (topicPolicies.isPresent() && topicPolicies.get().getAutoSubscriptionCreationOverride() != null) {
@@ -3375,6 +3388,25 @@ public class BrokerService implements Closeable {
         }
         log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
+    }
+
+    public @Nonnull CompletionStage<Boolean> isAllowAutoSubscriptionCreationAsync(@Nonnull TopicName tpName) {
+        requireNonNull(tpName);
+        // topic level policies
+        final var topicPolicies = getTopicPolicies(tpName);
+        if (topicPolicies.isPresent() && topicPolicies.get().getAutoSubscriptionCreationOverride() != null) {
+            return CompletableFuture.completedFuture(topicPolicies.get().getAutoSubscriptionCreationOverride()
+                    .isAllowAutoSubscriptionCreation());
+        }
+        // namespace level policies
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(tpName.getNamespaceObject())
+                .thenApply(policies -> {
+                    if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                        return policies.get().autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
+                    }
+                    // broker level policies
+                    return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
+                });
     }
 
     public boolean isSystemTopic(String topic) {
@@ -3427,7 +3459,7 @@ public class BrokerService implements Closeable {
                                         log.error("Failed to create persistent topic {}, "
                                                 + "exceed maximum number of topics in namespace", topicName);
                                         return FutureUtil.failedFuture(
-                                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                                new NotAllowedException(
                                                         "Exceed maximum number of topics in namespace."));
                                     } else {
                                         return CompletableFuture.completedFuture(null);
@@ -3508,6 +3540,7 @@ public class BrokerService implements Closeable {
     @Getter
     private static class TopicLoadingContext {
         private final String topic;
+        private final boolean createIfMissing;
         private final CompletableFuture<Optional<Topic>> topicFuture;
         private final Map<String, String> properties;
     }

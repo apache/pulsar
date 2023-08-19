@@ -265,6 +265,10 @@ public class PulsarStats implements Closeable {
         }
     }
 
+    public void recordTopicLoadFailed() {
+        brokerOperabilityMetrics.recordTopicLoadFailed();
+    }
+
     public void recordConnectionCreate() {
         brokerOperabilityMetrics.recordConnectionCreate();
     }

@@ -38,7 +38,7 @@ public class PerfToolTest extends TopicMessagingBase {
         String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":" + PulsarContainer.BROKER_PORT;
         final String topicName = getNonPartitionedTopic("testProduce", true);
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
-        ZKContainer<?> clientToolContainer = pulsarCluster.getZooKeeper();
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
         ContainerExecResult produceResult = produceWithPerfTool(clientToolContainer, serviceUrl, topicName, MESSAGE_COUNT);
         checkOutputForLogs(produceResult,"PerformanceProducer - Aggregated throughput stats",
                 "PerformanceProducer - Aggregated latency stats");
@@ -49,7 +49,7 @@ public class PerfToolTest extends TopicMessagingBase {
         String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":" + PulsarContainer.BROKER_PORT;
         final String topicName = getNonPartitionedTopic("testConsume", true);
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
-        ZKContainer<?> clientToolContainer = pulsarCluster.getZooKeeper();
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
         ContainerExecResult consumeResult = consumeWithPerfTool(clientToolContainer, serviceUrl, topicName);
         checkOutputForLogs(consumeResult,"PerformanceConsumer - Aggregated throughput stats",
                 "PerformanceConsumer - Aggregated latency stats");
@@ -60,7 +60,7 @@ public class PerfToolTest extends TopicMessagingBase {
         String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":" + PulsarContainer.BROKER_PORT;
         final String topicName = getNonPartitionedTopic("testRead", true);
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
-        ZKContainer<?> clientToolContainer = pulsarCluster.getZooKeeper();
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
         ContainerExecResult readResult = readWithPerfTool(clientToolContainer, serviceUrl, topicName);
         checkOutputForLogs(readResult,"PerformanceReader - Aggregated throughput stats ",
                 "PerformanceReader - Aggregated latency stats");

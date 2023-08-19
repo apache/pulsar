@@ -306,7 +306,7 @@ public class PulsarAdminTool {
         if (allowSystemExit) {
             // we are using halt and not System.exit, we do not mind about shutdown hooks
             // they are only slowing down the tool
-            ShutdownUtil.triggerImmediateForcefulShutdown(code);
+            ShutdownUtil.triggerImmediateForcefulShutdown(code, false);
         } else {
             System.out.println("Exit code is " + code + " (System.exit not called, as we are in test mode)");
         }

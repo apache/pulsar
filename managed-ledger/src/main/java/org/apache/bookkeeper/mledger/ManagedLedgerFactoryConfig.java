@@ -39,7 +39,6 @@ public class ManagedLedgerFactoryConfig {
      */
     private double cacheEvictionWatermark = 0.90;
 
-    private int numManagedLedgerWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     /**

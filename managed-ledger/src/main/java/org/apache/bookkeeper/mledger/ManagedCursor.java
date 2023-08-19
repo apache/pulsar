@@ -638,6 +638,23 @@ public interface ManagedCursor {
             FindEntryCallback callback, Object ctx);
 
     /**
+     * Find the newest entry that matches the given predicate.
+     *
+     * @param constraint
+     *            search only active entries or all entries
+     * @param condition
+     *            predicate that reads an entry an applies a condition
+     * @param callback
+     *            callback object returning the resultant position
+     * @param ctx
+     *            opaque context
+     * @param isFindFromLedger
+     *            find the newest entry from ledger
+     */
+    void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+            FindEntryCallback callback, Object ctx, boolean isFindFromLedger);
+
+    /**
      * reset the cursor to specified position to enable replay of messages.
      *
      * @param position

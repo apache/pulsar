@@ -297,6 +297,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "The cache executor thread pool is used for restarting global zookeeper session. "
             + "Default is 10"
     )
+    @Deprecated
     private int numCacheExecutorThreadPoolSize = 10;
 
     @FieldContext(
@@ -1189,10 +1190,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Max concurrent non-persistent message can be processed per connection")
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
+
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Number of worker threads to serve non-persistent topic")
-    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
+        deprecated = true,
+        doc = "Number of worker threads to serve non-persistent topic.\n"
+                + "@deprecated - use topicOrderedExecutorThreadNum instead.")
+    private int numWorkerThreadsForNonPersistentTopic = -1;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of worker threads to serve topic ordered executor")
+    private int topicOrderedExecutorThreadNum = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1347,7 +1356,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Enable or disable the broker interceptor"
+        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
     )
     private boolean disableBrokerInterceptors = true;
 
@@ -1644,6 +1653,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "kerberos kinit command."
     )
     private String kinitCommand = "/usr/bin/kinit";
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "how often the broker expires the inflight SASL context."
+    )
+    private long inflightSaslContextExpiryMs = 30_000L;
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Maximum number of inflight sasl context."
+    )
+    private long maxInflightSaslContext = 50_000L;
 
     /**** --- BookKeeper Client. --- ****/
     @FieldContext(
@@ -2477,6 +2498,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of load manager to use"
     )
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
+
+    @FieldContext(category = CATEGORY_LOAD_BALANCER, doc = "Name of topic bundle assignment strategy to use")
+    private String topicBundleAssignmentStrategy =
+            "org.apache.pulsar.common.naming.ConsistentHashingTopicBundleAssigner";
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -3153,6 +3178,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The class name of the factory that implements the topic compaction service."
+    )
+    private String compactionServiceFactoryClassName = "org.apache.pulsar.compaction.PulsarCompactionServiceFactory";
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -3472,5 +3503,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                         Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
                                    MIN_ML_CACHE_EVICTION_FREQUENCY))
                 : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
+    }
+
+    public int getTopicOrderedExecutorThreadNum() {
+        return numWorkerThreadsForNonPersistentTopic > 0
+                ? numWorkerThreadsForNonPersistentTopic : topicOrderedExecutorThreadNum;
     }
 }

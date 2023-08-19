@@ -67,6 +67,17 @@
 
   <profiles>
     <profile>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/../../.git/index</missing>
+        </file>
+      </activation>
+      <properties>
+        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
+      </properties>
+    </profile>
+    <profile>
       <id>docker</id>
       <!-- include the docker image only when docker profile is active -->
       <dependencies>
@@ -144,11 +155,12 @@
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
-                          <tag>${project.version}</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
                         <args>
                           <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
                           <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
+                          <PULSAR_IMAGE>${docker.organization}/pulsar:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
                         </args>
                         <buildx>
                           <platforms>

@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
 
+import java.util.UUID;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sources;
@@ -444,6 +446,19 @@ public class TestCmdSources {
         verify(localSourceRunner).validateSourceConfigs(eq(expectedSourceConfig));
     }
 
+    @Test
+    public void testCmdSourcesThrowingExceptionOnFailure() throws Exception {
+        verifyNoSuchFileParameterException(createSource);
+        verifyNoSuchFileParameterException(updateSource);
+        verifyNoSuchFileParameterException(localSourceRunner);
+    }
+    
+    private void verifyNoSuchFileParameterException(org.apache.pulsar.admin.cli.CmdSources.SourceDetailsCommand command) {
+        command.sourceConfigFile = UUID.randomUUID().toString();
+        ParameterException e = Assert.expectThrows(ParameterException.class, command::processArguments);
+        assertTrue(e.getMessage().endsWith("(No such file or directory)"));
+    }
+    
 
     @Test
     public void testCliOverwriteConfigFile() throws Exception {
