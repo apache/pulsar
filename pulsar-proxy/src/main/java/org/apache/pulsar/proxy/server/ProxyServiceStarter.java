@@ -254,6 +254,10 @@ public class ProxyServiceStarter {
                                      ProxyService service,
                                      BrokerDiscoveryProvider discoveryProvider) throws Exception {
         if (config.isEnableProxyStatsEndpoints()) {
+            server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
+                    VipStatus.class);
+            server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service,
+                    ProxyStats.class);
             if (service != null) {
                 PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
                 if (metricsServlet != null) {
@@ -261,10 +265,6 @@ public class ProxyServiceStarter {
                             Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
                 }
             }
-            server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
-                    VipStatus.class);
-            server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service,
-                    ProxyStats.class);
         }
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
