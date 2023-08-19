@@ -344,6 +344,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private boolean forwardAuthorizationCredentials = false;
     @FieldContext(
+        category = CATEGORY_HTTP,
+        doc = "Whether to enable the proxy's /metrics, /proxy-stats, and /status.html http endpoints"
+    )
+    private boolean enableProxyStatsEndpoints = true;
+
+    @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
             + "'authenticationEnabled' must also be set for this to take effect."
