@@ -529,7 +529,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             // after transaction abort, the messages could be received
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
-                message = consumer.receive();
+                message = consumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
                 log.info("receive msgId: {}, count: {}", message.getMessageId(), i);
@@ -741,7 +741,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             for (int i = 0; i < messageCnt; i++){
                 producer.newMessage().value("hello".getBytes()).sendAsync();
             }
-            producer.flush();
             Message<byte[]> message = null;
             Thread.sleep(1000L);
             for (int i = 0; i < messageCnt; i++) {
