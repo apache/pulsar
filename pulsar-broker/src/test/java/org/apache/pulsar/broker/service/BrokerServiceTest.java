@@ -1236,6 +1236,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             // Ok.. (if test fails intermittently and namespace is already created)
         }
 
+        admin.namespaces().setSubscriptionExpirationTime(namespace, 1);
+
         String compactionInactiveTestTopic = "persistent://prop/test/testCompactionCursorShouldNotDelete";
 
         admin.topics().createNonPartitionedTopic(compactionInactiveTestTopic);
@@ -1272,7 +1274,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // if subscription deleted the result should be zero
         assertEquals(0, topic.getExpiredSubscriptionNumbers());
 
-        // check if the subscription is exist.
+        // check if the subscription exist.
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
 
     }
