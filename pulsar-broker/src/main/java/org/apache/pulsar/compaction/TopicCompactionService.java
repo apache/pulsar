@@ -62,12 +62,11 @@ public interface TopicCompactionService extends AutoCloseable {
      */
     CompletableFuture<Position> getLastCompactedPosition();
 
-    /**
-     * Find the newest Position that matches the given predicate.
-     *
-     * @param condition
-     *  predicate that reads an entry an applies a condition
-     * @return a future that will be completed with the result position, this position can be null.
-     */
-    CompletableFuture<Position> findNewestPosition(@Nonnull Predicate<Entry> condition);
+   /**
+    * Find the first raw entry metadata that matches the given condition.
+    *
+    * @param condition  the condition to match.
+    * @return the first entry metadata that matches the given condition, this raw entry metadata can be null.
+    */
+    CompletableFuture<RawEntryMetadata> findFirstEntryMetadata(@Nonnull Predicate<RawEntryMetadata> condition);
 }

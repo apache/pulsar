@@ -27,6 +27,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -281,6 +282,21 @@ public class CompactedTopicImpl implements CompactedTopic {
                     }
                     return entries;
                 });
+    }
+
+    static CompletableFuture<RawEntryMetadata> readRawEntryMetadata(LedgerHandle lh, long entryId) {
+        return lh.readAsync(entryId, entryId).thenApply(ledgerEntries -> {
+            try (ledgerEntries) {
+                Iterator<org.apache.bookkeeper.client.api.LedgerEntry> iterator = ledgerEntries.iterator();
+                org.apache.bookkeeper.client.api.LedgerEntry ledgerEntry = iterator.next();
+                ByteBuf buf = ledgerEntry.getEntryBuffer();
+                try (RawMessage m = RawMessageImpl.deserializeFrom(buf)) {
+                    return RawEntryMetadataImpl.parseFrom(m.getMessageIdData().getLedgerId(),
+                            m.getMessageIdData().getEntryId(),
+                            m.getHeadersAndPayload());
+                }
+            }
+        });
     }
 
     /**

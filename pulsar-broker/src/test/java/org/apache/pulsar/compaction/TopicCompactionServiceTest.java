@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.compaction.Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -47,6 +48,11 @@ public class TopicCompactionServiceTest extends CompactorTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setBrokerEntryMetadataInterceptors(org.assertj.core.util.Sets.newTreeSet(
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
+                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
+        ));
+        conf.setExposingBrokerEntryMetadataToClientEnabled(true);
         super.setup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
@@ -132,12 +138,14 @@ public class TopicCompactionServiceTest extends CompactorTest {
         List<Entry> entries2 = service.readCompactedEntries(PositionImpl.EARLIEST, 1).join();
         assertEquals(entries2.size(), 1);
 
-        Position position = service.findNewestPosition(entry -> {
-            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-            return messageMetadata.getSequenceId() <= 4;
+        RawEntryMetadata rawEntryMetadata = service.findFirstEntryMetadata(entryMetadata -> {
+            return entryMetadata.getMessageMetadata().getSequenceId() >= 3;
         }).join();
         final PositionImpl expectedPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
 
-        assertEquals(position, expectedPosition);
+        assertEquals(rawEntryMetadata.getPosition(), expectedPosition);
+
+        assertNotNull(rawEntryMetadata.getBrokerEntryMetadata());
+        assertEquals(rawEntryMetadata.getBrokerEntryMetadata().getIndex(), 2);
     }
 }

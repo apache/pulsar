@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.COMPACT_LEDGER_EMPTY;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.NEWER_THAN_COMPACTED;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.findStartPoint;
+import static org.apache.pulsar.compaction.CompactedTopicImpl.readRawEntryMetadata;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -109,38 +110,36 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<Position> findNewestPosition(@Nonnull Predicate<Entry> condition) {
+    public CompletableFuture<RawEntryMetadata> findFirstEntryMetadata(@Nonnull Predicate<RawEntryMetadata> condition) {
         var compactedTopicContextFuture = compactedTopic.getCompactedTopicContextFuture();
         if (compactedTopicContextFuture == null) {
             return CompletableFuture.completedFuture(null);
         }
         return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
             LedgerHandle lh = compactedTopicContext.getLedger();
-            CompletableFuture<Position> promise = new CompletableFuture<>();
-            findNewestPointLoop(condition, 0L, lh.getLastAddConfirmed(), promise, null, lh);
+            CompletableFuture<RawEntryMetadata> promise = new CompletableFuture<>();
+            findFirstEntryMetadataLoop(condition, 0L, lh.getLastAddConfirmed(), promise, null, lh);
             return promise;
         });
     }
 
-    private static void findNewestPointLoop(final Predicate<Entry> condition,
-                                            final long start, final long end,
-                                            final CompletableFuture<Position> promise,
-                                            final PositionImpl lastMatchPosition,
-                                            final LedgerHandle lh) {
+    private static void findFirstEntryMetadataLoop(final Predicate<RawEntryMetadata> predicate,
+                                                   final long start, final long end,
+                                                   final CompletableFuture<RawEntryMetadata> promise,
+                                                   final RawEntryMetadata lastMatchRawEntryMetadata,
+                                                   final LedgerHandle lh) {
         if (start > end) {
-            promise.complete(lastMatchPosition);
+            promise.complete(lastMatchRawEntryMetadata);
             return;
         }
 
-        long mid = start + (end - start) / 2;
-        CompactedTopicImpl.readEntries(lh, mid, mid).thenAccept(entries -> {
-            Entry entry = entries.get(0);
-            final PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-            if (condition.test(entry)) {
-                findNewestPointLoop(condition, mid + 1, end, promise, position, lh);
-            } else {
-                findNewestPointLoop(condition, start, mid - 1, promise, lastMatchPosition, lh);
-            }
+        long mid = (start + end) / 2;
+        readRawEntryMetadata(lh, mid).thenAccept(rawEntryMetadata -> {
+                if (predicate.test(rawEntryMetadata)) {
+                    findFirstEntryMetadataLoop(predicate, start, mid - 1, promise, rawEntryMetadata, lh);
+                } else {
+                    findFirstEntryMetadataLoop(predicate, mid + 1, end, promise, lastMatchRawEntryMetadata, lh);
+                }
         }).exceptionally(ex -> {
             promise.completeExceptionally(ex);
             return null;
