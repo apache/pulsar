@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.stats;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import io.netty.channel.Channel;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -27,7 +28,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -36,7 +40,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.proxy.server.ProxyService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 
@@ -45,12 +54,15 @@ import org.apache.pulsar.proxy.server.ProxyService;
 @Produces(MediaType.APPLICATION_JSON)
 public class ProxyStats {
 
+    private static final Logger log = LoggerFactory.getLogger(ProxyStats.class);
     public static final String ATTRIBUTE_PULSAR_PROXY_NAME = "pulsar-proxy";
 
     private ProxyService service;
 
     @Context
     protected ServletContext servletContext;
+    @Context
+    protected HttpServletRequest httpRequest;
 
     @GET
     @Path("/connections")
@@ -58,6 +70,7 @@ public class ProxyStats {
             response = List.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 503, message = "Proxy service is not initialized") })
     public List<ConnectionStats> metrics() {
+        throwIfNotSuperUser("metrics");
         List<ConnectionStats> stats = new ArrayList<>();
         proxyService().getClientCnxs().forEach(cnx -> {
             if (cnx.getDirectProxyHandler() == null) {
@@ -78,7 +91,7 @@ public class ProxyStats {
     @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy logging should be > 2 to capture topic stats"),
             @ApiResponse(code = 503, message = "Proxy service is not initialized") })
     public Map<String, TopicStats> topics() {
-
+        throwIfNotSuperUser("topics");
         Optional<Integer> logLevel = proxyService().getConfiguration().getProxyLogLevel();
         if (!logLevel.isPresent() || logLevel.get() < 2) {
             throw new RestException(Status.PRECONDITION_FAILED, "Proxy doesn't have logging level 2");
@@ -92,6 +105,7 @@ public class ProxyStats {
             notes = "It only changes log-level in memory, change it config file to persist the change")
     @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy log level can be [0-2]"), })
     public void updateProxyLogLevel(@PathParam("logLevel") int logLevel) {
+        throwIfNotSuperUser("updateProxyLogLevel");
         if (logLevel < 0 || logLevel > 2) {
             throw new RestException(Status.PRECONDITION_FAILED, "Proxy log level can be only [0-2]");
         }
@@ -102,6 +116,7 @@ public class ProxyStats {
     @Path("/logging")
     @ApiOperation(hidden = true, value = "Get proxy logging")
     public int getProxyLogLevel(@PathParam("logLevel") int logLevel) {
+        throwIfNotSuperUser("getProxyLogLevel");
         return proxyService().getProxyLogLevel();
     }
 
@@ -113,5 +128,27 @@ public class ProxyStats {
             }
         }
         return service;
+    }
+
+    private void throwIfNotSuperUser(String action) {
+        if (proxyService().getConfiguration().isAuthorizationEnabled()) {
+            AuthenticationParameters authParams = AuthenticationParameters.builder()
+                    .clientRole((String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName))
+                    .clientAuthenticationDataSource((AuthenticationDataSource)
+                            httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName))
+                    .build();
+            try {
+                if (authParams.getClientRole() == null
+                        || !proxyService().getAuthorizationService().isSuperUser(authParams).get(30, SECONDS)) {
+                    log.error("Client with role [{}] is not authorized to {}", authParams.getClientRole(), action);
+                    throw new org.apache.pulsar.common.util.RestException(Status.UNAUTHORIZED,
+                            "Client is not authorized to perform operation");
+                }
+            } catch (ExecutionException | TimeoutException | InterruptedException e) {
+                log.warn("Time-out {} sec while checking the role {} is a super user role ", 30,
+                        authParams.getClientRole());
+                throw new org.apache.pulsar.common.util.RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            }
+        }
     }
 }
