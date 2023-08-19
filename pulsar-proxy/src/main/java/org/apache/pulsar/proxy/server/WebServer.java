@@ -197,12 +197,20 @@ public class WebServer {
 
     public void addServlet(String basePath, ServletHolder servletHolder,
                            List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+        addServlet(basePath, servletHolder, attributes, requireAuthentication, true);
+    }
+
+    private void addServlet(String basePath, ServletHolder servletHolder,
+            List<Pair<String, Object>> attributes, boolean requireAuthentication, boolean checkForExistingPaths) {
         popularServletParams(servletHolder, config);
 
-        Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
-        if (existingPath.isPresent()) {
-            throw new IllegalArgumentException(
-                    String.format("Cannot add servlet at %s, path %s already exists", basePath, existingPath.get()));
+        if (checkForExistingPaths) {
+            Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
+            if (existingPath.isPresent()) {
+                throw new IllegalArgumentException(
+                        String.format("Cannot add servlet at %s, path %s already exists", basePath,
+                                existingPath.get()));
+            }
         }
         servletPaths.add(basePath);
 
@@ -237,7 +245,9 @@ public class WebServer {
         config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)));
+        // This method has not historically checked for existing paths, so we don't check here either. The
+        // method call is added to reduce code duplication.
+        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)), true, false);
     }
 
     public int getExternalServicePort() {
