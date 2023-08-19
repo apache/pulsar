@@ -240,6 +240,36 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
+    public void testUpdateAndGetPolicy() throws ExecutionException, InterruptedException, TopicPoliciesCacheNotInitException {
+        // Init topic policies
+        TopicPolicies initPolicy = TopicPolicies.builder()
+                .maxConsumerPerTopic(10)
+                .build();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
+
+        // Wait for all topic policies updated.
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(systemTopicBasedTopicPoliciesService
+                        .getPoliciesCacheInit(TOPIC1.getNamespaceObject())));
+
+        // Assert broker is cache all topic policies
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1)
+                        .getMaxConsumerPerTopic().intValue(), 10));
+
+        // Update policy for TOPIC1
+        TopicPolicies policies1 = TopicPolicies.builder()
+                .maxProducerPerTopic(1)
+                .build();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1).get();
+
+        // Ensure that the cache is updated before updateTopicPoliciesAsync returns.
+        TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
+        Assert.assertEquals(policiesGet1, policies1);
+    }
+
+
+    @Test
     public void testCacheCleanup() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
         TopicName topicName = TopicName.get(topic);
