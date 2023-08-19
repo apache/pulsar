@@ -1225,7 +1225,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testCheckInactiveSubscriptionsShouldNotDeleteCompactionCursor() throws Exception {
         String namespace = "prop/test";
 
-        // set up broker disable auto create and set concurrent load to 1 qps.
+        // set up broker set compaction threshold.
         cleanup();
         conf.setBrokerServiceCompactionThresholdInBytes(8);
         setup();
@@ -1236,6 +1236,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             // Ok.. (if test fails intermittently and namespace is already created)
         }
 
+        // set enable subscription expiration.
         admin.namespaces().setSubscriptionExpirationTime(namespace, 1);
 
         String compactionInactiveTestTopic = "persistent://prop/test/testCompactionCursorShouldNotDelete";
