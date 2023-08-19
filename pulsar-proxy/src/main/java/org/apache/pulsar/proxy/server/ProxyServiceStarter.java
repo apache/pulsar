@@ -241,17 +241,19 @@ public class ProxyServiceStarter {
                                      ProxyConfiguration config,
                                      ProxyService service,
                                      BrokerDiscoveryProvider discoveryProvider) throws Exception {
-        if (service != null) {
-            PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
-            if (metricsServlet != null) {
-                server.addServlet("/metrics", new ServletHolder(metricsServlet),
-                        Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+        if (config.isEnableProxyStatsEndpoints()) {
+            server.addRestResources("/", VipStatus.class.getPackage().getName(),
+                    VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
+            server.addRestResources("/proxy-stats", ProxyStats.class.getPackage().getName(),
+                    ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service);
+            if (service != null) {
+                PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
+                if (metricsServlet != null) {
+                    server.addServlet("/metrics", new ServletHolder(metricsServlet),
+                            Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+                }
             }
         }
-        server.addRestResources("/", VipStatus.class.getPackage().getName(),
-                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
-        server.addRestResources("/proxy-stats", ProxyStats.class.getPackage().getName(),
-                ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service);
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
