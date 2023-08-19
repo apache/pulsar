@@ -48,7 +48,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -248,12 +247,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     private volatile long lastDataMessagePublishedTimestamp = 0;
-
-    // Record the total expired subscription, if enable subscription expiration feature
-    private static final AtomicLongFieldUpdater<PersistentTopic> EXPIRED_SUBSCRIPTION_NUMBERS_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(PersistentTopic.class, "expiredSubscriptionNumbers");
-    private volatile long expiredSubscriptionNumbers = 0L;
-
     @Getter
     private final ExecutorService orderedExecutor;
 
@@ -2746,7 +2739,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
                         sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
                                 + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
-                        EXPIRED_SUBSCRIPTION_NUMBERS_UPDATER.incrementAndGet(this);
                     }
                 });
             }
@@ -3630,10 +3622,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public long getLastDataMessagePublishedTimestamp() {
         return lastDataMessagePublishedTimestamp;
-    }
-
-    public long getExpiredSubscriptionNumbers() {
-        return EXPIRED_SUBSCRIPTION_NUMBERS_UPDATER.get(this);
     }
 
     public Optional<TopicName> getShadowSourceTopic() {

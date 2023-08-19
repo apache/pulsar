@@ -1265,15 +1265,19 @@ public class BrokerServiceTest extends BrokerTestBase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
 
         // make cursor last active time to very small to check if it will be deleted
-        Field cursorField = ManagedCursorImpl.class.getDeclaredField("lastActive");
-        cursorField.setAccessible(true);
-        cursorField.set(cursor, 0);
+        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
+        cursorLastActiveField.setAccessible(true);
+        cursorLastActiveField.set(cursor, 0);
+
+        // replace origin object. so we can check if subscription is deleted.
+        PersistentSubscription spySubscription = Mockito.spy(sub);
+        topic.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, spySubscription);
 
         // trigger inactive check.
         topic.checkInactiveSubscriptions();
 
-        // if subscription deleted the result should be zero
-        assertEquals(0, topic.getExpiredSubscriptionNumbers());
+        // Compaction subscription should not call delete method.
+        Mockito.verify(spySubscription, Mockito.never()).delete();
 
         // check if the subscription exist.
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
