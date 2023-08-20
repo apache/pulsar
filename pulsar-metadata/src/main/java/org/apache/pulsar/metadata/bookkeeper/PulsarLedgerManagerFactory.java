@@ -19,14 +19,12 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.*;
-
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.AbstractConfiguration;

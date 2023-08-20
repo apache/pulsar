@@ -19,7 +19,7 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.*;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.bookkeeper.proto.DataFormats.CheckAllLedgersFormat;
 import static org.apache.bookkeeper.proto.DataFormats.LedgerRereplicationLayoutFormat;
 import static org.apache.bookkeeper.proto.DataFormats.LockDataFormat;
@@ -896,7 +896,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             CheckAllLedgersFormat checkAllLedgersFormat = CheckAllLedgersFormat.parseFrom(data);
             return checkAllLedgersFormat.hasCheckAllLedgersCTime() ? checkAllLedgersFormat.getCheckAllLedgersCTime()
                     : -1;
-        } catch (ExecutionException |TimeoutException ee) {
+        } catch (ExecutionException | TimeoutException ee) {
             throw new ReplicationException.UnavailableException("Error contacting zookeeper", ee);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
