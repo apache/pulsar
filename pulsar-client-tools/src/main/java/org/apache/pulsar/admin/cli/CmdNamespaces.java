@@ -2307,6 +2307,15 @@ public class CmdNamespaces extends CmdBase {
                 required = false
         )
         private String offloadReadPriorityStr;
+        @Parameter(names = {"--assignmentOffloadThreads", "-aot"}, description =
+                "The number of threads used for offloading the execution of assignments. "
+                        + "The default value is 2.", required = false)
+        private String assignmentOffloadThreadsStr;
+
+        @Parameter(names = {"--offloadPrefetchRounds", "-opr"}, description =
+                "Maximum prefetch rounds for ledger reading for offloading."
+                        + "The default value is 1.", required = false)
+        private String offloadPrefetchRoundsStr;
 
         public final List<String> driverNames = OffloadPoliciesImpl.DRIVER_NAMES;
 
@@ -2405,11 +2414,30 @@ public class CmdNamespaces extends CmdBase {
                 }
             }
 
+            int assignmentOffloadThreads = OffloadPoliciesImpl.DEFAULT_ASSIGNMENT_OFFLOAD_THREADS;
+            if (StringUtils.isNotEmpty(assignmentOffloadThreadsStr)) {
+                long assignmentOffloadThreadsNumber = validateSizeString(assignmentOffloadThreadsStr);
+                if (positiveCheck("AssignmentOffloadThreads", assignmentOffloadThreadsNumber) && maxValueCheck(
+                        "AssignmentOffloadThreads", assignmentOffloadThreadsNumber, Integer.MAX_VALUE)) {
+                    assignmentOffloadThreads = Long.valueOf(assignmentOffloadThreadsNumber).intValue();
+                }
+            }
+
+            int offloadPrefetchRounds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
+            if (StringUtils.isNotEmpty(offloadPrefetchRoundsStr)) {
+                long offloadPrefetchRoundsNumber = validateSizeString(offloadPrefetchRoundsStr);
+                if (positiveCheck("OffloadPrefetchRounds", offloadPrefetchRoundsNumber) && maxValueCheck(
+                        "OffloadPrefetchRounds", offloadPrefetchRoundsNumber, Integer.MAX_VALUE)) {
+                    offloadPrefetchRounds = Long.valueOf(offloadPrefetchRoundsNumber).intValue();
+                }
+            }
+
             OffloadPolicies offloadPolicies = OffloadPoliciesImpl.create(driver, region, bucket, endpoint,
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
-                    offloadThresholdInSeconds, offloadAfterElapsedInMillis, offloadedReadPriority);
+                    offloadThresholdInSeconds, offloadAfterElapsedInMillis, offloadedReadPriority,
+                    assignmentOffloadThreads, offloadPrefetchRounds);
 
             getAdmin().namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }

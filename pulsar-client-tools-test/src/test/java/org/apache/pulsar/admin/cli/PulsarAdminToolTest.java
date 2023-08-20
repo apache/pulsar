@@ -366,11 +366,11 @@ public class PulsarAdminToolTest {
         // filesystem offload
         CmdNamespaces namespaces = new CmdNamespaces(() -> admin);
         namespaces.run(split(
-          "set-offload-policies myprop/clust/ns2 -d filesystem -oat 100M -oats 1h -oae 1h -orp bookkeeper-first"));
+          "set-offload-policies myprop/clust/ns2 -d filesystem -oat 100M -oats 1h -oae 1h -orp bookkeeper-first -aot 100 -opr 200"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns2",
           OffloadPoliciesImpl.create("filesystem", null, null,
             null, null, null, null, null, 64 * 1024 * 1024, 1024 * 1024,
-            100 * 1024 * 1024L, 3600L, 3600 * 1000L, OffloadedReadPriority.BOOKKEEPER_FIRST));
+            100 * 1024 * 1024L, 3600L, 3600 * 1000L, OffloadedReadPriority.BOOKKEEPER_FIRST, 100, 200));
 
         // S3 offload
         CmdNamespaces namespaces2 = new CmdNamespaces(() -> admin);
@@ -1494,10 +1494,10 @@ public class PulsarAdminToolTest {
 
         // filesystem offload
         CmdTopics cmdTopics = new CmdTopics(() -> admin);
-        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d filesystem -oat 100M -oats 1h -oae 1h -orp bookkeeper-first"));
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d filesystem -oat 100M -oats 1h -oae 1h -orp bookkeeper-first -aot 100 -opr 200"));
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("filesystem", null, null
           , null, null, null, null, null, 64 * 1024 * 1024, 1024 * 1024,
-          100 * 1024 * 1024L, 3600L, 3600 * 1000L, OffloadedReadPriority.BOOKKEEPER_FIRST);
+          100 * 1024 * 1024L, 3600L, 3600 * 1000L, OffloadedReadPriority.BOOKKEEPER_FIRST, 100, 200);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
 
 //         S3 offload

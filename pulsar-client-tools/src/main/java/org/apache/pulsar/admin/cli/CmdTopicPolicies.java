@@ -1797,6 +1797,16 @@ public class CmdTopicPolicies extends CmdBase {
         )
         private String offloadReadPriorityStr;
 
+        @Parameter(names = {"--assignmentOffloadThreads", "-aot"}, description =
+                "The number of threads used for offloading the execution of assignments. "
+                        + "The default value is 2.", required = false)
+        private int assignmentOffloadThreads;
+
+        @Parameter(names = {"--offloadPrefetchRounds", "-opr"}, description =
+                "Maximum prefetch rounds for ledger reading for offloading."
+                        + "The default value is 1.", required = false)
+        private int offloadPrefetchRounds;
+
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
@@ -1852,7 +1862,7 @@ public class CmdTopicPolicies extends CmdBase {
                     awsId, awsSecret,
                     maxBlockSizeInBytes,
                     readBufferSizeInBytes, offloadThresholdInBytes, offloadThresholdInSeconds,
-                    offloadDeletionLagInMillis, offloadedReadPriority);
+                    offloadDeletionLagInMillis, offloadedReadPriority, assignmentOffloadThreads, offloadPrefetchRounds);
 
             getTopicPolicies(isGlobal).setOffloadPolicies(persistentTopic, offloadPolicies);
         }

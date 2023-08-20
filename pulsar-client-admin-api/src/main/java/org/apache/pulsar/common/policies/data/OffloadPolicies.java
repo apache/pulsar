@@ -27,6 +27,7 @@ public interface OffloadPolicies {
 
     Integer getManagedLedgerOffloadMaxThreads();
 
+    Integer getManagedLedgerAssignmentOffloadThreads();
     Integer getManagedLedgerOffloadPrefetchRounds();
 
     Long getManagedLedgerOffloadThresholdInBytes();
@@ -86,6 +87,7 @@ public interface OffloadPolicies {
         Builder managedLedgerOffloadDriver(String managedLedgerOffloadDriver);
 
         Builder managedLedgerOffloadMaxThreads(Integer managedLedgerOffloadMaxThreads);
+        Builder managedLedgerAssignmentOffloadThreads(Integer managedLedgerAssignmentOffloadThreads);
 
         Builder managedLedgerOffloadPrefetchRounds(Integer managedLedgerOffloadPrefetchRounds);
 

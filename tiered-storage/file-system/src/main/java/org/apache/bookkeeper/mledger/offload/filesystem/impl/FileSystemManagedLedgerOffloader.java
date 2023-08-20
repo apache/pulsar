@@ -109,7 +109,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         this.scheduler = scheduler;
         this.fileSystem = FileSystem.get(configuration);
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(conf.getManagedLedgerOffloadMaxThreads())
+                .numThreads(conf.getManagedLedgerAssignmentOffloadThreads())
                 .name("offload-assignment").build();
         this.offloaderStats = offloaderStats;
     }
@@ -131,7 +131,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         this.scheduler = scheduler;
         this.fileSystem = FileSystem.get(configuration);
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(conf.getManagedLedgerOffloadMaxThreads())
+                .numThreads(conf.getManagedLedgerAssignmentOffloadThreads())
                 .name("offload-assignment").build();
         this.offloaderStats = offloaderStats;
     }

@@ -3004,6 +3004,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerOffloadPrefetchRounds = 1;
 
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of threads used for offloading the execution of assignments"
+    )
+    private int managedLedgerAssignmentOffloadThreads = 2;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,
         doc = "Time to rollover ledger for inactive topic (duration without any publish on that topic). "
