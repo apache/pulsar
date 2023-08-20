@@ -1800,12 +1800,12 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = {"--assignmentOffloadThreads", "-aot"}, description =
                 "The number of threads used for offloading the execution of assignments. "
                         + "The default value is 2.", required = false)
-        private int assignmentOffloadThreads;
+        private String assignmentOffloadThreadsStr;
 
         @Parameter(names = {"--offloadPrefetchRounds", "-opr"}, description =
                 "Maximum prefetch rounds for ledger reading for offloading."
                         + "The default value is 1.", required = false)
-        private int offloadPrefetchRounds;
+        private String offloadPrefetchRoundsStr;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
@@ -1854,6 +1854,24 @@ public class CmdTopicPolicies extends CmdBase {
                             .map(OffloadedReadPriority::toString)
                             .collect(Collectors.joining(","))
                             + " but got: " + this.offloadReadPriorityStr, e);
+                }
+            }
+
+            int assignmentOffloadThreads = OffloadPoliciesImpl.DEFAULT_ASSIGNMENT_OFFLOAD_THREADS;
+            if (StringUtils.isNotEmpty(assignmentOffloadThreadsStr)) {
+                long assignmentOffloadThreadsNumber = validateSizeString(assignmentOffloadThreadsStr);
+                if (positiveCheck("AssignmentOffloadThreads", assignmentOffloadThreadsNumber) && maxValueCheck(
+                        "AssignmentOffloadThreads", assignmentOffloadThreadsNumber, Integer.MAX_VALUE)) {
+                    assignmentOffloadThreads = Long.valueOf(assignmentOffloadThreadsNumber).intValue();
+                }
+            }
+
+            int offloadPrefetchRounds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
+            if (StringUtils.isNotEmpty(offloadPrefetchRoundsStr)) {
+                long offloadPrefetchRoundsNumber = validateSizeString(offloadPrefetchRoundsStr);
+                if (positiveCheck("OffloadPrefetchRounds", offloadPrefetchRoundsNumber) && maxValueCheck(
+                        "OffloadPrefetchRounds", offloadPrefetchRoundsNumber, Integer.MAX_VALUE)) {
+                    offloadPrefetchRounds = Long.valueOf(offloadPrefetchRoundsNumber).intValue();
                 }
             }
 
