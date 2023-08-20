@@ -47,6 +47,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import io.netty.util.Timeout;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
@@ -610,13 +612,15 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 store.delete(l.getLockPath(), Optional.empty())
                             .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             }
-        } catch (ExecutionException | TimeoutException ee) {
-            if (ee.getCause() != null && ee.getCause() instanceof MetadataStoreException.NotFoundException) {
+        } catch (ExecutionException ee) {
+            if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
                 // this is ok
             } else {
                 log.error("Error deleting underreplicated ledger lock", ee);
                 throw new ReplicationException.UnavailableException("Error contacting metadata store", ee);
             }
+        } catch (TimeoutException ex) {
+            throw new ReplicationException.UnavailableException("Error contacting metadata store", ex);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while connecting metadata store", ie);
@@ -634,13 +638,15 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 store.delete(e.getValue().getLockPath(), Optional.empty())
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             }
-        } catch (ExecutionException | TimeoutException ee) {
-            if (ee.getCause() != null && ee.getCause() instanceof MetadataStoreException.NotFoundException) {
+        } catch (ExecutionException ee) {
+            if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
                 // this is ok
             } else {
                 log.error("Error deleting underreplicated ledger lock", ee);
                 throw new ReplicationException.UnavailableException("Error contacting metadata store", ee);
             }
+        } catch (TimeoutException ex) {
+            throw new ReplicationException.UnavailableException("Error contacting metadata store", ex);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while connecting metadata store", ie);
@@ -761,8 +767,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         try {
             store.put(lostBookieRecoveryDelayPath, Integer.toString(lostBookieRecoveryDelay).getBytes(UTF_8),
                     Optional.of(-1L)).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-        } catch (ExecutionException | TimeoutException ee) {
-            if (ee.getCause() != null && ee.getCause() instanceof MetadataStoreException.BadVersionException) {
+        } catch (ExecutionException ee) {
+            if (ee.getCause() instanceof MetadataStoreException.BadVersionException) {
                 log.info("lostBookieRecoveryDelay node is already present, so using "
                         + "existing lostBookieRecoveryDelay node value");
                 return false;
@@ -770,6 +776,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 log.error("Error while initializing LostBookieRecoveryDelay", ee);
                 throw new ReplicationException.UnavailableException("Error contacting zookeeper", ee);
             }
+        } catch (TimeoutException ex) {
+            log.error("Error while initializing LostBookieRecoveryDelay", ex);
+            throw new ReplicationException.UnavailableException("Error contacting zookeeper", ex);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while contacting zookeeper", ie);

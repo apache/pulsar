@@ -235,12 +235,14 @@ public class PulsarRegistrationManager implements RegistrationManager {
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new BookieException.MetadataStoreException("Interrupted writing cookie for bookie " + bookieId, ie);
-        } catch (ExecutionException | TimeoutException e) {
-            if (e.getCause() != null && e.getCause() instanceof MetadataStoreException.BadVersionException) {
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof MetadataStoreException.BadVersionException) {
                 throw new BookieException.CookieExistException(bookieId.toString());
             } else {
                 throw new BookieException.MetadataStoreException("Failed to write cookie for bookie " + bookieId);
             }
+        } catch (TimeoutException ex) {
+            throw new BookieException.MetadataStoreException("Failed to write cookie for bookie " + bookieId, ex);
         }
     }
 
@@ -273,12 +275,14 @@ public class PulsarRegistrationManager implements RegistrationManager {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BookieException.MetadataStoreException("Interrupted deleting cookie for bookie " + bookieId, e);
-        } catch (ExecutionException | TimeoutException e) {
-            if (e.getCause() != null && e.getCause() instanceof MetadataStoreException.NotFoundException) {
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof MetadataStoreException.NotFoundException) {
                 throw new BookieException.CookieNotFoundException(bookieId.toString());
             } else {
                 throw new BookieException.MetadataStoreException("Failed to delete cookie for bookie " + bookieId);
             }
+        } catch (TimeoutException ex) {
+            throw new BookieException.MetadataStoreException("Failed to delete cookie for bookie " + bookieId);
         }
 
         log.info("Removed cookie from {} for bookie {}.", cookiePath, bookieId);
