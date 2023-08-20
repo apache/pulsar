@@ -3314,6 +3314,12 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isDefaultTopicTypePartitioned(final TopicName topicName, final Optional<Policies> policies) {
+        // system topics should be non-partitioned by default regardless of the broker config
+        // allowAutoTopicCreationType setting
+        if (SystemTopicNames.isSystemTopic(topicName)
+                || NamespaceService.isSystemServiceNamespace(topicName.getNamespace())) {
+            return false;
+        }
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
             return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.getTopicType());

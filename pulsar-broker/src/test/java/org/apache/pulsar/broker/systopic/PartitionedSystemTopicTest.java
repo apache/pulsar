@@ -37,7 +37,6 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -88,22 +87,16 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     }
 
     @Test
-    public void testAutoCreatedPartitionedSystemTopic() throws Exception {
+    public void testAutoCreatedNonPartitionedSystemTopic() throws Exception {
         final String ns = "prop/ns-test";
         admin.namespaces().createNamespace(ns, 2);
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
         SystemTopicClient.Reader reader = systemTopicClientForNamespace.newReader();
-
         int partitions = admin.topics().getPartitionedTopicMetadata(
                 String.format("persistent://%s/%s", ns, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(ns,
-                ListTopicsOptions.builder().includeSystemTopic(true).build());
-        Assert.assertEquals(partitionedTopicList.size(), 1);
-        Assert.assertEquals(partitions, PARTITIONS);
-        Assert.assertEquals(admin.topics().getList(ns, null,
-                ListTopicsOptions.builder().includeSystemTopic(true).build()).size(), PARTITIONS);
+        Assert.assertEquals(partitions, 0);
         reader.close();
     }
 
