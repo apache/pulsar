@@ -2535,6 +2535,32 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, newPartitions);
     }
 
+    /**
+     * Validate retring failed partitioned topic should succeed.
+     * @throws Exception
+     */
+    @Test
+    public void testTopicStatsWithEarliestTimeInBacklogIfNoBacklog() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop-xyz/ns1/tp_");
+        final String subscriptionName = "s1";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // Send one message.
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false)
+                .create();
+        MessageIdImpl messageId = (MessageIdImpl) producer.send("123");
+        // Catch up.
+        admin.topics().skipAllMessages(topicName, subscriptionName);
+        // Get topic stats with earliestTimeInBacklog
+        TopicStats topicStats = admin.topics().getStats(topicName, false, false, true);
+        assertEquals(topicStats.getSubscriptions().get(subscriptionName).getEarliestMsgPublishTimeInBacklog(), -1L);
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
     @Test(dataProvider = "topicType")
     public void testPartitionedStatsAggregationByProducerName(String topicType) throws Exception {
         conf.setAggregatePublisherStatsByProducerName(true);

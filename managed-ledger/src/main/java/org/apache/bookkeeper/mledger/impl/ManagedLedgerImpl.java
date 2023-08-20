@@ -1221,6 +1221,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         PositionImpl nextPos = getNextValidPosition(pos);
 
+        if (nextPos.compareTo(lastConfirmedEntry) > 0) {
+            return CompletableFuture.completedFuture(-1L);
+        }
+
         asyncReadEntry(nextPos, new ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
