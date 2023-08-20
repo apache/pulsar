@@ -400,10 +400,10 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             }
-        } catch (ExecutionException | TimeoutException ee) {
-            if (ee.getCause() != null && ee.getCause() instanceof MetadataStoreException.NotFoundException) {
+        } catch (ExecutionException ee) {
+            if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
                 // this is ok
-            } else if (ee.getCause() != null && ee.getCause() instanceof MetadataStoreException.BadVersionException) {
+            } else if (ee.getCause() instanceof MetadataStoreException.BadVersionException) {
                 // if this is the case, some has marked the ledger
                 // for rereplication again. Leave the underreplicated
                 // znode in place, so the ledger is checked.
@@ -411,6 +411,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 log.error("Error deleting underreplicated ledger node", ee);
                 throw new ReplicationException.UnavailableException("Error contacting metadata store", ee);
             }
+        } catch (TimeoutException ex) {
+            throw new ReplicationException.UnavailableException("Error contacting metadata store", ex);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while contacting metadata store", ie);
