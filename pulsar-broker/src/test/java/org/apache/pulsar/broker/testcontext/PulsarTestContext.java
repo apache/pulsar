@@ -528,9 +528,6 @@ public class PulsarTestContext implements AutoCloseable {
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
             }
-            if (super.brokerInterceptor != null) {
-                super.config.setDisableBrokerInterceptors(false);
-            }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
             if (pulsarServiceCustomizer != null) {
