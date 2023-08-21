@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.bookkeeper.bookie.BookieException;
@@ -49,14 +52,14 @@ public class PulsarLayoutManager implements LayoutManager {
     @Override
     public LedgerLayout readLedgerLayout() throws IOException {
         try {
-            byte[] layoutData = store.get(layoutPath).get()
+            byte[] layoutData = store.get(layoutPath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS)
                     .orElseThrow(() -> new BookieException.MetadataStoreException("Layout node not found"))
                     .getValue();
             return LedgerLayout.parseLayout(layoutData);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);
-        } catch (BookieException | ExecutionException e) {
+        } catch (BookieException | ExecutionException | TimeoutException e) {
             throw new IOException(e);
         }
     }
@@ -66,9 +69,12 @@ public class PulsarLayoutManager implements LayoutManager {
         try {
             byte[] layoutData = ledgerLayout.serialize();
 
-            store.put(layoutPath, layoutData, Optional.of(-1L)).get();
+            store.put(layoutPath, layoutData, Optional.of(-1L))
+                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new IOException(e);
+        } catch (TimeoutException e) {
             throw new IOException(e);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof MetadataStoreException.BadVersionException) {
@@ -82,11 +88,12 @@ public class PulsarLayoutManager implements LayoutManager {
     @Override
     public void deleteLedgerLayout() throws IOException {
         try {
-            store.delete(layoutPath, Optional.empty()).get();
+            store.delete(layoutPath, Optional.empty())
+                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | TimeoutException e) {
             throw new IOException(e);
         }
     }
