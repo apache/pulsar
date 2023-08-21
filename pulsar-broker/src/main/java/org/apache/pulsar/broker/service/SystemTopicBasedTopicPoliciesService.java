@@ -441,6 +441,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
+    private void completeResults(BlockingDeque<CompletableFuture> futures) {
+        CompletableFuture<Void> future;
+        while (true) {
+            future = futures.poll();
+            if (future == null) {
+                break;
+            }
+            future.complete(null);
+        }
+    }
+
     private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
@@ -649,6 +660,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 topicListeners.remove(listener);
                 if (topicListeners.isEmpty()) {
                     topicListeners = null;
+                    // clear the policy setting result queue
+                    BlockingDeque<CompletableFuture> futures = results.remove(topicName);
+                    if (futures != null) {
+                        completeResults(futures);
+                    }
                 }
             }
             return topicListeners;
