@@ -276,7 +276,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         var future = CompletableFuture.runAsync(() -> {
             for (int i = 0; i < 100; i++) {
                 try {
-                    producer.newMessage().key(null).value(String.valueOf(i).getBytes()).send();
+                    producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i).getBytes()).send();
                 } catch (PulsarClientException e) {
                     throw new RuntimeException(e);
                 }
