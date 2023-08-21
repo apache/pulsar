@@ -561,17 +561,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     bundleData.put(bundle, currentBundleData);
                 }
             }
-
-            //Remove not active bundle from loadData
-            for (String bundle : bundleData.keySet()) {
-                if (!activeBundles.contains(bundle)){
-                    bundleData.remove(bundle);
-                    if (pulsar.getLeaderElectionService().isLeader()){
-                        deleteBundleDataFromMetadataStore(bundle);
-                    }
-                }
-            }
-
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
             Set<String> ownedNsBundles = pulsar.getNamespaceService().getOwnedServiceUnits()
@@ -604,6 +593,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 namespaceToBundleRange.clear();
                 LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
                 LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundleData.keySet(), namespaceToBundleRange);
+            }
+        }
+
+        // Remove not active bundle from loadData
+        for (String bundle : bundleData.keySet()) {
+            if (!activeBundles.contains(bundle)){
+                bundleData.remove(bundle);
+                if (pulsar.getLeaderElectionService().isLeader()){
+                    deleteBundleDataFromMetadataStore(bundle);
+                }
             }
         }
     }
