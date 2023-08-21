@@ -138,43 +138,6 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
         return sendFuture.get();
     }
 
-    public synchronized MessageIdData sendBatchMessage(List<ProducerMessage> messages) throws Exception {
-        if (sendFuture != null && !sendFuture.isDone() && !sendFuture.isCancelled()) {
-            throw new IllegalArgumentException("There is a message still in sending.");
-        }
-        if (CollectionUtils.isEmpty(messages)) {
-            throw new IllegalArgumentException("The messages is empty.");
-        }
-
-        ProducerMessage batchMsg = messages.get(0);
-        // Composite batch message payload.
-        byte[] unCompressedPayload = compositeBatchMessage(messages);
-
-        // Compression.
-        batchMsg.uncompressedMessageSize = unCompressedPayload.length;
-        byte[] compressedPayload = WssClientSideEncryptUtils.compressionIfNeeded(batchMsg.compressionType,
-                unCompressedPayload);
-        // Encrypt.
-        EncryptedPayloadAndParam encryptedPayloadAndParam = WssClientSideEncryptUtils.encryptPayload(
-                cryptoKeyReader, msgCrypto, compressedPayload, keyName);
-        batchMsg.payload = encryptedPayloadAndParam.encryptedPayload;
-        batchMsg.encryptionParam = encryptedPayloadAndParam.encryptionParam;
-        batchMsg.batchSize = messages.size();
-        // Do send.
-        sendFuture = new CompletableFuture<>();
-        String jsonMsg = ObjectMapperFactory.getMapper().writer().writeValueAsString(batchMsg);
-        this.session.getRemote().sendString(jsonMsg);
-        // Wait for response.
-        executor.schedule(() -> {
-            synchronized (ClientSideEncryptionWssProducer.this) {
-                if (!sendFuture.isDone() && !sendFuture.isCancelled()) {
-                    sendFuture.completeExceptionally(new TimeoutException("Send timeout"));
-                }
-            }
-        }, 50, TimeUnit.SECONDS);
-        return sendFuture.get();
-    }
-
     @Override
     public void onWebSocketClose(int statusCode, String reason) {
         log.info("Connection closed: {} - {}", statusCode, reason);

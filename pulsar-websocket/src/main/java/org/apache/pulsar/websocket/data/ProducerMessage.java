@@ -76,6 +76,4 @@ public class ProducerMessage {
     public CompressionType compressionType;
 
     public Integer uncompressedMessageSize;
-
-    public Integer batchSize;
 }

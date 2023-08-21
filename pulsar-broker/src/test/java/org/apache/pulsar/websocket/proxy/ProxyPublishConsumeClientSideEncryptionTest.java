@@ -26,9 +26,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -51,8 +49,8 @@ import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -66,7 +64,7 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
     private ProxyServer proxyServer;
     private WebSocketService service;
 
-    @BeforeMethod
+    @BeforeClass
     public void setup() throws Exception {
         conf.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
 
@@ -85,7 +83,7 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
         if (service != null) {
@@ -186,60 +184,6 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
                 .subscribe();
         Message msgReceived = consumer.receive(2, TimeUnit.SECONDS);
         assertEquals(new String(msgReceived.getData(), charset), originalPayload);
-
-        // cleanup.
-        producer.close();
-        consumer.close();
-        admin.topics().delete(topicName);
-    }
-
-    @Test(dataProvider = "compressionTypes")
-    public void testWssSendAndJavaConsumeWithEncryptionAndCompressionAndBatch(CompressionType compressionType)
-            throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("public/default/tp_");
-        final String subscriptionName = "s1";
-        final String producerName = "wss-p1";
-        final String keyName = "client-ecdsa.pem";
-        admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-
-        // Create wss producer.
-        final String webSocketProxyHost = "localhost";
-        final int webSocketProxyPort = proxyServer.getListenPortHTTP().get();
-        final CryptoKeyReader cryptoKeyReader = new CryptoKeyReaderForTest();
-        ClientSideEncryptionWssProducer producer = new ClientSideEncryptionWssProducer(webSocketProxyHost,
-                webSocketProxyPort, topicName, producerName, cryptoKeyReader, keyName, executor);
-        producer.start();
-
-        // Send batch message.
-        HashSet<String> payloadSetSent = new HashSet<>();
-        List<ProducerMessage> messages = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            String originalPayload = "msg-" + i;
-            payloadSetSent.add(originalPayload);
-            ProducerMessage messageSent = new ProducerMessage();
-            messageSent.key = "k";
-            messageSent.payload = originalPayload;
-            messageSent.compressionType = compressionType;
-            messages.add(messageSent);
-        }
-        MessageIdData messageIdData = producer.sendBatchMessage(messages);
-        log.info("send success: {}", messageIdData.toString());
-
-        // Consume.
-        Consumer consumer = pulsarClient.newConsumer().cryptoKeyReader(cryptoKeyReader)
-                .topic(topicName).subscriptionName(subscriptionName)
-                .subscribe();
-        HashSet<String> payloadSetReceived = new HashSet<>();
-        while (true) {
-            Message msgReceived = consumer.receive(2, TimeUnit.SECONDS);
-            if (msgReceived == null) {
-                break;
-            }
-            payloadSetReceived.add(new String(msgReceived.getData(), charset));
-        }
-
-        assertEquals(payloadSetReceived, payloadSetSent);
 
         // cleanup.
         producer.close();

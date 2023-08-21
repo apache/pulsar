@@ -225,9 +225,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 builder.getMetadataBuilder().setCompression(sendRequest.compressionType);
                 builder.getMetadataBuilder().setUncompressedSize(sendRequest.uncompressedMessageSize);
             }
-            if (sendRequest.batchSize != null) {
-                builder.getMetadataBuilder().setNumMessagesInBatch(sendRequest.batchSize);
-            }
         }
 
         final long now = System.nanoTime();
@@ -439,6 +436,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         builder.enableBatching(false);
         builder.compressionType(CompressionType.NONE);
         builder.cryptoKeyReader(DummyCryptoKeyReaderImpl.INSTANCE);
+        // Disable chunking.
+        builder.enableChunking(false);
         // Inject encryption metadata decorator.
         builder.messageCrypto(new WSSDummyMessageCryptoImpl(msgMetadata -> {
             for (int i = 0; i < keyNameArr.length; i++) {
