@@ -21,6 +21,7 @@ package org.apache.pulsar.websocket;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
@@ -29,17 +30,17 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -360,76 +361,66 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             }
         }
 
-        if (queryParams.containsKey("encryptionKeyValues")) {
-            popularProducerBuilderForClientSideEncrypt(builder);
+        Map<String, EncryptionKey> encryptionKeyMap = tryToExtractJsonEncryptionKeys();
+        if (encryptionKeyMap != null) {
+            popularProducerBuilderForClientSideEncrypt(builder, encryptionKeyMap);
         } else {
             popularProducerBuilderForServerSideEncrypt(builder);
         }
         return builder;
     }
 
-    private void popularProducerBuilderForClientSideEncrypt(ProducerBuilder<byte[]> builder) {
-        this.clientSideEncrypt = true;
-        final String keyMetadataParamsStr = queryParams.get("encryptionKeyMetadata");
-        final String[] keyDataParams = queryParams.get("encryptionKeyValues").split(",");
-        final String[] keyMetadataParams = keyMetadataParamsStr == null ? null
-                : keyMetadataParamsStr.split(",");
-        final boolean hasParamKeyMetadata = keyMetadataParams != null;
-        final String[] keyNameArr = queryParams.get("encryptionKeys").split(",");
-
-        // Check params length.
-        checkArgument(keyNameArr.length > 0,
-                String.format("Invalid encryptionKeys %s", queryParams.get("encryptionKeys")));
-        checkArgument(keyNameArr.length == keyDataParams.length,
-                "The count of encryptionKeys and encryptionKeyValues are not equal.");
-        if (hasParamKeyMetadata) {
-            checkArgument(keyMetadataParams.length == keyDataParams.length,
-                    "The count of encryptionKeyMetadata and encryptionKeyValues are not equal.");
+    private Map<String, EncryptionKey> tryToExtractJsonEncryptionKeys() {
+        if (!queryParams.containsKey("encryptionKeys")) {
+            return null;
         }
-
-        // Defer params decoded.
-        final List<KeyValue>[] keyMetadataArr = new ArrayList[keyNameArr.length];
-        final byte[][] keyDadaArr = new byte[keyNameArr.length][];
-
+        // Base64 decode.
+        byte[] param = null;
         try {
-            // Check and decode params.
-            for (int i = 0; i < keyNameArr.length; i++) {
-                // Check and trim params.
-                keyNameArr[i] = StringUtils.trim(keyNameArr[i]);
-                keyDataParams[i] = StringUtils.trim(keyDataParams[i]);
-                checkArgument(!StringUtils.isBlank(keyNameArr[i]),
-                        String.format("There is an blank encryptionKey %s", queryParams.get("encryptionKeys")));
-                checkArgument(!StringUtils.isBlank(keyDataParams[i]),
-                        String.format("There is an blank encryptionValue %s", queryParams.get("encryptionKeys")));
-                if (hasParamKeyMetadata) {
-                    keyMetadataParams[i] = StringUtils.trim(keyMetadataParams[i]);
-                }
-                // Decode params.
-                try {
-                    keyDadaArr[i] = Base64.getDecoder().decode(keyDataParams[i]);
-                    if (hasParamKeyMetadata && !StringUtils.isBlank(keyMetadataParams[i])) {
-                        keyMetadataParams[i] = new String(Base64.getDecoder().decode(keyMetadataParams[i]),
-                                StandardCharsets.UTF_8);
-                    }
-                } catch (Exception base64DecodeEx) {
-                    log.error("Could not base64 decode the param encryptionKeyValues or encryptionKeyMetadata",
-                            base64DecodeEx);
-                    throw new IllegalArgumentException(
-                            "Could not base64 decode the param encryptionKeyValues or encryptionKeyMetadata");
-                }
-                if (hasParamKeyMetadata && !StringUtils.isBlank(keyMetadataParams[i])) {
-                    keyMetadataArr[i] = ObjectMapperFactory.getMapper().getObjectMapper()
-                            .readValue(keyMetadataParams[i], new TypeReference<List<KeyValue>>() {
-                            });
-                } else {
-                    keyMetadataArr[i] = Collections.emptyList();
-                }
-                // Add encrypt key.
-                builder.addEncryptionKey(keyNameArr[i]);
+            param = Base64.getDecoder().decode(StringUtils.trim(queryParams.get("encryptionKeys")));
+        } catch (Exception base64DecodeEx) {
+            log.error("Could not base64 decode the param encryptionKeys", base64DecodeEx);
+            throw new IllegalArgumentException("Could not base64 decode the param encryptionKeys");
+        }
+        try {
+            Map<String, EncryptionKey> keys = ObjectMapperFactory.getMapper().getObjectMapper()
+                    .readValue(param, new TypeReference<Map<String, EncryptionKey>>() {
+                    });
+            if (keys.isEmpty()) {
+                return null;
             }
-        } catch (JsonProcessingException jsonProcessingException) {
-            log.error("The parameter encryptionKeyMetadata is not a correct json", jsonProcessingException);
-            throw new IllegalArgumentException("The parameter encryptionKeyMetadata is not a correct json");
+            if (keys.values().iterator().next().getKeyValue() == null) {
+                return null;
+            }
+            return keys;
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    private void popularProducerBuilderForClientSideEncrypt(ProducerBuilder<byte[]> builder,
+                                                            Map<String, EncryptionKey> encryptionKeyMap) {
+        this.clientSideEncrypt = true;
+        int keysLen = encryptionKeyMap.size();
+        final String[] keyNameArray = new String[keysLen];
+        final byte[][] keyValueArray = new byte[keysLen][];
+        final List<KeyValue>[] keyMetadataArray = new List[keysLen];
+        // Format keys.
+        int index = 0;
+        for (Map.Entry<String, EncryptionKey> entry : encryptionKeyMap.entrySet()) {
+            checkArgument(StringUtils.isNotBlank(entry.getKey()), "Empty param encryptionKeys.key");
+            checkArgument(entry.getValue() != null, "Empty param encryptionKeys.value");
+            checkArgument(entry.getValue().getKeyValue() != null, "Empty param encryptionKeys.value.keyValue");
+            keyNameArray[index] = StringUtils.trim(entry.getKey());
+            keyValueArray[index] = entry.getValue().getKeyValue();
+            if (entry.getValue().getMetadata() == null) {
+                keyMetadataArray[index] = Collections.emptyList();
+            } else {
+                keyMetadataArray[index] = entry.getValue().getMetadata().entrySet().stream()
+                        .map(e -> new KeyValue().setKey(e.getKey()).setValue(e.getValue()))
+                        .collect(Collectors.toList());
+            }
+            builder.addEncryptionKey(keyNameArray[index]);
         }
         // Disable server-side batch process, compression, and encryption, and only set the message metadata that
         // which client-side provided.
@@ -440,9 +431,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         builder.enableChunking(false);
         // Inject encryption metadata decorator.
         builder.messageCrypto(new WSSDummyMessageCryptoImpl(msgMetadata -> {
-            for (int i = 0; i < keyNameArr.length; i++) {
-                msgMetadata.addEncryptionKey().setKey(keyNameArr[i]).setValue(keyDadaArr[i])
-                        .addAllMetadatas(keyMetadataArr[i]);
+            for (int i = 0; i < keyNameArray.length; i++) {
+                msgMetadata.addEncryptionKey().setKey(keyNameArray[i]).setValue(keyValueArray[i])
+                        .addAllMetadatas(keyMetadataArray[i]);
             }
         }));
         // Do warning param check and print warning log.

@@ -54,7 +54,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
-import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -112,38 +111,30 @@ public class WssClientSideEncryptUtils {
         return URLEncoder.encode(str, charset);
     }
 
-    public static byte[] calculateEncryptedKey(MessageCryptoBc msgCrypto, CryptoKeyReader cryptoKeyReader,
-                                               String publicKeyName)
+    public static byte[] calculateEncryptedKeyValue(MessageCryptoBc msgCrypto, CryptoKeyReader cryptoKeyReader,
+                                                    String publicKeyName)
             throws PulsarClientException.CryptoException {
         EncryptionKeyInfo encryptionKeyInfo = cryptoKeyReader.getPublicKey(publicKeyName, Collections.emptyMap());
-        return calculateEncryptedKey(msgCrypto, encryptionKeyInfo.getKey());
+        return calculateEncryptedKeyValue(msgCrypto, encryptionKeyInfo.getKey());
     }
 
-    public static String base64AndUrlEncodePublicKeyDataMetadata(MessageCryptoBc msgCrypto, CryptoKeyReader cryptoKeyReader,
-                                                                 String publicKeyName)
+    public static String toJSONAndBase64AndUrlEncode(Object obj)
             throws PulsarClientException.CryptoException {
         try {
-            EncryptionKeyInfo encryptionKeyInfo = cryptoKeyReader.getPublicKey(publicKeyName, Collections.emptyMap());
-            final List<KeyValue> entryList = new ArrayList<>();
-            if (encryptionKeyInfo.getMetadata() != null) {
-                for (Map.Entry<String, String> entry : encryptionKeyInfo.getMetadata().entrySet()) {
-                    entryList.add(new KeyValue().setKey(entry.getKey()).setValue(entry.getValue()));
-                }
-            }
             String json = ObjectMapperFactory.getMapper().getObjectMapper()
-                    .writeValueAsString(entryList);
+                    .writeValueAsString(obj);
             return urlEncode(base64Encode(json));
         } catch (JsonProcessingException e) {
-            throw new PulsarClientException.CryptoException("Serialize encryption public key metadata failed");
+            throw new PulsarClientException.CryptoException(String.format("Serialize object %s failed", obj));
         }
     }
 
-    public static byte[] calculateEncryptedKey(MessageCryptoBc msgCrypto, EncryptionKeyInfo encryptionKeyInfo)
+    public static byte[] calculateEncryptedKeyValue(MessageCryptoBc msgCrypto, EncryptionKeyInfo encryptionKeyInfo)
             throws Exception {
-        return calculateEncryptedKey(msgCrypto, encryptionKeyInfo.getKey());
+        return calculateEncryptedKeyValue(msgCrypto, encryptionKeyInfo.getKey());
     }
 
-    public static byte[] calculateEncryptedKey(MessageCryptoBc msgCrypto, byte[] publicKeyData)
+    public static byte[] calculateEncryptedKeyValue(MessageCryptoBc msgCrypto, byte[] publicKeyData)
             throws PulsarClientException.CryptoException {
         try {
             PublicKey pubKey = MessageCryptoBc.loadPublicKey(publicKeyData);

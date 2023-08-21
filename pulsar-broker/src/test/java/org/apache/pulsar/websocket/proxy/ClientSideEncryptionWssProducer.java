@@ -18,22 +18,23 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static org.apache.pulsar.websocket.proxy.WssClientSideEncryptUtils.compositeBatchMessage;
 import static org.testng.Assert.assertTrue;
+import static org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import static org.apache.pulsar.websocket.proxy.WssClientSideEncryptUtils.EncryptedPayloadAndParam;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -86,23 +87,23 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
         final String protocolAndHostPort = "ws://" + webSocketProxyHost + ":" + webSocketProxyPort;
 
         // Encode encrypted public key data.
-        final byte[] encryptedPubKeyData = WssClientSideEncryptUtils.calculateEncryptedKey(msgCrypto, cryptoKeyReader,
+        final byte[] keyValue = WssClientSideEncryptUtils.calculateEncryptedKeyValue(msgCrypto, cryptoKeyReader,
                 keyName);
-        final String encryptedPublicKeyDataToString = WssClientSideEncryptUtils.base64AndUrlEncode(encryptedPubKeyData);
+        EncryptionKey encryptionKey = new EncryptionKey();
+        encryptionKey.setKeyValue(keyValue);
+        encryptionKey.setMetadata(cryptoKeyReader.getPublicKey(keyName, Collections.emptyMap()).getMetadata());
+        Map<String, EncryptionKey> encryptionKeyMap = new HashMap<>();
+        encryptionKeyMap.put(keyName, encryptionKey);
 
-        final String encryptedPublicKeyMetadata = WssClientSideEncryptUtils
-                .base64AndUrlEncodePublicKeyDataMetadata(msgCrypto, cryptoKeyReader, keyName);
+        final String encryptionKeys =
+                WssClientSideEncryptUtils.toJSONAndBase64AndUrlEncode(encryptionKeyMap);
 
         // Build the URL for producer.
         final StringBuilder producerUrL = new StringBuilder(protocolAndHostPort)
                 .append("/ws/v2/producer/persistent/")
                 .append(topicName)
                 .append("?")
-                .append("encryptionKeys=").append(WssClientSideEncryptUtils.urlEncode(keyName))
-                .append("&")
-                .append("encryptionKeyValues=").append(encryptedPublicKeyDataToString)
-                .append("&")
-                .append("encryptionKeyMetadata=").append(encryptedPublicKeyMetadata);
+                .append("encryptionKeys=").append(encryptionKeys);
         return URI.create(producerUrL.toString());
     }
 
