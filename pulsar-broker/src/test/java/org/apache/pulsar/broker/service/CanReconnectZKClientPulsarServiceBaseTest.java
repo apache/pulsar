@@ -88,19 +88,19 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         client = PulsarClient.builder().serviceUrl(url.toString()).build();
     }
 
-    protected void makeLocalMetadataStoreInReconnecting() throws Exception {
+    protected void makeLocalMetadataStoreKeepReconnect() throws Exception {
+        if (!LocalMetadataStoreInReconnectFinishSignal.compareAndSet(false, true)) {
+            throw new RuntimeException("Local metadata store is already keeping reconnect");
+        }
         if (localMetaDataStoreClientCnx.getClass().getSimpleName().equals("ClientCnxnSocketNIO")) {
-            makeLocalMetadataStoreAlwaysReconnectNIO();
+            makeLocalMetadataStoreKeepReconnectNIO();
         } else {
             // ClientCnxnSocketNetty.
-            makeLocalMetadataStoreAlwaysReconnectNetty();
+            makeLocalMetadataStoreKeepReconnectNetty();
         }
     }
 
-    protected void makeLocalMetadataStoreAlwaysReconnectNIO() throws Exception {
-        if (!LocalMetadataStoreInReconnectFinishSignal.compareAndSet(false, true)) {
-            throw new RuntimeException("Local metadata store is in reconnecting error");
-        }
+    protected void makeLocalMetadataStoreKeepReconnectNIO() {
         new Thread(() -> {
             while (LocalMetadataStoreInReconnectFinishSignal.get()) {
                 try {
@@ -117,10 +117,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         }).start();
     }
 
-    protected void makeLocalMetadataStoreAlwaysReconnectNetty() {
-        if (!LocalMetadataStoreInReconnectFinishSignal.compareAndSet(false, true)) {
-            throw new RuntimeException("Local metadata store is in reconnecting error");
-        }
+    protected void makeLocalMetadataStoreKeepReconnectNetty() {
         new Thread(() -> {
             while (LocalMetadataStoreInReconnectFinishSignal.get()) {
                 try {

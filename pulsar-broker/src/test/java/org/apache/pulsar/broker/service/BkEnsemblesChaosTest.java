@@ -55,12 +55,12 @@ public class BkEnsemblesChaosTest extends CanReconnectZKClientPulsarServiceBaseT
         for (int i = 0; i < numberOfBookies - 1; i++){
             bkEnsemble.stopBK(i);
         }
-        makeLocalMetadataStoreInReconnecting();
+        makeLocalMetadataStoreKeepReconnect();
         for (int i = 0; i < numberOfBookies - 1; i++){
             bkEnsemble.startBK(i);
         }
-        // Sleep 1s to lose the notifications of ZK node create.
-        Thread.sleep(1000);
+        // Sleep 100ms to lose the notifications of ZK node create.
+        Thread.sleep(100);
         stopLocalMetadataStoreAlwaysReconnect();
 
         // Ensure broker still works.
