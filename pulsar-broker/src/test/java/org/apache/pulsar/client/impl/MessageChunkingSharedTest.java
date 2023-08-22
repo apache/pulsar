@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -43,11 +45,9 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
@@ -219,7 +219,6 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         restartBroker();
         String topicName = "persistent://my-property/my-ns/testDuplicateForChunkMessage";
         String producerName = "test-producer";
-        pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         // consumer
         Consumer<String> consumer = pulsarClient
                 .newConsumer(Schema.STRING)
@@ -262,6 +261,36 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         assertEquals(msg3.getSequenceId(), sequenceID);
     }
 
+    @Test
+    public void testDeduplicateChunksInSingleChunkMessages() throws Exception {
+        this.conf.setBrokerDeduplicationEnabled(true);
+        restartBroker();
+        String topicName = "persistent://my-property/my-ns/testDeduplicateChunksInSingleChunkMessage";
+        String producerName = "test-producer";
+        // consumer
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .subscriptionName("test-sub")
+                .topic(topicName)
+                .subscribe();
+        final PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(topicName).get().orElse(null);
+        assertNotNull(persistentTopic);
+        sendChunk(persistentTopic, "test-producer", 1, 0, 2);
+        sendChunk(persistentTopic, producerName, 1, 1, 2);
+        sendChunk(persistentTopic, producerName, 1, 1, 2);
+
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertEquals(message.getData().length, 2);
+
+        sendChunk(persistentTopic, producerName, 2, 0, 3);
+        sendChunk(persistentTopic, producerName, 2, 1, 3);
+        sendChunk(persistentTopic, producerName, 2, 1, 3);
+        sendChunk(persistentTopic, producerName, 2, 2, 3);
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(message.getData().length, 3);
+    }
+
     private static void sendNonChunk(final PersistentTopic persistentTopic,
                                      final String producerName,
                                      final long sequenceId) {
@@ -284,16 +313,28 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
             metadata.setTotalChunkMsgSize(numChunks);
         }
         final ByteBuf buf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
-                PulsarByteBufAllocator.DEFAULT.buffer(1));
-        persistentTopic.publishMessage(buf, (e, ledgerId, entryId) -> {
-            String name = producerName + "-" + sequenceId;
-            if (chunkId != null) {
-                name += "-" + chunkId + "-" + numChunks;
+                Unpooled.wrappedBuffer("a".getBytes()));
+        persistentTopic.publishMessage(buf, new Topic.PublishContext() {
+            @Override
+            public String getProducerName() {
+                return producerName;
             }
-            if (e == null) {
-                log.info("Sent {} to ({}, {})", name, ledgerId, entryId);
-            } else {
-                log.error("Failed to send {}: {}", name, e.getMessage());
+
+            public long getSequenceId() {
+                return sequenceId;
+            }
+
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                String name = producerName + "-" + sequenceId;
+                if (chunkId != null) {
+                    name += "-" + chunkId + "-" + numChunks;
+                }
+                if (e == null) {
+                    log.info("Sent {} to ({}, {})", name, ledgerId, entryId);
+                } else {
+                    log.error("Failed to send {}: {}", name, e.getMessage());
+                }
             }
         });
     }

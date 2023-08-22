@@ -1449,11 +1449,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // discard message if chunk is out-of-order
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || msgMetadata.getChunkId() != (chunkedMsgCtx.lastChunkedMessageId + 1)) {
-            //Filter duplicated chunks instead of discard it.
-            if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
+            // Filter duplicated chunks instead of discard it.
+            if (chunkedMsgCtx == null || msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
                 log.warn("[{}] Receive a repeated chunk messageId {}, last-chunk-id{}, chunkId = {}",
-                        msgMetadata.getProducerName(), chunkedMsgCtx.lastChunkedMessageId,
-                        msgId, msgMetadata.getChunkId());
+                        msgMetadata.getProducerName(), chunkedMsgCtx == null ? null
+                                : chunkedMsgCtx.lastChunkedMessageId, msgId, msgMetadata.getChunkId());
                 compressedPayload.release();
                 increaseAvailablePermits(cnx);
                 return null;
