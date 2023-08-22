@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -42,10 +43,12 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.awaitility.Awaitility;
+import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
@@ -56,6 +59,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        this.conf.setMaxMessageSize(5 * 1024);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -64,6 +68,15 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    private String createMessagePayload(int size) {
+        StringBuilder str = new StringBuilder();
+        Random rand = new Random();
+        for (int i = 0; i < size; i++) {
+            str.append(rand.nextInt(10));
+        }
+        return str.toString();
     }
 
     @Test
@@ -125,9 +138,13 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    @DataProvider(name = "produceLargeMessages")
+    public Object[][] produceLargeMessages() {
+        return new Object[][] { { false }, { true } };
+    }
 
-    @Test(groups = "quarantine")
-    public void testDeadLetterTopic() throws Exception {
+    @Test(groups = "quarantine", dataProvider = "produceLargeMessages")
+    public void testDeadLetterTopic(boolean produceLargeMessages) throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
         final int maxRedeliveryCount = 2;
@@ -154,10 +171,21 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
                 .topic(topic)
+                .enableChunking(produceLargeMessages)
+                .enableBatching(!produceLargeMessages)
                 .create();
 
+        Map<Integer, String> messageContent = new HashMap<>();
+
         for (int i = 0; i < sendMessages; i++) {
-            producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
+            String data;
+            if (!produceLargeMessages) {
+                data = String.format("Hello Pulsar [%d]", i);
+            } else {
+                data = createMessagePayload(1024 * 10);
+            }
+            producer.newMessage().key(String.valueOf(i)).value(data.getBytes()).send();
+            messageContent.put(i, data);
         }
 
         producer.close();
@@ -165,17 +193,20 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info("consumer received message : {}", message.getMessageId());
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            Assert.assertEquals(new String(message.getData()), messageContent.get(Integer.parseInt(message.getKey())));
+            messageContent.remove(Integer.parseInt(message.getKey()));
+            log.info("dead letter consumer received message : {}", message.getMessageId());
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
+        Assert.assertTrue(messageContent.isEmpty());
 
         deadLetterConsumer.close();
         consumer.close();
