@@ -600,6 +600,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sequenceId = msgIdGenerator++;
             msgMetadata.setSequenceId(sequenceId);
         } else {
+            // The user-defined sequence ID should not be lower than the msgIdGenerator.
+            if (msgMetadata.getSequenceId() < msgIdGenerator) {
+                log.warn("[{}] Serialize and a message whose sequence ID is lower than the msgIdGenerator. "
+                        + "sequence ID: {}, msgIdGenerator: {}",
+                        producerName, msgMetadata.getSequenceId(), msgIdGenerator);
+            }
             sequenceId = msgMetadata.getSequenceId();
         }
         return sequenceId;
