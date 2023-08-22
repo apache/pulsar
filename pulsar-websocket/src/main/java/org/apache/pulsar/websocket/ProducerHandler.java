@@ -494,7 +494,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     private void printWarnLogIfSettingBatchedParams() {
-        if (clientSideEncrypt && queryParams.containsKey("batchingMaxMessages")) {
+        if (clientSideEncrypt && queryParams.containsKey("batchingEnabled")) {
             log.warn("Since clientSideEncrypt is true, the param batchingEnabled of producer will be ignored");
         }
         if (queryParams.containsKey("batchingMaxMessages")) {
