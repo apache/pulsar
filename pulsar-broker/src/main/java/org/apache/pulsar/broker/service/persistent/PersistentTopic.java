@@ -1547,7 +1547,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
         CompletableFuture<Void> result = new CompletableFuture<Void>();
         checkReplication().thenAccept(res -> {
-            log.info("[{}] Policies updated successfully", topic);
             result.complete(null);
         }).exceptionally(th -> {
             log.error("[{}] Policies update failed {}, scheduled retry in {} seconds", topic, th.getMessage(),
@@ -1567,7 +1566,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return messageDeduplication.checkStatus();
     }
 
-    private CompletableFuture<Void> checkPersistencePolicies() {
+    @VisibleForTesting
+    CompletableFuture<Void> checkPersistencePolicies() {
         TopicName topicName = TopicName.get(topic);
         CompletableFuture<Void> future = new CompletableFuture<>();
         brokerService.getManagedLedgerConfig(topicName).thenAccept(config -> {
@@ -3500,16 +3500,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             checkMessageExpiry();
-            checkReplicationAndRetryOnFailure();
-
-            checkDeduplicationStatus();
-
-            preCreateSubscriptionForCompactionIfNeeded();
-
-            // update managed ledger config
-            checkPersistencePolicies();
-        }).exceptionally(e -> {
-            Throwable t = e instanceof CompletionException ? e.getCause() : e;
+        })
+        .thenCompose(__ -> checkReplicationAndRetryOnFailure())
+        .thenCompose(__ -> checkDeduplicationStatus())
+        .thenCompose(__ -> preCreateSubscriptionForCompactionIfNeeded())
+        .thenCompose(__ -> checkPersistencePolicies())
+        .thenAccept(__ -> log.info("[{}] Policies updated successfully", topic))
+        .exceptionally(e -> {
+            Throwable t = FutureUtil.unwrapCompletionException(e);
             log.error("[{}] update topic policy error: {}", topic, t.getMessage(), t);
             return null;
         });
