@@ -2154,7 +2154,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
 
         if (State.NoLedger.equals(STATE_UPDATER.get(this))) {
-            if (mdEntry.newPosition.equals(ledger.getLastConfirmedEntry())) {
+            if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
                 persistPositionToMetaStore(mdEntry, cb);
             } else {
                 mdEntry.callback.markDeleteFailed(new ManagedLedgerException("Create new cursor ledger failed"),
