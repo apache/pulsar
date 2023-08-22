@@ -43,7 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient;
@@ -55,7 +54,6 @@ import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -458,28 +456,5 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         thread2.join();
 
         result.join();
-    }
-
-    @Test
-    public void testConfig() throws Exception {
-        final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
-        TopicName topicName = TopicName.get(topic);
-        admin.topics().createPartitionedTopic(topic, 3);
-        pulsarClient.newProducer().topic(topic).create().close();
-        admin.topicPolicies().setRetention(topic, new RetentionPolicies(1, 1));
-        Awaitility.await().untilAsserted(() -> {
-            RetentionPolicies retention = admin.topicPolicies().getRetention(topic);
-            assertNotNull(retention);
-            assertEquals(retention.getRetentionSizeInMB(), 1);
-            assertEquals(retention.getRetentionTimeInMinutes(), 1);
-        });
-        String partition0 = topicName.getPartition(0).toString();
-        CompletableFuture<Optional<Topic>> topicFuture = pulsar.getBrokerService().getTopic(partition0, false);
-        Awaitility.await().untilAsserted(() -> assertTrue(topicFuture.isDone()));
-        Optional<Topic> optionalTopic = topicFuture.join();
-        assertTrue(optionalTopic.isPresent());
-        PersistentTopic persistentTopic = (PersistentTopic) optionalTopic.get();
-        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
-        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
     }
 }

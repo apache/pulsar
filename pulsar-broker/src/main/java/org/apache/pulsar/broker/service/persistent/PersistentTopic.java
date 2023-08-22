@@ -1566,7 +1566,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return messageDeduplication.checkStatus();
     }
 
-    private CompletableFuture<Void> checkPersistencePolicies() {
+    @VisibleForTesting
+    CompletableFuture<Void> checkPersistencePolicies() {
         TopicName topicName = TopicName.get(topic);
         CompletableFuture<Void> future = new CompletableFuture<>();
         brokerService.getManagedLedgerConfig(topicName).thenAccept(config -> {
@@ -3512,7 +3513,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         .thenCompose(__ -> checkPersistencePolicies())
         .thenAccept(__ -> log.info("[{}] Policies updated successfully", topic))
         .exceptionally(e -> {
-            Throwable t = e instanceof CompletionException ? e.getCause() : e;
+            Throwable t = FutureUtil.unwrapCompletionException(e);
             log.error("[{}] update topic policy error: {}", topic, t.getMessage(), t);
             return null;
         });
