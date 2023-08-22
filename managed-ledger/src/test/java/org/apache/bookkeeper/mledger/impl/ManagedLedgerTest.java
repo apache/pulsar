@@ -4027,6 +4027,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ml.isNoMessagesAfterPos(p6));
         assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId(), p6.getEntryId() + 1)));
         assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
+
+        // cleanup.
+        ml.close();
     }
 
     @Test
