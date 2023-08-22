@@ -35,5 +35,4 @@ public class ConsumerMessage {
     public EncryptionContext encryptionContext;
 
     public String key;
-    // TODO support ackSet in the future.
 }

@@ -71,12 +71,12 @@ public class ProducerMessage {
     // Base64 encoded serialized schema for payload
     public String valueSchema;
 
-    // Compression type. Do not set it if compression is not performed.
+    // Base64 encoded serialized initialization vector used when the client encrypts.
     public String encryptionParam;
 
-    // The size of the payload before compression. Do not set it if compression is not performed.
+    // Compression type. Do not set it if compression is not performed.
     public CompressionType compressionType;
 
-    // Base64 encoded serialized initialization vector used when the client encrypts.
+    // The size of the payload before compression. Do not set it if compression is not performed.
     public Integer uncompressedMessageSize;
 }

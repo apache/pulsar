@@ -422,12 +422,24 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             }
             builder.addEncryptionKey(keyNameArray[index]);
         }
-        // Disable server-side batch process, compression, and encryption, and only set the message metadata that
-        // which client-side provided.
+        // Background: The order of message payload process during message sending:
+        //  1. The Producer will composite several message payloads into a batched message payload if the producer is
+        //    enabled batch;
+        //  2. The Producer will compress the batched message payload to a compressed payload if enabled compression;
+        //  3. After the previous two steps, the Producer encrypts the compressed payload to an encrypted payload.
+        //
+        // Since the order of producer operation for message payloads is "compression --> encryption", users need to
+        // handle Compression themselves if needed. We just disable server-side batch process, server-side compression,
+        // and server-side encryption, and only set the message metadata that.
         builder.enableBatching(false);
+        // Disable server-side compression, and just set compression attributes into the message metadata when sending
+        // messages(see the method "onWebSocketText").
         builder.compressionType(CompressionType.NONE);
+        // Disable server-side encryption, and just set encryption attributes into the message metadata when sending
+        // messages(see the method "onWebSocketText").
         builder.cryptoKeyReader(DummyCryptoKeyReaderImpl.INSTANCE);
-        // Disable chunking.
+        // Set the param `enableChunking` to `false`(the default value is `false`) to prevent unexpected problems if
+        // the default setting is changed in the future.
         builder.enableChunking(false);
         // Inject encryption metadata decorator.
         builder.messageCrypto(new WSSDummyMessageCryptoImpl(msgMetadata -> {

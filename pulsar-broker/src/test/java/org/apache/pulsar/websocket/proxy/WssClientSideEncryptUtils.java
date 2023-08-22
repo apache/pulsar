@@ -24,7 +24,6 @@ import static org.apache.pulsar.client.impl.crypto.MessageCryptoBc.RSA;
 import static org.apache.pulsar.client.impl.crypto.MessageCryptoBc.RSA_TRANS;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
@@ -45,7 +44,6 @@ import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -61,7 +59,6 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
-import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 @Slf4j
@@ -127,11 +124,6 @@ public class WssClientSideEncryptUtils {
         } catch (JsonProcessingException e) {
             throw new PulsarClientException.CryptoException(String.format("Serialize object %s failed", obj));
         }
-    }
-
-    public static byte[] calculateEncryptedKeyValue(MessageCryptoBc msgCrypto, EncryptionKeyInfo encryptionKeyInfo)
-            throws Exception {
-        return calculateEncryptedKeyValue(msgCrypto, encryptionKeyInfo.getKey());
     }
 
     public static byte[] calculateEncryptedKeyValue(MessageCryptoBc msgCrypto, byte[] publicKeyData)
@@ -203,60 +195,6 @@ public class WssClientSideEncryptUtils {
     public static class EncryptedPayloadAndParam {
         public final String encryptedPayload;
         public final String encryptionParam;
-    }
-
-    private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA =
-            new FastThreadLocal<>() {
-                @Override
-                protected SingleMessageMetadata initialValue() throws Exception {
-                    return new SingleMessageMetadata();
-                }
-            };
-
-    public static byte[] compositeBatchMessage(List<ProducerMessage> messages) {
-        ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(32, Commands.DEFAULT_MAX_MESSAGE_SIZE);
-        for (ProducerMessage msg : messages) {
-            // Param check.
-            if (msg.payload == null) {
-                throw new IllegalArgumentException("Null value message is not supported.");
-            }
-
-            // Get thread local SingleMessageMetadata.
-            SingleMessageMetadata smm = LOCAL_SINGLE_MESSAGE_METADATA.get();
-            smm.clear();
-
-            // Build single message metadata.
-            if (StringUtils.isNoneBlank(msg.getKey())) {
-                smm.setPartitionKey(msg.getKey());
-                smm.setPartitionKeyB64Encoded(false);
-            }
-            if (msg.getProperties() != null && !msg.getProperties().isEmpty()) {
-                for (Map.Entry<String, String> prop : msg.getProperties().entrySet()) {
-                    smm.addProperty()
-                            .setKey(prop.getKey())
-                            .setValue(prop.getValue());
-                }
-            }
-            if (StringUtils.isNumeric(msg.getEventTime())) {
-                smm.setEventTime(Long.valueOf(msg.getEventTime()));
-            }
-            smm.setSequenceId(msg.getSequenceId());
-            // Null value is not supported now.
-            // TODO support null value in the future.
-            smm.setNullValue(false);
-            smm.setNullPartitionKey(false);
-            byte[] singleMsgPayload = msg.payload.getBytes(UTF8);
-            smm.setPayloadSize(singleMsgPayload.length);
-
-            // Append single message into batch message payload.
-            batchBuffer.writeInt(smm.getSerializedSize());
-            smm.writeTo(batchBuffer);
-            batchBuffer.writeBytes(singleMsgPayload);
-        }
-        byte[] res = new byte[batchBuffer.readableBytes()];
-        batchBuffer.readBytes(res);
-        batchBuffer.release();
-        return res;
     }
 
     public static byte[] decryptMsgPayload(String payloadString, EncryptionContext encryptionContext,
