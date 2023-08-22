@@ -449,8 +449,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             }
         }));
         // Do warning param check and print warning log.
-        printWarnLogIfSettingBatchedParams();
-        printWarnLogIfSettingCompressionParams();
+        printLogIfSettingDiscardedBatchedParams();
+        printLogIfSettingDiscardedCompressionParams();
     }
 
     private void popularProducerBuilderForServerSideEncrypt(ProducerBuilder<byte[]> builder) {
@@ -473,7 +473,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 }
             } else {
                 builder.enableBatching(false);
-                printWarnLogIfSettingBatchedParams();
+                printLogIfSettingDiscardedBatchedParams();
             }
         }
 
@@ -493,24 +493,24 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void printWarnLogIfSettingBatchedParams() {
+    private void printLogIfSettingDiscardedBatchedParams() {
         if (clientSideEncrypt && queryParams.containsKey("batchingEnabled")) {
-            log.warn("Since clientSideEncrypt is true, the param batchingEnabled of producer will be ignored");
+            log.info("Since clientSideEncrypt is true, the param batchingEnabled of producer will be ignored");
         }
         if (queryParams.containsKey("batchingMaxMessages")) {
-            log.warn("Since batchingEnabled is false, the param batchingMaxMessages of producer will be ignored");
+            log.info("Since batchingEnabled is false, the param batchingMaxMessages of producer will be ignored");
         }
         if (queryParams.containsKey("maxPendingMessages")) {
-            log.warn("Since batchingEnabled is false, the param maxPendingMessages of producer will be ignored");
+            log.info("Since batchingEnabled is false, the param maxPendingMessages of producer will be ignored");
         }
         if (queryParams.containsKey("batchingMaxPublishDelay")) {
-            log.warn("Since batchingEnabled is false, the param batchingMaxPublishDelay of producer will be ignored");
+            log.info("Since batchingEnabled is false, the param batchingMaxPublishDelay of producer will be ignored");
         }
     }
 
-    private void printWarnLogIfSettingCompressionParams() {
+    private void printLogIfSettingDiscardedCompressionParams() {
         if (clientSideEncrypt && queryParams.containsKey("compressionType")) {
-            log.warn("Since clientSideEncrypt is true, the param compressionType of producer will be ignored");
+            log.info("Since clientSideEncrypt is true, the param compressionType of producer will be ignored");
         }
     }
 
