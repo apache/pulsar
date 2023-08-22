@@ -379,13 +379,11 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         try {
             param = Base64.getDecoder().decode(StringUtils.trim(queryParams.get("encryptionKeys")));
         } catch (Exception base64DecodeEx) {
-            log.error("Could not base64 decode the param encryptionKeys", base64DecodeEx);
-            throw new IllegalArgumentException("Could not base64 decode the param encryptionKeys");
+            return null;
         }
         try {
             Map<String, EncryptionKey> keys = ObjectMapperFactory.getMapper().getObjectMapper()
-                    .readValue(param, new TypeReference<Map<String, EncryptionKey>>() {
-                    });
+                    .readValue(param, new TypeReference<Map<String, EncryptionKey>>() {});
             if (keys.isEmpty()) {
                 return null;
             }
