@@ -43,7 +43,6 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -200,13 +199,13 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            Assert.assertEquals(new String(message.getData()), messageContent.get(Integer.parseInt(message.getKey())));
+            assertEquals(new String(message.getData()), messageContent.get(Integer.parseInt(message.getKey())));
             messageContent.remove(Integer.parseInt(message.getKey()));
             log.info("dead letter consumer received message : {}", message.getMessageId());
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
-        Assert.assertTrue(messageContent.isEmpty());
+        assertTrue(messageContent.isEmpty());
 
         deadLetterConsumer.close();
         consumer.close();
