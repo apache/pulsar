@@ -67,6 +67,11 @@
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.version}</version>
     </dependency>
+   <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-cli-utils</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.asynchttpclient</groupId>
       <artifactId>async-http-client</artifactId>
