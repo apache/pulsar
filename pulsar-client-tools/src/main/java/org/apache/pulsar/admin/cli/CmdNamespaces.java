@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
-import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
