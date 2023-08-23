@@ -759,15 +759,13 @@ public abstract class PulsarWebResource {
                 .build();
 
         return nsService.getWebServiceUrlAsync(topicName, options)
-                .thenApply(webUrl -> {
-                    // Ensure we get a url
-                    if (webUrl == null || !webUrl.isPresent()) {
-                        log.info("Unable to get web service url");
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Failed to find ownership for topic:" + topicName);
-                    }
-                    return webUrl.get();
-                }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
+                .thenApply(webUrl ->
+                        webUrl.orElseThrow(() -> {
+                            log.info("Unable to get web service url");
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed to find ownership for topic:" + topicName);
+                        })
+                ).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
                         .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
                 ).thenAccept(pair -> {
                     URL webUrl = pair.getLeft();
