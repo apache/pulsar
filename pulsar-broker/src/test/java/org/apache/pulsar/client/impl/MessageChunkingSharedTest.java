@@ -276,7 +276,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         final PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topicName).get().orElse(null);
         assertNotNull(persistentTopic);
-        sendChunk(persistentTopic, "test-producer", 1, 0, 2);
+        sendChunk(persistentTopic, producerName, 1, 0, 2);
         sendChunk(persistentTopic, producerName, 1, 1, 2);
         sendChunk(persistentTopic, producerName, 1, 1, 2);
 

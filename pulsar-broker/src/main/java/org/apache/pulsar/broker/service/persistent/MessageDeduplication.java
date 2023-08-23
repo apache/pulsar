@@ -323,21 +323,27 @@ public class MessageDeduplication {
 
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
-        headersAndPayload.markReaderIndex();
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        headersAndPayload.resetReaderIndex();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
             // for the purpose of deduplication and not rely on the "replicator" name.
-            producerName = msgMetadata.getProducerName();
-            sequenceId = msgMetadata.getSequenceId();
-            highestSequenceId = Math.max(msgMetadata.getHighestSequenceId(), sequenceId);
+            int readerIndex = headersAndPayload.readerIndex();
+            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            producerName = md.getProducerName();
+            sequenceId = md.getSequenceId();
+            highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
             publishContext.setOriginalProducerName(producerName);
             publishContext.setOriginalSequenceId(sequenceId);
             publishContext.setOriginalHighestSequenceId(highestSequenceId);
+            headersAndPayload.readerIndex(readerIndex);
         }
-        long chunkID = msgMetadata.hasChunkId() ? msgMetadata.getChunkId() : 0;
+        long chunkID = 0;
+        if (publishContext.isChunked()) {
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+            chunkID = msgMetadata.getChunkId();
+        }
         // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
         // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
         synchronized (highestSequencedPushed) {
