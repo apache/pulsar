@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
-import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToMillisConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
