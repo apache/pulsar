@@ -21,14 +21,20 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.compaction.Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertEquals;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -36,12 +42,21 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class TopicCompactionServiceTest extends CompactorTest {
+public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
-    @Test
-    public void test() throws PulsarClientException, PulsarAdminException {
+    protected ScheduledExecutorService compactionScheduler;
+    protected BookKeeper bk;
+    private TwoPhaseCompactor compactor;
+
+    @BeforeMethod
+    @Override
+    public void setup() throws Exception {
+        super.internalSetup();
+
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         String defaultTenant = "prop-xyz";
@@ -49,6 +64,25 @@ public class TopicCompactionServiceTest extends CompactorTest {
         String defaultNamespace = defaultTenant + "/ns1";
         admin.namespaces().createNamespace(defaultNamespace, Set.of("test"));
 
+        compactionScheduler = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
+        bk = pulsar.getBookKeeperClientFactory().create(
+                this.conf, null, null, Optional.empty(), null);
+        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    @Override
+    public void cleanup() throws Exception {
+        super.internalCleanup();
+        bk.close();
+        if (compactionScheduler != null) {
+            compactionScheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    public void test() throws PulsarClientException, PulsarAdminException {
         String topic = "persistent://prop-xyz/ns1/my-topic";
 
         PulsarTopicCompactionService service = new PulsarTopicCompactionService(topic, bk, () -> compactor);
@@ -114,5 +148,8 @@ public class TopicCompactionServiceTest extends CompactorTest {
                 assertEquals(data, "B_3");
             }
         });
+
+        List<Entry> entries2 = service.readCompactedEntries(PositionImpl.EARLIEST, 1).join();
+        assertEquals(entries2.size(), 1);
     }
 }

@@ -223,7 +223,7 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.24.2</assertj-core.version>
-    <lombok.version>1.18.26</lombok.version>
+    <lombok.version>1.18.28</lombok.version>
     <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
@@ -1850,34 +1850,6 @@ flexible messaging model and an intuitive client API.</description>
             </execution>
         </executions>
       </plugin>
-      <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-assembly-plugin</artifactId>
-          <version>${maven-assembly-plugin.version}</version>
-          <inherited>false</inherited>
-          <executions>
-              <execution>
-                  <id>source-release-assembly-tar-gz</id>
-                  <phase>generate-sources</phase>
-                  <goals>
-                      <goal>single</goal>
-                  </goals>
-                  <configuration>
-                      <skipAssembly>${skipSourceReleaseAssembly}</skipAssembly>
-                      <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
-                      <descriptors>
-                        <descriptor>src/assembly-source-package.xml</descriptor>
-                      </descriptors>
-                      <finalName>apache-pulsar-${project.version}-src</finalName>
-                      <appendAssemblyId>false</appendAssemblyId>
-                      <formats>
-                          <format>tar.gz</format>
-                      </formats>
-                      <tarLongFileMode>posix</tarLongFileMode>
-                  </configuration>
-              </execution>
-          </executions>
-      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -2207,6 +2179,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-common</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
+        <module>pulsar-cli-utils</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>

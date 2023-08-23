@@ -166,7 +166,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                     CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                     int index = 0;
                     for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
-                        KafkaRecord record = buildRecord(consumerRecord);
+                        KafkaRecord<V> record = buildRecord(consumerRecord);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
                         }
@@ -190,7 +190,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public abstract KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord);
+    public abstract KafkaRecord<V> buildRecord(ConsumerRecord<Object, Object> consumerRecord);
 
     protected Map<String, String> copyKafkaHeaders(ConsumerRecord<Object, Object> consumerRecord) {
         if (!kafkaSourceConfig.isCopyHeadersEnabled()) {
@@ -208,7 +208,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     @Slf4j
     protected static class KafkaRecord<V> implements Record<V> {
-        private final ConsumerRecord<String, ?> record;
+        private final ConsumerRecord<?, ?> record;
         private final V value;
         private final Schema<V> schema;
         private final Map<String, String> properties;
@@ -216,7 +216,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<String, ?> record, V value, Schema<V> schema,
+        public KafkaRecord(ConsumerRecord<?, ?> record, V value, Schema<V> schema,
                            Map<String, String> properties) {
             this.record = record;
             this.value = value;
@@ -240,7 +240,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
         @Override
         public Optional<String> getKey() {
-            return Optional.ofNullable(record.key());
+            return Optional.ofNullable(record.key() instanceof String ? (String) record.key() : null);
         }
 
         @Override
@@ -263,13 +263,14 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             return properties;
         }
     }
-    protected static class KeyValueKafkaRecord<V> extends KafkaRecord implements KVRecord<Object, Object> {
 
-        private final Schema<Object> keySchema;
-        private final Schema<Object> valueSchema;
+    protected static class KeyValueKafkaRecord<K, W> extends KafkaRecord implements KVRecord<K, W> {
 
-        public KeyValueKafkaRecord(ConsumerRecord record, KeyValue value,
-                                   Schema<Object> keySchema, Schema<Object> valueSchema,
+        private final Schema<K> keySchema;
+        private final Schema<W> valueSchema;
+
+        public KeyValueKafkaRecord(ConsumerRecord<?, ?> record, KeyValue<K, W> value,
+                                   Schema<K> keySchema, Schema<W> valueSchema,
                                    Map<String, String> properties) {
             super(record, value, null, properties);
             this.keySchema = keySchema;
@@ -277,12 +278,12 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
 
         @Override
-        public Schema<Object> getKeySchema() {
+        public Schema<K> getKeySchema() {
             return keySchema;
         }
 
         @Override
-        public Schema<Object> getValueSchema() {
+        public Schema<W> getValueSchema() {
             return valueSchema;
         }
 

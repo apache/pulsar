@@ -48,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -61,6 +62,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -70,11 +72,14 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -92,6 +97,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@Slf4j
 public class CompactionTest extends MockedPulsarServiceBaseTest {
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
@@ -547,6 +553,60 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
             }
         }
+    }
+
+    @Test
+    public void testBatchMessageWithNullValue() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-topic1";
+
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .receiverQueueSize(1).readCompacted(true).subscribe().close();
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .maxPendingMessages(3)
+            .enableBatching(true)
+            .batchingMaxMessages(3)
+            .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create()
+        ) {
+            // batch 1
+            producer.newMessage().key("key1").value("my-message-1".getBytes()).sendAsync();
+            producer.newMessage().key("key1").value(null).sendAsync();
+            producer.newMessage().key("key2").value("my-message-3".getBytes()).send();
+
+            // batch 2
+            producer.newMessage().key("key3").value("my-message-4".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-message-5".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-message-6".getBytes()).send();
+
+            // batch 3
+            producer.newMessage().key("key4").value("my-message-7".getBytes()).sendAsync();
+            producer.newMessage().key("key4").value(null).sendAsync();
+            producer.newMessage().key("key5").value("my-message-9".getBytes()).send();
+        }
+
+
+        // compact the topic
+        compact(topic);
+
+        // Read messages before compaction to get ids
+        List<Message<byte[]>> messages = new ArrayList<>();
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+             .subscriptionName("sub1").receiverQueueSize(1).readCompacted(true).subscribe()) {
+            while (true) {
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+                if (message ==  null) {
+                    break;
+                }
+                messages.add(message);
+            }
+        }
+
+        assertEquals(messages.size(), 3);
+        assertEquals(messages.get(0).getKey(), "key2");
+        assertEquals(messages.get(1).getKey(), "key3");
+        assertEquals(messages.get(2).getKey(), "key5");
     }
 
     @Test
@@ -1782,5 +1842,39 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     long ledgerId = admin.topics().getInternalStats(dest.toString()).compactedLedger.ledgerId;
                     Assert.assertNotEquals(ledgerId, -1L);
                 });
+    }
+
+    @Test(timeOut = 100000)
+    public void testReceiverQueueSize() throws Exception {
+        final String topicName = "persistent://my-property/use/my-ns/testReceiverQueueSize" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final int receiveQueueSize = 1;
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i % 2)).value(String.valueOf(i)).sendAsync();
+        }
+        producer.flush();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).receiverQueueSize(receiveQueueSize).subscriptionName(subName)
+                .subscribe();
+
+        //Give some time to consume
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(),
+                        receiveQueueSize));
+        consumer.close();
+        producer.close();
     }
 }

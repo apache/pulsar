@@ -47,6 +47,7 @@ import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.jetbrains.annotations.NotNull;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -191,9 +192,10 @@ public class JavaInstanceRunnableTest {
 
     @Test
     public void testSinkConfigParsingPreservesOriginalType() throws Exception {
-        final Map<String, Object> parsedConfig = JavaInstanceRunnable.parseComponentConfig(
+        final Map<String, Object> parsedConfig = JavaInstanceRunnable.augmentAndFilterConnectorConfig(
                 "{\"ttl\": 9223372036854775807}",
                 new InstanceConfig(),
+                new EnvironmentBasedSecretsProvider(),
                 null,
                 FunctionDetails.ComponentType.SINK
         );
@@ -203,9 +205,10 @@ public class JavaInstanceRunnableTest {
 
     @Test
     public void testSourceConfigParsingPreservesOriginalType() throws Exception {
-        final Map<String, Object> parsedConfig = JavaInstanceRunnable.parseComponentConfig(
+        final Map<String, Object> parsedConfig = JavaInstanceRunnable.augmentAndFilterConnectorConfig(
                 "{\"ttl\": 9223372036854775807}",
                 new InstanceConfig(),
+                new EnvironmentBasedSecretsProvider(),
                 null,
                 FunctionDetails.ComponentType.SOURCE
         );
@@ -213,6 +216,58 @@ public class JavaInstanceRunnableTest {
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }
 
+    @DataProvider(name = "component")
+    public Object[][] component() {
+        return new Object[][]{
+                // Schema: component type, whether to map in secrets
+                { FunctionDetails.ComponentType.SINK },
+                { FunctionDetails.ComponentType.SOURCE },
+                { FunctionDetails.ComponentType.FUNCTION },
+                { FunctionDetails.ComponentType.UNKNOWN },
+        };
+    }
+
+    @Test(dataProvider = "component")
+    public void testEmptyStringInput(FunctionDetails.ComponentType componentType) throws Exception {
+        final Map<String, Object> parsedConfig = JavaInstanceRunnable.augmentAndFilterConnectorConfig(
+                "",
+                new InstanceConfig(),
+                new EnvironmentBasedSecretsProvider(),
+                null,
+                componentType
+        );
+        Assert.assertEquals(parsedConfig.size(), 0);
+    }
+
+    // Environment variables are set in the pom.xml file
+    @Test(dataProvider = "component")
+    public void testInterpolatingEnvironmentVariables(FunctionDetails.ComponentType componentType) throws Exception {
+        final Map<String, Object> parsedConfig = JavaInstanceRunnable.augmentAndFilterConnectorConfig(
+                """
+                        {
+                            "key": {
+                                "key1": "${TEST_JAVA_INSTANCE_PARSE_ENV_VAR}",
+                                "key2": "${unset-env-var}"
+                            },
+                            "key3": "${TEST_JAVA_INSTANCE_PARSE_ENV_VAR}"
+                        }
+                        """,
+                new InstanceConfig(),
+                new EnvironmentBasedSecretsProvider(),
+                null,
+                componentType
+        );
+        if ((componentType == FunctionDetails.ComponentType.SOURCE
+                || componentType == FunctionDetails.ComponentType.SINK)) {
+            Assert.assertEquals(((Map) parsedConfig.get("key")).get("key1"), "some-configuration");
+            Assert.assertEquals(((Map) parsedConfig.get("key")).get("key2"), "${unset-env-var}");
+            Assert.assertEquals(parsedConfig.get("key3"), "some-configuration");
+        } else {
+            Assert.assertEquals(((Map) parsedConfig.get("key")).get("key1"), "${TEST_JAVA_INSTANCE_PARSE_ENV_VAR}");
+            Assert.assertEquals(((Map) parsedConfig.get("key")).get("key2"), "${unset-env-var}");
+            Assert.assertEquals(parsedConfig.get("key3"), "${TEST_JAVA_INSTANCE_PARSE_ENV_VAR}");
+        }
+    }
 
     public static class ConnectorTestConfig1 {
         public String field1;
@@ -243,9 +298,10 @@ public class JavaInstanceRunnableTest {
         final InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
 
-        final Map<String, Object> parsedConfig = JavaInstanceRunnable.parseComponentConfig(
+        final Map<String, Object> parsedConfig = JavaInstanceRunnable.augmentAndFilterConnectorConfig(
                 "{\"field1\": \"value\", \"field2\": \"value2\"}",
                 instanceConfig,
+                new EnvironmentBasedSecretsProvider(),
                 narClassLoader,
                 type
         );
