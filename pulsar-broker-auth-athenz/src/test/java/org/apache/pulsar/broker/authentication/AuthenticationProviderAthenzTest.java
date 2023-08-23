@@ -81,7 +81,7 @@ public class AuthenticationProviderAthenzTest {
             sysPropProvider2.initialize(config);
             assertEquals(sysPropProvider2.getAllowedOffset(), 0);
         } catch (Exception e) {
-            fail("Failed to get allowd offset from system property");
+            fail("Failed to get allowed offset from system property");
         }
 
         System.setProperty("pulsar.athenz.role.token_allowed_offset", "invalid");

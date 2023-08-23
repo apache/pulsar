@@ -23,8 +23,10 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.function.Supplier;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -104,7 +106,19 @@ public class CmdSchemas extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
+            Path schemaPath = Path.of(schemaFileName);
+            File schemaFile = schemaPath.toFile();
+            if (!schemaFile.exists()) {
+                final StringBuilder sb = new StringBuilder();
+                sb.append("Schema file ").append(schemaPath).append(" is not found.");
+                if (!schemaPath.isAbsolute()) {
+                    sb.append(" Relative path ").append(schemaPath)
+                            .append(" is resolved to ").append(schemaPath.toAbsolutePath())
+                            .append(". Try to use absolute path if the relative one resolved wrongly.");
+                }
+                throw new FileNotFoundException(sb.toString());
+            }
+            PostSchemaPayload input = MAPPER.readValue(schemaFile, PostSchemaPayload.class);
             getAdmin().schemas().createSchema(topic, input);
         }
     }

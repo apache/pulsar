@@ -1327,6 +1327,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName1).partitions, 3);
 
         consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
+        Assert.assertTrue(consumer.getRecheckPatternTimeout().isCancelled());
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);

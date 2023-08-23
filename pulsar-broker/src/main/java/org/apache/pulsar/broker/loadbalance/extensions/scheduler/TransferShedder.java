@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy that unloads bundles from the highest loaded brokers.
- * This strategy is only configurable in the broker load balancer extenstions introduced by
+ * This strategy is only configurable in the broker load balancer extensions introduced by
  * PIP-192[https://github.com/apache/pulsar/issues/16691].
  *
  * This load shedding strategy has the following goals:
@@ -719,7 +719,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         Map<String, BrokerLookupData> candidates = new HashMap<>(availableBrokers);
         for (var filter : brokerFilterPipeline) {
             try {
-                filter.filter(candidates, namespaceBundle, context)
+                filter.filterAsync(candidates, namespaceBundle, context)
                         .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(),
                                 TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {

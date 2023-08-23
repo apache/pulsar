@@ -39,6 +39,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -84,7 +86,9 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -2156,7 +2160,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: produce message with 10ms interval: so, consumer can consume only 10 messages without acking
      *
@@ -2235,7 +2239,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: Consumer starts consuming only after all messages have been produced. So, consumer consumes total
      * receiver-queue-size number messages => ask for redelivery and receives all messages again.
@@ -4641,5 +4645,51 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         client.close();
+    }
+
+    @Test
+    public void testConsumeWhenDeliveryFailedByIOException() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "subscription1";
+        final int messagesCount = 100;
+        final int receiverQueueSize = 1;
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName(subscriptionName).receiverQueueSize(receiverQueueSize).subscribe();
+        for (int i = 0; i < messagesCount; i++) {
+            producer.send(i + "");
+        }
+        // Wait incoming queue of the consumer is full.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumer.getIncomingMessageSize(), receiverQueueSize);
+        });
+
+        // Mock an io error for sending messages out.
+        ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService().getTopic(topic, false).join().get()
+                .getSubscription(subscriptionName).getDispatcher().getConsumers().iterator().next().cnx();
+        serverCnx.ctx().channel().pipeline().addFirst(new ChannelDuplexHandler() {
+
+            @Override
+            public void flush(ChannelHandlerContext ctx) throws Exception {
+                throw new IOException("Mocked error");
+            }
+        });
+
+        // Verify all messages will be consumed.
+        Set<String> receivedMessages = new HashSet<>();
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg != null) {
+                receivedMessages.add(msg.getValue());
+                consumer.acknowledge(msg);
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(receivedMessages.size(), messagesCount);
+
+        producer.close();
+        consumer.close();
+        admin.topics().delete(topic, false);
     }
 }

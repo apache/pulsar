@@ -147,6 +147,8 @@ class PythonInstance(object):
     if self.instance_config.function_details.retainOrdering or \
       self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE"):
       mode = pulsar._pulsar.ConsumerType.Failover
+    elif self.instance_config.function_details.retainKeyOrdering:
+      mode = pulsar._pulsar.ConsumerType.KeyShared
 
     position = pulsar._pulsar.InitialPosition.Latest
     if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.COMPACT_LEDGER_EMPTY;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.NEWER_THAN_COMPACTED;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.findStartPoint;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -77,7 +78,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
                         return CompletableFuture.completedFuture(Collections.emptyList());
                     }
                     long endPoint =
-                            Math.min(context.ledger.getLastAddConfirmed(), startPoint + numberOfEntriesToRead);
+                            Math.min(context.ledger.getLastAddConfirmed(), startPoint + (numberOfEntriesToRead - 1));
                     return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint);
                 })).whenComplete((result, ex) -> {
                     if (ex == null) {
@@ -107,5 +108,10 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
 
     public CompactedTopicImpl getCompactedTopic() {
         return compactedTopic;
+    }
+
+    @Override
+    public void close() throws IOException {
+        // noop
     }
 }

@@ -44,7 +44,7 @@ import org.apache.pulsar.io.core.SinkContext;
 public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
     private Producer<K, V> producer;
-    private Properties props = new Properties();
+    private final Properties props = new Properties();
     private KafkaSinkConfig kafkaSinkConfig;
 
     @Override

@@ -147,9 +147,11 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
-import org.apache.pulsar.compaction.TwoPhaseCompactor;
+import org.apache.pulsar.compaction.TopicCompactionService;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -198,7 +200,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private WebSocketService webSocketService = null;
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
-    private Compactor compactor;
+    protected CompactionServiceFactory compactionServiceFactory;
     private StrategicTwoPhaseCompactor strategicCompactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
@@ -451,6 +453,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             resetMetricsServlet();
+
+            if (this.compactionServiceFactory != null) {
+                try {
+                    this.compactionServiceFactory.close();
+                } catch (Exception e) {
+                    LOG.warn("CompactionServiceFactory closing failed {}", e.getMessage());
+                }
+                this.compactionServiceFactory = null;
+            }
 
             if (this.webSocketService != null) {
                 this.webSocketService.close();
@@ -784,7 +795,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     exposeTopicMetrics, offloaderScheduler, interval);
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
-            this.brokerInterceptor = BrokerInterceptors.load(config);
+            setBrokerInterceptor(newBrokerInterceptor());
             // use getter to support mocking getBrokerInterceptor method in tests
             BrokerInterceptor interceptor = getBrokerInterceptor();
             if (interceptor != null) {
@@ -813,6 +824,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
+            if (this.compactionServiceFactory == null) {
+                this.compactionServiceFactory = loadCompactionServiceFactory();
+            }
 
             if (null != this.webSocketService) {
                 ClusterDataImpl clusterData = ClusterDataImpl.builder()
@@ -925,6 +939,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         } finally {
             mutex.unlock();
         }
+    }
+
+    protected BrokerInterceptor newBrokerInterceptor() throws IOException {
+        return BrokerInterceptors.load(config);
     }
 
     @VisibleForTesting
@@ -1471,25 +1489,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.compactorExecutor;
     }
 
-    // only public so mockito can mock it
-    public Compactor newCompactor() throws PulsarServerException {
-        return new TwoPhaseCompactor(this.getConfiguration(),
-                getClient(), getBookKeeperClient(),
-                getCompactorExecutor());
-    }
-
-    public synchronized Compactor getCompactor() throws PulsarServerException {
-        if (this.compactor == null) {
-            this.compactor = newCompactor();
-        }
-        return this.compactor;
-    }
-
     // This method is used for metrics, which is allowed to as null
     // Because it's no operation on the compactor, so let's remove the  synchronized on this method
     // to avoid unnecessary lock competition.
+    // Only the pulsar's compaction service provides the compaction stats. The compaction service plugin,
+    // it should be done by the plugin itself to expose the compaction metrics.
     public Compactor getNullableCompactor() {
-        return this.compactor;
+        if (this.compactionServiceFactory instanceof PulsarCompactionServiceFactory pulsarCompactedServiceFactory) {
+            return pulsarCompactedServiceFactory.getNullableCompactor();
+        }
+        return null;
     }
 
     public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
@@ -1906,5 +1915,23 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return new BrokerService(pulsar, ioEventLoopGroup);
+    }
+
+    private CompactionServiceFactory loadCompactionServiceFactory() {
+        String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
+        var compactionServiceFactory =
+                Reflections.createInstance(compactionServiceFactoryClassName, CompactionServiceFactory.class,
+                        Thread.currentThread().getContextClassLoader());
+        compactionServiceFactory.initialize(this).join();
+        return compactionServiceFactory;
+    }
+
+    public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
+        try {
+            CompactionServiceFactory compactionServiceFactory = this.getCompactionServiceFactory();
+            return compactionServiceFactory.newTopicCompactionService(topic);
+        } catch (Throwable e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }

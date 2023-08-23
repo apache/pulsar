@@ -812,9 +812,10 @@
         <Method name="kvBytes"/>
         <Bug pattern="MS_EXPOSE_REP"/>
     </Match>
+    <!--  org.apache.avro.Schema is logically immutable  -->
     <Match>
         <Class name="org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema"/>
-        <Method name="setSchema"/>
+        <Method name="&lt;init&gt;"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>

@@ -27,8 +27,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -118,8 +116,6 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     @JsonIgnore
-    @Setter(onMethod_ = @SuppressFBWarnings({"EI_EXPOSE_REP2"}))
-    @Getter(onMethod_ = @SuppressFBWarnings({"EI_EXPOSE_REP"}))
     private transient MessageCrypto messageCrypto = null;
 
     @ApiModelProperty(
@@ -192,5 +188,15 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ReaderConfigurationData");
         }
+    }
+
+    @SuppressFBWarnings({"EI_EXPOSE_REP"})
+    public MessageCrypto getMessageCrypto() {
+        return messageCrypto;
+    }
+
+    @SuppressFBWarnings({"EI_EXPOSE_REP2"})
+    public void setMessageCrypto(MessageCrypto messageCrypto) {
+        this.messageCrypto = messageCrypto;
     }
 }

@@ -29,6 +29,14 @@ import org.apache.pulsar.broker.service.Consumer;
 public interface CompactedTopic {
     CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId);
     CompletableFuture<Void> deleteCompactedLedger(long compactedLedgerId);
+
+    /**
+     * Read entries from compacted topic.
+     *
+     * @deprecated Use {@link CompactedTopicUtils#asyncReadCompactedEntries(TopicCompactionService, ManagedCursor,
+     * int, long, boolean, ReadEntriesCallback, boolean, Consumer)} instead.
+     */
+    @Deprecated
     void asyncReadEntriesOrWait(ManagedCursor cursor,
                                 int numberOfEntriesToRead,
                                 boolean isFirstRead,
