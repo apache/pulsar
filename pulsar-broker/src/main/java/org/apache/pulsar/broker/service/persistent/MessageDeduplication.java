@@ -324,11 +324,12 @@ public class MessageDeduplication {
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
+        MessageMetadata md = null;
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
             // for the purpose of deduplication and not rely on the "replicator" name.
             int readerIndex = headersAndPayload.readerIndex();
-            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            md = Commands.parseMessageMetadata(headersAndPayload);
             producerName = md.getProducerName();
             sequenceId = md.getSequenceId();
             highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
@@ -340,7 +341,7 @@ public class MessageDeduplication {
         long chunkID = 0;
         if (publishContext.isChunked()) {
             headersAndPayload.markReaderIndex();
-            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            MessageMetadata msgMetadata = (md == null) ? Commands.parseMessageMetadata(headersAndPayload) : md;
             headersAndPayload.resetReaderIndex();
             chunkID = msgMetadata.getChunkId();
         }
