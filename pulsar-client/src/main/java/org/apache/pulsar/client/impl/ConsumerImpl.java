@@ -1454,25 +1454,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.warn("[{}] Receive a repeated chunk messageId {}, last-chunk-id{}, chunkId = {}",
                         msgMetadata.getProducerName(), chunkedMsgCtx == null ? null
                                 : chunkedMsgCtx.lastChunkedMessageId, msgId, msgMetadata.getChunkId());
-                compressedPayload.release();
-                increaseAvailablePermits(cnx);
-                return null;
-            }
-            // means we lost the first chunk: should never happen
-            log.info("Received unexpected chunk messageId {}, last-chunk-id{}, chunkId = {}", msgId,
-                    (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId());
-            if (chunkedMsgCtx != null) {
-                if (chunkedMsgCtx.chunkedMsgBuffer != null) {
-                    ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
+            } else {
+                // means we lost the first chunk: should never happen
+                log.info("Received unexpected chunk messageId {}, last-chunk-id{}, chunkId = {}", msgId,
+                        (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId());
+                if (chunkedMsgCtx != null) {
+                    if (chunkedMsgCtx.chunkedMsgBuffer != null) {
+                        ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
+                    }
+                    chunkedMsgCtx.recycle();
                 }
-                chunkedMsgCtx.recycle();
+                chunkedMessagesMap.remove(msgMetadata.getUuid());
             }
-            chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
             increaseAvailablePermits(cnx);
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
-                            + expireTimeOfIncompleteChunkedMessageMillis)) {
+                    + expireTimeOfIncompleteChunkedMessageMillis)) {
                 doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
             } else {
                 trackMessage(msgId);
