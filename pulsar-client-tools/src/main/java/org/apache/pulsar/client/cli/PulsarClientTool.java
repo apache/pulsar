@@ -32,7 +32,6 @@ import java.util.Properties;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -40,6 +39,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.SizeUnit;
+
 
 public class PulsarClientTool {
 
@@ -78,7 +78,7 @@ public class PulsarClientTool {
         String tlsTrustCertsFilePath;
 
         @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+            + "(eg: 32M, 64M)", converter = MemoryUnitToByteConverter.class)
         long memoryLimit = 0L;
     }
 
@@ -155,10 +155,10 @@ public class PulsarClientTool {
         this.rootParams.authParams = properties.getProperty("authParams");
         this.rootParams.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
         this.rootParams.proxyServiceURL = StringUtils.trimToNull(properties.getProperty("proxyServiceUrl"));
+        this.rootParams.listenerName = StringUtils.trimToNull(properties.getProperty("listenerName"));
         // setting memory limit
-        this.rootParams.memoryLimit = StringUtils.isNotEmpty(properties.getProperty("memoryLimit"))
-                ? new ByteUnitToLongConverter("memoryLimit").convert(properties.getProperty("memoryLimit"))
-                : this.rootParams.memoryLimit;
+        this.rootParams.memoryLimit = new MemoryUnitToByteConverter(this.rootParams.memoryLimit)
+                .parseBytes(properties.getProperty("memoryLimit"));
 
         String proxyProtocolString = StringUtils.trimToNull(properties.getProperty("proxyProtocol"));
         if (proxyProtocolString != null) {

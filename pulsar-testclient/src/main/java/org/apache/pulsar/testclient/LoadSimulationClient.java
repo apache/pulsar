@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -183,7 +182,7 @@ public class LoadSimulationClient {
         public String serviceURL;
 
         @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+            + "(eg: 32M, 64M)", converter = MemoryUnitToByteConverter.class)
         public long memoryLimit = 0L;
     }
 

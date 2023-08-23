@@ -28,7 +28,6 @@ import java.io.FileInputStream;
 import java.util.Properties;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 /**
@@ -105,7 +104,7 @@ public abstract class PerformanceBaseArguments {
     public String deprecatedAuthPluginClassName;
 
     @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+            + "(eg: 32M, 64M)", converter = MemoryUnitToByteConverter.class)
     public long memoryLimit;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
