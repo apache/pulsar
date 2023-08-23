@@ -340,10 +340,12 @@ public class MessageDeduplication {
         }
         long chunkID = 0;
         if (publishContext.isChunked()) {
-            headersAndPayload.markReaderIndex();
-            MessageMetadata msgMetadata = (md == null) ? Commands.parseMessageMetadata(headersAndPayload) : md;
-            headersAndPayload.resetReaderIndex();
-            chunkID = msgMetadata.getChunkId();
+            if (md == null) {
+                headersAndPayload.markReaderIndex();
+                md = Commands.parseMessageMetadata(headersAndPayload);
+                headersAndPayload.resetReaderIndex();
+            }
+            chunkID = md.getChunkId();
         }
         // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
         // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
