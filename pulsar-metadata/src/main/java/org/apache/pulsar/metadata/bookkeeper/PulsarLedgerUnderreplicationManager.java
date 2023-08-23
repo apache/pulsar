@@ -419,7 +419,10 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                     // It's safe to ignore, it simply means another
                     // ledger in the same hierarchy has been marked as
                     // underreplicated.
-                    if (!(ee.getCause() instanceof KeeperException.NotEmptyException)) {
+                    if (ee.getCause() instanceof MetadataStoreException && ee.getCause().getCause()
+                            instanceof KeeperException.NotEmptyException) {
+                        //do nothing.
+                    } else {
                         log.error("Error deleting underrepcalited ledger parent node", ee);
                     }
                 }
