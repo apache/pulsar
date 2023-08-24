@@ -27,6 +27,12 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
+/***
+ * This class is used in scenarios where the payload of the message has been encrypted and the producer does not need
+ * to encrypt it again.
+ * It discards payload encryption and only relies {@link #metadataModifierForSend} to set the encryption info into the
+ * message metadata.
+ */
 public class WSSDummyMessageCryptoImpl implements MessageCrypto<MessageMetadata, MessageMetadata> {
 
     public static final WSSDummyMessageCryptoImpl INSTANCE_FOR_CONSUMER =

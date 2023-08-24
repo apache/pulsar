@@ -20,6 +20,9 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 
+/**
+ * An empty implement. Doesn't provide any public key or private key, and just returns `null`.
+ */
 public class DummyCryptoKeyReaderImpl implements CryptoKeyReader {
 
     public static final DummyCryptoKeyReaderImpl INSTANCE = new DummyCryptoKeyReaderImpl();
