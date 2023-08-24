@@ -66,6 +66,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.KeeperException;
 
 @Slf4j
@@ -402,28 +403,30 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             if (l != null) {
                 store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                try {
-                    // clean up the hierarchy
-                    String[] parts = getUrLedgerPath(ledgerId).split("/");
-                    for (int i = 1; i <= 4; i++) {
-                        String[] p = Arrays.copyOf(parts, parts.length - i);
-                        String path = Joiner.on("/").join(p);
-                        Optional<GetResult> getResult = store.get(path).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                        if (getResult.isPresent()) {
-                            store.delete(path, Optional.of(getResult.get().getStat().getVersion()))
-                                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                if (store instanceof ZKMetadataStore) {
+                    try {
+                        // clean up the hierarchy
+                        String[] parts = getUrLedgerPath(ledgerId).split("/");
+                        for (int i = 1; i <= 4; i++) {
+                            String[] p = Arrays.copyOf(parts, parts.length - i);
+                            String path = Joiner.on("/").join(p);
+                            Optional<GetResult> getResult = store.get(path).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                            if (getResult.isPresent()) {
+                                store.delete(path, Optional.of(getResult.get().getStat().getVersion()))
+                                        .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                            }
                         }
-                    }
-                } catch (ExecutionException ee) {
-                    // This can happen when cleaning up the hierarchy.
-                    // It's safe to ignore, it simply means another
-                    // ledger in the same hierarchy has been marked as
-                    // underreplicated.
-                    if (ee.getCause() instanceof MetadataStoreException && ee.getCause().getCause()
-                            instanceof KeeperException.NotEmptyException) {
-                        //do nothing.
-                    } else {
-                        log.error("Error deleting underrepcalited ledger parent node", ee);
+                    } catch (ExecutionException ee) {
+                        // This can happen when cleaning up the hierarchy.
+                        // It's safe to ignore, it simply means another
+                        // ledger in the same hierarchy has been marked as
+                        // underreplicated.
+                        if (ee.getCause() instanceof MetadataStoreException && ee.getCause().getCause()
+                                instanceof KeeperException.NotEmptyException) {
+                            //do nothing.
+                        } else {
+                            log.warn("Error deleting underrepcalited ledger parent node", ee);
+                        }
                     }
                 }
             }
