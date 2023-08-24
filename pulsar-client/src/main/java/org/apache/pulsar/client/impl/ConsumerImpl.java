@@ -35,6 +35,7 @@ import io.netty.util.Timeout;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1456,6 +1457,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 : chunkedMsgCtx.lastChunkedMessageId, msgId, msgMetadata.getChunkId());
                 compressedPayload.release();
                 increaseAvailablePermits(cnx);
+                if (chunkedMsgCtx != null) {
+                    boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                            .anyMatch(messageId1 -> messageId1.ledgerId == messageId.getLedgerId()
+                                    && messageId1.entryId == messageId.getEntryId());
+                    if (!repeatedlyReceived) {
+                        doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
+                    }
+                }
                 return null;
             }
             // means we lost the first chunk: should never happen
