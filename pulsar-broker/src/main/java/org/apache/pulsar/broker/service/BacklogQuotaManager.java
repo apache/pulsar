@@ -103,7 +103,10 @@ public class BacklogQuotaManager {
             break;
         case producer_exception:
         case producer_request_hold:
-            disconnectProducers(persistentTopic);
+            if (!advanceSlowestSystemCursor(persistentTopic)) {
+                // The slowest is not a system cursor. Disconnecting producers to put backpressure.
+                disconnectProducers(persistentTopic);
+            }
             break;
         default:
             break;
@@ -267,5 +270,28 @@ public class BacklogQuotaManager {
             return null;
 
         });
+    }
+
+    /**
+     * Advances the slowest cursor if that is a system cursor.
+     *
+     * @param persistentTopic
+     * @return true if the slowest cursor is a system cursor
+     */
+    private boolean advanceSlowestSystemCursor(PersistentTopic persistentTopic) {
+
+        ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
+        if (slowestConsumer == null) {
+            return false;
+        }
+
+        if (PersistentTopic.isDedupCursorName(slowestConsumer.getName())) {
+            persistentTopic.getMessageDeduplication().takeSnapshot();
+            return true;
+        }
+
+        // We may need to check other system cursors here : replicator, compaction
+        return false;
     }
 }
