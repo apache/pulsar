@@ -101,7 +101,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     private void refreshBookies(SessionEvent sessionEvent) {
         lastMetadataSessionEvent = sessionEvent;
-        if (!SessionEvent.Reconnected.equals(sessionEvent)){
+        if (!SessionEvent.Reconnected.equals(sessionEvent) && !SessionEvent.SessionReestablished.equals(sessionEvent)){
             return;
         }
         // Clean caches.
