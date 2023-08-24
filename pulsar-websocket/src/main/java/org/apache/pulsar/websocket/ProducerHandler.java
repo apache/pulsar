@@ -225,6 +225,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 // Set compression information.
                 builder.getMetadataBuilder().setCompression(sendRequest.compressionType);
                 builder.getMetadataBuilder().setUncompressedSize(sendRequest.uncompressedMessageSize);
+            } else if (sendRequest.compressionType == null && sendRequest.uncompressedMessageSize == null) {
+                // Nothing to do, the method send async will set these two attributes.
+            } else {
+                // Only one param is set.
+                sendAckResponse(new ProducerAck(PayloadEncodingError, "the params compressionType and"
+                        + " uncompressedMessageSize should both empty or both non-empty",
+                        null, requestContext));
+                return;
             }
         }
 
@@ -241,8 +249,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
-            log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
-                    getRemote().getInetSocketAddress().toString(), exception.getMessage(), exception);
+            log.warn("[{}] Error occurred while producer handler was sending msg from {}", producer.getTopic(),
+                    getRemote().getInetSocketAddress().toString(), exception);
             numMsgsFailed.increment();
             sendAckResponse(
                     new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
