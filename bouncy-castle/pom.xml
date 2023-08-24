@@ -48,6 +48,7 @@
 
   <!--make it easy for user to load Bouncy Castle and Bouncy Castle FIPS-->
   <modules>
+    <module>bc-common</module>
     <!--2 module for nar-->
     <module>bc</module>
     <module>bcfips</module>

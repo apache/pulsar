@@ -29,8 +29,8 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>bouncy-castle-bcfips</artifactId>
-  <name>Apache Pulsar :: Bouncy Castle :: BC-FIPS</name>
+  <artifactId>bouncy-castle-common</artifactId>
+  <name>Apache Pulsar :: Bouncy Castle :: BC-COMMON</name>
 
   <dependencies>
     <dependency>
@@ -41,44 +41,26 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>bouncy-castle-common</artifactId>
-      <version>${project.parent.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bc-fips</artifactId>
-      <version>${bouncycastle.bc-fips.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-fips</artifactId>
-      <version>${bouncycastle.bcpkix-fips.version}</version>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
-      <!-- build a `jar in jar` to avoid break bc signature-->
       <plugin>
-        <groupId>de.ntcomputer</groupId>
-        <artifactId>executable-packer-maven-plugin</artifactId>
-        <version>1.0.1</version>
-        <configuration>
-          <finalName>${project.artifactId}-${project.version}</finalName>
-          <mainClass>org.apache.pulsar.bcloader.BouncyCastleFipsLoader</mainClass>
-        </configuration>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <execution>
             <goals>
-              <goal>pack-executable-jar</goal>
+              <goal>test-jar</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
+
 </project>

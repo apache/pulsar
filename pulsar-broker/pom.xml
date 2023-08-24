@@ -187,6 +187,12 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.version}</version>
     </dependency>
