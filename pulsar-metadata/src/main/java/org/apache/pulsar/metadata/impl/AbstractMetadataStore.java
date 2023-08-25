@@ -174,7 +174,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return result;
     }
 
-    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
+    protected void registerSyncListener(Optional<MetadataEventSynchronizer> synchronizer) {
         synchronizer.ifPresent(s -> s.registerSyncListener(this::handleMetadataEvent));
     }
 
