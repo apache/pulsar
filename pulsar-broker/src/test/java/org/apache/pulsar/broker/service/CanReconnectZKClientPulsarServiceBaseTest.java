@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -185,7 +185,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         config.setBrokerServicePortTls(Optional.of(0));
         config.setBacklogQuotaCheckIntervalInSeconds(5);
         config.setDefaultNumberOfNamespaceBundles(1);
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED.toString());
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
     }
