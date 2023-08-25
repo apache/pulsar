@@ -353,6 +353,10 @@ public class MessageDeduplication {
             Long lastSequenceIdPushed = highestSequencedPushed.get(producerName);
             // All chunks of a message use the same message metadata and sequence ID,
             // so it's expected for sequenceId == lastSequenceIdPushed when the chunk ID > 0.
+            // "chunkID == 0" means that the message is the first one of the chunk list.
+            // We check the sequence ID of the first chunk as the same as the common messages.
+            // Todo: Add the last chunkID map (like `highestSequencedPushed` and `highestSequencedPersisted`) to check
+            //  the duplication in the chunk list of a chunk message.
             if (lastSequenceIdPushed != null && (chunkID > 0 ? sequenceId < lastSequenceIdPushed
                     : sequenceId <= lastSequenceIdPushed)) {
                 if (log.isDebugEnabled()) {

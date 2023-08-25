@@ -1450,20 +1450,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // discard message if chunk is out-of-order
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || msgMetadata.getChunkId() != (chunkedMsgCtx.lastChunkedMessageId + 1)) {
-            // Filter duplicated chunks instead of discard it.
-            if (chunkedMsgCtx == null || msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
+            // Filter duplicated chunks instead of discard it. (Only do this when exist duplication in a chunk message)
+            // For example:
+            //     Chunk-1 sequence ID: 0, chunk ID: 0
+            //     Chunk-2 sequence ID: 0, chunk ID: 0
+            //     Chunk-3 sequence ID: 0, chunk ID: 1
+            if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
                 log.warn("[{}] Receive a repeated chunk messageId {}, last-chunk-id{}, chunkId = {}",
-                        msgMetadata.getProducerName(), chunkedMsgCtx == null ? null
-                                : chunkedMsgCtx.lastChunkedMessageId, msgId, msgMetadata.getChunkId());
+                        msgMetadata.getProducerName(), chunkedMsgCtx.lastChunkedMessageId, msgId, msgMetadata.getChunkId());
                 compressedPayload.release();
                 increaseAvailablePermits(cnx);
-                if (chunkedMsgCtx != null) {
-                    boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
-                            .anyMatch(messageId1 -> messageId1.ledgerId == messageId.getLedgerId()
-                                    && messageId1.entryId == messageId.getEntryId());
-                    if (!repeatedlyReceived) {
-                        doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
-                    }
+                boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .anyMatch(messageId1 -> messageId1.ledgerId == messageId.getLedgerId()
+                                && messageId1.entryId == messageId.getEntryId());
+                if (!repeatedlyReceived) {
+                    doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
                 }
                 return null;
             }
