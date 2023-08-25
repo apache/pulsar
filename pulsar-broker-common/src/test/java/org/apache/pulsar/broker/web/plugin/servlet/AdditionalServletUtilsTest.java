@@ -68,7 +68,7 @@ public class AdditionalServletUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadEventListenerWithBlankListerClass() throws Exception {
+    public void testLoadEventListenerWithBlankListenerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setDescription("test-proxy-listener");
 
@@ -95,7 +95,7 @@ public class AdditionalServletUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadEventListenerWithWrongListerClass() throws Exception {
+    public void testLoadEventListenerWithWrongListenerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(Runnable.class.getName());
         def.setDescription("test-proxy-listener");
