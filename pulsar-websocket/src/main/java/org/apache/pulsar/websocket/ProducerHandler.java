@@ -225,7 +225,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 // Set compression information.
                 builder.getMetadataBuilder().setCompression(sendRequest.compressionType);
                 builder.getMetadataBuilder().setUncompressedSize(sendRequest.uncompressedMessageSize);
-            } else if (sendRequest.compressionType == null && sendRequest.uncompressedMessageSize == null) {
+            } else if ((org.apache.pulsar.common.api.proto.CompressionType.NONE.equals(sendRequest.compressionType)
+                    || sendRequest.compressionType == null)
+                    && sendRequest.uncompressedMessageSize == null) {
                 // Nothing to do, the method send async will set these two attributes.
             } else {
                 // Only one param is set.

@@ -38,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
+import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -116,9 +117,11 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
         }
         // Compression.
         byte[] unCompressedPayload = msg.payload.getBytes(StandardCharsets.UTF_8);
-        msg.uncompressedMessageSize = unCompressedPayload.length;
         byte[] compressedPayload = WssClientSideEncryptUtils.compressionIfNeeded(msg.compressionType,
                 unCompressedPayload);
+        if (msg.compressionType != null && !CompressionType.NONE.equals(msg.compressionType)) {
+            msg.uncompressedMessageSize = unCompressedPayload.length;
+        }
         // Encrypt.
         EncryptedPayloadAndParam encryptedPayloadAndParam = WssClientSideEncryptUtils.encryptPayload(
                 cryptoKeyReader, msgCrypto, compressedPayload, keyName);
