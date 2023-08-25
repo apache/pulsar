@@ -51,11 +51,13 @@ import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
 @Slf4j
 public class PulsarRegistrationClient implements RegistrationClient {
 
-    private final MetadataStore store;
+    private final AbstractMetadataStore store;
     private final String ledgersRootPath;
     // registration paths
     private final String bookieRegistrationPath;
@@ -68,10 +70,11 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private final Map<BookieId, Versioned<BookieServiceInfo>> writableBookieInfo;
     private final Map<BookieId, Versioned<BookieServiceInfo>> readOnlyBookieInfo;
     private final FutureUtil.Sequencer<Void> sequencer;
+    private SessionEvent lastMetadataSessionEvent;
 
     public PulsarRegistrationClient(MetadataStore store,
                                     String ledgersRootPath) {
-        this.store = store;
+        this.store = (AbstractMetadataStore) store;
         this.ledgersRootPath = ledgersRootPath;
         this.bookieServiceInfoMetadataCache = store.getMetadataCache(BookieServiceInfoSerde.INSTANCE);
         this.sequencer = Sequencer.create();
@@ -88,11 +91,27 @@ public class PulsarRegistrationClient implements RegistrationClient {
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-registration-client"));
 
         store.registerListener(this::updatedBookies);
+        this.store.registerSessionListener(this::refreshBookies);
     }
 
     @Override
     public void close() {
         executor.shutdownNow();
+    }
+
+    private void refreshBookies(SessionEvent sessionEvent) {
+        lastMetadataSessionEvent = sessionEvent;
+        if (!SessionEvent.Reconnected.equals(sessionEvent) && !SessionEvent.SessionReestablished.equals(sessionEvent)){
+            return;
+        }
+        // Clean caches.
+        store.invalidateCaches(bookieRegistrationPath, bookieAllRegistrationPath, bookieReadonlyRegistrationPath);
+        bookieServiceInfoMetadataCache.invalidateAll();
+        // Refresh caches of the listeners.
+        getReadOnlyBookies().thenAccept(bookies ->
+                readOnlyBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
+        getWritableBookies().thenAccept(bookies ->
+                writableBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
     }
 
     @Override
