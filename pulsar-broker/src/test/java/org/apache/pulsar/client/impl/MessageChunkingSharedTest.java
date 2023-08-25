@@ -316,6 +316,11 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
                 Unpooled.wrappedBuffer("a".getBytes()));
         persistentTopic.publishMessage(buf, new Topic.PublishContext() {
             @Override
+            public boolean isChunked() {
+                return chunkId != null;
+            }
+
+            @Override
             public String getProducerName() {
                 return producerName;
             }

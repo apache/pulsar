@@ -1461,7 +1461,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 compressedPayload.release();
                 increaseAvailablePermits(cnx);
                 boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
-                        .anyMatch(messageId1 -> messageId1.ledgerId == messageId.getLedgerId()
+                        .anyMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
                                 && messageId1.entryId == messageId.getEntryId());
                 if (!repeatedlyReceived) {
                     doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
