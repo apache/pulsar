@@ -1236,7 +1236,7 @@ public class NamespaceService implements AutoCloseable {
                     bundleOwnedListener.unLoad(bundle);
                 }
             } catch (Throwable t) {
-                LOG.error("Call bundle {} ownership lister error", bundle, t);
+                LOG.error("Call bundle {} ownership listener error", bundle, t);
             }
         }
     }
@@ -1259,7 +1259,7 @@ public class NamespaceService implements AutoCloseable {
                         listener.onLoad(bundle);
                     }
                 } catch (Throwable t) {
-                    LOG.error("Call bundle {} ownership lister error", bundle, t);
+                    LOG.error("Call bundle {} ownership listener error", bundle, t);
                 }
             }
         }

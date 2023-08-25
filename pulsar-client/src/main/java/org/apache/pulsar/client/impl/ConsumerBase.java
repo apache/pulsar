@@ -228,7 +228,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    // if lister is not null, we will track unAcked msg in callMessageListener
+    // if listener is not null, we will track unAcked msg in callMessageListener
     protected void trackUnAckedMsgIfNoListener(MessageId messageId, int redeliveryCount) {
         if (listener == null) {
             unAckedMessageTracker.add(messageId, redeliveryCount);
