@@ -1926,4 +1926,68 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         consumer.close();
         producer.close();
     }
+
+    @Test
+    public void testCompactionDuplicate() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/testCompactionDuplicate";
+        final int numMessages = 1000;
+        final int maxKeys = 800;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        // trigger compaction (create __compaction cursor)
+        admin.topics().triggerCompaction(topic);
+
+        Map<String, byte[]> expected = new HashMap<>();
+        Random r = new Random(0);
+
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
+
+        for (int j = 0; j < numMessages; j++) {
+            int keyIndex = r.nextInt(maxKeys);
+            String key = "key" + keyIndex;
+            byte[] data = ("my-message-" + key + "-" + j).getBytes();
+            producer.newMessage().key(key).value(data).send();
+            expected.put(key, data);
+        }
+
+        producer.flush();
+
+        // trigger compaction
+        admin.topics().triggerCompaction(topic);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topic).status,
+                    LongRunningProcessStatus.Status.RUNNING);
+        });
+
+        // Wait for phase one to complete
+        Thread.sleep(500);
+
+        admin.topics().unload(topic);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
+            // Compacted topic ledger should have same number of entry equals to number of unique key.
+            Assert.assertEquals(expected.size(), internalStats.compactedLedger.entries);
+            Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
+            Assert.assertFalse(internalStats.compactedLedger.offloaded);
+        });
+
+        // consumer with readCompacted enabled only get compacted entries
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscribe()) {
+            while (true) {
+                Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
+                Assert.assertEquals(expected.remove(m.getKey()), m.getData());
+                if (expected.isEmpty()) {
+                    break;
+                }
+            }
+        }
+    }
 }
