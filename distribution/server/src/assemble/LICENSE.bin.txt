@@ -409,7 +409,9 @@ The Apache Software License, Version 2.0
  * OkHttp3
      - com.squareup.okhttp3-logging-interceptor-4.9.3.jar
      - com.squareup.okhttp3-okhttp-4.9.3.jar
- * Okio - com.squareup.okio-okio-2.8.0.jar
+ * Okio
+     - com.squareup.okio-okio-3.4.0.jar
+     - com.squareup.okio-okio-jvm-3.4.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-1.6.0.jar
