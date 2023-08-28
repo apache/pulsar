@@ -49,16 +49,18 @@ public class NamespaceResources extends BaseResources<Policies> {
     private final IsolationPolicyResources isolationPolicies;
     private final PartitionedTopicResources partitionedTopicResources;
     private final MetadataStore configurationStore;
+    private final MetadataStore localStore;
 
     public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
     private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
-    public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec) {
+    public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
         partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
+        this.localStore = localStore;
     }
 
     public CompletableFuture<List<String>> listNamespacesAsync(String tenant) {
@@ -381,13 +383,13 @@ public class NamespaceResources extends BaseResources<Policies> {
     // clear resource of `/loadbalance/bundle-data/{tenant}/{namespace}/` in metadata-store
     public CompletableFuture<Void> deleteBundleDataAsync(NamespaceName ns) {
         final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
-        return getStore().deleteRecursive(namespaceBundlePath);
+        return this.localStore.deleteRecursive(namespaceBundlePath);
     }
 
     // clear resource of `/loadbalance/bundle-data/{tenant}/` in metadata-store
     public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
         final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
-        return getStore().deleteRecursive(tenantBundlePath);
+        return this.localStore.deleteRecursive(tenantBundlePath);
     }
 
 }
