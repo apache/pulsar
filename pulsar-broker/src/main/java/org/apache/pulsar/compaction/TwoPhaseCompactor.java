@@ -279,6 +279,8 @@ public class TwoPhaseCompactor extends Compactor {
                                     }
                                 });
                         if (to.equals(id)) {
+                            // make sure all inflight writes have finished
+                            outstanding.acquire(MAX_OUTSTANDING);
                             addFuture.whenComplete((res, exception2) -> {
                                 if (exception2 == null) {
                                     promise.complete(null);
