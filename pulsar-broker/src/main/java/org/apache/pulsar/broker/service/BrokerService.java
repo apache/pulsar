@@ -2738,10 +2738,13 @@ public class BrokerService implements Closeable {
                                                 .createDefaultPartitionedTopicAsync(topicName, policies)
                                                 .thenAccept(md -> future.complete(md))
                                                 .exceptionally(ex -> {
+                                                    log.info("[{}] The partitioned topic is already"
+                                                            + " created, try to refresh the cache and read"
+                                                            + " again.", topicName);
                                                     if (ex.getCause()
                                                             instanceof MetadataStoreException.AlreadyExistsException) {
                                                         // The partitioned topic might be created concurrently
-                                                        fetchPartitionedTopicMetadataAsync(topicName)
+                                                        fetchPartitionedTopicMetadataAsync(topicName, true)
                                                                 .whenComplete((metadata2, ex2) -> {
                                                                     if (ex2 == null) {
                                                                         future.complete(metadata2);
@@ -2750,6 +2753,9 @@ public class BrokerService implements Closeable {
                                                                     }
                                                                 });
                                                     } else {
+                                                        log.error("[{}] operation of creating partitioned"
+                                                                        + " topic metadata failed",
+                                                                topicName, ex);
                                                         future.completeExceptionally(ex);
                                                     }
                                                     return null;
@@ -2789,9 +2795,14 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
+        return fetchPartitionedTopicMetadataAsync(topicName, false);
+    }
+
+    public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName,
+                                                                                      boolean refreshCacheAndGet) {
         // gets the number of partitions from the configuration cache
         return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .getPartitionedTopicMetadataAsync(topicName).thenApply(metadata -> {
+                .getPartitionedTopicMetadataAsync(topicName, refreshCacheAndGet).thenApply(metadata -> {
                     // if the partitioned topic is not found in metadata, then the topic is not partitioned
                     return metadata.orElseGet(() -> new PartitionedTopicMetadata());
                 });
