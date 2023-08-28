@@ -1457,7 +1457,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             //     Chunk-3 sequence ID: 0, chunk ID: 1
             if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
                 log.warn("[{}] Receive a repeated chunk messageId {}, last-chunk-id{}, chunkId = {}",
-                        msgMetadata.getProducerName(), chunkedMsgCtx.lastChunkedMessageId, msgId, msgMetadata.getChunkId());
+                        msgMetadata.getProducerName(), chunkedMsgCtx.lastChunkedMessageId,
+                        msgId, msgMetadata.getChunkId());
                 compressedPayload.release();
                 increaseAvailablePermits(cnx);
                 boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
