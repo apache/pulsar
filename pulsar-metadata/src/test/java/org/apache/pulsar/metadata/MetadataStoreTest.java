@@ -95,7 +95,6 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
-
         String data = "data";
         String path = "/non-existing-key";
         int concurrent = 50;
