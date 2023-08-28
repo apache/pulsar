@@ -338,7 +338,8 @@ public class MessageDeduplication {
             publishContext.setOriginalHighestSequenceId(highestSequenceId);
             headersAndPayload.readerIndex(readerIndex);
         }
-        long chunkID = 0;
+        long chunkID = -1;
+        long totalChunk = -1;
         if (publishContext.isChunked()) {
             if (md == null) {
                 headersAndPayload.markReaderIndex();
@@ -346,6 +347,7 @@ public class MessageDeduplication {
                 headersAndPayload.resetReaderIndex();
             }
             chunkID = md.getChunkId();
+            totalChunk = md.getNumChunksFromMsg();
         }
         // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
         // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
@@ -357,7 +359,8 @@ public class MessageDeduplication {
             // We check the sequence ID of the first chunk as the same as the common messages.
             // Todo: Add the last chunkID map (like `highestSequencedPushed` and `highestSequencedPersisted`) to check
             //  the duplication in the chunk list of a chunk message.
-            if (lastSequenceIdPushed != null && (chunkID > 0 ? sequenceId < lastSequenceIdPushed
+            if (lastSequenceIdPushed != null
+                    && (chunkID >= 0 && chunkID != totalChunk - 1 ? sequenceId < lastSequenceIdPushed
                     : sequenceId <= lastSequenceIdPushed)) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Message identified as duplicated producer={} seq-id={} -- highest-seq-id={}",
