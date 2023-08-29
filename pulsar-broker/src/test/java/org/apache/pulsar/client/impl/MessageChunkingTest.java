@@ -308,6 +308,18 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
     }
 
+    private void sendSingleChunk(Producer<String> producer, String uuid, int chunkId, int totalChunks)
+            throws PulsarClientException {
+        TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
+                .value(String.format("chunk-%s-%d|", uuid, chunkId));
+        MessageMetadata msgMetadata = msg.getMetadataBuilder();
+        msgMetadata.setUuid(uuid)
+                .setChunkId(chunkId)
+                .setNumChunksFromMsg(totalChunks)
+                .setTotalChunkMsgSize(100);
+        msg.send();
+    }
+
     @Test(enabled = false)
     public void testMaxPendingChunkMessages() throws Exception {
 
@@ -355,6 +367,47 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         assertNotEquals(messageSet.size(), totalPublishedMessages);
 
+    }
+
+    @Test
+    public void testResendChunkMessages() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final String topicName = "persistent://my-property/my-ns/testResendChunkMessages";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .maxPendingChunkedMessage(10)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        sendSingleChunk(producer, "0", 0, 2);
+
+        sendSingleChunk(producer, "0", 0, 2); // Resending the first chunk
+        sendSingleChunk(producer, "1", 0, 3); // This is for testing the interwoven chunked message
+        sendSingleChunk(producer, "1", 1, 3);
+        sendSingleChunk(producer, "1", 0, 3); // Resending the UUID-1 chunked message
+
+        sendSingleChunk(producer, "0", 1, 2);
+
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-0-0|chunk-0-1|");
+        consumer.acknowledge(receivedMsg);
+
+        sendSingleChunk(producer, "1", 1, 3);
+        sendSingleChunk(producer, "1", 2, 3);
+
+        receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|chunk-1-2|");
+        consumer.acknowledge(receivedMsg);
     }
 
     /**
