@@ -1720,6 +1720,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // Set conf.
         cleanup();
         setNamespaceAttr(namespaceAttr);
+        this.conf.setMetadataStoreUrl("127.0.0.1:2181");
+        this.conf.setConfigurationMetadataStoreUrl("127.0.0.1:2182");
         setup();
 
         String tenant = newUniqueName("test-tenant");
