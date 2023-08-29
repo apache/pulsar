@@ -93,7 +93,12 @@ RUN mkdir /pulsar && chmod g+w /pulsar
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
-COPY --from=pulsar /pulsar /pulsar
+RUN groupadd -g 10000 pulsar && \
+    useradd -r -u 10000 -g pulsar pulsar
+
+COPY --from=pulsar --chown=10000:10000 /pulsar /pulsar
+RUN chown pulsar:pulsar /pulsar
+
 WORKDIR /pulsar
 
 ARG PULSAR_CLIENT_PYTHON_VERSION
@@ -104,4 +109,4 @@ RUN chmod +x /pulsar/bin/install-pulsar-client.sh
 RUN /pulsar/bin/install-pulsar-client.sh
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
-USER 10000
+USER 10000:10000
