@@ -284,7 +284,6 @@ public class TwoPhaseCompactor extends Compactor {
                                     promise.complete(null);
                                 }
                             });
-                            return;
                         }
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
