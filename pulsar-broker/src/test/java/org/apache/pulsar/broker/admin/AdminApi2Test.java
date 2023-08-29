@@ -125,6 +125,8 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -1713,6 +1715,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         conf.setForceDeleteNamespaceAllowed(namespaceAttr.forceDeleteNamespaceAllowed);
     }
 
+    private static Object getField(Object obj, String fieldName) throws Exception {
+        Field field = obj.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(obj);
+    }
+
     @Test(dataProvider = "namespaceAttrs")
     public void testDeleteNamespace(NamespaceAttr namespaceAttr) throws Exception {
         restartClusterAfterTest();
@@ -1742,6 +1750,20 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 10);
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
+        // export bundle-data to metadata store
+        final String managedLedgersPath = "/managed-ledgers/" + namespace;
+        final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
+        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
+                pulsar.getLoadManager().get(), "loadManager");
+        MetadataCache<BundleData> bundlesCache = (MetadataCache<BundleData>) getField(
+                loadManager, "bundlesCache");
+        final BundleData bundleData = new BundleData(10, 1000);
+        bundlesCache.readModifyUpdateOrCreate(bundleDataPath, __ -> bundleData).join();
+
+        // assert znode exists in metadata store
+        assertTrue(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+        assertTrue(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
+
         try {
             admin.namespaces().deleteNamespace(namespace, false);
             fail("should have failed due to namespace not empty");
@@ -1758,12 +1780,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
-
-        final String managedLedgersPath = "/managed-ledgers/" + namespace;
+        // assert znode deleted in metadata store
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
-
-
-        final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
