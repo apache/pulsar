@@ -416,6 +416,7 @@ public class ModularLoadManagerImplTest {
                 leaderBroker.getLoadManager().get(), "loadManager");
         int topK = 1;
         leaderBroker.getConfiguration().setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(topK);
+        // there are two broker in cluster, so total bundle count will be topK * 2
         int exportBundleCount = topK * 2;
 
         // create and configure bundle-data

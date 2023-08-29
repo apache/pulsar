@@ -1144,7 +1144,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     /**
-     * sort bundles by load and select topK bundles for each broker
+     * sort bundles by load and select topK bundles for each broker.
      * @return the number of bundles selected
      */
     private int selectTopKBundle() {
