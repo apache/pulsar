@@ -477,7 +477,7 @@ The Apache Software License, Version 2.0
   * Apache Yetus Audience Annotations
     - audience-annotations-0.12.0.jar
   * Perfmark
-    - perfmark-api-0.19.0.jar
+    - perfmark-api-0.26.0.jar
   * RabbitMQ Java Client
     - amqp-client-5.5.3.jar
   * Stream Lib
@@ -490,7 +490,7 @@ Protocol Buffers License
  * Protocol Buffers
    - protobuf-java-3.19.6.jar
    - protobuf-java-util-3.19.6.jar
-   - proto-google-common-protos-2.0.1.jar
+   - proto-google-common-protos-2.9.0.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
