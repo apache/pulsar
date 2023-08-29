@@ -1425,7 +1425,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.get(msgMetadata.getUuid());
 
-        if (msgMetadata.getChunkId() == 0 && chunkedMsgCtx == null) {
+        if (msgMetadata.getChunkId() == 0) {
+            if (chunkedMsgCtx != null) {
+                // The first chunk of a new chunked-message received before receiving other chunks of previous
+                // chunked-message
+                // so, remove previous chunked-message from map and release buffer
+                if (chunkedMsgCtx.chunkedMsgBuffer != null) {
+                    ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
+                }
+                chunkedMsgCtx.recycle();
+                chunkedMessagesMap.remove(msgMetadata.getUuid());
+            }
             pendingChunkedMessageCount++;
             if (maxPendingChunkedMessage > 0 && pendingChunkedMessageCount > maxPendingChunkedMessage) {
                 removeOldestPendingChunkedMessage();
