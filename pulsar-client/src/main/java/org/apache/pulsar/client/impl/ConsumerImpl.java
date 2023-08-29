@@ -1739,7 +1739,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getCryptoKeyReader() == null) {
             switch (conf.getCryptoFailureAction()) {
                 case CONSUME:
-                    log.warn("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
+                    log.debug("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
                             topic, subscription, consumerName);
                     return payload.retain();
                 case DISCARD:
