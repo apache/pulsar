@@ -263,14 +263,14 @@ The Apache Software License, Version 2.0
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-x86_64.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-aarch_64.jar
  * GRPC
-    - grpc-api-1.45.1.jar
-    - grpc-context-1.45.1.jar
-    - grpc-core-1.45.1.jar
-    - grpc-grpclb-1.45.1.jar
-    - grpc-netty-1.45.1.jar
-    - grpc-protobuf-1.45.1.jar
-    - grpc-protobuf-lite-1.45.1.jar
-    - grpc-stub-1.45.1.jar
+    - grpc-api-1.55.3.jar
+    - grpc-context-1.55.3.jar
+    - grpc-core-1.55.3.jar
+    - grpc-grpclb-1.55.3.jar
+    - grpc-netty-1.55.3.jar
+    - grpc-protobuf-1.55.3.jar
+    - grpc-protobuf-lite-1.55.3.jar
+    - grpc-stub-1.55.3.jar
   * JEtcd
     - jetcd-common-0.5.11.jar
     - jetcd-core-0.5.11.jar
@@ -475,7 +475,7 @@ The Apache Software License, Version 2.0
   * Swagger
     - swagger-annotations-1.6.10.jar
   * Perfmark
-    - perfmark-api-0.19.0.jar
+    - perfmark-api-0.26.0.jar
   * Annotations
     - auto-service-annotations-1.0.jar
   * RabbitMQ Java Client
@@ -490,7 +490,7 @@ Protocol Buffers License
  * Protocol Buffers
    - protobuf-java-3.19.6.jar
    - protobuf-java-util-3.19.6.jar
-   - proto-google-common-protos-2.0.1.jar
+   - proto-google-common-protos-2.9.0.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
