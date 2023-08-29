@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -77,7 +78,7 @@ public class MessageChunkingDeduplicationTest extends ProducerConsumerBase {
                 .enableBatching(false)
                 .create();
         int messageSize = 6000; // payload size in KB
-        String message = "a".repeat(messageSize * 1000);
+        String message = String.join("", Collections.nCopies(messageSize * 1000, "a"));
         producer.newMessage().value(message).sequenceId(10).send();
         Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
         assertNotNull(msg);
