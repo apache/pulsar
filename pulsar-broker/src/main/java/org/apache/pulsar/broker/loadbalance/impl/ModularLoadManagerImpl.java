@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -198,6 +199,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Lock lock = new ReentrantLock();
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
+
+    // array used for sorting and select topK bundles
+    private final List<Map.Entry<String, ? extends Comparable>> bundleArr = new ArrayList<>();
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -1140,6 +1144,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     /**
+     * sort bundles by load and select topK bundles for each broker
+     * @return the number of bundles selected
+     */
+    private int selectTopKBundle() {
+        bundleArr.clear();
+
+        bundleArr.addAll(loadData.getBundleData().entrySet());
+        // select topK bundle for each broker, so select topK * brokerCount bundle in total
+        int brokerCount = loadData.getBrokerData().size();
+        int updateBundleCount = pulsar.getConfiguration()
+                .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport() * brokerCount;
+        updateBundleCount = Math.min(updateBundleCount, bundleArr.size());
+        TopKBundles.partitionSort(bundleArr, updateBundleCount);
+        return updateBundleCount;
+    }
+
+    /**
      * As the leader broker, write bundle data aggregated from all brokers to metadata store.
      */
     @Override
@@ -1148,7 +1169,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
+        int updateBundleCount = selectTopKBundle();
+        for (int i = 0; i < updateBundleCount; i++) {
+            final Map.Entry<String, BundleData> entry = (Map.Entry<String, BundleData>) bundleArr.get(i);
             final String bundle = entry.getKey();
             final BundleData data = entry.getValue();
             futures.add(bundlesCache.readModifyUpdateOrCreate(getBundleDataPath(bundle), __ -> data)

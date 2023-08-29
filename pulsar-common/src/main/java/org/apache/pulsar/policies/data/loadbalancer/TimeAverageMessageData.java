@@ -21,7 +21,7 @@ package org.apache.pulsar.policies.data.loadbalancer;
 /**
  * Data class comprising the average message data over a fixed period of time.
  */
-public class TimeAverageMessageData {
+public class TimeAverageMessageData implements Comparable<TimeAverageMessageData> {
     // The maximum number of samples this data will consider.
     private int maxSamples;
 
@@ -41,6 +41,12 @@ public class TimeAverageMessageData {
     // The average message rate out per second.
     private double msgRateOut;
 
+    // Consider the throughput equal if difference is less than 100 KB/s
+    private static final double throughputDifferenceThreshold = 1e5;
+    // Consider the msgRate equal if the difference is less than 100
+    private static final double msgRateDifferenceThreshold = 100;
+
+
     // For JSON only.
     public TimeAverageMessageData() {
     }
@@ -48,8 +54,7 @@ public class TimeAverageMessageData {
     /**
      * Initialize this TimeAverageData to 0 values.
      *
-     * @param maxSamples
-     *            The maximum number of samples with which to maintain the average.
+     * @param maxSamples The maximum number of samples with which to maintain the average.
      */
     public TimeAverageMessageData(final int maxSamples) {
         this.maxSamples = maxSamples;
@@ -58,10 +63,8 @@ public class TimeAverageMessageData {
     /**
      * Initialize this TimeAverageData using default stats.
      *
-     * @param maxSamples
-     *            The maximum number of samples with which to maintain the average.
-     * @param defaultStats
-     *            The stats to default to. These are overwritten after the first update.
+     * @param maxSamples   The maximum number of samples with which to maintain the average.
+     * @param defaultStats The stats to default to. These are overwritten after the first update.
      */
     public TimeAverageMessageData(final int maxSamples, final NamespaceBundleStats defaultStats) {
         this.maxSamples = maxSamples;
@@ -74,14 +77,10 @@ public class TimeAverageMessageData {
     /**
      * Update using new samples for the message data.
      *
-     * @param newMsgThroughputIn
-     *            Most recently observed throughput in.
-     * @param newMsgThroughputOut
-     *            Most recently observed throughput out.
-     * @param newMsgRateIn
-     *            Most recently observed message rate in.
-     * @param newMsgRateOut
-     *            Most recently observed message rate out.
+     * @param newMsgThroughputIn  Most recently observed throughput in.
+     * @param newMsgThroughputOut Most recently observed throughput out.
+     * @param newMsgRateIn        Most recently observed message rate in.
+     * @param newMsgRateOut       Most recently observed message rate out.
      */
     public void update(final double newMsgThroughputIn, final double newMsgThroughputOut, final double newMsgRateIn,
                        final double newMsgRateOut) {
@@ -96,8 +95,7 @@ public class TimeAverageMessageData {
     /**
      * Update using a new bundle sample.
      *
-     * @param newSample
-     *            Most recently observed bundle stats.
+     * @param newSample Most recently observed bundle stats.
      */
     public void update(final NamespaceBundleStats newSample) {
         update(newSample.msgThroughputIn, newSample.msgThroughputOut, newSample.msgRateIn, newSample.msgRateOut);
@@ -176,5 +174,41 @@ public class TimeAverageMessageData {
      */
     public double totalMsgThroughput() {
         return msgThroughputIn + msgThroughputOut;
+    }
+
+    @Override
+    public int compareTo(TimeAverageMessageData other) {
+        int result = this.compareByBandwidthIn(other);
+
+        if (result == 0) {
+            result = this.compareByBandwidthOut(other);
+        }
+        if (result == 0) {
+            result = this.compareByMsgRate(other);
+        }
+        return result;
+    }
+
+    public int compareByMsgRate(TimeAverageMessageData other) {
+        double thisMsgRate = this.msgRateIn + this.msgRateOut;
+        double otherMsgRate = other.msgRateIn + other.msgRateOut;
+        if (Math.abs(thisMsgRate - otherMsgRate) > msgRateDifferenceThreshold) {
+            return Double.compare(thisMsgRate, otherMsgRate);
+        }
+        return 0;
+    }
+
+    public int compareByBandwidthIn(TimeAverageMessageData other) {
+        if (Math.abs(this.msgThroughputIn - other.msgThroughputIn) > throughputDifferenceThreshold) {
+            return Double.compare(this.msgThroughputIn, other.msgThroughputIn);
+        }
+        return 0;
+    }
+
+    public int compareByBandwidthOut(TimeAverageMessageData other) {
+        if (Math.abs(this.msgThroughputOut - other.msgThroughputOut) > throughputDifferenceThreshold) {
+            return Double.compare(this.msgThroughputOut, other.msgThroughputOut);
+        }
+        return 0;
     }
 }
