@@ -1714,12 +1714,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         conf.setForceDeleteNamespaceAllowed(namespaceAttr.forceDeleteNamespaceAllowed);
     }
 
-    private static Object getField(Object obj, String fieldName) throws Exception {
-        Field field = obj.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return field.get(obj);
-    }
-
     @Test(dataProvider = "namespaceAttrs")
     public void testDeleteNamespace(NamespaceAttr namespaceAttr) throws Exception {
         restartClusterAfterTest();
