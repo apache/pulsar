@@ -50,7 +50,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker-impl")
 public class DeadLetterTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(DeadLetterTopicTest.class);
@@ -142,7 +142,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         return new Object[][] { { false }, { true } };
     }
 
-    @Test(groups = "quarantine", dataProvider = "produceLargeMessages")
+    @Test(dataProvider = "produceLargeMessages")
     public void testDeadLetterTopic(boolean produceLargeMessages) throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
