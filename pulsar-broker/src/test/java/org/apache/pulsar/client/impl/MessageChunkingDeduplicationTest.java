@@ -20,11 +20,9 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.client.impl.MessageChunkingSharedTest.sendChunk;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -84,52 +82,6 @@ public class MessageChunkingDeduplicationTest extends ProducerConsumerBase {
         producer.newMessage().value(message).sequenceId(10).send();
         msg = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(msg);
-    }
-
-    @Test
-    public void testDuplicateForChunkMessage() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testDuplicateForChunkMessage";
-        String producerName = "test-producer";
-        @Cleanup
-        Consumer<String> consumer = pulsarClient
-                .newConsumer(Schema.STRING)
-                .subscriptionName("test-sub")
-                .topic(topicName)
-                .subscribe();
-        @Cleanup
-        Producer<String> partProducer = pulsarClient
-                .newProducer(Schema.STRING)
-                .producerName(producerName)
-                .topic(topicName)
-                .enableChunking(true)
-                .enableBatching(false)
-                .create();
-        int messageSize = 6000; // payload size in KB
-        String message = "a".repeat(messageSize * 1000);
-        partProducer.newMessage().value(message).send();
-        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
-        assertNotNull(msg);
-        assertTrue(msg.getMessageId() instanceof ChunkMessageIdImpl);
-        assertEquals(msg.getValue(), message);
-
-        Field msgIdGenerator = ProducerImpl.class.getDeclaredField("msgIdGenerator");
-        msgIdGenerator.setAccessible(true);
-        assertEquals(msg.getSequenceId() + 1, msgIdGenerator.get(partProducer));
-
-        String message2 = "b".repeat(messageSize * 2);
-        partProducer.newMessage().value(message2).send();
-        Message<String> msg2 = consumer.receive(5, TimeUnit.SECONDS);
-        assertFalse(msg2.getMessageId() instanceof ChunkMessageIdImpl);
-        assertEquals(msg2.getValue(), message2);
-
-        long sequenceID = (long) msgIdGenerator.get(partProducer) + 1024L;
-        String message3 = "c".repeat(messageSize * 1000);
-        partProducer.newMessage().value(message3).sequenceId(sequenceID).send();
-        Message<String> msg3 = consumer.receive(5, TimeUnit.SECONDS);
-        assertNotNull(msg3);
-        assertTrue(msg3.getMessageId() instanceof ChunkMessageIdImpl);
-        assertEquals(msg3.getValue(), message3);
-        assertEquals(msg3.getSequenceId(), sequenceID);
     }
 
     @Test

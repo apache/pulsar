@@ -1470,9 +1470,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             //     Chunk-6 sequence ID: 0, chunk ID: 3, msgID: 1:6
             // We should filter and ack chunk-4 and chunk-5.
             if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
-                log.warn("[{}] Receive a repeated chunk messageId {}, last-chunk-id{}, chunkId = {}",
-                        msgMetadata.getProducerName(), chunkedMsgCtx.lastChunkedMessageId,
-                        msgId, msgMetadata.getChunkId());
+                log.warn("[{}] Receive a duplicated chunk message with messageId [{}], last-chunk-Id [{}], "
+                                + "chunkId [{}], sequenceId [{}]",
+                        msgMetadata.getProducerName(), msgId, chunkedMsgCtx.lastChunkedMessageId,
+                        msgMetadata.getChunkId(), msgMetadata.getSequenceId());
                 compressedPayload.release();
                 increaseAvailablePermits(cnx);
                 boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
