@@ -444,6 +444,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
     <T> CompletableFuture<Boolean> addToCompactedLedger(
             LedgerHandle lh, Message<T> m, String topic, Semaphore outstanding) {
         CompletableFuture<Boolean> bkf = new CompletableFuture<>();
+        // TODO: Support add batch message. Currently it might split a batch message into multiple batch.
+        // So the message id will be same.
         if (m == null || batchMessageContainer.add((MessageImpl<?>) m, null)) {
             if (batchMessageContainer.getNumMessagesInBatch() > 0) {
                 try {

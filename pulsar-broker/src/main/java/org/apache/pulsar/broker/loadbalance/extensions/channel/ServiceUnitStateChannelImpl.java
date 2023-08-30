@@ -299,7 +299,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
 
             producer = pulsar.getClient().newProducer(schema)
-                    .enableBatching(true)
+                    .enableBatching(false)
                     .compressionType(MSG_COMPRESSION_TYPE)
                     .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
                     .blockIfQueueFull(true)
