@@ -1512,6 +1512,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = factory2.open("my_test_ledger");
         ManagedCursor cursor = ledger.openCursor("c1");
         Position position = ledger.addEntry("test".getBytes());
+        // Make persist zk fail once.
+        AtomicInteger persistZKTimes = new AtomicInteger();
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("mock ex"), (type, path) -> {
+            if (FaultInjectionMetadataStore.OperationType.PUT.equals(type)
+                    && path.equals("/managed-ledgers/my_test_ledger/c1")) {
+                if (persistZKTimes.incrementAndGet() == 1) {
+                    return true;
+                }
+            }
+            return false;
+        });
         try {
             cursor.markDelete(position);
             fail("should have failed");
