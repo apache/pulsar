@@ -67,6 +67,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -1750,15 +1751,23 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 10);
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
-        // export bundle-data to metadata store
         final String managedLedgersPath = "/managed-ledgers/" + namespace;
         final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
-        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
-                pulsar.getLoadManager().get(), "loadManager");
-        MetadataCache<BundleData> bundlesCache = (MetadataCache<BundleData>) getField(
-                loadManager, "bundlesCache");
-        final BundleData bundleData = new BundleData(10, 1000);
-        bundlesCache.readModifyUpdateOrCreate(bundleDataPath, __ -> bundleData).join();
+        // Trigger bundle owned by brokers.
+        pulsarClient.newProducer().topic(topic).create().close();
+        // Trigger bundle data write to ZK.
+        Awaitility.await().untilAsserted(() -> {
+            boolean bundleDataWereWriten = false;
+            for (PulsarService ps : new PulsarService[]{pulsar, mockPulsarSetup.getPulsar()}) {
+                ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper) ps.getLoadManager().get();
+                ModularLoadManagerImpl loadManagerImpl = (ModularLoadManagerImpl) loadManager.getLoadManager();
+                ps.getBrokerService().updateRates();
+                loadManagerImpl.updateLocalBrokerData();
+                loadManagerImpl.writeBundleDataOnZooKeeper();
+                bundleDataWereWriten = bundleDataWereWriten || ps.getLocalMetadataStore().exists(bundleDataPath).join();
+            }
+            assertTrue(bundleDataWereWriten);
+        });
 
         // assert znode exists in metadata store
         assertTrue(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
