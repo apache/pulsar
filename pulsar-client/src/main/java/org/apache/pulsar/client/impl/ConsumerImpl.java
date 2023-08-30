@@ -605,6 +605,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     retryLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getRetryLetterTopic())
                             .enableBatching(false)
+                            .enableChunking(true)
                             .blockIfQueueFull(false)
                             .create();
                 }
@@ -1452,7 +1453,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || msgMetadata.getChunkId() != (chunkedMsgCtx.lastChunkedMessageId + 1)) {
             // means we lost the first chunk: should never happen
-            log.info("Received unexpected chunk messageId {}, last-chunk-id{}, chunkId = {}", msgId,
+            log.info("[{}] [{}] Received unexpected chunk messageId {}, last-chunk-id = {}, chunkId = {}", topic,
+                    subscription, msgId,
                     (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId());
             if (chunkedMsgCtx != null) {
                 if (chunkedMsgCtx.chunkedMsgBuffer != null) {
@@ -2096,6 +2098,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                     .blockIfQueueFull(false)
+                                    .enableBatching(false)
+                                    .enableChunking(true)
                                     .createAsync();
                 }
             } finally {
