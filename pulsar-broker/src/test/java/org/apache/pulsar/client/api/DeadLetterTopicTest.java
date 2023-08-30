@@ -191,14 +191,16 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message, "The consumer should be able to receive messages.");
             log.info("consumer received message : {}", message.getMessageId());
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message, "the deadLetterConsumer should receive messages.");
             assertEquals(new String(message.getData()), messageContent.get(Integer.parseInt(message.getKey())));
             messageContent.remove(Integer.parseInt(message.getKey()));
             log.info("dead letter consumer received message : {}", message.getMessageId());
