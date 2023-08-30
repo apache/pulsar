@@ -1152,7 +1152,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         bundleArr.addAll(loadData.getBundleData().entrySet());
         // select topK bundle for each broker, so select topK * brokerCount bundle in total
-        int brokerCount = loadData.getBrokerData().size();
+        int brokerCount = Math.max(1, loadData.getBrokerData().size());
         int updateBundleCount = pulsar.getConfiguration()
                 .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport() * brokerCount;
         updateBundleCount = Math.min(updateBundleCount, bundleArr.size());
