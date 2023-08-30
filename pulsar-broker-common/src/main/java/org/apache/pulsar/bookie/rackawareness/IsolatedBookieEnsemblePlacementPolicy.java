@@ -27,7 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
@@ -47,6 +48,8 @@ import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
+import org.apache.zookeeper.KeeperException;
 
 @Slf4j
 public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy {
@@ -193,17 +196,13 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         }
         try {
             if (bookieMappingCache != null) {
-                CompletableFuture<Optional<BookiesRackConfiguration>> future =
-                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
-
-                Optional<BookiesRackConfiguration> optRes = (future.isDone() && !future.isCompletedExceptionally())
-                        ? future.join() : Optional.empty();
-
-                if (!optRes.isPresent()) {
-                    return blacklistedBookies;
+                Optional<BookiesRackConfiguration> optional =
+                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get(30, TimeUnit.SECONDS);
+                if (!optional.isPresent()) {
+                    throw new KeeperException.NoNodeException(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
                 }
 
-                BookiesRackConfiguration allGroupsBookieMapping = optRes.get();
+                BookiesRackConfiguration allGroupsBookieMapping = optional.get();
                 Set<String> allBookies = allGroupsBookieMapping.keySet();
                 int totalAvailableBookiesInPrimaryGroup = 0;
                 Set<String> primaryIsolationGroup = Collections.emptySet();
@@ -272,6 +271,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     }
                 }
             }
+        } catch (TimeoutException e) {
+            log.warn("Getting bookie isolation info from metadata store timeout.");
         } catch (Exception e) {
             log.warn("Error getting bookie isolation info from metadata store: {}", e.getMessage());
         }
