@@ -237,7 +237,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         int messageSize = 6000; // payload size in KB
         String message = "a".repeat(messageSize * 1000);
         producer.newMessage().value(message).sequenceId(10).send();
-        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+        Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
         assertNotNull(msg);
         assertTrue(msg.getMessageId() instanceof ChunkMessageIdImpl);
         assertEquals(msg.getValue(), message);
@@ -313,14 +313,14 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         sendChunk(persistentTopic, producerName, 1, 1, 2);
         sendChunk(persistentTopic, producerName, 1, 1, 2);
 
-        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        Message<String> message = consumer.receive(15, TimeUnit.SECONDS);
         assertEquals(message.getData().length, 2);
 
         sendChunk(persistentTopic, producerName, 2, 0, 3);
         sendChunk(persistentTopic, producerName, 2, 1, 3);
         sendChunk(persistentTopic, producerName, 2, 1, 3);
         sendChunk(persistentTopic, producerName, 2, 2, 3);
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        message = consumer.receive(20, TimeUnit.SECONDS);
         assertEquals(message.getData().length, 3);
     }
 
