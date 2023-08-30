@@ -531,7 +531,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     ? msg.getMessageBuilder().getOrderingKey() : null;
             // msg.messageId will be reset if previous message chunk is sent successfully.
             final MessageId messageId = msg.getMessageId();
-            long timestamp = System.currentTimeMillis();
             for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                 // Need to reset the schemaVersion, because the schemaVersion is based on a ByteBuf object in
                 // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
@@ -555,8 +554,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Update the message metadata before computing the payload chunk size
                     // to avoid a large message cannot be split into chunks.
                     final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
-                    String uuid = totalChunks > 1 ? String.format("%s-%d-%d", producerName, sequenceId,
-                            timestamp) : null;
+                    String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
 
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,

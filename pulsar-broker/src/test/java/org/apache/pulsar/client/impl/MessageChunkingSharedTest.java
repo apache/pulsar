@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -214,18 +215,50 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testDuplicateForChunkMessage() throws Exception {
+    public void testSendChunkMessageWithSameSequenceID() throws Exception {
         this.conf.setBrokerDeduplicationEnabled(true);
         restartBroker();
-        String topicName = "persistent://my-property/my-ns/testDuplicateForChunkMessage";
+        String topicName = "persistent://my-property/my-ns/testSendChunkMessageWithSameSequenceID";
         String producerName = "test-producer";
-        // consumer
+        @Cleanup
         Consumer<String> consumer = pulsarClient
                 .newConsumer(Schema.STRING)
                 .subscriptionName("test-sub")
                 .topic(topicName)
                 .subscribe();
-        // producer
+        @Cleanup
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .producerName(producerName)
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+        int messageSize = 6000; // payload size in KB
+        String message = "a".repeat(messageSize * 1000);
+        producer.newMessage().value(message).sequenceId(10).send();
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg);
+        assertTrue(msg.getMessageId() instanceof ChunkMessageIdImpl);
+        assertEquals(msg.getValue(), message);
+        producer.newMessage().value(message).sequenceId(10).send();
+        msg = consumer.receive(3, TimeUnit.SECONDS);
+        assertNull(msg);
+    }
+
+    @Test
+    public void testDuplicateForChunkMessage() throws Exception {
+        this.conf.setBrokerDeduplicationEnabled(true);
+        restartBroker();
+        String topicName = "persistent://my-property/my-ns/testDuplicateForChunkMessage";
+        String producerName = "test-producer";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .subscriptionName("test-sub")
+                .topic(topicName)
+                .subscribe();
+        @Cleanup
         Producer<String> partProducer = pulsarClient
                 .newProducer(Schema.STRING)
                 .producerName(producerName)
@@ -267,7 +300,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         restartBroker();
         String topicName = "persistent://my-property/my-ns/testDeduplicateChunksInSingleChunkMessage";
         String producerName = "test-producer";
-        // consumer
+        @Cleanup
         Consumer<String> consumer = pulsarClient
                 .newConsumer(Schema.STRING)
                 .subscriptionName("test-sub")

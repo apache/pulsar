@@ -56,6 +56,8 @@ public class MessageDeduplication {
     private final ManagedLedger managedLedger;
     private ManagedCursor managedCursor;
 
+    private static final String IS_LAST_CHUNK = "isLastChunk";
+
     enum Status {
 
         // Deduplication is initialized
@@ -346,26 +348,24 @@ public class MessageDeduplication {
         long totalChunk = -1;
         if (publishContext.isChunked()) {
             if (md == null) {
-                headersAndPayload.markReaderIndex();
+                int readerIndex = headersAndPayload.readerIndex();
                 md = Commands.parseMessageMetadata(headersAndPayload);
-                headersAndPayload.resetReaderIndex();
+                headersAndPayload.readerIndex(readerIndex);
             }
             chunkID = md.getChunkId();
             totalChunk = md.getNumChunksFromMsg();
+        }
+        // All chunks of a message use the same message metadata and sequence ID,
+        // so we only need to check the sequence ID for the last chunk in a chunk message.
+        if (chunkID != -1 && chunkID != totalChunk - 1) {
+            publishContext.setProperty(IS_LAST_CHUNK, Boolean.FALSE);
+            return MessageDupStatus.NotDup;
         }
         // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
         // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
         synchronized (highestSequencedPushed) {
             Long lastSequenceIdPushed = highestSequencedPushed.get(producerName);
-            // All chunks of a message use the same message metadata and sequence ID,
-            // so it's expected for sequenceId == lastSequenceIdPushed when the chunk ID > 0.
-            // "chunkID == 0" means that the message is the first one of the chunk list.
-            // We check the sequence ID of the first chunk as the same as the common messages.
-            // Todo: Add the last chunkID map (like `highestSequencedPushed` and `highestSequencedPersisted`) to check
-            //  the duplication in the chunk list of a chunk message.
-            if (lastSequenceIdPushed != null
-                    && (chunkID >= 0 && chunkID != totalChunk - 1 ? sequenceId < lastSequenceIdPushed
-                    : sequenceId <= lastSequenceIdPushed)) {
+            if (lastSequenceIdPushed != null && sequenceId <= lastSequenceIdPushed) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Message identified as duplicated producer={} seq-id={} -- highest-seq-id={}",
                             topic.getName(), producerName, sequenceId, lastSequenceIdPushed);
@@ -378,14 +378,18 @@ public class MessageDeduplication {
                 // lastSequenceIdPushed, then we cannot be sure whether the message is a dup or not
                 // we should return an error to the producer for the latter case so that it can retry at a future time
                 Long lastSequenceIdPersisted = highestSequencedPersisted.get(producerName);
-                if (lastSequenceIdPersisted != null && (chunkID > 0 ? sequenceId < lastSequenceIdPersisted
-                        : sequenceId <= lastSequenceIdPersisted)) {
+                if (lastSequenceIdPersisted != null && sequenceId <= lastSequenceIdPersisted) {
                     return MessageDupStatus.Dup;
                 } else {
                     return MessageDupStatus.Unknown;
                 }
             }
             highestSequencedPushed.put(producerName, highestSequenceId);
+        }
+        // Only put sequence ID into highestSequencedPushed and
+        // highestSequencedPersisted until receive and persistent the last chunk.
+        if (chunkID != -1 && chunkID == totalChunk - 1) {
+            publishContext.setProperty(IS_LAST_CHUNK, Boolean.TRUE);
         }
         return MessageDupStatus.NotDup;
     }
@@ -407,8 +411,10 @@ public class MessageDeduplication {
             sequenceId = publishContext.getOriginalSequenceId();
             highestSequenceId = publishContext.getOriginalHighestSequenceId();
         }
-
-        highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
+        Boolean isLastChunk = (Boolean) publishContext.getProperty(IS_LAST_CHUNK);
+        if (isLastChunk == null || isLastChunk) {
+            highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
+        }
         if (++snapshotCounter >= snapshotInterval) {
             snapshotCounter = 0;
             takeSnapshot(position);
