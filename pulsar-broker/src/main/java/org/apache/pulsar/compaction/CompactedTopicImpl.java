@@ -53,6 +53,10 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Note: If you want to guarantee that strong consistency between `compactionHorizon` and `compactedTopicContext`,
+ * you need to call getting them method in "synchronized(CompactedTopicImpl){ ... }" lock block.
+ */
 public class CompactedTopicImpl implements CompactedTopic {
     static final long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
     static final long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
@@ -70,14 +74,14 @@ public class CompactedTopicImpl implements CompactedTopic {
     @Override
     public CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId) {
         synchronized (this) {
-            compactionHorizon = (PositionImpl) p;
-
             CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
             compactedTopicContext = openCompactedLedger(bk, compactedLedgerId);
 
+            compactionHorizon = (PositionImpl) p;
+
             // delete the ledger from the old context once the new one is open
-            return compactedTopicContext.thenCompose(__ ->
-                    previousContext != null ? previousContext : CompletableFuture.completedFuture(null));
+            return compactedTopicContext.thenCompose(
+                    __ -> previousContext != null ? previousContext : CompletableFuture.completedFuture(null));
         }
     }
 
@@ -119,7 +123,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
-                                                         startPoint + numberOfEntriesToRead);
+                                                         startPoint + (numberOfEntriesToRead - 1));
                                 return readEntries(context.ledger, startPoint, endPoint)
                                     .thenAccept((entries) -> {
                                         Entry lastEntry = entries.get(entries.size() - 1);

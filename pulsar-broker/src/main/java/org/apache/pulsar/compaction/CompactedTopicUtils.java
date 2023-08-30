@@ -85,6 +85,7 @@ public class CompactedTopicUtils {
                             }
                             cursor.seek(seekToPosition);
                             callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+                            return;
                         }
 
                         Entry lastEntry = entries.get(entries.size() - 1);
