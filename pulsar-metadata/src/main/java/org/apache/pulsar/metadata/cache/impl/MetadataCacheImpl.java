@@ -76,6 +76,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         if (cacheConfig.getExpireAfterWriteMillis() > 0) {
             cacheBuilder.expireAfterWrite(cacheConfig.getExpireAfterWriteMillis(), TimeUnit.MILLISECONDS);
         }
+        if (cacheConfig.getExpireAfterAccessMillis() > 0) {
+            cacheBuilder.expireAfterAccess(cacheConfig.getExpireAfterAccessMillis(), TimeUnit.MILLISECONDS);
+        }
         this.objCache = cacheBuilder
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
