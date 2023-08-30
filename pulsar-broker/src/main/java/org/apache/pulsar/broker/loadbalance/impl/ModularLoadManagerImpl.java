@@ -1150,13 +1150,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private int selectTopKBundle() {
         bundleArr.clear();
 
-        bundleArr.addAll(loadData.getBundleData().entrySet());
         // select topK bundle for each broker, so select topK * brokerCount bundle in total
         int brokerCount = Math.max(1, loadData.getBrokerData().size());
-        int updateBundleCount = pulsar.getConfiguration()
-                .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport() * brokerCount;
-        updateBundleCount = Math.min(updateBundleCount, bundleArr.size());
-        TopKBundles.partitionSort(bundleArr, updateBundleCount);
+        int updateBundleCount = Math.min(pulsar.getConfiguration()
+                .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport() * brokerCount, bundleArr.size());
+
+        executors.execute(() -> {
+            // make the bundle-data update and sorting executed in single thread
+            bundleArr.addAll(loadData.getBundleData().entrySet());
+            TopKBundles.partitionSort(bundleArr, updateBundleCount);
+        });
         return updateBundleCount;
     }
 
