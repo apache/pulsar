@@ -138,8 +138,11 @@ public class UnAckedMessageTracker implements Closeable {
                         if (!headPartition.isEmpty()) {
                             log.info("[{}] {} messages will be re-delivered", consumerBase, headPartition.size());
                             headPartition.forEach(messageId -> {
-                                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-                                messageIds.add(messageId);
+                                if (messageId instanceof ChunkMessageIdImpl) {
+                                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                                } else {
+                                    messageIds.add(messageId);
+                                }
                                 messageIdPartitionMap.remove(messageId);
                             });
                         }
