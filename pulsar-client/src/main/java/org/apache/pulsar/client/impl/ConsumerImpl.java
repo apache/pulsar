@@ -1460,15 +1460,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // discard message if chunk is out-of-order
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || msgMetadata.getChunkId() != (chunkedMsgCtx.lastChunkedMessageId + 1)) {
-//             Filter and ack duplicated chunks instead of discard ctx.
-//             For example:
-//                 Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
-//                 Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
-//                 Chunk-3 sequence ID: 0, chunk ID: 2, msgID: 1:3
-//                 Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
-//                 Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
-//                 Chunk-6 sequence ID: 0, chunk ID: 3, msgID: 1:6
-//             We should filter and ack chunk-4 and chunk-5.
+            // Filter and ack duplicated chunks instead of discard ctx.
+            // For example:
+            //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+            //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+            //     Chunk-3 sequence ID: 0, chunk ID: 2, msgID: 1:3
+            //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
+            //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+            //     Chunk-6 sequence ID: 0, chunk ID: 3, msgID: 1:6
+            // We should filter and ack chunk-4 and chunk-5.
             if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
                 log.warn("[{}] Receive a repeated chunk messageId {}, last-chunk-id{}, chunkId = {}",
                         msgMetadata.getProducerName(), chunkedMsgCtx.lastChunkedMessageId,
