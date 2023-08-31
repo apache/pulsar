@@ -355,7 +355,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             sendSingleChunk(producer, "0", 1, 2);
 
             // Ensure that the chunked message of uuid 0 is discarded.
-            assertNull(consumer.receive(5, TimeUnit.SECONDS));
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+            }
+            assertNull(msg);
         });
 
     }
