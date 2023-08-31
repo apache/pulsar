@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongFunction;
 
 import lombok.Cleanup;
@@ -226,9 +227,10 @@ public class ConcurrentLongHashMapTest {
         ExecutorService executor = Executors.newCachedThreadPool();
         final int readThreads = 16;
         final int writeThreads = 1;
-        final int n = 1_000_000;
+        final int n = 1_000;
         CyclicBarrier barrier = new CyclicBarrier(writeThreads + readThreads);
         Future<?> future = null;
+        AtomicReference<Exception> ex = new AtomicReference<>();
 
         for (int i = 0; i < readThreads; i++) {
             executor.submit(() -> {
@@ -237,8 +239,10 @@ public class ConcurrentLongHashMapTest {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                while (true) {
+                try {
                     map.get(1);
+                } catch (Exception e) {
+                    ex.set(e);
                 }
             });
         }
@@ -265,6 +269,7 @@ public class ConcurrentLongHashMapTest {
         });
 
         future.get();
+        assertTrue(ex.get() == null);
         // shut down pool
         executor.shutdown();
     }

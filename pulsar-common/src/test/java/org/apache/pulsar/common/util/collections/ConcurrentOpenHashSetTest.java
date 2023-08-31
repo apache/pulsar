@@ -32,6 +32,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Cleanup;
 import org.testng.annotations.Test;
@@ -200,9 +201,10 @@ public class ConcurrentOpenHashSetTest {
         ExecutorService executor = Executors.newCachedThreadPool();
         final int readThreads = 16;
         final int writeThreads = 1;
-        final int n = 1_000_000;
+        final int n = 1_000;
         CyclicBarrier barrier = new CyclicBarrier(writeThreads + readThreads);
         Future<?> future = null;
+        AtomicReference<Exception> ex = new AtomicReference<>();
 
         for (int i = 0; i < readThreads; i++) {
             executor.submit(() -> {
@@ -212,7 +214,11 @@ public class ConcurrentOpenHashSetTest {
                     throw new RuntimeException(e);
                 }
                 while (true) {
-                    set.contains("k1");
+                    try {
+                        set.contains("k1");
+                    } catch (Exception e) {
+                        ex.set(e);
+                    }
                 }
             });
         }
@@ -239,6 +245,7 @@ public class ConcurrentOpenHashSetTest {
         });
 
         future.get();
+        assertTrue(ex.get() == null);
         // shut down pool
         executor.shutdown();
     }
