@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricStreams;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -195,6 +196,13 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     public void initialize(PulsarService pulsarService) throws Exception {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.initialize(pulsarService);
+        }
+    }
+
+    @Override
+    public void addCustomizeMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.addCustomizeMetrics(metricStreams, pulsar);
         }
     }
 
