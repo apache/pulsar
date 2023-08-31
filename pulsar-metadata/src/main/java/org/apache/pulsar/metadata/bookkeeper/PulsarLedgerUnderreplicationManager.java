@@ -19,16 +19,20 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.bookkeeper.proto.DataFormats.CheckAllLedgersFormat;
 import static org.apache.bookkeeper.proto.DataFormats.LedgerRereplicationLayoutFormat;
 import static org.apache.bookkeeper.proto.DataFormats.LockDataFormat;
 import static org.apache.bookkeeper.proto.DataFormats.PlacementPolicyCheckFormat;
 import static org.apache.bookkeeper.proto.DataFormats.ReplicasCheckFormat;
 import static org.apache.bookkeeper.proto.DataFormats.UnderreplicatedLedgerFormat;
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
+import com.google.common.base.Joiner;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.TextFormat;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -41,6 +45,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -61,6 +66,8 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.zookeeper.KeeperException;
 
 @Slf4j
 public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicationManager {
@@ -392,7 +399,34 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         try {
             Lock l = heldLocks.get(ledgerId);
             if (l != null) {
-                store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion())).get();
+                store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
+                        .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                if (store instanceof ZKMetadataStore) {
+                    try {
+                        // clean up the hierarchy
+                        String[] parts = getUrLedgerPath(ledgerId).split("/");
+                        for (int i = 1; i <= 4; i++) {
+                            String[] p = Arrays.copyOf(parts, parts.length - i);
+                            String path = Joiner.on("/").join(p);
+                            Optional<GetResult> getResult = store.get(path).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                            if (getResult.isPresent()) {
+                                store.delete(path, Optional.of(getResult.get().getStat().getVersion()))
+                                        .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                            }
+                        }
+                    } catch (ExecutionException ee) {
+                        // This can happen when cleaning up the hierarchy.
+                        // It's safe to ignore, it simply means another
+                        // ledger in the same hierarchy has been marked as
+                        // underreplicated.
+                        if (ee.getCause() instanceof MetadataStoreException && ee.getCause().getCause()
+                                instanceof KeeperException.NotEmptyException) {
+                            //do nothing.
+                        } else {
+                            log.warn("Error deleting underrepcalited ledger parent node", ee);
+                        }
+                    }
+                }
             }
         } catch (ExecutionException ee) {
             if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
@@ -405,6 +439,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 log.error("Error deleting underreplicated ledger node", ee);
                 throw new ReplicationException.UnavailableException("Error contacting metadata store", ee);
             }
+        } catch (TimeoutException ex) {
+            throw new ReplicationException.UnavailableException("Error contacting metadata store", ex);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while contacting metadata store", ie);
