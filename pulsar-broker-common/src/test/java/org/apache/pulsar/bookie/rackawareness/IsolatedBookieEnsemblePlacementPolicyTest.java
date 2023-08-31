@@ -97,7 +97,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     }
 
     @Test
-    public void testGetDataFromMetadataFailed() throws Exception {
+    public void testMetadataStoreCases() throws Exception {
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
         mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
         mainBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
@@ -150,7 +150,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
         MutablePair<Set<String>, Set<String>> groups = new MutablePair<>();
         groups.setLeft(Sets.newHashSet("group1"));
-        groups.setRight(Sets.newHashSet());
+        groups.setRight(new HashSet<>());
 
         Set<BookieId> blacklist =
                 isolationPolicy.getBlacklistedBookiesWithIsolationGroups(2, groups);
