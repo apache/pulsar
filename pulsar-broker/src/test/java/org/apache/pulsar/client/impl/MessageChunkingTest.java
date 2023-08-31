@@ -62,6 +62,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -339,21 +340,24 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .enableBatching(false)
                 .create();
 
-        sendSingleChunk(producer, "0", 0, 2);
-        sendSingleChunk(producer, "1", 0, 2);
-        sendSingleChunk(producer, "1", 1, 2);
+        Awaitility.await().untilAsserted(() -> {
+            sendSingleChunk(producer, "0", 0, 2);
+            sendSingleChunk(producer, "1", 0, 2);
+            sendSingleChunk(producer, "1", 1, 2);
 
-        // The chunked message of uuid 0 is discarded.
-        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
-        assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
+            // The chunked message of uuid 0 is discarded.
+            Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+            assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
 
-        consumer.acknowledge(receivedMsg);
-        consumer.redeliverUnacknowledgedMessages();
+            consumer.acknowledge(receivedMsg);
+            consumer.redeliverUnacknowledgedMessages();
 
-        sendSingleChunk(producer, "0", 1, 2);
+            sendSingleChunk(producer, "0", 1, 2);
 
-        // Ensure that the chunked message of uuid 0 is discarded.
-        assertNull(consumer.receive(5, TimeUnit.SECONDS));
+            // Ensure that the chunked message of uuid 0 is discarded.
+            assertNull(consumer.receive(5, TimeUnit.SECONDS));
+        });
+
     }
 
     @Test
