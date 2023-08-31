@@ -1148,7 +1148,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      * @return the number of bundles selected
      */
     private CompletableFuture<Integer> selectTopKBundle() {
-        CompletableFuture completableFuture = new CompletableFuture();
+        CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
 
         executors.execute(() -> {
             // make the bundle-data update and sorting executed in single thread

@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * Data class comprising the short term and long term historical data for this bundle.
  */
+@EqualsAndHashCode
 public class BundleData implements Comparable<BundleData> {
     // Short term data for this bundle. The time frame of this data is
     // determined by the number of short term samples

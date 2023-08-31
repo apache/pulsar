@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * Data class comprising the average message data over a fixed period of time.
  */
+@EqualsAndHashCode
 public class TimeAverageMessageData implements Comparable<TimeAverageMessageData> {
     // The maximum number of samples this data will consider.
     private int maxSamples;
