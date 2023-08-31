@@ -106,6 +106,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.awaitility.Awaitility;
@@ -267,11 +268,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
                 brokers.remove(pulsar1.getLookupServiceAddress());
-                return brokers;
+                return CompletableFuture.completedFuture(brokers);
             }
 
         })).when(primaryLoadManager).getBrokerFilterPipeline();
@@ -288,11 +289,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
         doReturn(List.of(new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                brokers.clear();
-                throw new BrokerFilterException("Test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
+                brokers.remove(brokers.keySet().iterator().next());
+                return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
@@ -531,19 +532,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
         doReturn(List.of(new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
                 brokers.remove(lookupServiceAddress1);
-                return brokers;
+                return CompletableFuture.completedFuture(brokers);
             }
         },new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                brokers.clear();
-                throw new BrokerFilterException("Test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
+                return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 

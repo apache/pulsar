@@ -34,10 +34,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -54,13 +57,16 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@Slf4j
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";
@@ -383,5 +389,72 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                     return old;
         });
         service.deleteTopicPoliciesAsync(TOPIC1).get();
+    }
+
+    @Test
+    public void testGetTopicPoliciesWithCleanCache() throws Exception {
+        final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        SystemTopicBasedTopicPoliciesService topicPoliciesService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        ConcurrentHashMap<TopicName, TopicPolicies> spyPoliciesCache = spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
+        FieldUtils.writeDeclaredField(topicPoliciesService, "policiesCache", spyPoliciesCache, true);
+
+            Awaitility.await().untilAsserted(() -> {
+                Assertions.assertThat(topicPoliciesService.getTopicPolicies(TopicName.get(topic))).isNull();
+        });
+
+        admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
+        Awaitility.await().untilAsserted(() -> {
+                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
+            });
+
+        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers =
+                (Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>)
+                        FieldUtils.readDeclaredField(topicPoliciesService, "readerCaches", true);
+
+        Mockito.doAnswer(invocation -> {
+            Thread.sleep(1000);
+            return invocation.callRealMethod();
+        }).when(spyPoliciesCache).get(Mockito.any());
+
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        Thread thread = new Thread(() -> {
+            TopicPolicies topicPolicies;
+            for (int i = 0; i < 10; i++) {
+                try {
+                    topicPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
+                    Assert.assertNotNull(topicPolicies);
+                    Thread.sleep(500);
+                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+                    log.warn("topic policies cache not init, retry...");
+                } catch (Throwable e) {
+                    log.error("ops: ", e);
+                    result.completeExceptionally(e);
+                    return;
+                }
+            }
+            result.complete(null);
+        });
+
+        Thread thread2 = new Thread(() -> {
+            for (int i = 0; i < 10; i++) {
+                CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                        readers.get(TopicName.get(topic).getNamespaceObject());
+                if (readerCompletableFuture != null) {
+                    readerCompletableFuture.join().closeAsync().join();
+                }
+            }
+        });
+
+        thread.start();
+        thread2.start();
+
+        thread.join();
+        thread2.join();
+
+        result.join();
     }
 }

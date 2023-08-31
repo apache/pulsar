@@ -37,10 +37,10 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.PulsarCompactorSubscription;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -171,7 +171,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 entry.release();
                 continue;
             }
-            if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
+            if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
@@ -301,7 +301,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
-        if (!(subscription instanceof CompactorSubscription)) {
+        if (!(subscription instanceof PulsarCompactorSubscription)) {
             subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
         }
     }

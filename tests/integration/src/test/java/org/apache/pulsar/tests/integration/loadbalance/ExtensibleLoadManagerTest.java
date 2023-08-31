@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -163,6 +165,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         for (int i = 1; i < admins.size(); i++) {
             assertEquals(result.get(i - 1), result.get(i));
         }
+        admins.forEach(a -> a.close());
+        executor.shutdown();
     }
 
     @Test(timeOut = 30 * 1000)
@@ -205,17 +209,21 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
         String firstBundle = bundleRanges.get(0) + "_" + bundleRanges.get(1);
         admin.namespaces().splitNamespaceBundle(DEFAULT_NAMESPACE, firstBundle, true, null);
-        BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
-
         long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(
+                () -> {
+                    BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
+                    assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+                    String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+                    String midBundle = String.format("0x%08x", mid);
+                    String highBundle = String.format("0x%08x", bundleRanges.get(1));
+                    assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(midBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(highBundle));
+                }
+        );
 
-        assertEquals(bundlesData.getNumBundles(), numBundles + 1);
-        String lowBundle = String.format("0x%08x", bundleRanges.get(0));
-        String midBundle = String.format("0x%08x", mid);
-        String highBundle = String.format("0x%08x", bundleRanges.get(1));
-        assertTrue(bundlesData.getBoundaries().contains(lowBundle));
-        assertTrue(bundlesData.getBoundaries().contains(midBundle));
-        assertTrue(bundlesData.getBoundaries().contains(highBundle));
 
         // Test split bundle with invalid bundle range.
         try {
@@ -261,8 +269,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertNotEquals(broker1, broker);
     }
 
-    // TODO: This test is very flaky and it's disabled for now to unblock CI
-    @Test(timeOut = 40 * 1000, enabled = false)
+    @Test(timeOut = 40 * 1000)
     public void testAntiaffinityPolicy() throws PulsarAdminException {
         final String namespaceAntiAffinityGroup = "my-anti-affinity-filter";
         final String antiAffinityEnabledNameSpace = DEFAULT_TENANT + "/my-ns-filter" + nsSuffix;

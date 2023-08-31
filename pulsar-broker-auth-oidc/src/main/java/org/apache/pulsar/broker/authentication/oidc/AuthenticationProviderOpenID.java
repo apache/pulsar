@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -163,7 +164,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
         String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
         SslContext sslContext = null;
-        if (trustCertsFilePath != null) {
+        // When config is in the conf file but is empty, it defaults to the empty string, which is not meaningful and
+        // should be ignored.
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
             // Use default settings for everything but the trust store.
             sslContext = SslContextBuilder.forClient()
                     .trustManager(new File(trustCertsFilePath))

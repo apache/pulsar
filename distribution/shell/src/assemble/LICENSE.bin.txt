@@ -326,7 +326,7 @@ The Apache Software License, Version 2.0
  * Gson
     - gson-2.8.9.jar
  * Guava
-    - guava-32.0.0-jre.jar
+    - guava-32.1.2-jre.jar
     - failureaccess-1.0.1.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-1.3.jar
@@ -386,9 +386,9 @@ The Apache Software License, Version 2.0
     - log4j-web-2.18.0.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.16.1.jar
-    - cpu-affinity-4.16.1.jar
-    - circe-checksum-4.16.1.jar
+    - bookkeeper-common-allocator-4.16.2.jar
+    - cpu-affinity-4.16.2.jar
+    - circe-checksum-4.16.2.jar
   * AirCompressor
      - aircompressor-0.20.jar
  * AsyncHttpClient

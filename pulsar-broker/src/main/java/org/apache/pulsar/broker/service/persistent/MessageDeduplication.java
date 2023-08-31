@@ -27,6 +27,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -129,6 +130,9 @@ public class MessageDeduplication {
     private final Map<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
+
+
+    private final AtomicBoolean snapshotTaking = new AtomicBoolean(false);
 
     public MessageDeduplication(PulsarService pulsar, PersistentTopic topic, ManagedLedger managedLedger) {
         this.pulsar = pulsar;
@@ -406,6 +410,11 @@ public class MessageDeduplication {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
+
+        if (!snapshotTaking.compareAndSet(false, true)) {
+            return;
+        }
+
         Map<String, Long> snapshot = new TreeMap<>();
         highestSequencedPersisted.forEach((producerName, sequenceId) -> {
             if (snapshot.size() < maxNumberOfProducers) {
@@ -420,11 +429,13 @@ public class MessageDeduplication {
                     log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
                 }
                 lastSnapshotTimestamp = System.currentTimeMillis();
+                snapshotTaking.set(false);
             }
 
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
+                snapshotTaking.set(false);
             }
         }, null);
     }
@@ -482,6 +493,10 @@ public class MessageDeduplication {
     }
 
     public void takeSnapshot() {
+        if (!isEnabled()) {
+            return;
+        }
+
         Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
         long currentTimeStamp = System.currentTimeMillis();
         if (interval == null || interval <= 0

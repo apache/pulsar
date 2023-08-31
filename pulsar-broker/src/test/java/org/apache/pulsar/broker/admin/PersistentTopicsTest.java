@@ -31,6 +31,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -930,19 +931,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), expectActions);
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
-                partitionedTopicName);
-        for (int i = 0; i < numPartitions; i++) {
-            TopicName partition = topicName.getPartition(i);
-            response = mock(AsyncResponse.class);
-            responseCaptor = ArgumentCaptor.forClass(Response.class);
-            persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace,
-                    partition.getEncodedLocalName());
-            verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-            Map<String, Set<AuthAction>> partitionPermissions =
-                    (Map<String, Set<AuthAction>>) responseCaptor.getValue();
-            Assert.assertEquals(partitionPermissions.get(role), expectActions);
-        }
     }
 
     @Test
@@ -1712,5 +1700,18 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // verify we only call getReplicatedSubscriptionStatusAsync once.
         verify(topics, times(1)).getReplicatedSubscriptionStatusAsync(any(), any());
+    }
+
+    @Test
+    public void testNamespaceResources() throws Exception {
+        String ns1V1 = "test/" + testNamespace + "v1";
+        String ns1V2 = testNamespace + "v2";
+        admin.namespaces().createNamespace(testTenant+"/"+ns1V1);
+        admin.namespaces().createNamespace(testTenant+"/"+ns1V2);
+
+        List<String> namespaces = pulsar.getPulsarResources().getNamespaceResources().listNamespacesAsync(testTenant)
+                .get();
+        assertTrue(namespaces.contains(ns1V2));
+        assertTrue(namespaces.contains(ns1V1));
     }
 }

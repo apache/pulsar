@@ -619,7 +619,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handle(String serviceUnit, ServiceUnitStateData data) {
         long totalHandledRequests = getHandlerTotalCounter(data).incrementAndGet();
-        if (log.isDebugEnabled()) {
+        if (debug()) {
             log.info("{} received a handle request for serviceUnit:{}, data:{}. totalHandledRequests:{}",
                     lookupServiceAddress, serviceUnit, data, totalHandledRequests);
         }
@@ -708,7 +708,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         var getOwnerRequest = getOwnerRequests.get(serviceUnit);
         if (getOwnerRequest != null) {
             var data = tableview.get(serviceUnit);
-            if (data.state() == Owned) {
+            if (data != null && data.state() == Owned) {
                 getOwnerRequest.complete(data.dstBroker());
                 getOwnerRequests.remove(serviceUnit);
                 stateChangeListeners.notify(serviceUnit, data, null);
