@@ -430,6 +430,30 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
+    public void testMergeDifferentProducerConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setMaxPendingMessages(100);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
+        producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setCompressionType(CompressionType.ZLIB);
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("producerConfig", producerConfig);
+
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getProducerConfig(),
+                producerConfig
+        );
+        mergedConfig.setProducerConfig(functionConfig.getProducerConfig());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testMergeDifferentTimeout() {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("timeoutMs", 102L);
