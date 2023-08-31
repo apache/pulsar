@@ -1437,6 +1437,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (msgMetadata.getChunkId() == 0) {
             if (chunkedMsgCtx != null) {
+                // Handle ack hole case:
+                // For example:
+                //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-3 sequence ID: 0, chunk ID: 0, msgID: 1:3
+                //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
+                //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+                // Consumer ack chunk message via ChunkMessageIdImpl that is consist of all the chunks in this chunk
+                // message(Chunk-3, Chunk-4, Chunk-5). The Chunk-1 and Chunk-2 are not included in the
+                // ChunkMessageIdImpl, so we should process here.
+                boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .anyMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                                && messageId1.entryId == messageId.getEntryId());
+                if (!repeatedlyReceived) {
+                    Arrays.stream(chunkedMsgCtx.chunkedMessageIds).forEach(messageId1 -> {
+                        doAcknowledge(messageId1, AckType.Individual, Collections.emptyMap(), null);
+                    });
+                }
                 // The first chunk of a new chunked-message received before receiving other chunks of previous
                 // chunked-message
                 // so, remove previous chunked-message from map and release buffer
