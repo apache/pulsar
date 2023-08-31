@@ -1437,20 +1437,33 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (msgMetadata.getChunkId() == 0) {
             if (chunkedMsgCtx != null) {
-                // Handle ack hole case:
+                // Handle ack hole case when receive duplicated chunks.
+                // There are two situation that receives chunks with the same sequence ID and chunk ID.
+                // Situation 1 - Message redeliver:
+                // For example:
+                //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-3 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:3
+                // In this case, chunk-3 and chunk-4 have the same msgID with chunk-1 and chunk-2.
+                // This may be caused by message redeliver, we can't ack any chunk in this case here.
+                // Situation 2 - Message duplication:
                 // For example:
                 //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
                 //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
                 //     Chunk-3 sequence ID: 0, chunk ID: 0, msgID: 1:3
                 //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
                 //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+                // In this case, all the chunks have the different msgID. Chunk-1, Chunk-2, Chunk-3, Chunk-4 are
+                // duplicated persisting in the topic.
                 // Consumer ack chunk message via ChunkMessageIdImpl that consists of all the chunks in this chunk
-                // message(Chunk-3, Chunk-4, Chunk-5). The Chunk-1 and Chunk-2 are not included in the
-                // ChunkMessageIdImpl, so we should process it here.
-                boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
-                        .anyMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                // message(Chunk-3, Chunk-4, Chunk-5). The Chunk-1 and Chunk-2 would not be included in the
+                // ChunkMessageIdImpl, so we should ack them here to avoid ack hole.
+                boolean messageDuplication = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .noneMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
                                 && messageId1.entryId == messageId.getEntryId());
-                if (!repeatedlyReceived) {
+                if (messageDuplication) {
                     Arrays.stream(chunkedMsgCtx.chunkedMessageIds).forEach(messageId1 -> {
                         if (messageId1 != null) {
                             doAcknowledge(messageId1, AckType.Individual, Collections.emptyMap(), null);
@@ -1465,6 +1478,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 chunkedMsgCtx.recycle();
                 chunkedMessagesMap.remove(msgMetadata.getUuid());
+                increaseAvailablePermits(cnx);
             }
             pendingChunkedMessageCount++;
             if (maxPendingChunkedMessage > 0 && pendingChunkedMessageCount > maxPendingChunkedMessage) {
@@ -1497,10 +1511,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         msgMetadata.getChunkId(), msgMetadata.getSequenceId());
                 compressedPayload.release();
                 increaseAvailablePermits(cnx);
-                boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
-                        .anyMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                // Just like the above logic of receiving the first chunk again. We only ack this chunk in the message
+                // duplication case.
+                boolean messageDuplication = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .noneMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
                                 && messageId1.entryId == messageId.getEntryId());
-                if (!repeatedlyReceived) {
+                if (messageDuplication) {
                     doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
                 }
                 return null;
