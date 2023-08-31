@@ -204,6 +204,13 @@ public class SinkConfigUtils {
 
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
+        if (sinkConfig.getRetainKeyOrdering() != null) {
+            functionDetailsBuilder.setRetainKeyOrdering(sinkConfig.getRetainKeyOrdering());
+        }
+        if (sinkConfig.getRetainOrdering() != null) {
+            functionDetailsBuilder.setRetainOrdering(sinkConfig.getRetainOrdering());
+        }
+
         if (sinkConfig.getMaxMessageRetries() != null && sinkConfig.getMaxMessageRetries() > 0) {
             Function.RetryDetails.Builder retryDetails = Function.RetryDetails.newBuilder();
             retryDetails.setMaxMessageRetries(sinkConfig.getMaxMessageRetries());
