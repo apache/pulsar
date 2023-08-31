@@ -44,9 +44,10 @@ import org.apache.pulsar.common.protocol.Commands;
  * [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
  */
 public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
-    MessageCrypto msgCrypto;
-    Set<String> encryptionKeys;
-    CryptoKeyReader cryptoKeyReader;
+    private MessageCrypto<MessageMetadata, MessageMetadata> msgCrypto;
+    private Set<String> encryptionKeys;
+    private CryptoKeyReader cryptoKeyReader;
+    private MessageIdImpl lastAddedMessageId;
 
     public RawBatchMessageContainerImpl(int maxNumMessagesInBatch, int maxBytesInBatch) {
         super();
@@ -88,6 +89,26 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
      */
     public void setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         this.cryptoKeyReader = cryptoKeyReader;
+    }
+
+    @Override
+    public boolean add(MessageImpl<?> msg, SendCallback callback) {
+        this.lastAddedMessageId = (MessageIdImpl) msg.getMessageId();
+        return super.add(msg, callback);
+    }
+
+    @Override
+    public boolean haveEnoughSpace(MessageImpl<?> msg) {
+        if (lastAddedMessageId == null) {
+            return super.haveEnoughSpace(msg);
+        }
+        // Keep same batch compact to same batch.
+        MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+        if (msgId.getLedgerId() != lastAddedMessageId.getLedgerId()
+                || msgId.getEntryId() != lastAddedMessageId.getEntryId()) {
+            return false;
+        }
+        return super.haveEnoughSpace(msg);
     }
 
     /**

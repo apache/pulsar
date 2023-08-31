@@ -61,9 +61,9 @@ import org.slf4j.LoggerFactory;
  * this compaction could be memory intensive if the message payload is large.
  */
 public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
+    public static final int MAX_NUM_MESSAGES_IN_BATCH = 1000;
     private static final Logger log = LoggerFactory.getLogger(StrategicTwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
-    private static final int MAX_NUM_MESSAGES_IN_BATCH = 1000;
     private static final int MAX_BYTES_IN_BATCH = 128 * 1024;
     private static final int MAX_READER_RECONNECT_WAITING_TIME_IN_MILLIS = 20 * 1000;
     private final Duration phaseOneLoopReadTimeout;
@@ -418,10 +418,9 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                                 .whenComplete((res, exception2) -> {
                                     if (exception2 != null) {
                                         promise.completeExceptionally(exception2);
-                                        return;
                                     }
+                                    phaseTwoLoop(topic, reader, lh, outstanding, promise);
                                 });
-                        phaseTwoLoop(topic, reader, lh, outstanding, promise);
                     } else {
                         try {
                             outstanding.acquire(MAX_OUTSTANDING);
@@ -443,34 +442,50 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
 
     <T> CompletableFuture<Boolean> addToCompactedLedger(
             LedgerHandle lh, Message<T> m, String topic, Semaphore outstanding) {
-        CompletableFuture<Boolean> bkf = new CompletableFuture<>();
-        // TODO: Support add batch message. Currently it might split a batch message into multiple batch.
-        // So the message id will be same.
-        if (m == null || batchMessageContainer.add((MessageImpl<?>) m, null)) {
-            if (batchMessageContainer.getNumMessagesInBatch() > 0) {
-                try {
-                    ByteBuf serialized = batchMessageContainer.toByteBuf();
-                    outstanding.acquire();
-                    mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
-                    long start = System.nanoTime();
-                    lh.asyncAddEntry(serialized,
-                            (rc, ledger, eid, ctx) -> {
-                                outstanding.release();
-                                mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
-                                if (rc != BKException.Code.OK) {
-                                    bkf.completeExceptionally(BKException.create(rc));
-                                } else {
-                                    bkf.complete(true);
-                                }
-                            }, null);
+        if (m == null) {
+            return flushBatchMessage(lh, topic, outstanding);
+        }
+        if (batchMessageContainer.haveEnoughSpace((MessageImpl<?>) m)) {
+            if (batchMessageContainer.add((MessageImpl<?>) m, null)) {
+                return flushBatchMessage(lh, topic, outstanding);
+            }
+            return CompletableFuture.completedFuture(false);
+        }
+        return flushBatchMessage(lh, topic, outstanding)
+                .thenCompose(__ -> {
+                    if (batchMessageContainer.add((MessageImpl<?>) m, null)) {
+                        return flushBatchMessage(lh, topic, outstanding);
+                    } else {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                });
+    }
 
-                } catch (Throwable t) {
-                    log.error("Failed to add entry", t);
-                    batchMessageContainer.discard((Exception) t);
-                    return FutureUtil.failedFuture(t);
-                }
-            } else {
-                bkf.complete(false);
+    private CompletableFuture<Boolean> flushBatchMessage(LedgerHandle lh, String topic,
+                                                         Semaphore outstanding) {
+        CompletableFuture<Boolean> bkf = new CompletableFuture<>();
+        if (batchMessageContainer.getNumMessagesInBatch() > 0) {
+            try {
+                ByteBuf serialized = batchMessageContainer.toByteBuf();
+                outstanding.acquire();
+                mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
+                long start = System.nanoTime();
+                lh.asyncAddEntry(serialized,
+                        (rc, ledger, eid, ctx) -> {
+                            outstanding.release();
+                            mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                            if (rc != BKException.Code.OK) {
+                                bkf.completeExceptionally(BKException.create(rc));
+                            } else {
+                                bkf.complete(true);
+                            }
+                        }, null);
+
+            } catch (Throwable t) {
+                log.error("Failed to add entry", t);
+                batchMessageContainer.discard((Exception) t);
+                bkf.completeExceptionally(t);
+                return bkf;
             }
         } else {
             bkf.complete(false);
