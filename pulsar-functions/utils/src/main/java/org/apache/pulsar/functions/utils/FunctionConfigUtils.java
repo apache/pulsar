@@ -1081,6 +1081,9 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
+        if (newConfig.getProducerConfig() != null) {
+            mergedConfig.setProducerConfig(newConfig.getProducerConfig());
+        }
         return mergedConfig;
     }
 }
