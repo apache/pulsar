@@ -189,4 +189,10 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         clear();
         return buf;
     }
+
+    @Override
+    public void clear() {
+        this.lastAddedMessageId = null;
+        super.clear();
+    }
 }
