@@ -45,6 +45,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -103,11 +104,19 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Channel handler for the Pulsar client.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
+ */
 @SuppressWarnings("unchecked")
 public class ClientCnx extends PulsarHandler {
 
     protected final Authentication authentication;
     protected State state;
+
+    private AtomicLong duplicatedResponseCounter = new AtomicLong(0);
 
     @Getter
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
@@ -185,6 +194,8 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
+    private final String clientVersion;
+
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
@@ -243,6 +254,8 @@ public class ClientCnx extends PulsarHandler {
         this.state = State.None;
         this.protocolVersion = protocolVersion;
         this.idleState = new ClientCnxIdleState(this);
+        this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
+                + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
     }
 
     @Override
@@ -284,7 +297,7 @@ public class ClientCnx extends PulsarHandler {
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
+                clientVersion, proxyToTargetBrokerAddress, null, null, null);
     }
 
     @Override
@@ -346,6 +359,11 @@ public class ClientCnx extends PulsarHandler {
         return t instanceof NativeIoException || t instanceof ClosedChannelException;
     }
 
+    @VisibleForTesting
+    public long getDuplicatedResponseCount() {
+        return duplicatedResponseCounter.get();
+    }
+
     @Override
     protected void handleConnected(CommandConnected connected) {
         checkArgument(state == State.SentConnectFrame || state == State.Connecting);
@@ -394,9 +412,9 @@ public class ClientCnx extends PulsarHandler {
             checkState(!authData.isComplete());
 
             ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
-                authData,
-                this.protocolVersion,
-                PulsarVersion.getVersion());
+                    authData,
+                    this.protocolVersion,
+                    clientVersion);
 
             if (log.isDebugEnabled()) {
                 log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
@@ -469,6 +487,7 @@ public class ClientCnx extends PulsarHandler {
                                                  buildError(ackResponse.getRequestId(), ackResponse.getMessage())));
             }
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("AckResponse has complete when receive response! requestId : {}, consumerId : {}",
                     ackResponse.getRequestId(), ackResponse.hasConsumerId());
         }
@@ -513,6 +532,7 @@ public class ClientCnx extends PulsarHandler {
         if (requestFuture != null) {
             requestFuture.complete(null);
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
     }
@@ -531,6 +551,7 @@ public class ClientCnx extends PulsarHandler {
         if (requestFuture != null) {
             requestFuture.complete(new CommandGetLastMessageIdResponse().copyFrom(success));
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
     }
@@ -566,6 +587,7 @@ public class ClientCnx extends PulsarHandler {
                     success.hasTopicEpoch() ? Optional.of(success.getTopicEpoch()) : Optional.empty());
             requestFuture.complete(pr);
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
     }
@@ -713,6 +735,8 @@ public class ClientCnx extends PulsarHandler {
             } else {
                 pendingLookupRequestSemaphore.release();
             }
+        } else {
+            duplicatedResponseCounter.incrementAndGet();
         }
         return result;
     }
@@ -769,6 +793,7 @@ public class ClientCnx extends PulsarHandler {
                     getPulsarClientException(error.getError(),
                                              buildError(error.getRequestId(), error.getMessage())));
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), error.getRequestId());
         }
     }
@@ -876,6 +901,7 @@ public class ClientCnx extends PulsarHandler {
                     success.isFiltered(),
                     success.isChanged()));
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
     }
@@ -889,6 +915,7 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<CommandGetSchemaResponse> future =
                 (CompletableFuture<CommandGetSchemaResponse>) pendingRequests.remove(requestId);
         if (future == null) {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
             return;
         }
@@ -902,6 +929,7 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<CommandGetOrCreateSchemaResponse> future =
                 (CompletableFuture<CommandGetOrCreateSchemaResponse>) pendingRequests.remove(requestId);
         if (future == null) {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
             return;
         }
@@ -1074,6 +1102,7 @@ public class ClientCnx extends PulsarHandler {
                 requestFuture.completeExceptionally(getExceptionByServerError(error, response.getMessage()));
             }
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("Tc client connect command has been completed and get response for request: {}",
                     response.getRequestId());
         }
@@ -1113,6 +1142,7 @@ public class ClientCnx extends PulsarHandler {
                 Commands.serializeWithSize(commandWatchTopicListClose), requestId, RequestType.Command, true);
     }
 
+    @Override
     protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
         checkArgument(state == State.Ready);
 
@@ -1126,11 +1156,13 @@ public class ClientCnx extends PulsarHandler {
         if (requestFuture != null) {
             requestFuture.complete(commandWatchTopicListSuccess);
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}",
                     ctx.channel(), commandWatchTopicListSuccess.getRequestId());
         }
     }
 
+    @Override
     protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
         checkArgument(state == State.Ready);
 
@@ -1293,7 +1325,10 @@ public class ClientCnx extends PulsarHandler {
                 // if there is no request that is timed out then exit the loop
                 break;
             }
-            request = requestTimeoutQueue.poll();
+            if (!requestTimeoutQueue.remove(request)) {
+                // the request has been removed by another thread
+                continue;
+            }
             TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
             if (requestFuture != null
                     && !requestFuture.hasGotResponse()) {

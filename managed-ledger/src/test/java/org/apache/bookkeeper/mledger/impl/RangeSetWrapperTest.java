@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
 import org.testng.annotations.AfterMethod;
@@ -40,6 +41,8 @@ import org.testng.annotations.Test;
 public class RangeSetWrapperTest {
 
     static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
+    static final RangeBoundConsumer<LongPair> reverseConvert = (pair) -> pair;
+    
     ManagedLedgerImpl managedLedger;
     RangeSetWrapper<LongPair> set;
     ManagedLedgerConfig managedLedgerConfig;
@@ -67,7 +70,9 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDirtyLedger() {
-        RangeSetWrapper<LongPair> rangeSetWrapper = new RangeSetWrapper<>(consumer, managedCursor);
+        RangeSetWrapper<LongPair> rangeSetWrapper = new RangeSetWrapper<>(consumer,
+                reverseConvert,
+                managedCursor);
         // Test add range
         rangeSetWrapper.addOpenClosed(10, 0, 20, 0);
         assertEquals(rangeSetWrapper.size(), 1);
@@ -93,7 +98,7 @@ public class RangeSetWrapperTest {
     }
 
     private void doTestAddForSameKey() {
-        set = new RangeSetWrapper(consumer, managedCursor);
+        set = new RangeSetWrapper(consumer, reverseConvert, managedCursor);
         // add 0 to 5
         set.addOpenClosed(0, 0, 0, 5);
         // add 8,9,10
@@ -113,7 +118,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testAddForDifferentKey() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         // [98,100],[(1,5),(1,5)],[(1,10,1,15)],[(1,20),(1,20)],[(2,0),(2,10)]
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
@@ -131,7 +136,7 @@ public class RangeSetWrapperTest {
     @Test
     public void testAddForDifferentKey2() {
         managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(false);
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         // [98,100],[(1,5),(1,5)],[(1,10,1,15)],[(1,20),(1,20)],[(2,0),(2,10)]
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
@@ -148,7 +153,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testAddCompareCompareWithGuava() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -187,7 +192,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteCompareWithGuava() throws Exception {
-        RangeSetWrapper<LongPair> set = new RangeSetWrapper<>(consumer, managedCursor);
+        RangeSetWrapper<LongPair> set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -241,7 +246,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testSpanWithGuava() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
         set.addOpenClosed(0, 97, 0, 99);
         gSet.add(Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
@@ -266,7 +271,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testFirstRange() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         assertNull(set.firstRange());
         set.addOpenClosed(0, 97, 0, 99);
         assertEquals(set.firstRange(), Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
@@ -281,7 +286,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testLastRange() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         assertNull(set.lastRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.addOpenClosed(0, 97, 0, 99);
@@ -302,7 +307,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testToString() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         set.addOpenClosed(0, 97, 0, 99);
         assertEquals(set.toString(), "[(0:97..0:99]]");
         set.addOpenClosed(0, 98, 0, 105);
@@ -313,7 +318,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteForDifferentKey() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         set.addOpenClosed(0, 97, 0, 99);
         set.addOpenClosed(0, 99, 1, 5);
         set.addOpenClosed(1, 9, 1, 15);
@@ -344,7 +349,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteWithAtMost() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -370,7 +375,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteWithAtMost2() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -390,7 +395,7 @@ public class RangeSetWrapperTest {
         assertEquals(ranges.get(count), (Range.openClosed(new LongPair(2, 25), new LongPair(2, 28))));
 
         managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(false);
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -411,7 +416,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteWithLeastMost() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -439,7 +444,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testRangeContaining() {
-        set = new RangeSetWrapper<>(consumer, managedCursor);
+        set = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();

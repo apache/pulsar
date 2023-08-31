@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpty;
 import io.netty.buffer.ByteBuf;
+import io.prometheus.client.Gauge;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
@@ -35,19 +37,28 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.PulsarCompactorSubscription;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
+
+    private static final Gauge PENDING_BYTES_TO_DISPATCH = Gauge
+            .build()
+            .name("pulsar_broker_pending_bytes_to_dispatch")
+            .help("Amount of bytes loaded in memory to be dispatched to Consumers")
+            .register();
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
@@ -86,22 +97,25 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     public int filterEntriesForConsumer(List<? extends Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
             ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
-        return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
+        return filterEntriesForConsumer(null, 0, entries, batchSizes,
+                sendMessageInfo, indexesAcks, cursor,
                 isReplayRead, consumer);
     }
 
     /**
      * Filter entries with prefetched message metadata range so that there is no need to peek metadata from Entry.
      *
-     * @param optMetadataArray the optional message metadata array
+     * @param metadataArray the optional message metadata array. need check if null pass.
      * @param startOffset the index in `optMetadataArray` of the first Entry's message metadata
      *
      * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
      *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
      */
-    public int filterEntriesForConsumer(Optional<MessageMetadata[]> optMetadataArray, int startOffset,
-             List<? extends Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
-             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
+    public int filterEntriesForConsumer(@Nullable MessageMetadata[] metadataArray, int startOffset,
+                                        List<? extends Entry> entries, EntryBatchSizes batchSizes,
+                                        SendMessageInfo sendMessageInfo,
+                                        EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor,
+                                        boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -118,11 +132,15 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             final int metadataIndex = i + startOffset;
-            final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
-                    .orElseGet(() -> (entry instanceof EntryAndMetadata)
-                            ? ((EntryAndMetadata) entry).getMetadata()
-                            : Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1)
-                    );
+
+            MessageMetadata msgMetadata;
+            if (metadataArray != null) {
+                msgMetadata = metadataArray[metadataIndex];
+            } else if (entry instanceof EntryAndMetadata) {
+                msgMetadata = ((EntryAndMetadata) entry).getMetadata();
+            } else {
+                msgMetadata = Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1);
+            }
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
             if (hasFilter) {
@@ -153,7 +171,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 entry.release();
                 continue;
             }
-            if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
+            if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
@@ -203,8 +221,40 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             batchSizes.setBatchSize(i, batchSize);
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
+                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                 ackSet = cursor
-                        .getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                        .getDeletedBatchIndexesAsLongArray(position);
+                // some batch messages ack bit sit will be in pendingAck state, so don't send all bit sit to consumer
+                if (subscription instanceof PersistentSubscription
+                        && ((PersistentSubscription) subscription)
+                        .getPendingAckHandle() instanceof PendingAckHandleImpl) {
+                    PositionImpl positionInPendingAck =
+                            ((PersistentSubscription) subscription).getPositionInPendingAck(position);
+                    // if this position not in pendingAck state, don't need to do any op
+                    if (positionInPendingAck != null) {
+                        if (positionInPendingAck.hasAckSet()) {
+                            // need to or ackSet in pendingAck state and cursor ackSet which bit sit has been acked
+                            if (ackSet != null) {
+                                ackSet = andAckSet(ackSet, positionInPendingAck.getAckSet());
+                            } else {
+                                // if actSet is null, use pendingAck ackSet
+                                ackSet = positionInPendingAck.getAckSet();
+                            }
+                            // if the result of pendingAckSet(in pendingAckHandle) AND the ackSet(in cursor) is empty
+                            // filter this entry
+                            if (isAckSetEmpty(ackSet)) {
+                                entries.set(i, null);
+                                entry.release();
+                                continue;
+                            }
+                        } else {
+                            // filter non-batch message in pendingAck state
+                            entries.set(i, null);
+                            entry.release();
+                            continue;
+                        }
+                    }
+                }
                 if (ackSet != null) {
                     indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                 } else {
@@ -251,7 +301,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
-        if (!(subscription instanceof CompactorSubscription)) {
+        if (!(subscription instanceof PulsarCompactorSubscription)) {
             subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
         }
     }
@@ -276,8 +326,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     protected abstract boolean isConsumersExceededOnSubscription();
 
     protected boolean isConsumersExceededOnSubscription(AbstractTopic topic, int consumerSize) {
+        if (topic.isSystemTopic()) {
+            return false;
+        }
         Integer maxConsumersPerSubscription = topic.getHierarchyTopicPolicies().getMaxConsumersPerSubscription().get();
-        return maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerSize;
+        return maxConsumersPerSubscription != null && maxConsumersPerSubscription > 0
+                && maxConsumersPerSubscription <= consumerSize;
     }
 
     private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {
@@ -369,5 +423,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     @Override
     public long getFilterRescheduledMsgCount() {
         return this.filterRescheduledMsgs.longValue();
+    }
+
+    protected final void updatePendingBytesToDispatch(long size) {
+        PENDING_BYTES_TO_DISPATCH.inc(size);
     }
 }

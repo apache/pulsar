@@ -87,7 +87,7 @@ public class HdfsSinkConfig extends AbstractHdfsConfig implements Serializable {
 
     public static HdfsSinkConfig load(Map<String, Object> map) throws IOException {
        ObjectMapper mapper = new ObjectMapper();
-       return mapper.readValue(new ObjectMapper().writeValueAsString(map), HdfsSinkConfig.class);
+       return mapper.readValue(mapper.writeValueAsString(map), HdfsSinkConfig.class);
     }
 
     @Override

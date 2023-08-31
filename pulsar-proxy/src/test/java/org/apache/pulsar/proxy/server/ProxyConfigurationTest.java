@@ -68,6 +68,7 @@ public class ProxyConfigurationTest {
         try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
             printWriter.println("zookeeperSessionTimeoutMs=60");
             printWriter.println("zooKeeperCacheExpirySeconds=500");
+            printWriter.println("httpMaxRequestHeaderSize=1234");
         }
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -75,6 +76,7 @@ public class ProxyConfigurationTest {
         stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+        assertEquals(serviceConfig.getHttpMaxRequestHeaderSize(), 1234);
 
         testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -110,4 +112,26 @@ public class ProxyConfigurationTest {
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
     }
+
+
+    @Test
+    public void testConvert() throws IOException {
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("proxyAdditionalServlets=a,b,c");
+        }
+        testConfigFile.deleteOnExit();
+        try(InputStream stream = new FileInputStream(testConfigFile)) {
+            ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(stream, ProxyConfiguration.class);
+            assertEquals(proxyConfig.getProperties().getProperty("proxyAdditionalServlets"), "a,b,c");
+            assertEquals(proxyConfig.getProxyAdditionalServlets().size(), 3);
+            PulsarConfigurationLoader.convertFrom(proxyConfig);
+            assertEquals(proxyConfig.getProperties().getProperty("proxyAdditionalServlets"), "a,b,c");
+            assertEquals(proxyConfig.getProxyAdditionalServlets().size(), 3);
+        }
+    }
+
 }

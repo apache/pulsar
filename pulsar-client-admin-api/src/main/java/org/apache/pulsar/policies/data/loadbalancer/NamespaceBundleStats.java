@@ -20,10 +20,12 @@ package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.io.Serializable;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  */
 @EqualsAndHashCode
+@ToString
 public class NamespaceBundleStats implements Comparable<NamespaceBundleStats>, Serializable {
 
     public double msgRateIn;

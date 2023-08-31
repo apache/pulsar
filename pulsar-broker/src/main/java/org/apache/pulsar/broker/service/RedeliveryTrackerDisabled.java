@@ -33,7 +33,7 @@ public class RedeliveryTrackerDisabled implements RedeliveryTracker {
     }
 
     @Override
-    public int getRedeliveryCount(Position position) {
+    public int getRedeliveryCount(long ledgerId, long entryId) {
         return 0;
     }
 

@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.io.debezium;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
-import static org.apache.pulsar.io.common.IOConfigUtils.loadConfigFromJsonString;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.Configuration;
@@ -33,6 +33,7 @@ import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.relational.history.HistoryRecord;
 import io.debezium.relational.history.HistoryRecordComparator;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -99,6 +100,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         DatabaseHistory.NAME,
         READER_CONFIG);
 
+    private final ObjectMapper mapper = new ObjectMapper();
     private final DocumentReader reader = DocumentReader.defaultReader();
     private String topicName;
     private Map<String, Object> readerConfigMap = new HashMap<>();
@@ -120,7 +122,13 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         }
         this.topicName = config.getString(TOPIC);
         try {
-            this.readerConfigMap = loadConfigFromJsonString(config.getString(READER_CONFIG));
+            final String configString = config.getString(READER_CONFIG);
+            if (configString == null) {
+                this.readerConfigMap = Collections.emptyMap();
+            } else {
+                this.readerConfigMap = mapper.readValue(configString, Map.class);
+            }
+
         } catch (JsonProcessingException exception) {
             log.warn("The provided reader configs are invalid, "
                     + "will not passing any extra config to the reader builder.", exception);

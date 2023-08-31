@@ -69,7 +69,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
-    public void testFillParametersToSchemainfo() {
+    public void testFillParametersToSchemaInfo() {
         Map<String, String> keyProperties = new TreeMap<>();
         keyProperties.put("foo.key1", "value");
         keyProperties.put("foo.key2", "value");
@@ -89,10 +89,40 @@ public class KeyValueSchemaTest {
                         .build());
 
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
-
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.type"), String.valueOf(SchemaType.AVRO));
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"),
                 "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\",\"foo.key1\":\"value\",\"foo.key2\":\"value\"}");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.type"), String.valueOf(SchemaType.AVRO));
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.properties"),
+                "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\",\"bar.key\":\"key\"}");
+    }
+
+    @Test
+    public void testOverwriteSchemaDefaultProperties() {
+        Map<String, String> keyProperties = new TreeMap<>();
+        keyProperties.put("foo.key1", "value");
+        keyProperties.put("foo.key2", "value");
+        keyProperties.put(SchemaDefinitionBuilderImpl.ALWAYS_ALLOW_NULL, "false");
+        keyProperties.put(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "true");
+
+        Map<String, String> valueProperties = new TreeMap<>();
+        valueProperties.put("bar.key", "key");
+
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder()
+                        .withPojo(Foo.class)
+                        .withProperties(keyProperties)
+                        .build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder()
+                        .withPojo(Bar.class)
+                        .withProperties(valueProperties)
+                        .build());
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.type"), String.valueOf(SchemaType.AVRO));
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"),
+                "{\"__alwaysAllowNull\":\"false\",\"__jsr310ConversionEnabled\":\"true\",\"foo.key1\":\"value\",\"foo.key2\":\"value\"}");
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.type"), String.valueOf(SchemaType.AVRO));
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.properties"),
                 "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\",\"bar.key\":\"key\"}");

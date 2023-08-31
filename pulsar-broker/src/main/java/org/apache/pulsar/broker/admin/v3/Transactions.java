@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jetbrains.annotations.Nullable;
 
 @Path("/transactions")
 @Produces(MediaType.APPLICATION_JSON)
@@ -51,6 +52,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Api(value = "/transactions", description = "Transactions admin apis", tags = "transactions")
 @Slf4j
 public class Transactions extends TransactionsBase {
+
+    @GET
+    @Path("/coordinators")
+    @ApiOperation(value = "List transaction coordinators.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "This Broker is not "
+                    + "configured with transactionCoordinatorEnabled=true.")})
+    public void listCoordinators(@Suspended final AsyncResponse asyncResponse) {
+        checkTransactionCoordinatorEnabled();
+        internalListCoordinators(asyncResponse);
+    }
 
     @GET
     @Path("/coordinatorStats")
@@ -160,11 +172,13 @@ public class Transactions extends TransactionsBase {
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic,
                                           @QueryParam("lowWaterMarks") @DefaultValue("false")
-                                                      boolean lowWaterMarks) {
+                                                      boolean lowWaterMarks,
+                                          @QueryParam("segmentStats") @DefaultValue("false")
+                                              boolean segmentStats) {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetTransactionBufferStats(authoritative, lowWaterMarks)
+            internalGetTransactionBufferStats(authoritative, lowWaterMarks, segmentStats)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (!isRedirectException(ex)) {
@@ -304,17 +318,58 @@ public class Transactions extends TransactionsBase {
                             log.error("[{}] Failed to get pending ack internal stats {}",
                                     clientAppId(), topicName, ex);
                         }
-                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        if (cause instanceof BrokerServiceException.ServiceUnitNotReadyException) {
-                            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, cause));
-                        } else if (cause instanceof BrokerServiceException.NotAllowedException) {
-                            asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED, cause));
-                        } else if (cause instanceof BrokerServiceException.SubscriptionNotFoundException) {
-                            asyncResponse.resume(new RestException(NOT_FOUND, cause));
-                        } else {
-                            asyncResponse.resume(new RestException(cause));
+                        return resumeAsyncResponseWithBrokerException(asyncResponse, ex);
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
+    }
+
+    @Nullable
+    private Void resumeAsyncResponseWithBrokerException(@Suspended AsyncResponse asyncResponse,
+                                                        Throwable ex) {
+        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+        if (cause instanceof BrokerServiceException.ServiceUnitNotReadyException) {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, cause));
+        } else if (cause instanceof BrokerServiceException.NotAllowedException) {
+            asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED, cause));
+        } else if (cause instanceof BrokerServiceException.SubscriptionNotFoundException) {
+            asyncResponse.resume(new RestException(NOT_FOUND, cause));
+        } else {
+            asyncResponse.resume(new RestException(cause));
+        }
+        return null;
+    }
+
+    @GET
+    @Path("/transactionBufferInternalStats/{tenant}/{namespace}/{topic}")
+    @ApiOperation(value = "Get transaction buffer internal stats.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not enable transaction"),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 405, message = "Transaction buffer don't use managedLedger!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")
+    })
+    public void getTransactionBufferInternalStats(@Suspended final AsyncResponse asyncResponse,
+                                                  @QueryParam("authoritative")
+                                                  @DefaultValue("false") boolean authoritative,
+                                                  @PathParam("tenant") String tenant,
+                                                  @PathParam("namespace") String namespace,
+                                                  @PathParam("topic") @Encoded String encodedTopic,
+                                                  @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionBufferInternalStats(authoritative, metadata)
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to get transaction buffer internal stats {}",
+                                    clientAppId(), topicName, ex);
                         }
-                        return null;
+                        return resumeAsyncResponseWithBrokerException(asyncResponse, ex);
                     });
         } catch (Exception ex) {
             resumeAsyncResponseExceptionally(asyncResponse, ex);

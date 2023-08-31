@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import java.lang.reflect.Field;
@@ -36,7 +37,6 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 public class BatchMessageContainerImplTest {
@@ -112,7 +112,7 @@ public class BatchMessageContainerImplTest {
             clientFiled.setAccessible(true);
             clientFiled.set(producer, pulsarClient);
         } catch (Exception e){
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
 
         when(producer.getConfiguration()).thenReturn(producerConfigurationData);
@@ -155,7 +155,7 @@ public class BatchMessageContainerImplTest {
             clientFiled.setAccessible(true);
             clientFiled.set(producer, pulsarClient);
         } catch (Exception e){
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
 
         ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));

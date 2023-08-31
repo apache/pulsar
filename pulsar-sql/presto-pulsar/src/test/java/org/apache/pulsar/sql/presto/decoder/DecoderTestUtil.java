@@ -18,23 +18,22 @@
  */
 package org.apache.pulsar.sql.presto.decoder;
 
+import static io.trino.testing.TestingConnectorSession.SESSION;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import io.airlift.slice.Slice;
 import io.trino.decoder.DecoderColumnHandle;
 import io.trino.decoder.FieldValueProvider;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.DecimalType;
-import io.trino.spi.type.Decimals;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Map;
-
-import static io.trino.spi.type.UnscaledDecimal128Arithmetic.UNSCALED_DECIMAL_128_SLICE_LENGTH;
-import static io.trino.testing.TestingConnectorSession.SESSION;
-import static org.testng.Assert.*;
 
 /**
  * Abstract util superclass for  XXDecoderTestUtil (e.g. AvroDecoderTestUtil 、JsonDecoderTestUtil)
@@ -122,10 +121,10 @@ public abstract class DecoderTestUtil {
         FieldValueProvider provider = decodedRow.get(handle);
         DecimalType decimalType = (DecimalType) handle.getType();
         BigDecimal actualDecimal;
-        if (decimalType.getFixedSize() == UNSCALED_DECIMAL_128_SLICE_LENGTH) {
-            Slice slice = provider.getSlice();
-            BigInteger bigInteger = Decimals.decodeUnscaledValue(slice);
-            actualDecimal = new BigDecimal(bigInteger, decimalType.getScale());
+        if (decimalType.getFixedSize() == Int128.SIZE) {
+            final Block block = provider.getBlock();
+            final Int128 actualValue = (Int128) decimalType.getObject(block, 0);
+            actualDecimal = new BigDecimal(actualValue.toBigInteger(), decimalType.getScale());
         } else {
             actualDecimal = BigDecimal.valueOf(provider.getLong(), decimalType.getScale());
         }

@@ -98,7 +98,7 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
                 b.withPort(Integer.parseInt(hostPort[1]));
             }
         }
-        cluster = b.build();
+        cluster = b.withoutJMXReporting().build();
         session = cluster.connect();
         session.execute("USE " + cassandraSinkConfig.getKeyspace());
     }

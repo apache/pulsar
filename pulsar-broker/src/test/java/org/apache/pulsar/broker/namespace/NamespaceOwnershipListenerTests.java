@@ -99,7 +99,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         Assert.assertTrue(onLoad.get());
         Assert.assertTrue(unLoad.get());
         admin.topics().delete(topic);
-        deleteNamespaceGraceFully(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
     }
 
     @Test
@@ -120,7 +120,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         }
 
         admin.topics().deletePartitionedTopic(topicName);
-        deleteNamespaceGraceFully(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
     }
 
     @Test
@@ -170,6 +170,6 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         Assert.assertEquals(onLoad.get(), 1);
         Assert.assertEquals(unLoad.get(), 1);
         admin.topics().delete(topic);
-        deleteNamespaceGraceFully(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
     }
 }

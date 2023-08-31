@@ -45,8 +45,8 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 
 public class TokensCliUtils {
 

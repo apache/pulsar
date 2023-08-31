@@ -45,15 +45,18 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
      * Record which Ledger is dirty.
      */
     private final DefaultRangeSet<Long> dirtyLedgers = new LongPairRangeSet.DefaultRangeSet<>(
-            (LongPairConsumer<Long>) (key, value) -> key);
+            (LongPairConsumer<Long>) (key, value) -> key,
+            (RangeBoundConsumer<Long>) key -> new LongPair(key, 0));
 
-    public RangeSetWrapper(LongPairConsumer<T> rangeConverter, ManagedCursorImpl managedCursor) {
+    public RangeSetWrapper(LongPairConsumer<T> rangeConverter,
+                           RangeBoundConsumer<T> rangeBoundConsumer,
+                           ManagedCursorImpl managedCursor) {
         requireNonNull(managedCursor);
         this.config = managedCursor.getConfig();
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
                 ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
-                : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter);
+                : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter, rangeBoundConsumer);
         this.enableMultiEntry = config.isPersistentUnackedRangesWithMultipleEntriesEnabled();
     }
 
@@ -116,6 +119,11 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     @Override
     public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
         rangeSet.forEach(action, consumer);
+    }
+
+    @Override
+    public void forEachRawRange(RawRangeProcessor action) {
+        rangeSet.forEachRawRange(action);
     }
 
     @Override

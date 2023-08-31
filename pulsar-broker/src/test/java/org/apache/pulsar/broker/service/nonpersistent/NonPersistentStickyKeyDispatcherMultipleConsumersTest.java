@@ -31,6 +31,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -47,6 +48,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
@@ -62,6 +64,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     private ServiceConfiguration configMock;
 
     private NonPersistentStickyKeyDispatcherMultipleConsumers nonpersistentDispatcher;
+    private StickyKeyConsumerSelector selector;
 
     final String topicName = "non-persistent://public/default/testTopic";
 
@@ -88,10 +91,19 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(topicPolicies).when(topicMock).getHierarchyTopicPolicies();
 
         subscriptionMock = mock(NonPersistentSubscription.class);
-
+        selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
         nonpersistentDispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(
-            topicMock, subscriptionMock,
-            new HashRangeAutoSplitStickyKeyConsumerSelector());
+            topicMock, subscriptionMock, selector);
+    }
+
+    @Test(timeOut = 10000)
+    public void testAddConsumerWhenClosed() throws Exception {
+        nonpersistentDispatcher.close().get();
+        Consumer consumer = mock(Consumer.class);
+        nonpersistentDispatcher.addConsumer(consumer);
+        verify(consumer, times(1)).disconnect();
+        assertEquals(0, nonpersistentDispatcher.getConsumers().size());
+        assertTrue(selector.getConsumerKeyHashRanges().isEmpty());
     }
 
     @Test(timeOut = 10000)

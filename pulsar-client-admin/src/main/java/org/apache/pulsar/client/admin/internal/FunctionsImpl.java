@@ -54,7 +54,6 @@ import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.HttpResponseBodyPart;
@@ -165,7 +164,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             RequestBuilder builder =
                     post(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
                             .path(functionConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("functionConfig", objectWriter()
                             .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -250,12 +249,12 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     put(functions.path(functionConfig.getTenant())
                             .path(functionConfig.getNamespace())
                             .path(functionConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("functionConfig", objectWriter()
                             .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
-                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal()
+                builder.addBodyPart(new StringPart("updateOptions", objectWriter()
                         .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
@@ -303,13 +302,13 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
             mp.bodyPart(new FormDataBodyPart(
                     "functionConfig",
-                    ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig),
+                    objectWriter().writeValueAsString(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
+                        objectWriter().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
@@ -699,7 +698,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             RequestBuilder builder =
                     post(functions.path(tenant).path(namespace).path(function)
                             .path("state").path(state.getKey()).getUri().toASCIIString());
-            builder.addBodyPart(new StringPart("state", ObjectMapperFactory.getThreadLocal()
+            builder.addBodyPart(new StringPart("state", objectWriter()
                     .writeValueAsString(state), MediaType.APPLICATION_JSON));
             asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
                     .toCompletableFuture()

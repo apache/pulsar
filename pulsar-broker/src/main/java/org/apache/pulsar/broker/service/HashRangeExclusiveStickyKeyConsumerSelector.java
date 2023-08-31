@@ -23,10 +23,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * This is a sticky-key consumer selector based user provided range.
@@ -52,8 +54,23 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public void addConsumer(Consumer consumer) throws BrokerServiceException.ConsumerAssignException {
-        validateKeySharedMeta(consumer);
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+        return validateKeySharedMeta(consumer).thenRun(() -> {
+            try {
+                internalAddConsumer(consumer);
+            } catch (BrokerServiceException.ConsumerAssignException e) {
+                throw FutureUtil.wrapToCompletionException(e);
+            }
+        });
+    }
+
+    private synchronized void internalAddConsumer(Consumer consumer)
+            throws BrokerServiceException.ConsumerAssignException {
+        Consumer conflictingConsumer = findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
+        if (conflictingConsumer != null) {
+            throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
+                    + conflictingConsumer);
+        }
         for (IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
@@ -101,31 +118,41 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         }
     }
 
-    private void validateKeySharedMeta(Consumer consumer) throws BrokerServiceException.ConsumerAssignException {
+    private synchronized CompletableFuture<Void> validateKeySharedMeta(Consumer consumer) {
         if (consumer.getKeySharedMeta() == null) {
-            throw new BrokerServiceException.ConsumerAssignException("Must specify key shared meta for consumer.");
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.ConsumerAssignException("Must specify key shared meta for consumer."));
         }
         List<IntRange> ranges = consumer.getKeySharedMeta().getHashRangesList();
         if (ranges.isEmpty()) {
-            throw new BrokerServiceException.ConsumerAssignException("Ranges for KeyShared policy must not be empty.");
+            return FutureUtil.failedFuture(new BrokerServiceException.ConsumerAssignException(
+                    "Ranges for KeyShared policy must not be empty."));
         }
         for (IntRange intRange : ranges) {
-
             if (intRange.getStart() > intRange.getEnd()) {
-                throw new BrokerServiceException.ConsumerAssignException("Fixed hash range start > end");
+                return FutureUtil.failedFuture(
+                        new BrokerServiceException.ConsumerAssignException("Fixed hash range start > end"));
             }
+        }
+        Consumer conflictingConsumer = findConflictingConsumer(ranges);
+        if (conflictingConsumer != null) {
+            return conflictingConsumer.cnx().checkConnectionLiveness().thenRun(() -> {});
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
 
+    private synchronized Consumer findConflictingConsumer(List<IntRange> ranges) {
+        for (IntRange intRange : ranges) {
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(intRange.getStart());
             Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(intRange.getEnd());
 
             if (floorEntry != null && floorEntry.getKey() >= intRange.getStart()) {
-                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
-                        + floorEntry.getValue());
+                return floorEntry.getValue();
             }
 
             if (ceilingEntry != null && ceilingEntry.getKey() <= intRange.getEnd()) {
-                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
-                        + ceilingEntry.getValue());
+                return ceilingEntry.getValue();
             }
 
             if (ceilingEntry != null && floorEntry != null && ceilingEntry.getValue().equals(floorEntry.getValue())) {
@@ -134,12 +161,12 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
                     int start = Math.max(intRange.getStart(), range.getStart());
                     int end = Math.min(intRange.getEnd(), range.getEnd());
                     if (end >= start) {
-                        throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
-                                + ceilingEntry.getValue());
+                        return ceilingEntry.getValue();
                     }
                 }
             }
         }
+        return null;
     }
 
     Map<Integer, Consumer> getRangeConsumer() {

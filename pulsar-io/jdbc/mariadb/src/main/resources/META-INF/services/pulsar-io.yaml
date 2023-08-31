@@ -20,3 +20,4 @@
 name: jdbc-mariadb
 description: JDBC sink for MariaDB
 sinkClass: org.apache.pulsar.io.jdbc.MariadbJdbcAutoSchemaSink
+sinkConfigClass: org.apache.pulsar.io.jdbc.JdbcSinkConfig

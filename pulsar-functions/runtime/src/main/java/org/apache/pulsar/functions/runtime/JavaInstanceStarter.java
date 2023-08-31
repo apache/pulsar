@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.StringConverter;
@@ -37,6 +39,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -46,9 +49,13 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 
 
 @Slf4j
@@ -92,7 +99,7 @@ public class JavaInstanceStarter implements AutoCloseable {
     public String useTls = Boolean.FALSE.toString();
 
     @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
-    public String tlsAllowInsecureConnection = Boolean.TRUE.toString();
+    public String tlsAllowInsecureConnection = Boolean.FALSE.toString();
 
     @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
     public String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
@@ -146,6 +153,12 @@ public class JavaInstanceStarter implements AutoCloseable {
             + "exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 
+    @Parameter(names = "--ignore_unknown_config_fields",
+            description = "Whether to ignore unknown properties when deserializing the connector configuration.",
+            required = false)
+    public Boolean ignoreUnknownConfigFields = false;
+
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -173,6 +186,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
+        instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
@@ -181,6 +195,10 @@ public class JavaInstanceStarter implements AutoCloseable {
             functionDetailsJsonString = functionDetailsJsonString.substring(0, functionDetailsJsonString.length() - 1);
         }
         JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
+        FunctionCacheManager fnCache = new FunctionCacheManagerImpl(rootClassLoader);
+        ClassLoader functionClassLoader = ThreadRuntime.loadJars(jarFile, instanceConfig, functionId,
+                functionDetailsBuilder.getName(), narExtractionDirectory, fnCache);
+        inferringMissingTypeClassName(functionDetailsBuilder, functionClassLoader);
         Function.FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
@@ -225,7 +243,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                exposePulsarAdminClientEnabled, webServiceUrl);
+                exposePulsarAdminClientEnabled, webServiceUrl, fnCache);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
@@ -259,16 +277,16 @@ public class JavaInstanceStarter implements AutoCloseable {
         if (expectedHealthCheckInterval > 0) {
             healthCheckTimer =
                     InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
-                try {
-                    if (System.currentTimeMillis() - lastHealthCheckTs
-                            > 3 * expectedHealthCheckInterval * 1000) {
-                        log.info("Haven't received health check from spawner in a while. Stopping instance...");
-                        close();
-                    }
-                } catch (Exception e) {
-                    log.error("Error occurred when checking for latest health check", e);
-                }
-            }, expectedHealthCheckInterval * 1000, expectedHealthCheckInterval * 1000, TimeUnit.MILLISECONDS);
+                        try {
+                            if (System.currentTimeMillis() - lastHealthCheckTs
+                                    > 3 * expectedHealthCheckInterval * 1000) {
+                                log.info("Haven't received health check from spawner in a while. Stopping instance...");
+                                close();
+                            }
+                        } catch (Exception e) {
+                            log.error("Error occurred when checking for latest health check", e);
+                        }
+                    }, expectedHealthCheckInterval * 1000, expectedHealthCheckInterval * 1000, TimeUnit.MILLISECONDS);
         }
 
         runtimeSpawner.join();
@@ -306,6 +324,87 @@ public class JavaInstanceStarter implements AutoCloseable {
         }
     }
 
+    private void inferringMissingTypeClassName(Function.FunctionDetails.Builder functionDetailsBuilder,
+                                               ClassLoader classLoader) throws ClassNotFoundException {
+        switch (functionDetailsBuilder.getComponentType()) {
+            case FUNCTION:
+                if ((functionDetailsBuilder.hasSource()
+                        && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())
+                        || (functionDetailsBuilder.hasSink()
+                        && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
+                    Map<String, Object> userConfigs = new Gson().fromJson(functionDetailsBuilder.getUserConfig(),
+                            new TypeToken<Map<String, Object>>() {
+                            }.getType());
+                    boolean isWindowConfigPresent =
+                            userConfigs != null && userConfigs.containsKey(WindowConfig.WINDOW_CONFIG_KEY);
+                    String className = functionDetailsBuilder.getClassName();
+                    if (isWindowConfigPresent) {
+                        WindowConfig windowConfig = new Gson().fromJson(
+                                (new Gson().toJson(userConfigs.get(WindowConfig.WINDOW_CONFIG_KEY))),
+                                WindowConfig.class);
+                        className = windowConfig.getActualWindowFunctionClassName();
+                    }
+
+                    Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(classLoader.loadClass(className),
+                            isWindowConfigPresent);
+                    if (functionDetailsBuilder.hasSource()
+                            && functionDetailsBuilder.getSource().getTypeClassName().isEmpty()
+                            && typeArgs[0] != null) {
+                        Function.SourceSpec.Builder sourceBuilder = functionDetailsBuilder.getSource().toBuilder();
+                        sourceBuilder.setTypeClassName(typeArgs[0].getName());
+                        functionDetailsBuilder.setSource(sourceBuilder.build());
+                    }
+
+                    if (functionDetailsBuilder.hasSink()
+                            && functionDetailsBuilder.getSink().getTypeClassName().isEmpty()
+                            && typeArgs[1] != null) {
+                        Function.SinkSpec.Builder sinkBuilder = functionDetailsBuilder.getSink().toBuilder();
+                        sinkBuilder.setTypeClassName(typeArgs[1].getName());
+                        functionDetailsBuilder.setSink(sinkBuilder.build());
+                    }
+                }
+                break;
+            case SINK:
+                if ((functionDetailsBuilder.hasSink()
+                        && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
+                    String typeArg =
+                            getSinkType(functionDetailsBuilder.getSink().getClassName(), classLoader).getName();
+
+                    Function.SinkSpec.Builder sinkBuilder =
+                            Function.SinkSpec.newBuilder(functionDetailsBuilder.getSink());
+                    sinkBuilder.setTypeClassName(typeArg);
+                    functionDetailsBuilder.setSink(sinkBuilder);
+
+                    Function.SourceSpec sourceSpec = functionDetailsBuilder.getSource();
+                    if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
+                        Function.SourceSpec.Builder sourceBuilder = Function.SourceSpec.newBuilder(sourceSpec);
+                        sourceBuilder.setTypeClassName(typeArg);
+                        functionDetailsBuilder.setSource(sourceBuilder);
+                    }
+                }
+                break;
+            case SOURCE:
+                if ((functionDetailsBuilder.hasSource()
+                        && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())) {
+                    String typeArg =
+                            getSourceType(functionDetailsBuilder.getSource().getClassName(), classLoader).getName();
+
+                    Function.SourceSpec.Builder sourceBuilder =
+                            Function.SourceSpec.newBuilder(functionDetailsBuilder.getSource());
+                    sourceBuilder.setTypeClassName(typeArg);
+                    functionDetailsBuilder.setSource(sourceBuilder);
+
+                    Function.SinkSpec sinkSpec = functionDetailsBuilder.getSink();
+                    if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
+                        Function.SinkSpec.Builder sinkBuilder = Function.SinkSpec.newBuilder(sinkSpec);
+                        sinkBuilder.setTypeClassName(typeArg);
+                        functionDetailsBuilder.setSink(sinkBuilder);
+                    }
+                }
+                break;
+        }
+    }
+
 
     class InstanceControlImpl extends InstanceControlGrpc.InstanceControlImplBase {
         private RuntimeSpawner runtimeSpawner;
@@ -331,8 +430,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void getAndResetMetrics(com.google.protobuf.Empty request,
-            io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
-                    responseObserver) {
+                   io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
+                   responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
@@ -348,8 +447,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void getMetrics(com.google.protobuf.Empty request,
-          io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
-                  responseObserver) {
+                   io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
+                   responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
@@ -380,8 +479,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void healthCheck(com.google.protobuf.Empty request,
-         io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult>
-                 responseObserver) {
+                io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult>
+                responseObserver) {
             log.debug("Received health check request...");
             InstanceCommunication.HealthCheckResult healthCheckResult =
                     InstanceCommunication.HealthCheckResult.newBuilder().setSuccess(true).build();

@@ -20,20 +20,24 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 
 public interface BucketSnapshotStorage {
 
     /**
      * Create a delayed message index bucket snapshot with metadata and bucketSnapshotSegments.
      *
-     * @param snapshotMetadata the metadata of snapshot
+     * @param snapshotMetadata       the metadata of snapshot
      * @param bucketSnapshotSegments the list of snapshot segments
+     * @param bucketKey              the key of bucket is used to generate custom storage metadata
+     * @param topicName              the name of topic is used to generate custom storage metadata
+     * @param cursorName             the name of cursor is used to generate custom storage metadata
      * @return the future with bucketId(ledgerId).
      */
     CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
-                                                 List<SnapshotSegment> bucketSnapshotSegments);
+                                                 List<SnapshotSegment> bucketSnapshotSegments,
+                                                 String bucketKey, String topicName, String cursorName);
 
     /**
      * Get delayed message index bucket snapshot metadata.
@@ -47,8 +51,8 @@ public interface BucketSnapshotStorage {
      * Get a sequence of delayed message index bucket snapshot segments.
      *
      * @param bucketId the bucketId of snapshot
-     * @param firstSegmentEntryId  entryId of first segment of sequence
-     * @param lastSegmentEntryId  entryId of last segment of sequence
+     * @param firstSegmentEntryId entryId of first segment of sequence (include)
+     * @param lastSegmentEntryId entryId of last segment of sequence (include)
      * @return the future with snapshot segment
      */
     CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,

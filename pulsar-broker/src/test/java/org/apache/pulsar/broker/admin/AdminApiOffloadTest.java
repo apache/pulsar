@@ -47,14 +47,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -186,12 +189,13 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         String bucket = "test-bucket";
         String endpoint = "test-endpoint";
         long offloadThresholdInBytes = 0;
+        long offloadThresholdInSeconds = 100;
         long offloadDeletionLagInMillis = 100L;
         OffloadedReadPriority priority = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
         OffloadPolicies offload1 = OffloadPoliciesImpl.create(
                 driver, region, bucket, endpoint, null, null, null, null,
-                100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis, priority);
+                100, 100, offloadThresholdInBytes, offloadThresholdInSeconds, offloadDeletionLagInMillis, priority);
         admin.namespaces().setOffloadPolicies(namespaceName, offload1);
         OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(namespaceName);
         assertEquals(offload1, offload2);
@@ -209,6 +213,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
         OffloadPoliciesImpl offload = new OffloadPoliciesImpl();
+        offload.setManagedLedgerOffloadDriver("S3");
+        offload.setManagedLedgerOffloadBucket("bucket");
         String path = "fileSystemPath";
         offload.setFileSystemProfilePath(path);
         admin.topics().setOffloadPolicies(topicName, offload);
@@ -239,6 +245,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         OffloadPoliciesImpl namespacePolicies = new OffloadPoliciesImpl();
         namespacePolicies.setManagedLedgerOffloadThresholdInBytes(100L);
+        namespacePolicies.setManagedLedgerOffloadThresholdInSeconds(100L);
         namespacePolicies.setManagedLedgerOffloadDeletionLagInMillis(200L);
         namespacePolicies.setManagedLedgerOffloadDriver("s3");
         namespacePolicies.setManagedLedgerOffloadBucket("buck");
@@ -250,6 +257,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         OffloadPoliciesImpl topicPolicies = new OffloadPoliciesImpl();
         topicPolicies.setManagedLedgerOffloadThresholdInBytes(200L);
+        topicPolicies.setManagedLedgerOffloadThresholdInSeconds(200L);
         topicPolicies.setManagedLedgerOffloadDeletionLagInMillis(400L);
         topicPolicies.setManagedLedgerOffloadDriver("s3");
         topicPolicies.setManagedLedgerOffloadBucket("buck2");
@@ -265,6 +273,98 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeOffloadPolicies(myNamespace);
         Awaitility.await().untilAsserted(()
                 -> assertEquals(admin.topics().getOffloadPolicies(topicName, true), brokerPolicies));
+    }
+
+
+    @Test
+    public void testSetNamespaceOffloadPolicies() throws Exception {
+        conf.setManagedLedgerOffloadThresholdInSeconds(100);
+        conf.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(100);
+
+        OffloadPoliciesImpl policies = new OffloadPoliciesImpl();
+        policies.setManagedLedgerOffloadThresholdInBytes(200L);
+        policies.setManagedLedgerOffloadThresholdInSeconds(200L);
+        policies.setManagedLedgerOffloadDeletionLagInMillis(400L);
+        policies.setManagedLedgerOffloadDriver("s3");
+        policies.setManagedLedgerOffloadBucket("buck2");
+
+        admin.namespaces().setOffloadThresholdInSeconds(myNamespace, 300);
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(myNamespace), 300);
+
+        admin.namespaces().setOffloadPolicies(myNamespace, policies);
+        assertEquals(admin.namespaces().getOffloadPolicies(myNamespace), policies);
+    }
+
+    @Test
+    public void testSetNamespaceOffloadPoliciesFailByReadOnly() throws Exception {
+        boolean setNsPolicyReadOnlySuccess = false;
+        try {
+            pulsar.getConfigurationMetadataStore().put(NamespaceResources.POLICIES_READONLY_FLAG_PATH, "0".getBytes(),
+                    Optional.empty()).join();
+            setNsPolicyReadOnlySuccess = true;
+            admin.namespaces().setOffloadThresholdInSeconds(myNamespace, 300);
+            fail("set offload threshold should fail when ns policies is readonly");
+        } catch (Exception ex){
+            // ignore.
+        } finally {
+            // cleanup.
+            if (setNsPolicyReadOnlySuccess) {
+                pulsar.getConfigurationMetadataStore().delete(NamespaceResources.POLICIES_READONLY_FLAG_PATH,
+                        Optional.empty()).join();
+            }
+        }
+    }
+
+    @Test
+    public void testSetTopicOffloadPolicies() throws Exception {
+        conf.setManagedLedgerOffloadThresholdInSeconds(100);
+        conf.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(100);
+
+        LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
+        when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
+        doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
+
+        OffloadPoliciesImpl namespacePolicies = new OffloadPoliciesImpl();
+        namespacePolicies.setManagedLedgerOffloadThresholdInBytes(200L);
+        namespacePolicies.setManagedLedgerOffloadThresholdInSeconds(200L);
+        namespacePolicies.setManagedLedgerOffloadDeletionLagInMillis(400L);
+        namespacePolicies.setManagedLedgerOffloadDriver("s3");
+        namespacePolicies.setManagedLedgerOffloadBucket("buck2");
+
+        admin.namespaces().setOffloadThresholdInSeconds(myNamespace, 300);
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(myNamespace), 300);
+
+        admin.namespaces().setOffloadPolicies(myNamespace, namespacePolicies);
+        assertEquals(admin.namespaces().getOffloadPolicies(myNamespace), namespacePolicies);
+
+        OffloadPoliciesImpl topicPolicies = new OffloadPoliciesImpl();
+        topicPolicies.setManagedLedgerOffloadThresholdInBytes(500L);
+        topicPolicies.setManagedLedgerOffloadThresholdInSeconds(500L);
+        topicPolicies.setManagedLedgerOffloadDeletionLagInMillis(400L);
+        topicPolicies.setManagedLedgerOffloadDriver("s3");
+        topicPolicies.setManagedLedgerOffloadBucket("buck2");
+
+        String topicName = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topicPolicies().setOffloadPolicies(topicName, topicPolicies);
+
+        // Wait until broker update policies finished.
+        for (int a = 1; a <= 5; a++) {
+            try {
+                OffloadPolicies policies = admin.topicPolicies().getOffloadPolicies(topicName);
+
+                assertEquals(policies.getManagedLedgerOffloadThresholdInSeconds(),
+                        topicPolicies.getManagedLedgerOffloadThresholdInSeconds());
+                assertEquals(policies.getManagedLedgerOffloadThresholdInBytes(),
+                        topicPolicies.getManagedLedgerOffloadThresholdInBytes());
+            } catch (Exception e) {
+                if (a == 5) {
+                    throw e;
+                } else {
+                    Thread.sleep(1000L);
+                }
+            }
+        }
     }
 
     @Test
@@ -306,12 +406,13 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         //3 construct a topic level offloadPolicies
         OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
         offloadPolicies.setOffloadersDirectory(".");
-        offloadPolicies.setManagedLedgerOffloadDriver("mock");
+        offloadPolicies.setManagedLedgerOffloadDriver("S3");
+        offloadPolicies.setManagedLedgerOffloadBucket("bucket");
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024L);
 
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
-        when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
+        when(topicOffloader.getOffloadDriverName()).thenReturn("S3");
         doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
 
         //4 set topic level offload policies
@@ -325,18 +426,18 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                         .getTopic(TopicName.get(topicName).getPartition(i).toString(), false).get().get();
                 assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
                 assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                        , "mock");
+                        , "S3");
             }
         } else {
             PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topicName, false).get().get();
             assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
             assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                    , "mock");
+                    , "S3");
         }
         //6 remove topic level offload policy, offloader should become namespaceOffloader
         LedgerOffloader namespaceOffloader = mock(LedgerOffloader.class);
-        when(namespaceOffloader.getOffloadDriverName()).thenReturn("s3");
+        when(namespaceOffloader.getOffloadDriverName()).thenReturn("S3");
         Map<NamespaceName, LedgerOffloader> map = new HashMap<>();
         map.put(TopicName.get(topicName).getNamespaceObject(), namespaceOffloader);
         doReturn(map).when(pulsar).getLedgerOffloaderMap();
@@ -352,14 +453,14 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                         .getTopicIfExists(TopicName.get(topicName).getPartition(i).toString()).get().get();
                 assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
                 assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                        , "s3");
+                        , "S3");
             }
         } else {
             PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topicName, false).get().get();
             assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
             assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                    , "s3");
+                    , "S3");
         }
     }
 

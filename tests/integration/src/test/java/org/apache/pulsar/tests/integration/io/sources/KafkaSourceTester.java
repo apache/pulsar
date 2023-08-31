@@ -118,29 +118,30 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
     @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception{
-        KafkaProducer<String, String> producer = new KafkaProducer<>(
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(
                 ImmutableMap.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
                         ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString()
                 ),
                 new StringSerializer(),
                 new StringSerializer()
-        );
-        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            String key = "key-" + i;
-            String value = "value-" + i;
-            ProducerRecord<String, String> record = new ProducerRecord<>(
-                kafkaTopicName,
-                key,
-                value
-            );
-            kvs.put(key, value);
-            producer.send(record).get();
-        }
+        )) {
+            LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
+            for (int i = 0; i < numMessages; i++) {
+                String key = "key-" + i;
+                String value = "value-" + i;
+                ProducerRecord<String, String> record = new ProducerRecord<>(
+                        kafkaTopicName,
+                        key,
+                        value
+                );
+                kvs.put(key, value);
+                producer.send(record).get();
+            }
 
-        log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
-        return kvs;
+            log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
+            return kvs;
+        }
     }
 
     @Override

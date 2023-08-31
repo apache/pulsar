@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.resources;
 
 import static org.apache.pulsar.common.util.Codec.decode;
-import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -127,10 +125,14 @@ public class TopicResources {
     }
 
     void handleNotification(Notification notification) {
+        if (topicListeners.isEmpty()) {
+            return;
+        }
         if (notification.getPath().startsWith(MANAGED_LEDGER_PATH)
-                && EnumSet.of(NotificationType.Created, NotificationType.Deleted).contains(notification.getType())) {
+                && (notification.getType() == NotificationType.Created
+                || notification.getType() == NotificationType.Deleted)) {
             for (Map.Entry<BiConsumer<String, NotificationType>, Pattern> entry :
-                    new HashMap<>(topicListeners).entrySet()) {
+                    topicListeners.entrySet()) {
                 Matcher matcher = entry.getValue().matcher(notification.getPath());
                 if (matcher.matches()) {
                     TopicName topicName = TopicName.get(

@@ -49,7 +49,6 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
-@SuppressWarnings("deprecation")
 @Slf4j
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
@@ -71,7 +70,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
         if (properties != null) {
-            properties.forEach((key, value) -> bkConf.setProperty(key, value));
+            properties.forEach(bkConf::setProperty);
         }
         if (ensemblePlacementPolicyClass.isPresent()) {
             setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
@@ -132,8 +131,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
-
         bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataStoreUrl());
+        bkConf.setLimitStatsLogging(conf.isBookkeeperClientLimitStatsLogging());
 
         if (!conf.isBookkeeperMetadataStoreSeparated()) {
             // If we're connecting to the same metadata service, with same config, then

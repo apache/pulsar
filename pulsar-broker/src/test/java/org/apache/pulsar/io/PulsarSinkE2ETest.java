@@ -142,13 +142,15 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
-        // 1 create producer、DLQ consumer
+        // 1. create producer and DLQ consumer
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(dlqTopic).subscriptionName(subscriptionName).subscribe();
 
-        // 2 setup sink
+        // 2. setup sink
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
-        sinkConfig.setNegativeAckRedeliveryDelayMs(1001L);
+        sinkConfig.setNegativeAckRedeliveryDelayMs(1L);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setMaxMessageRetries(2);
         sinkConfig.setDeadLetterTopic(dlqTopic);
@@ -180,7 +182,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             }
         }, 50, 150);
 
-        // 3 send message
+        // 3. send message
         int totalMsgs = 10;
         Set<String> remainingMessagesToReceive = new HashSet<>();
         for (int i = 0; i < totalMsgs; i++) {
@@ -189,7 +191,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             remainingMessagesToReceive.add(messageBody);
         }
 
-        //4 All messages should enter DLQ
+        // 4. All messages should enter DLQ
         for (int i = 0; i < totalMsgs; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(message);
@@ -197,10 +199,6 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         }
 
         assertEquals(remainingMessagesToReceive, Collections.emptySet());
-
-        //clean up
-        producer.close();
-        consumer.close();
     }
 
     private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {

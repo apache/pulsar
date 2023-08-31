@@ -21,9 +21,10 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
+import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -140,6 +145,9 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             Message<String> msg = consumer.receive();
             consumer.negativeAcknowledge(msg);
         }
+
+        assertTrue(consumer instanceof ConsumerBase<String>);
+        assertEquals(((ConsumerBase<String>) consumer).getUnAckedMessageTracker().size(), 0);
 
         Set<String> receivedMessages = new HashSet<>();
 
@@ -287,7 +295,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscribe();
 
         MessageId messageId = new MessageIdImpl(3, 1, 0);
-        TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("topic-1", "topic-1", messageId);
+        TopicMessageId topicMessageId = TopicMessageId.create("topic-1", messageId);
         BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(3, 1, 0, 0);
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(3, 1, 0, 1);
         BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(3, 1, 0, 2);
@@ -313,7 +321,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         negativeAcksTracker.close();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         cleanup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
@@ -361,5 +369,131 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         assertEquals(receivedMessages, sentMessages);
         // There should be no more messages
         assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    public void testFailoverConsumerBatchCumulateAck() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("my-topic");
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(10)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .batchingMaxMessages(10)
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .blockIfQueueFull(true)
+                .create();
+
+        int count = 0;
+        Set<Integer> datas = new HashSet<>();
+        CountDownLatch producerLatch = new CountDownLatch(10);
+        while (count < 10) {
+            datas.add(count);
+            producer.sendAsync(count).whenComplete((m, e) -> {
+                producerLatch.countDown();
+            });
+            count++;
+        }
+        producerLatch.await();
+        CountDownLatch consumerLatch = new CountDownLatch(1);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                consumer.receiveAsync()
+                        .thenCompose(m -> {
+                            log.info("received one msg : {}", m.getMessageId());
+                            datas.remove(m.getValue());
+                            return consumer.acknowledgeCumulativeAsync(m);
+                        })
+                        .thenAccept(ignore -> {
+                            try {
+                                Thread.sleep(500);
+                                consumer.redeliverUnacknowledgedMessages();
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        })
+                        .whenComplete((r, e) -> {
+                            consumerLatch.countDown();
+                        });
+            }
+        }).start();
+        consumerLatch.await();
+        Thread.sleep(500);
+        count = 0;
+        while(true) {
+            Message<Integer> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            consumer.acknowledgeCumulative(msg);
+            Thread.sleep(200);
+            datas.remove(msg.getValue());
+            log.info("received msg : {}", msg.getMessageId());
+            count++;
+        }
+        Assert.assertEquals(count, 9);
+        Assert.assertEquals(0, datas.size());
+    }
+
+    @Test(invocationCount = 5)
+    public void testMultiTopicConsumerConcurrentRedeliverAndReceive() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("my-topic");
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        final int receiverQueueSize = 10;
+
+        @Cleanup
+        MultiTopicsConsumerImpl<Integer> consumer =
+                (MultiTopicsConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(receiverQueueSize)
+                .subscribe();
+        ExecutorService internalPinnedExecutor =
+                WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < receiverQueueSize; i++){
+            producer.send(i);
+        }
+
+        Awaitility.await().until(() -> consumer.incomingMessages.size() == receiverQueueSize);
+
+        // For testing the race condition of issue #18491
+        // We need to inject a delay for the pinned internal thread
+        Thread.sleep(1000L);
+        internalPinnedExecutor.submit(() -> consumer.redeliverUnacknowledgedMessages()).get();
+        // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
+        internalPinnedExecutor.submit(() -> {}).get();
+
+        Set<Integer> receivedMsgs = new HashSet<>();
+        for (;;){
+            Message<Integer> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null){
+                break;
+            }
+            receivedMsgs.add(msg.getValue());
+        }
+        Assert.assertEquals(receivedMsgs.size(), 10);
+
+        producer.close();
+        consumer.close();
+        admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
     }
 }

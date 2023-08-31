@@ -23,7 +23,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -58,6 +61,21 @@ public class ThresholdShedderTest {
     }
 
     @Test
+    public void testCleanCache() throws Exception {
+        testBrokerReachThreshold();
+        Field field = ThresholdShedder.class.getDeclaredField("brokerAvgResourceUsage");
+        field.setAccessible(true);
+        Map<String, Double> map = (Map<String, Double>) field.get(thresholdShedder);
+        assertFalse(map.isEmpty());
+        HashSet<String> activeBrokers = new HashSet<>();
+        activeBrokers.add("leader");
+        thresholdShedder.onActiveBrokersChange(activeBrokers);
+        thresholdShedder.findBundlesForUnloading(new LoadData(), conf);
+        map = (Map<String, Double>) field.get(thresholdShedder);
+        assertTrue(map.isEmpty());
+    }
+
+    @Test
     public void testBrokersWithNoBundles() {
         LoadData loadData = new LoadData();
 
@@ -74,9 +92,6 @@ public class ThresholdShedderTest {
         LoadData loadData = new LoadData();
 
         LocalBrokerData broker1 = new LocalBrokerData();
-        broker1.setCpu(new ResourceUsage(1000, 100));
-        broker1.setMemory(new ResourceUsage(5000, 100));
-        broker1.setDirectMemory(new ResourceUsage(5000, 100));
         broker1.setBandwidthIn(new ResourceUsage(500, 1000));
         broker1.setBandwidthOut(new ResourceUsage(500, 1000));
         broker1.setBundles(Sets.newHashSet("bundle-1"));
@@ -90,6 +105,40 @@ public class ThresholdShedderTest {
 
         loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
         assertTrue(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
+    }
+
+    @Test
+    public void testBrokerReachThreshold() {
+        LoadData loadData = new LoadData();
+
+        LocalBrokerData broker1 = new LocalBrokerData();
+        broker1.setCpu(new ResourceUsage(140, 100));
+        broker1.setMemory(new ResourceUsage(10, 100));
+        broker1.setDirectMemory(new ResourceUsage(10, 100));
+        broker1.setBandwidthIn(new ResourceUsage(500, 1000));
+        broker1.setBandwidthOut(new ResourceUsage(500, 1000));
+        broker1.setBundles(Sets.newHashSet("bundle-1", "bundle-2"));
+        broker1.setMsgThroughputIn(Double.MAX_VALUE);
+
+        LocalBrokerData broker2 = new LocalBrokerData();
+        broker2.setCpu(new ResourceUsage(10, 100));
+        broker2.setMemory(new ResourceUsage(10, 100));
+        broker2.setDirectMemory(new ResourceUsage(10, 100));
+        broker2.setBandwidthIn(new ResourceUsage(500, 1000));
+        broker2.setBandwidthOut(new ResourceUsage(500, 1000));
+        broker2.setBundles(Sets.newHashSet("bundle-3", "bundle-4"));
+
+        BundleData bundleData = new BundleData();
+        TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+        timeAverageMessageData.setMsgThroughputIn(1000);
+        timeAverageMessageData.setMsgThroughputOut(1000);
+        bundleData.setShortTermData(timeAverageMessageData);
+
+        loadData.getBundleData().put("bundle-2", bundleData);
+        loadData.getBrokerData().put("broker-2", new BrokerData(broker1));
+        loadData.getBrokerData().put("broker-3", new BrokerData(broker2));
+
+        assertFalse(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
     @Test
@@ -119,9 +168,6 @@ public class ThresholdShedderTest {
         LoadData loadData = new LoadData();
         
         LocalBrokerData broker1 = new LocalBrokerData();
-        broker1.setCpu(new ResourceUsage(1000, 100));
-        broker1.setMemory(new ResourceUsage(5000, 100));
-        broker1.setDirectMemory(new ResourceUsage(5000, 100));
         broker1.setBandwidthIn(new ResourceUsage(999, 1000));
         broker1.setBandwidthOut(new ResourceUsage(999, 1000));
 

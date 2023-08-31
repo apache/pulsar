@@ -52,7 +52,7 @@ public class BrokerInterceptorUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockBrokerInterceptor.class;
         when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
@@ -71,7 +71,7 @@ public class BrokerInterceptorUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithBlankListerClass() throws Exception {
+    public void testLoadBrokerEventListenerWithBlankListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setDescription("test-broker-listener");
 
@@ -83,7 +83,7 @@ public class BrokerInterceptorUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockBrokerInterceptor.class;
         when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
@@ -98,7 +98,7 @@ public class BrokerInterceptorUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithWrongListerClass() throws Exception {
+    public void testLoadBrokerEventListenerWithWrongListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setInterceptorClass(Runnable.class.getName());
         def.setDescription("test-broker-listener");
@@ -111,7 +111,7 @@ public class BrokerInterceptorUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
                 .thenReturn(listenerClass);

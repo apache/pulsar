@@ -25,7 +25,7 @@ public interface RedeliveryTracker {
 
     int incrementAndGetRedeliveryCount(Position position);
 
-    int getRedeliveryCount(Position position);
+    int getRedeliveryCount(long ledgerId, long entryId);
 
     void remove(Position position);
 

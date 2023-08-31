@@ -21,12 +21,13 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForCGroup;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForEntireHost;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getPhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalCpuLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicUsage;
+import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getUsablePhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.isCGroupEnabled;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.List;
@@ -87,7 +88,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     @Override
     public void calculateBrokerHostUsage() {
-        List<String> nics = getPhysicalNICs();
+        List<String> nics = getUsablePhysicalNICs();
         double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
         double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.Kilobit);
         double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.Kilobit);
@@ -121,10 +122,12 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         this.usage = usage;
     }
 
-    private double getTotalNicLimitWithConfiguration(List<String> nics) {
+    @VisibleForTesting
+    double getTotalNicLimitWithConfiguration(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
         return overrideBrokerNicSpeedGbps.map(BitRateUnit.Gigabit::toKilobit)
+                .map(speed -> speed * nics.size())
                 .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.Kilobit));
     }
 
@@ -137,7 +140,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuUsageForCGroup(double elapsedTimeSeconds) {
-        double usage = getCpuUsageForCGroup();
+        double usage = (double) getCpuUsageForCGroup();
         double currentUsage = usage - lastCpuUsage;
         lastCpuUsage = usage;
         return 100 * currentUsage / elapsedTimeSeconds / TimeUnit.SECONDS.toNanos(1);
@@ -152,7 +155,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      * </pre>
      *
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
-     * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
+     * far. Real CPU usage should equal the sum subtracting the idle cycles, this would include iowait, irq and steal.
      */
     private double getTotalCpuUsageForEntireHost() {
         LinuxInfoUtils.ResourceUsage cpuUsageForEntireHost = getCpuUsageForEntireHost();

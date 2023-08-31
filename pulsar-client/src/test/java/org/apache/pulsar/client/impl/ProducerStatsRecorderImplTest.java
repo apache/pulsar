@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.testng.annotations.Test;
 
 /**
  * Unit tests of {@link ProducerStatsRecorderImpl}.

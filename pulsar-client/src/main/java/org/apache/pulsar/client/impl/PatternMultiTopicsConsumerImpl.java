@@ -83,10 +83,12 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             long watcherId = client.newTopicListWatcherId();
             new TopicListWatcher(topicsChangeListener, client, topicsPattern, watcherId,
                 namespaceName, topicsHash, watcherFuture);
-            watcherFuture.exceptionally(ex -> {
-                log.debug("Unable to create topic list watcher. Falling back to only polling for new topics", ex);
-                return null;
-            });
+            watcherFuture
+               .thenAccept(__ -> recheckPatternTimeout.cancel())
+               .exceptionally(ex -> {
+                   log.warn("Unable to create topic list watcher. Falling back to only polling for new topics", ex);
+                   return null;
+               });
         } else {
             log.debug("Not creating topic list watcher for subscription mode {}", subscriptionMode);
             watcherFuture.complete(null);

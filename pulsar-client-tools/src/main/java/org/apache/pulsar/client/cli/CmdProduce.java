@@ -26,6 +26,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonParseException;
+import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,10 +38,17 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.io.JsonDecoder;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -48,6 +58,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -118,8 +129,14 @@ public class CmdProduce {
             + "key=value string, like k1=v1,k2=v2.")
     private List<String> properties = new ArrayList<>();
 
-    @Parameter(names = { "-k", "--key"}, description = "message key to add ")
+    @Parameter(names = { "-k", "--key"}, description = "Partitioning key to add to each message")
     private String key;
+    @Parameter(names = { "-kvk", "--key-value-key"}, description = "Value to add as message key in KeyValue schema")
+    private String keyValueKey;
+    @Parameter(names = { "-kvkf", "--key-value-key-file"},
+            description = "Path to file containing the value to add as message key in KeyValue schema. "
+            + "JSON and AVRO files are supported.")
+    private String keyValueKeyFile;
 
     @Parameter(names = { "-vs", "--value-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
     private String valueSchema = "bytes";
@@ -170,11 +187,19 @@ public class CmdProduce {
      *
      * @return list of message bodies
      */
-    private List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames) {
+    static List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames,
+                                              Schema schema) {
         List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
-            messageBodies.add(m.getBytes());
+            if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
+                // JSON TO AVRO
+                org.apache.avro.Schema avroSchema = ((Optional<org.apache.avro.Schema>) schema.getNativeSchema()).get();
+                byte[] encoded = jsonToAvro(m, avroSchema);
+                messageBodies.add(encoded);
+            } else {
+                messageBodies.add(m.getBytes());
+            }
         }
 
         try {
@@ -187,6 +212,29 @@ public class CmdProduce {
         }
 
         return messageBodies;
+    }
+
+    private static byte[] jsonToAvro(String m, org.apache.avro.Schema avroSchema){
+        try {
+            GenericDatumReader<Object> reader = new GenericDatumReader<>(avroSchema);
+            JsonDecoder jsonDecoder = DecoderFactory.get().jsonDecoder(avroSchema, m);
+            GenericDatumWriter<Object> writer = new GenericDatumWriter<>(avroSchema);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            Encoder e = EncoderFactory.get().binaryEncoder(out, null);
+            Object datum = null;
+            while (true) {
+                try {
+                    datum = reader.read(datum, jsonDecoder);
+                } catch (EOFException eofException) {
+                    break;
+                }
+                writer.write(datum, e);
+                e.flush();
+            }
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot convert " + m + " to AVRO " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -258,14 +306,35 @@ public class CmdProduce {
                 producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
             }
             try (Producer<?> producer = producerBuilder.create();) {
-
-                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
+                Schema<?> schemaForPayload = schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE
+                        ? ((KeyValueSchema) schema).getValueSchema() : schema;
+                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames,
+                        schemaForPayload);
                 RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
 
                 Map<String, String> kvMap = new HashMap<>();
                 for (String property : properties) {
                     String[] kv = property.split("=");
                     kvMap.put(kv[0], kv[1]);
+                }
+
+                final byte[] keyValueKeyBytes;
+                if (this.keyValueKey != null) {
+                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
+                        throw new ParameterException(
+                            "Key value encoding type must be set when using --key-value-key");
+                    }
+                    keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
+                } else if (this.keyValueKeyFile != null) {
+                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
+                        throw new ParameterException(
+                            "Key value encoding type must be set when using --key-value-key-file");
+                    }
+                    keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
+                } else if (this.key != null) {
+                    keyValueKeyBytes = this.key.getBytes(StandardCharsets.UTF_8);
+                } else {
+                    keyValueKeyBytes = null;
                 }
 
                 for (int i = 0; i < this.numTimesProduce; i++) {
@@ -290,8 +359,7 @@ public class CmdProduce {
                             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
                             case KEY_VALUE_ENCODING_TYPE_INLINE:
                                 KeyValue kv = new KeyValue<>(
-                                        // TODO: support AVRO encoded key
-                                        key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
+                                        keyValueKeyBytes,
                                         content);
                                 message.value(kv);
                                 break;
@@ -432,7 +500,7 @@ public class CmdProduce {
         }
 
         try {
-            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
+            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames, Schema.BYTES);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
             for (int i = 0; i < this.numTimesProduce; i++) {
                 int index = i * 10;
@@ -479,7 +547,7 @@ public class CmdProduce {
             ProducerMessage msg = new ProducerMessage();
             msg.payload = Base64.getEncoder().encodeToString(content);
             msg.key = Integer.toString(index);
-            return ObjectMapperFactory.getThreadLocal().writeValueAsString(msg);
+            return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
         }
 
         public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {

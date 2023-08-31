@@ -334,8 +334,8 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
         counter.await();
 
-        cursor.close();
-        ledger.close();
+        // cleanup.
+        closeManagedLedgerWithRetry(ledger);
 
         // Add information to determine the problem.
         if (gotException.get() != null){

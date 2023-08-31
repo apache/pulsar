@@ -36,7 +36,9 @@ import co.elastic.clients.elasticsearch.indices.RefreshRequest;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Map;
@@ -53,8 +55,9 @@ import org.elasticsearch.client.RestClientBuilder;
 public class ElasticSearchJavaRestClient extends RestClient {
 
     private final ElasticsearchClient client;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(SerializationFeature.INDENT_OUTPUT, false)
+            .setSerializationInclusion(JsonInclude.Include.ALWAYS);
     private BulkProcessor bulkProcessor;
     private ElasticsearchTransport transport;
 
@@ -87,8 +90,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
                         log.warn("Node host={} failed", node.getHost());
                     }
                 });
-        transport = new RestClientTransport(builder.build(),
-                new JacksonJsonpMapper());
+        transport = new RestClientTransport(builder.build(), new JacksonJsonpMapper(objectMapper));
         client = new ElasticsearchClient(transport);
         if (elasticSearchConfig.isBulkEnabled()) {
             bulkProcessor = new ElasticBulkProcessor(elasticSearchConfig, client, bulkProcessorListener);
@@ -117,7 +119,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
                 .build();
         try {
             final CreateIndexResponse createIndexResponse = client.indices().create(createIndexRequest);
-            if ((createIndexResponse.acknowledged() != null && createIndexResponse.acknowledged())
+            if ((createIndexResponse.acknowledged())
                     && createIndexResponse.shardsAcknowledged()) {
                 return true;
             }

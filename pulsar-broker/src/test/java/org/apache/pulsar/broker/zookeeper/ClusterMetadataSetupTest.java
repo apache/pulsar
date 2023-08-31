@@ -22,8 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -112,9 +110,9 @@ public class ClusterMetadataSetupTest {
                 .connectString("127.0.0.1:" + localZkS.getZookeeperPort())
                 .build()) {
             Policies policies =
-                    ObjectMapperFactory.getThreadLocal().readValue(
+                    ObjectMapperFactory.getMapper().reader().readValue(
                             zk.getData("/admin/policies/public/default", false, null),
-                            TypeFactory.defaultInstance().constructSimpleType(Policies.class, null));
+                            Policies.class);
             assertNotNull(policies);
             if (bundleNumber > 0) {
                 assertEquals(policies.bundles.getNumBundles(), bundleNumber);

@@ -43,7 +43,7 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
         return false;
     }
 
-    public CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String,
+    public CompletableFuture<Void> addAcknowledgment(MessageId msgId, AckType ackType, Map<String,
             Long> properties) {
         // no-op
         return CompletableFuture.completedFuture(null);

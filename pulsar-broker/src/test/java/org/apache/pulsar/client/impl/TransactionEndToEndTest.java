@@ -120,6 +120,140 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+    @Test
+    private void testIndividualAckAbortFilterAckSetInPendingAckState() throws Exception {
+        final String topicName = NAMESPACE1 + "/testIndividualAckAbortFilterAckSetInPendingAckState";
+        final int count = 9;
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxMessages(count).create();
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int i = 0; i < count; i++) {
+            producer.sendAsync(i);
+        }
+
+        Transaction firstTransaction = getTxn();
+
+        Transaction secondTransaction = getTxn();
+
+        // firstTransaction ack the first three messages and don't end the firstTransaction
+        for (int i = 0; i < count / 3; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), firstTransaction).get();
+        }
+
+        // if secondTransaction abort we only can receive the middle three messages
+        for (int i = 0; i < count / 3; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), secondTransaction).get();
+        }
+
+        // consumer normal ack the last three messages
+        for (int i = 0; i < count / 3; i++) {
+            consumer.acknowledgeAsync(consumer.receive()).get();
+        }
+
+        // if secondTransaction abort we only can receive the middle three messages
+        secondTransaction.abort().get();
+
+        // can receive 3 4 5 bit sit message
+        for (int i = 0; i < count / 3; i++) {
+            assertEquals(consumer.receive().getValue().intValue(), i + 3);
+        }
+
+        // can't receive message anymore
+        assertNull(consumer.receive(2, TimeUnit.SECONDS));
+    }
+
+
+    @Test(dataProvider="enableBatch")
+    private void testFilterMsgsInPendingAckStateWhenConsumerDisconnect(boolean enableBatch) throws Exception {
+        final String topicName = NAMESPACE1 + "/testFilterMsgsInPendingAckStateWhenConsumerDisconnect-" + enableBatch;
+        final int count = 10;
+
+        @Cleanup
+        Producer<Integer> producer = null;
+        if (enableBatch) {
+            producer = pulsarClient
+                    .newProducer(Schema.INT32)
+                    .topic(topicName)
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                    .batchingMaxMessages(count).create();
+        } else {
+            producer = pulsarClient
+                    .newProducer(Schema.INT32)
+                    .topic(topicName)
+                    .enableBatching(false).create();
+        }
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int i = 0; i < count; i++) {
+            producer.sendAsync(i);
+        }
+
+        Transaction txn1 = getTxn();
+
+        Transaction txn2 = getTxn();
+
+
+        // txn1 ack half of messages and don't end the txn1
+        for (int i = 0; i < count / 2; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn1).get();
+        }
+
+        // txn2 ack the rest half of messages and commit tnx2
+        for (int i = count / 2; i < count; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn2).get();
+        }
+        // commit txn2
+        txn2.commit().get();
+
+        // close and re-create consumer
+        consumer.close();
+        consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        Message<Integer> message = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        // abort txn1
+        txn1.abort().get();
+        // after txn1 aborted, consumer will receive messages txn1 contains
+        int receiveCounter = 0;
+        while((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
+            Assert.assertEquals(message.getValue().intValue(), receiveCounter);
+            receiveCounter ++;
+        }
+        Assert.assertEquals(receiveCounter, count / 2);
+    }
+
     @Test(dataProvider="enableBatch")
     private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup
@@ -154,7 +288,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         // Can't receive transaction messages before commit.
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(300, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
 
         txn1.commit().get();
@@ -162,16 +296,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         int receiveCnt = 0;
         for (int i = 0; i < txnMessageCnt; i++) {
-            message = consumer.receive();
+            message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             receiveCnt ++;
         }
         Assert.assertEquals(txnMessageCnt, receiveCnt);
 
-        message = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNull(message);
-
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        message = consumer.receive(300, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
 
         // cleanup.
@@ -208,13 +339,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Awaitility.await().until(consumer::isConnected);
 
         // Can't receive transaction messages before abort.
-        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(300, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
 
         txn.abort().get();
 
         // Cant't receive transaction messages after abort.
-        message = consumer.receive(2, TimeUnit.SECONDS);
+        message = consumer.receive(300, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
         Awaitility.await().until(() -> {
             boolean flag = true;
@@ -302,7 +433,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn = getTxn();
 
         for (int i = 0; i < messageCount / 2; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledgeAsync(message.getMessageId(), txn).get();
         }
 
@@ -382,14 +513,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             // consume and ack messages with txn
             for (int i = 0; i < messageCnt; i++) {
-                Message<byte[]> message = consumer.receive();
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
 
             // the messages are pending ack state and can't be received
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> message = consumer.receive(300, TimeUnit.MILLISECONDS);
             Assert.assertNull(message);
 
             // 1) txn abort
@@ -408,7 +539,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             commitTxn.commit().get();
 
             // after transaction commit, the messages can't be received
-            message = consumer.receive(2, TimeUnit.SECONDS);
+            message = consumer.receive(300, TimeUnit.MILLISECONDS);
             Assert.assertNull(message);
 
             Field field = TransactionImpl.class.getDeclaredField("state");
@@ -445,7 +576,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(topicTwo).subscriptionName(sub).subscribe();
         String content = "test";
         producer.send(content);
-        assertEquals(consumer.receive().getValue(), content);
+        assertEquals(consumer.receive(3, TimeUnit.SECONDS).getValue(), content);
 
         // cleanup.
         producer.close();
@@ -484,7 +615,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         log.info("produce transaction messages finished");
 
         // Can't receive transaction messages before commit.
-        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(300, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
         log.info("transaction messages can't be received before transaction committed");
 
@@ -493,7 +624,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         int ackedMessageCount = 0;
         int receiveCnt = 0;
         for (int i = 0; i < messageCnt; i++) {
-            message = consumer.receive();
+            message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             receiveCnt ++;
             if (i % 2 == 0) {
@@ -503,7 +634,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         Assert.assertEquals(messageCnt, receiveCnt);
 
-        message = consumer.receive(2, TimeUnit.SECONDS);
+        message = consumer.receive(300, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
 
         String checkTopic = TopicName.get(topic).getPartition(0).toString();
@@ -522,7 +653,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         Assert.assertEquals(messageCnt - ackedMessageCount, receiveCnt);
 
-        message = consumer.receive(2, TimeUnit.SECONDS);
+        message = consumer.receive(300, TimeUnit.MILLISECONDS);
         Assert.assertNull(message);
 
         topic = TopicName.get(topic).getPartition(0).toString();
@@ -638,7 +769,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             // the messages are pending ack state and can't be received
-            message = consumer.receive(2, TimeUnit.SECONDS);
+            message = consumer.receive(300, TimeUnit.MILLISECONDS);
             Assert.assertNull(message);
 
             abortTxn.abort().get();
@@ -667,7 +798,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
 
-            message = consumer.receive(1, TimeUnit.SECONDS);
+            message = consumer.receive(300, TimeUnit.MILLISECONDS);
             Assert.assertNull(message);
         }
 
@@ -677,10 +808,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         admin.topics().delete(normalTopic, true);
     }
 
-    private Transaction getTxn() throws Exception {
+    public Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.MINUTES)
                 .build()
                 .get();
     }
@@ -729,7 +860,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < txnCnt * messageCnt; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
 
@@ -899,7 +1030,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         long timeoutCountOriginal = transactionMetadataStores.stream()
                 .mapToLong(store -> store.getMetadataStoreStats().timeoutCount).sum();
         TxnID txnID = pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .newTransaction(new TransactionCoordinatorID(0), 1).get();
+                .newTransaction(new TransactionCoordinatorID(0), 1, null).get();
         Awaitility.await().until(() -> {
             try {
                getPulsarServiceList().get(0).getTransactionMetadataStoreService().getTxnMeta(txnID).get();
@@ -938,14 +1069,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .withTransactionTimeout(3, TimeUnit.SECONDS)
                 .build().get();
 
-        Message<String> message = consumer.receive();
+        Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
 
         consumer.acknowledgeAsync(message.getMessageId(), consumeTimeoutTxn).get();
 
-        Message<String> reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+        Message<String> reReceiveMessage = consumer.receive(300, TimeUnit.MILLISECONDS);
         assertNull(reReceiveMessage);
 
-        reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+        reReceiveMessage = consumer.receive(5, TimeUnit.SECONDS);
 
         assertEquals(reReceiveMessage.getValue(), message.getValue());
 
@@ -992,9 +1123,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         Transaction txn = getTxn();
         if (ackType == CommandAck.AckType.Individual) {
-            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn);
+            consumer.acknowledgeAsync(consumer.receive(5, TimeUnit.SECONDS).getMessageId(), txn);
         } else {
-            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), txn);
+            consumer.acknowledgeCumulativeAsync(consumer.receive(5, TimeUnit.SECONDS).getMessageId(), txn);
         }
         topic = TopicName.get(topic).toString();
         boolean exist = false;
@@ -1117,7 +1248,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                     .InvalidTxnStatusException);
         }
         try {
-            Message<String> message = consumer.receive();
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
             Assert.fail();
         } catch (Exception e) {
@@ -1159,7 +1290,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         Message<byte[]> message = null;
         for (int i = 0; i < transactionCumulativeAck; i++) {
-            message = consumer.receive();
+            message = consumer.receive(5, TimeUnit.SECONDS);
         }
 
         // receive transaction in order
@@ -1182,7 +1313,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // receive the rest of the message
         for (int i = 0; i < count; i++) {
-            message = consumer.receive();
+            message = consumer.receive(5, TimeUnit.SECONDS);
         }
 
         Transaction commitTransaction = getTxn();
@@ -1195,7 +1326,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         commitTransaction.commit().get();
 
         // then redeliver will not receive any message
-        message = consumer.receive(3, TimeUnit.SECONDS);
+        message = consumer.receive(300, TimeUnit.MILLISECONDS);
         assertNull(message);
 
         // cleanup.
@@ -1270,7 +1401,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // receive the batch messages add to a list
         for (int i = 0; i < 5; i++) {
-            messageIds.add(consumer.receive().getMessageId());
+            messageIds.add(consumer.receive(5, TimeUnit.SECONDS).getMessageId());
         }
 
         MessageIdImpl messageId = (MessageIdImpl) messageIds.get(0);
@@ -1330,7 +1461,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
 
         // consumer receive the message the first time, redeliverCount = 0
-        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        consumer.acknowledgeAsync(consumer.receive(5, TimeUnit.SECONDS).getMessageId(), transaction).get();
 
         transaction.abort().get();
 
@@ -1338,13 +1469,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
 
         // consumer receive the message the second time, redeliverCount = 1, also can be received
-        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        consumer.acknowledgeAsync(consumer.receive(5, TimeUnit.SECONDS).getMessageId(), transaction).get();
 
         transaction.abort().get();
 
         // consumer receive the message the third time, redeliverCount = 2,
         // the message will be sent to DLQ, can't receive
-        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        assertNull(consumer.receive(300, TimeUnit.MILLISECONDS));
 
         assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 3);
 
@@ -1394,7 +1525,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES)
                 .build().get();
 
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(value1, new String(message.getValue()));
         // consumer receive the batch message one the first time, redeliverCount = 0
         consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
@@ -1404,7 +1535,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // consumer will receive the batch message two and then receive
         // the message one and message two again, redeliverCount = 1
         for (int i = 0; i < 3; i ++) {
-            message = consumer.receive();
+            message = consumer.receive(5, TimeUnit.SECONDS);
         }
 
         transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES)
@@ -1418,7 +1549,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // consumer receive the batch message the third time, redeliverCount = 2,
         // the message will be sent to DLQ, can't receive
-        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        assertNull(consumer.receive(300, TimeUnit.MILLISECONDS));
 
         assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 6);
 
@@ -1473,7 +1604,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // Failover consumer will receive the messages immediately while
         // the shared consumer will get them after the delay
-        Message<String> msg = sharedConsumer.receive(1, TimeUnit.SECONDS);
+        Message<String> msg = sharedConsumer.receive(300, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         for (int i = 0; i < 10; i++) {

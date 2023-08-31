@@ -24,7 +24,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 public class SourceStatusUtil {
 
     public static SourceStatus decode(String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, SourceStatus.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(json, SourceStatus.class);
     }
 
 }

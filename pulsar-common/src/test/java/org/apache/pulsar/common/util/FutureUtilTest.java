@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +33,7 @@ import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -176,6 +178,76 @@ public class FutureUtilTest {
             fail("Should have failed");
         } catch (CompletionException ex) {
             assertTrue(ex.getCause() instanceof RuntimeException);
+        }
+    }
+
+    @Test
+    public void testSequencer() {
+        int concurrentNum = 1000;
+        final ScheduledExecutorService executor = Executors.newScheduledThreadPool(concurrentNum);
+        final FutureUtil.Sequencer<Void> sequencer = FutureUtil.Sequencer.create();
+        // normal case -- allowExceptionBreakChain=false
+        final List<Integer> list = new ArrayList<>();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (int i = 0; i < concurrentNum; i++) {
+            int finalI = i;
+            futures.add(sequencer.sequential(() -> CompletableFuture.runAsync(() -> {
+                list.add(finalI);
+            }, executor)));
+        }
+        FutureUtil.waitForAll(futures).join();
+        for (int i = 0; i < list.size(); i++) {
+            Assert.assertEquals(list.get(i), (Integer) i);
+        }
+
+        // exception case -- allowExceptionBreakChain=false
+        final List<Integer> list2 = new ArrayList<>();
+        final List<CompletableFuture<Void>> futures2 = new ArrayList<>();
+        for (int i = 0; i < concurrentNum; i++) {
+            int finalI = i;
+            futures2.add(sequencer.sequential(() -> CompletableFuture.runAsync(() -> {
+                if (finalI == 2) {
+                    throw new IllegalStateException();
+                }
+                list2.add(finalI);
+            }, executor)));
+        }
+        try {
+            FutureUtil.waitForAll(futures2).join();
+        } catch (Throwable ignore) {
+
+        }
+        for (int i = 0; i < concurrentNum - 1; i++) {
+            if (i >= 2) {
+                Assert.assertEquals(list2.get(i), i + 1);
+            } else {
+                Assert.assertEquals(list2.get(i), (Integer) i);
+            }
+        }
+        // allowExceptionBreakChain=true
+        final FutureUtil.Sequencer<Void> sequencer2 = FutureUtil.Sequencer.create(true);
+        final List<Integer> list3 = new ArrayList<>();
+        final List<CompletableFuture<Void>> futures3 = new ArrayList<>();
+        for (int i = 0; i < concurrentNum; i++) {
+            int finalI = i;
+            futures3.add(sequencer2.sequential(() -> CompletableFuture.runAsync(() -> {
+                if (finalI == 2) {
+                    throw new IllegalStateException();
+                }
+                list3.add(finalI);
+            }, executor)));
+        }
+        try {
+            FutureUtil.waitForAll(futures3).join();
+        } catch (Throwable ignore) {
+
+        }
+        for (int i = 2; i < concurrentNum; i++) {
+            Assert.assertTrue(futures3.get(i).isCompletedExceptionally());
+        }
+
+        for (int i = 0; i < 2; i++) {
+            Assert.assertEquals(list3.get(i), (Integer) i);
         }
     }
 }

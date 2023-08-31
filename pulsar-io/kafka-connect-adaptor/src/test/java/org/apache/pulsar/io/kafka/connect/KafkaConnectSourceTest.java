@@ -23,7 +23,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -47,7 +46,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class KafkaConnectSourceTest extends ProducerConsumerBase  {
 
-    private Map<String, Object> config = new HashMap<>();
     private String offsetTopicName;
     // The topic to publish data to, for kafkaSource
     private String topicName;
@@ -62,18 +60,10 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         super.internalSetup();
         super.producerBaseSetup();
 
-        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
-        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
-        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
-
         this.offsetTopicName = "persistent://my-property/my-ns/kafka-connect-source-offset";
-        config.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
-
         this.topicName = "persistent://my-property/my-ns/kafka-connect-source";
-        config.put(FileStreamSourceConnector.TOPIC_CONFIG, topicName);
         tempFile = File.createTempFile("some-file-name", null);
-        config.put(FileStreamSourceConnector.FILE_CONFIG, tempFile.getAbsoluteFile().toString());
-        config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG, String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
+        tempFile.deleteOnExit();
 
         this.context = mock(SourceContext.class);
         this.client = PulsarClient.builder()
@@ -91,16 +81,44 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         tempFile.delete();
         super.internalCleanup();
     }
-    protected void completedFlush(Throwable error, Void result) {
-        if (error != null) {
-            log.error("Failed to flush {} offsets to storage: ", this, error);
-        } else {
-            log.info("Finished flushing {} offsets to storage", this);
-        }
+
+    @Test
+    public void testOpenAndReadConnectorConfig() throws Exception {
+        Map<String, Object> config = getConfig();
+        config.put(AbstractKafkaConnectSource.CONNECTOR_CLASS,
+                "org.apache.kafka.connect.file.FileStreamSourceConnector");
+
+        testOpenAndReadTask(config);
     }
 
     @Test
-    public void testOpenAndRead() throws Exception {
+    public void testOpenAndReadTaskDirect() throws Exception {
+        Map<String, Object> config = getConfig();
+
+        config.put(TaskConfig.TASK_CLASS_CONFIG,
+                "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        testOpenAndReadTask(config);
+    }
+
+    private Map<String, Object> getConfig() {
+        Map<String, Object> config = new HashMap<>();
+
+        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG,
+                "org.apache.kafka.connect.storage.StringConverter");
+        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG,
+                "org.apache.kafka.connect.storage.StringConverter");
+
+        config.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
+
+        config.put(FileStreamSourceConnector.TOPIC_CONFIG, topicName);
+        config.put(FileStreamSourceConnector.FILE_CONFIG, tempFile.getAbsoluteFile().toString());
+        config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG,
+                String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
+        return config;
+    }
+
+    private void testOpenAndReadTask(Map<String, Object> config) throws Exception {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);
 

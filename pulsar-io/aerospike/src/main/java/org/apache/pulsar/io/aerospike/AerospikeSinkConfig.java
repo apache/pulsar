@@ -53,6 +53,6 @@ public class AerospikeSinkConfig implements Serializable {
 
     public static AerospikeSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), AerospikeSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), AerospikeSinkConfig.class);
     }
 }

@@ -91,6 +91,9 @@ public class LocalBrokerData implements LoadManagerReport {
     //
     private Map<String, AdvertisedListener> advertisedListeners;
 
+    private String loadManagerClassName;
+    private long startTimestamp;
+
     // For JSON only.
     public LocalBrokerData() {
         this(null, null, null, null);
@@ -113,6 +116,7 @@ public class LocalBrokerData implements LoadManagerReport {
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
         lastStats = new ConcurrentHashMap<>();
         lastUpdate = System.currentTimeMillis();
+        startTimestamp = System.currentTimeMillis();
         cpu = new ResourceUsage();
         memory = new ResourceUsage();
         directMemory = new ResourceUsage();
@@ -249,7 +253,7 @@ public class LocalBrokerData implements LoadManagerReport {
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage());
     }
-
+    @Deprecated
     public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
                                                 final double directMemoryWeight, final double bandwidthInWeight,
                                                 final double bandwidthOutWeight) {
@@ -257,18 +261,15 @@ public class LocalBrokerData implements LoadManagerReport {
                 directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
-
-    public double getMaxResourceUsageWithWeightWithinLimit(final double cpuWeight, final double memoryWeight,
-                                                           final double directMemoryWeight,
-                                                           final double bandwidthInWeight,
-                                                           final double bandwidthOutWeight) {
-        return maxWithinLimit(100.0d,
-                cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
+    public double getMaxResourceUsageWithWeight(final double cpuWeight,
+                                                final double directMemoryWeight, final double bandwidthInWeight,
+                                                final double bandwidthOutWeight) {
+        return max(cpu.percentUsage() * cpuWeight,
                 directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
-    private static double max(double... args) {
+    public static double max(double... args) {
         double max = Double.NEGATIVE_INFINITY;
 
         for (double d : args) {
@@ -289,16 +290,6 @@ public class LocalBrokerData implements LoadManagerReport {
             }
         }
 
-        return max;
-    }
-
-    private static double maxWithinLimit(double limit, double...args) {
-        double max = 0.0;
-        for (double d : args) {
-            if (d > max && d <= limit) {
-                max = d;
-            }
-        }
         return max;
     }
 
@@ -541,5 +532,17 @@ public class LocalBrokerData implements LoadManagerReport {
 
     public void setAdvertisedListeners(Map<String, AdvertisedListener> advertisedListeners) {
         this.advertisedListeners = advertisedListeners;
+    }
+
+    public String getLoadManagerClassName() {
+        return this.loadManagerClassName;
+    }
+
+    public void setLoadManagerClassName(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
+
+    public long getStartTimestamp() {
+        return this.startTimestamp;
     }
 }

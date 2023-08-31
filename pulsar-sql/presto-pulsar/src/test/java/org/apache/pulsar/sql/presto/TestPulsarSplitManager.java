@@ -426,6 +426,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 5000,
                 2000,
                 1000L,
+                1000L,
                 5000L,
                 OffloadedReadPriority.BOOKKEEPER_FIRST
         );

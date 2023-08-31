@@ -43,11 +43,27 @@ public class AuthenticationMetrics {
 
     /**
      * Log authenticate failure event to the authentication metrics.
+     *
+     * This method is deprecated due to the label "reason" is a potential infinite value.
+     * @deprecated See {@link #authenticateFailure(String, String, Enum)} ()}
+     *
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name.
      * @param reason Failure reason.
      */
+    @Deprecated
     public static void authenticateFailure(String providerName, String authMethod, String reason) {
         authFailuresMetrics.labels(providerName, authMethod, reason).inc();
     }
+
+    /**
+     * Log authenticate failure event to the authentication metrics.
+     * @param providerName The short class name of the provider
+     * @param authMethod Authentication method name.
+     * @param errorCode Error code.
+     */
+    public static void authenticateFailure(String providerName, String authMethod, Enum<?> errorCode) {
+        authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
+    }
+
 }

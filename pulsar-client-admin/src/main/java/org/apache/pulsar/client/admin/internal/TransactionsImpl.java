@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +31,9 @@ import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -46,6 +49,17 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     public TransactionsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
         adminV3Transactions = web.path("/admin/v3/transactions");
+    }
+
+    @Override
+    public List<TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException {
+        return sync(() -> listTransactionCoordinatorsAsync());
+    }
+
+    @Override
+    public CompletableFuture<List<TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync() {
+        WebTarget path = adminV3Transactions.path("coordinators");
+        return asyncGetRequest(path, new FutureCallback<List<TransactionCoordinatorInfo>>(){});
     }
 
     @Override
@@ -119,17 +133,20 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
-                                                                                    boolean lowWaterMarks) {
+                                                                                    boolean lowWaterMarks,
+                                                                                    boolean segmentStats) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.queryParam("lowWaterMarks", lowWaterMarks);
+        path = path.queryParam("segmentStats", segmentStats);
         return asyncGetRequest(path, new FutureCallback<TransactionBufferStats>(){});
     }
 
     @Override
     public TransactionBufferStats getTransactionBufferStats(String topic,
-                                                            boolean lowWaterMarks) throws PulsarAdminException {
-        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks));
+                                                            boolean lowWaterMarks,
+                                                            boolean segmentStats) throws PulsarAdminException {
+        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks, segmentStats));
     }
 
     @Override
@@ -212,6 +229,22 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                          String subName,
                                                                          boolean metadata) throws PulsarAdminException {
         return sync(() -> getPendingAckInternalStatsAsync(topic, subName, metadata));
+    }
+
+    @Override
+    public CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(String topic,
+                                                                                                    boolean metadata) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = adminV3Transactions.path("transactionBufferInternalStats");
+        path = path.path(tn.getRestPath(false));
+        path = path.queryParam("metadata", metadata);
+        return asyncGetRequest(path, new FutureCallback<TransactionBufferInternalStats>(){});
+    }
+
+    @Override
+    public TransactionBufferInternalStats getTransactionBufferInternalStats(String topic, boolean metadata)
+            throws PulsarAdminException {
+        return sync(() -> getTransactionBufferInternalStatsAsync(topic, metadata));
     }
 
     @Override

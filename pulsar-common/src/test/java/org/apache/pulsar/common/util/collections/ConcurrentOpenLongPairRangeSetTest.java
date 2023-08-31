@@ -27,7 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
 import org.testng.annotations.Test;
 
@@ -37,7 +39,8 @@ import com.google.common.collect.TreeRangeSet;
 
 public class ConcurrentOpenLongPairRangeSetTest {
 
-    static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
+    static final LongPairConsumer<LongPair> consumer = LongPair::new;
+    static final RangeBoundConsumer<LongPair> reverseConsumer = pair -> pair;
 
     @Test
     public void testIsEmpty() {
@@ -479,5 +482,57 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(v, 70);
         v = set.cardinality(1, 0, 3, 30);
         assertEquals(v, 80 + 31);
+    }
+
+    @Test
+    public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set =
+                new ConcurrentOpenLongPairRangeSet<>(consumer);
+
+        LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet =
+                new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
+
+        set.addOpenClosed(1, 10, 1, 15);
+        set.addOpenClosed(2, 25, 2, 28);
+        set.addOpenClosed(3, 12, 3, 20);
+        set.addOpenClosed(4, 12, 4, 20);
+
+        defaultRangeSet.addOpenClosed(1, 10, 1, 15);
+        defaultRangeSet.addOpenClosed(2, 25, 2, 28);
+        defaultRangeSet.addOpenClosed(3, 12, 3, 20);
+        defaultRangeSet.addOpenClosed(4, 12, 4, 20);
+
+
+        MutableInt size = new MutableInt(0);
+
+        List<LongPair> forEachIterResult = new ArrayList<>();
+        set.forEach((range) -> {
+            forEachIterResult.add(range.lowerEndpoint());
+            forEachIterResult.add(range.upperEndpoint());
+
+            size.increment();
+            return true;
+        });
+
+        List<LongPair> defaultRangeSetResult = new ArrayList<>();
+        List<LongPair> forEachRawRangeResult = new ArrayList<>();
+
+        defaultRangeSet.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            defaultRangeSetResult.add(new LongPair(lowerKey, lowerValue));
+            defaultRangeSetResult.add(new LongPair(upperKey, upperValue));
+            return true;
+        });
+        
+        set.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            forEachRawRangeResult.add(new LongPair(lowerKey, lowerValue));
+            forEachRawRangeResult.add(new LongPair(upperKey, upperValue));
+            return true;
+        });
+
+        assertEquals(forEachIterResult, forEachRawRangeResult);
+        assertEquals(forEachIterResult, defaultRangeSetResult);
+
+        assertEquals(size.intValue(), set.size());
+        assertEquals(size.intValue(), defaultRangeSet.size());
     }
 }

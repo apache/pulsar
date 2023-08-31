@@ -34,6 +34,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -41,6 +42,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -56,6 +58,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -75,6 +78,8 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
 
     @BeforeClass
     public void setup() throws Exception {
+        MLTransactionMetadataStoreProvider.initBufferedWriterMetrics("localhost");
+        MLPendingAckStoreProvider.initBufferedWriterMetrics("localhost");
         super.internalSetup();
     }
 
@@ -84,8 +89,9 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
     }
 
     @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+
         // enable transaction.
         conf.setSystemTopicEnabled(true);
         conf.setTransactionCoordinatorEnabled(true);
@@ -94,11 +100,17 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         conf.setTransactionPendingAckBatchedWriteMaxRecords(10);
         conf.setTransactionLogBatchedWriteEnabled(true);
         conf.setTransactionLogBatchedWriteMaxRecords(10);
+
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
+
     @Override
-    protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-        PulsarService pulsar = startBrokerWithoutAuthorization(conf);
+    protected void startBroker() throws Exception {
+        super.startBroker();
         ensureClusterExists(pulsar, clusterName);
         ensureTenantExists(pulsar.getPulsarResources().getTenantResources(), TopicName.PUBLIC_TENANT, clusterName);
         ensureNamespaceExists(pulsar.getPulsarResources().getNamespaceResources(), DEFAULT_NAMESPACE,
@@ -107,7 +119,6 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
                 clusterName);
         ensureTopicExists(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(),
                 SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, 16);
-        return pulsar;
     }
 
     @Test
@@ -119,6 +130,7 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         sendAndAckSomeMessages();
 
         // call metrics
+        @Cleanup
         Client client = ClientBuilder.newClient();
         WebTarget target = client.target(brokerUrl + "/metrics/get");
         Response response = target.request(MediaType.APPLICATION_JSON_TYPE).buildGet().invoke();
@@ -130,7 +142,7 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
 
         // verify tc.
         String metrics_key_txn_tc_record_count_sum =
-                "pulsar_txn_tc_bufferedwriter_batch_record_count_sum{cluster=\"%s\",broker=\"%s\"} ";
+                "pulsar_txn_tc_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
                 String.format(metrics_key_txn_tc_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);
@@ -146,7 +158,7 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
                 > 0);
         // verify pending ack.
         String metrics_key_txn_pending_ack_record_count_sum =
-                "pulsar_txn_pending_ack_store_bufferedwriter_batch_record_count_sum{cluster=\"%s\",broker=\"%s\"} ";
+                "pulsar_txn_pending_ack_store_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
                 String.format(metrics_key_txn_pending_ack_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);
@@ -163,7 +175,6 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
 
         // cleanup.
         response.close();
-        client.close();
         admin.topics().delete(topicName, true);
     }
 

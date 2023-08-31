@@ -123,14 +123,17 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     @Override
-    public void connectionOpened(ClientCnx cnx) {
+    public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
                     transactionCoordinatorId);
 
-            if (getState() == State.Closing || getState() == State.Closed) {
+            State state = getState();
+            if (state == State.Closing || state == State.Closed) {
                 setState(State.Closed);
                 failPendingRequest();
+                future.complete(null);
                 return;
             }
 
@@ -142,18 +145,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                 cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                     internalPinnedExecutor.execute(() -> {
                         LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
-                        if (!changeToReadyState()) {
-                            setState(State.Closed);
-                            cnx.channel().close();
+                        if (registerToConnection(cnx)) {
+                            this.connectionHandler.resetBackoff();
+                            pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
                         }
-
-                        connectionHandler.setClientCnx(cnx);
-                        cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-                        if (!this.connectFuture.isDone()) {
-                            this.connectFuture.complete(null);
-                        }
-                        this.connectionHandler.resetBackoff();
-                        pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
+                        future.complete(null);
                     });
                 }).exceptionally((e) -> {
                     internalPinnedExecutor.execute(() -> {
@@ -163,22 +159,36 @@ public class TransactionMetaStoreHandler extends HandlerState
                                 || e.getCause() instanceof PulsarClientException.NotAllowedException) {
                             setState(State.Closed);
                             cnx.channel().close();
+                            future.complete(null);
                         } else {
-                            connectionHandler.reconnectLater(e.getCause());
+                            future.completeExceptionally(e.getCause());
                         }
                     });
                     return null;
                 });
             } else {
-                if (!changeToReadyState()) {
-                    cnx.channel().close();
-                } else {
-                    connectionHandler.setClientCnx(cnx);
-                    cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-                }
-                this.connectFuture.complete(null);
+                LOG.warn("Can not connect to the transaction coordinator because the protocol version {} is "
+                                + "lower than 19", cnx.getRemoteEndpointProtocolVersion());
+                registerToConnection(cnx);
+                future.complete(null);
             }
         });
+        return future;
+    }
+
+    private boolean registerToConnection(ClientCnx cnx) {
+        if (changeToReadyState()) {
+            connectionHandler.setClientCnx(cnx);
+            cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
+            connectFuture.complete(null);
+            return true;
+        } else {
+            State state = getState();
+            cnx.channel().close();
+            connectFuture.completeExceptionally(
+                    new IllegalStateException("Failed to change the state from " + state + " to Ready"));
+            return false;
+        }
     }
 
     private void failPendingRequest() {
@@ -216,9 +226,9 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     void handleNewTxnResponse(CommandNewTxnResponse response) {
-        boolean hasError = response.hasError();
-        ServerError error;
-        String message;
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
         if (hasError) {
              error = response.getError();
              message = response.getMessage();
@@ -226,14 +236,13 @@ public class TransactionMetaStoreHandler extends HandlerState
             error = null;
             message = null;
         }
-        TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
-        long requestId = response.getRequestId();
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        final long requestId = response.getRequestId();
         internalPinnedExecutor.execute(() -> {
             OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(requestId);
             if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got new txn response for timeout {} - {}", txnID.getMostSigBits(),
-                            txnID.getLeastSigBits());
+                    LOG.debug("Got new txn response for transaction {}", txnID);
                 }
                 return;
             }
@@ -300,9 +309,9 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     void handleAddPublishPartitionToTxnResponse(CommandAddPartitionToTxnResponse response) {
-        boolean hasError = response.hasError();
-        ServerError error;
-        String message;
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
         if (hasError) {
             error = response.getError();
             message = response.getMessage();
@@ -310,14 +319,13 @@ public class TransactionMetaStoreHandler extends HandlerState
             error = null;
             message = null;
         }
-        TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
-        long requestId = response.getRequestId();
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        final long requestId = response.getRequestId();
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got add publish partition to txn response for timeout {} - {}", txnID.getMostSigBits(),
-                            txnID.getLeastSigBits());
+                    LOG.debug("Got add publish partition to txn response for transaction {}", txnID);
                 }
                 return;
             }
@@ -351,8 +359,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("{} for request {} error {} with txnID {}.", BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
-                        requestId, error, txnID);
+                LOG.error("{} for request {}, transaction {}, error: {}",
+                        BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId, txnID, error);
 
             }
 
@@ -384,9 +392,9 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
-        boolean hasError = response.hasError();
-        ServerError error;
-        String message;
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
         if (hasError) {
             error = response.getError();
             message = response.getMessage();
@@ -394,7 +402,8 @@ public class TransactionMetaStoreHandler extends HandlerState
             error = null;
             message = null;
         }
-        long requestId = response.getRequestId();
+        final long requestId = response.getRequestId();
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
@@ -410,8 +419,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 }
                 op.callback.complete(null);
             } else {
-                LOG.error("Add subscription to txn failed for request {} error {}.",
-                        requestId, error);
+                LOG.error("Add subscription to txn failed for request {}, transaction {}, error: {}",
+                        requestId, txnID, error);
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it"
@@ -465,9 +474,9 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     void handleEndTxnResponse(CommandEndTxnResponse response) {
-        boolean hasError = response.hasError();
-        ServerError error;
-        String message;
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
         if (hasError) {
             error = response.getError();
             message = response.getMessage();
@@ -475,21 +484,20 @@ public class TransactionMetaStoreHandler extends HandlerState
             error = null;
             message = null;
         }
-        TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
-        long requestId = response.getRequestId();
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        final long requestId = response.getRequestId();
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response for timeout {} - {}", txnID.getMostSigBits(),
-                            txnID.getLeastSigBits());
+                    LOG.debug("Got end txn response for transaction but no requests pending for txn {}", txnID);
                 }
                 return;
             }
 
             if (!hasError) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response success for request {}", requestId);
+                    LOG.debug("Got end txn response success for request {}, txn {}", requestId, txnID);
                 }
                 op.callback.complete(null);
             } else {
@@ -516,8 +524,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("Got {} response for request {} error {}", BaseCommand.Type.END_TXN.name(),
-                        requestId, error);
+                LOG.error("Got {} response for request {}, transaction {}, error: {}",
+                        BaseCommand.Type.END_TXN.name(), requestId, txnID, error);
 
             }
             onResponse(op);

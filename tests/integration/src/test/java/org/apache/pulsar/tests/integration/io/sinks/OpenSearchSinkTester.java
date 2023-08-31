@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
+import static org.testng.Assert.assertTrue;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.http.HttpHost;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -30,11 +32,10 @@ import org.opensearch.client.RestHighLevelClient;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import java.util.Map;
-
-import static org.testng.Assert.assertTrue;
-
 public class OpenSearchSinkTester extends ElasticSearchSinkTester {
+
+    public static final String OPENSEARCH = Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE"))
+            .orElse("opensearchproject/opensearch:1.2.4");
 
     private RestHighLevelClient elasticClient;
 
@@ -44,13 +45,17 @@ public class OpenSearchSinkTester extends ElasticSearchSinkTester {
     }
 
     @Override
-    protected ElasticsearchContainer createSinkService(PulsarCluster cluster) {
-        DockerImageName dockerImageName = DockerImageName.parse("opensearchproject/opensearch:1.2.4")
+    protected ElasticsearchContainer createElasticContainer() {
+        DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH)
                 .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
         return new ElasticsearchContainer(dockerImageName)
                 .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms128m -Xmx256m")
                 .withEnv("bootstrap.memory_lock", "true")
                 .withEnv("plugins.security.disabled", "true");
+    }
+
+    protected boolean isOpenSearch() {
+        return true;
     }
 
     @Override

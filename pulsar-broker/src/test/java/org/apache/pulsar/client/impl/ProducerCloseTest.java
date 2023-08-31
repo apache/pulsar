@@ -121,6 +121,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10_000, dataProvider = "produceConf")
     public void brokerCloseTopicTest(boolean enableBatch, boolean isAsyncSend) throws Exception {
+        @Cleanup
         PulsarClient longBackOffClient = PulsarClient.builder()
                 .startingBackoffInterval(5, TimeUnit.SECONDS)
                 .maxBackoffInterval(5, TimeUnit.SECONDS)
@@ -147,9 +148,8 @@ public class ProducerCloseTest extends ProducerConsumerBase {
     }
 
     private void initClient() throws PulsarClientException {
-        pulsarClient = PulsarClient.builder().
-                serviceUrl(lookupUrl.toString())
-                .build();
+        replacePulsarClient(PulsarClient.builder().
+                serviceUrl(lookupUrl.toString()));
     }
 
 }

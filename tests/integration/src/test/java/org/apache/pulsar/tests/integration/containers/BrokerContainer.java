@@ -33,6 +33,10 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
         tailContainerLog();
     }
 
+    public String getHostName() {
+        return super.hostname;
+    }
+
     @Override
     protected void afterStart() {
         DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),

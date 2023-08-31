@@ -93,11 +93,12 @@ public class EntryCacheDisabled implements EntryCache {
                     } finally {
                         ledgerEntries.close();
                     }
+                    ml.getMbean().recordReadEntriesOpsCacheMisses(entries.size(), totalSize);
                     ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
                     callback.readEntriesComplete(entries, ctx);
-                }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                }, ml.getExecutor()).exceptionally(exception -> {
             callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
             return null;
         });
@@ -120,6 +121,7 @@ public class EntryCacheDisabled implements EntryCache {
                             LedgerEntry ledgerEntry = iterator.next();
                             EntryImpl returnEntry = RangeEntryCacheManagerImpl.create(ledgerEntry, interceptor);
 
+                            ml.getMbean().recordReadEntriesOpsCacheMisses(1, returnEntry.getLength());
                             ml.getFactory().getMbean().recordCacheMiss(1, returnEntry.getLength());
                             ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
                             callback.readEntryComplete(returnEntry, ctx);
@@ -130,7 +132,7 @@ public class EntryCacheDisabled implements EntryCache {
                     } finally {
                         ledgerEntries.close();
                     }
-                }, ml.getExecutor().chooseThread(ml.getName()));
+                }, ml.getExecutor());
     }
 
     @Override

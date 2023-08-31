@@ -26,7 +26,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -188,15 +187,12 @@ public class ConcurrentBitmapSortedLongPairSetTest {
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
             final int threadIdx = i;
-
             futures.add(executor.submit(() -> {
-                Random random = new Random();
 
+                int start = N * (threadIdx + 1);
                 for (int j = 0; j < N; j++) {
-                    int key = random.nextInt();
+                    int key = start + j;
                     // Ensure keys are unique
-                    key -= key % (threadIdx + 1);
-                    key = Math.abs(key);
                     set.add(key, key);
                 }
             }));
